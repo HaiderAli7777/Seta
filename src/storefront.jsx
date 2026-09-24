@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowRight, ArrowUpRight, Banknote, ChevronDown, Heart, Mail, MapPin, Menu, MessageCircle, Package, Phone, RotateCcw, Search, ShieldCheck, ShoppingBag, SlidersHorizontal, Truck, User, X, Zap } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Banknote, ChevronDown, ChevronLeft, ChevronRight, Heart, Home, LayoutGrid, Mail, MapPin, Menu, MessageCircle, Package, Phone, RotateCcw, Search, ShieldCheck, ShoppingBag, SlidersHorizontal, Sparkles, Tag, Truck, User, X, Zap } from "lucide-react";
 import { CATEGORIES } from "./catalog/logic.mjs";
 
 const META = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
@@ -35,7 +35,7 @@ const ART = {
   drives: { Svg: DriveArt, tone: "steel" },
 };
 
-export function StoreHeader({ config, products, categories, active, special, category = "All", cartCount, wishCount, onHome, onShop, onSpecial, onProduct, onSearch, onCart, onWish, onAccount, onMenu, onTrade, onFinder, money }) {
+export function StoreHeader({ config, products, categories, active, special, category = "All", city, cities = [], onCity, cartCount, wishCount, onHome, onShop, onSpecial, onProduct, onSearch, onCart, onWish, onAccount, onMenu, onTrade, onFinder, money }) {
   const [search, setSearch] = useState("");
   const [focused, setFocused] = useState(false);
   const [selected, setSelected] = useState(-1);
@@ -77,9 +77,15 @@ export function StoreHeader({ config, products, categories, active, special, cat
         {config.logoUrl ? <img src={config.logoUrl} alt="" width="58" height="32" /> : <Zap size={30} />}
         <span>{config.storeName}<small>{config.storeSub}</small></span>
       </button>
+      {onCity && <label className="rv-deliver">
+        <MapPin size={18} aria-hidden="true" />
+        <span><small>Deliver to</small><b>{city}</b></span>
+        <ChevronDown size={14} aria-hidden="true" />
+        <select value={city} onChange={e => onCity(e.target.value)} aria-label="Delivery city">{cities.map(c => <option key={c}>{c}</option>)}</select>
+      </label>}
       <form className="rv-search" role="search" onSubmit={submit} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) { setFocused(false); setSelected(-1); } }}>
         <Search size={18} aria-hidden="true" />
-        <input ref={searchRef} type="search" role="combobox" aria-label="Search products" aria-autocomplete="list" aria-expanded={!!(focused && search.trim())} aria-controls="ed-product-suggestions" aria-activedescendant={focused && selected >= 0 && matches[selected] ? `ed-suggestion-${selected}` : undefined} placeholder="Search mice, keyboards, RAM, drives…" value={search} onChange={e => { setSearch(e.target.value); setFocused(true); setSelected(-1); }} onKeyDown={searchKey} onFocus={() => setFocused(true)} autoComplete="off" />
+        <input ref={searchRef} id="rv-search-input" type="search" role="combobox" aria-label="Search products" aria-autocomplete="list" aria-expanded={!!(focused && search.trim())} aria-controls="ed-product-suggestions" aria-activedescendant={focused && selected >= 0 && matches[selected] ? `ed-suggestion-${selected}` : undefined} placeholder="Search mice, keyboards, RAM, drives…" value={search} onChange={e => { setSearch(e.target.value); setFocused(true); setSelected(-1); }} onKeyDown={searchKey} onFocus={() => setFocused(true)} autoComplete="off" />
         {search ? <button className="rv-search-go" aria-label="Search catalog" type="submit"><ArrowRight size={17} /></button> : <kbd>Ctrl K</kbd>}
         {focused && search.trim() && <div className="rv-suggest">
           <div className="rv-label">{matches.length ? "Products" : "Search the catalogue"}</div>
@@ -212,6 +218,84 @@ export function FinderBand({ onFinder, onCompare }) {
   </div></section>;
 }
 
+export function CategoryCircles({ categories, count, onShop, onSpecial }) {
+  const order = ["mouse", "keyboard", "audio", "ram", "drives"];
+  const list = [...order.map(id => categories.find(c => c.id === id)).filter(Boolean), ...categories.filter(c => !c.parentId && !order.includes(c.id))];
+  return <nav className="ed-wrap rv-circles" aria-label="Shop by category">
+    {list.map(c => { const art = ART[c.id] || {}; const Svg = art.Svg; return <button key={c.id} onClick={() => onShop(c.id)}>
+      <span className={`rv-circle tone-${art.tone || "ice"}`}>{art.img ? <img src={art.img} alt="" loading="lazy" width="700" height="525" /> : Svg ? <Svg /> : <Package size={30} />}</span>
+      <b>{META[c.id]?.plural || c.label}</b><small>{count(c.id) || 0} items</small>
+    </button>; })}
+    <button onClick={() => onSpecial("new")}><span className="rv-circle tone-dark"><Sparkles size={30} /></span><b>New in</b><small>Latest arrivals</small></button>
+    <button onClick={() => onShop("All")}><span className="rv-circle tone-line"><LayoutGrid size={28} /></span><b>Everything</b><small>All products</small></button>
+  </nav>;
+}
+
+/* A horizontally scrolling shelf. Scroll-snap does the work on touch; the arrows are for mice. */
+export function ProductRail({ eyebrow, title, items, renderCard, onViewAll, note }) {
+  const track = useRef(null);
+  const [edge, setEdge] = useState({ start: true, end: false });
+  const measure = () => { const t = track.current; if (t) setEdge({ start: t.scrollLeft < 8, end: t.scrollLeft + t.clientWidth >= t.scrollWidth - 8 }); };
+  useEffect(() => { measure(); window.addEventListener("resize", measure); return () => window.removeEventListener("resize", measure); }, [items.length]);
+  if (!items.length) return null;
+  const move = dir => track.current?.scrollBy({ left: dir * track.current.clientWidth * 0.85, behavior: "smooth" });
+  return <section className="rv-rail reveal"><div className="ed-wrap">
+    <div className="rv-rail-head">
+      <div>{eyebrow && <span className="rv-eyebrow">{eyebrow}</span>}<h2>{title}</h2>{note && <p>{note}</p>}</div>
+      <div className="rv-rail-tools">
+        {onViewAll && <button className="rv-textlink" onClick={onViewAll}>View all <ArrowRight size={15} /></button>}
+        <button className="rv-arrow" onClick={() => move(-1)} disabled={edge.start} aria-label={`Scroll ${title} back`}><ChevronLeft size={18} /></button>
+        <button className="rv-arrow" onClick={() => move(1)} disabled={edge.end} aria-label={`Scroll ${title} forward`}><ChevronRight size={18} /></button>
+      </div>
+    </div>
+    <div className="rv-rail-track" ref={track} onScroll={measure}>{items.map((p, i) => renderCard(p, i))}</div>
+  </div></section>;
+}
+
+/* Promotional tile. `value` is the big number ("from Rs 990"); art is a cutout path or "ram" / "drive". */
+export function PromoBanner({ tone = "cobalt", kicker, title, value, note, art, cta = "Shop now", onClick, wide }) {
+  const Art = art === "ram" ? RamArt : art === "drive" ? DriveArt : null;
+  return <button className={`rv-promo tone-${tone}${wide ? " wide" : ""}`} onClick={onClick}>
+    <span className="rv-promo-copy">
+      {kicker && <span className="rv-promo-kicker">{kicker}</span>}
+      <strong>{title}</strong>
+      {value && <span className="rv-promo-value">{value}</span>}
+      {note && <span className="rv-promo-note">{note}</span>}
+      <span className="rv-promo-cta">{cta} <ArrowRight size={15} /></span>
+    </span>
+    <span className="rv-promo-art" aria-hidden="true">{Art ? <Art /> : art ? <img src={art} alt="" loading="lazy" width="700" height="525" /> : null}</span>
+  </button>;
+}
+
+export function HelpBand({ config, onTrack }) {
+  const cards = [
+    { Icon: MessageCircle, t: "Chat on WhatsApp", s: config.storePhone, href: waHref(config.storePhone), ext: true },
+    { Icon: Phone, t: "Call us", s: config.storePhone, href: telHref(config.storePhone) },
+    { Icon: Mail, t: "Email the team", s: config.storeEmail, href: `mailto:${config.storeEmail}` },
+    { Icon: Truck, t: "Track an order", s: "Use your ED- order number", onClick: onTrack },
+  ];
+  return <section className="rv-help" aria-labelledby="rv-help-title"><div className="ed-wrap">
+    <div className="rv-help-head"><h2 id="rv-help-title">Do you need help?</h2><p>Real people in Lahore, happy to help you pick the right device or sort out an order.</p></div>
+    <div className="rv-help-grid">{cards.map(({ Icon, t, s, href, ext, onClick }) => {
+      const inner = <><span className="rv-help-ic"><Icon size={20} /></span><span><b>{t}</b><small>{s}</small></span><ArrowUpRight size={16} className="rv-help-go" /></>;
+      return href ? <a key={t} href={href} target={ext ? "_blank" : undefined} rel={ext ? "noopener noreferrer" : undefined}>{inner}</a> : <button key={t} onClick={onClick}>{inner}</button>;
+    })}</div>
+  </div></section>;
+}
+
+/* App-style tab bar for phones. Hidden from 761 px up. */
+export function BottomNav({ active, cartCount, wishCount, onHome, onCategories, onSearch, onCart, onAccount }) {
+  const tabs = [
+    ["home", Home, "Home", onHome], ["cats", LayoutGrid, "Categories", onCategories], ["search", Search, "Search", onSearch],
+    ["bag", ShoppingBag, "Bag", onCart], ["account", User, "Account", onAccount],
+  ];
+  return <nav className="rv-tabbar" aria-label="Quick navigation">
+    {tabs.map(([k, I, label, fn]) => <button key={k} className={active === k ? "on" : ""} onClick={fn} aria-current={active === k ? "page" : undefined}>
+      <span className="rv-tab-ic"><I size={21} />{k === "bag" && cartCount > 0 && <b>{cartCount}</b>}</span>{label}
+    </button>)}
+  </nav>;
+}
+
 export function RestockRequest({ config, onNotify }) {
   const [email, setEmail] = useState("");
   const [opened, setOpened] = useState(false);
@@ -240,8 +324,26 @@ export function RestockRequest({ config, onNotify }) {
   </section>;
 }
 
-export function StoreFooter({ config, categories, onHome, onShop, onSpecial, onAccount, onTrack, onTrade, onConsole, onInfo }) {
+function FooterSignup({ config, onNotify }) {
+  const [email, setEmail] = useState("");
+  const [opened, setOpened] = useState(false);
+  const submit = e => {
+    e.preventDefault();
+    if (!e.currentTarget.reportValidity()) return;
+    window.location.href = `mailto:${config.storeEmail}?subject=${encodeURIComponent("Restock and product updates")}&body=${encodeURIComponent(`Hello ${config.storeName},\n\nPlease let me know about new arrivals and restocks. My email address is ${email}.\n\nThank you.`)}`;
+    setOpened(true);
+    onNotify && onNotify("Your email app is opening. Send the request to finish.");
+  };
+  return <form className="rv-foot-signup" onSubmit={submit}>
+    <div><h3>Restock alerts</h3><p>Hear about new arrivals and restocks before they sell out.</p></div>
+    <div className="rv-foot-field"><label htmlFor="ed-restock-email" className="ed-sr-only">Your email address</label><input id="ed-restock-email" type="email" autoComplete="email" placeholder="you@example.com" required value={email} onChange={e => { setEmail(e.target.value); setOpened(false); }} /><button type="submit">Notify me</button></div>
+    <small aria-live="polite">{opened ? "Send the message in your email app to finish." : "Opens an email to our team. Nothing is sent until you press send."}</small>
+  </form>;
+}
+
+export function StoreFooter({ config, categories, onHome, onShop, onSpecial, onAccount, onTrack, onTrade, onConsole, onInfo, onNotify }) {
   return <footer className="rv-footer"><div className="ed-wrap">
+    <FooterSignup config={config} onNotify={onNotify} />
     <div className="rv-foot-top">
       <div className="rv-foot-brand">
         <button className="rv-brand light" onClick={onHome} aria-label={`${config.storeName} home`}><img src="./assets/brand/epic-mark-light.svg" alt="" width="58" height="32" /><span>{config.storeName}<small>{config.storeSub}</small></span></button>

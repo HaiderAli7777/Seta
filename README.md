@@ -1,8 +1,17 @@
-# EPIC DEVICES 6.0
+# EPIC DEVICES 6.1
 
 The online store for **epicdevicesltd.com**: storefront, checkout with delivery, and the business console, running as one Node.js app on Hostinger. Customers' orders are saved on the server and appear in the console.
 
-## What's new in 6.0: the storefront redesign
+## What's new in 6.1
+
+- **Marketplace home page.** Round category shortcuts, then shelves of products you can swipe (top picks, mice, audio, memory, drives, keyboards) with promotional tiles in between. Every price and range on a tile ("from Rs 5,280", "Up to 24TB") is worked out from the live catalogue. A "Do you need help?" band links WhatsApp, phone, email and order tracking; restock alerts moved into the footer.
+- **Product cards** show the brand, a two-line name, the price and a full-width **Add to bag** button; offers show a discount badge such as −15%.
+- **Deliver to** picker in the header sets the delivery city used for shipping estimates (now Lahore by default, same delivery zone as before).
+- **Phones** get an app-style tab bar (Home, Categories, Search, Bag, Account) and a shorter hero.
+- **Console dashboard:** fast-moving items (units sold, weekly rate, days of stock left, reorder flag), slow-moving items (idle stock and how much cash it ties up, when each last sold) and a **vendor scorecard** (sell-through of what each supplier delivered, faulty or returned units, credit terms). All follow the dashboard's date range.
+- **Product photos from official pages.** `src/catalog/photo-sources.json` lists the manufacturer's page for 44 of the 49 products. On your own computer run `npm run photos:fetch`: it downloads each page's main product image into `assets/products/` and writes `reports/photo-fetch.csv`. Check the photos (model and colour), then push. The other 5 (Rapoo H102, A4Tech HS-8i, HU-8, FH100U, Amaze A680) have no official page; ask your distributor for those.
+
+## What was new in 6.0: the storefront redesign
 
 Checkout, orders, the console and deployment work exactly as in 5.2. Only what customers see has changed, plus a few storefront bugs found along the way.
 

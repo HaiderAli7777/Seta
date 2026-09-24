@@ -5,7 +5,7 @@ import UPGRADE_CSS from "./upgrade.css";
 import EXPERIENCE_CSS from "./experience.css";
 import REVAMP_CSS from "./revamp.css";
 import { DiscoveryStrip, ProductFinder, QuickView, ProductCompare } from "./experience.jsx";
-import { StoreHeader, CollectionGrid, TrustBar, BudgetShelf, BrandWall, FinderBand, RestockRequest, StoreFooter, StoreInfo } from "./storefront.jsx";
+import { StoreHeader, CategoryCircles, TrustBar, BudgetShelf, BrandWall, FinderBand, ProductRail, PromoBanner, HelpBand, BottomNav, StoreFooter, StoreInfo } from "./storefront.jsx";
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   ShoppingCart, Search, Heart, User, Lock, Menu, X, Plus, Minus, Check, ChevronRight, ChevronLeft,
@@ -3744,7 +3744,7 @@ export default function App({ initialView = "store" } = {}) {
   const [activeId, setActiveId] = useState(null);
   const [trackId, setTrackId] = useState("");
   const [tracked, setTracked] = useState(null);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", city: "Karachi", zoneId: "z1", methodId: "standard", paymentMethod: "cod" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", city: "Lahore", zoneId: "z1", methodId: "standard", paymentMethod: "cod" });
   const [promoCode, setPromoCode] = useState("");
   const [appliedPromo, setAppliedPromo] = useState(null);
   const [anncIdx, setAnncIdx] = useState(0);
@@ -7099,7 +7099,7 @@ export default function App({ initialView = "store" } = {}) {
             const frames = galleryFrames(p);
             if (!frames.length) return (
               <span className="rv-ph">
-                <span className="rv-ph-brand">{p.brand}</span>
+                <span />
                 <I size={listMode ? 40 : 54} strokeWidth={1.25} className="icn" />
                 <span className="rv-ph-specs">{(p.specs || []).filter(([k]) => !/model|colour/i.test(k)).slice(0, 2).map(([k, v]) => <i key={k}>{v}</i>)}</span>
               </span>
@@ -7121,7 +7121,7 @@ export default function App({ initialView = "store" } = {}) {
             );
           })()}
           <div className="card-tags">
-            {inf.offPct > 0 && <span className="pill violet">Sale</span>}
+            {inf.offPct > 0 && <span className="pill violet">−{inf.offPct}%</span>}
             {p.isNew && <span className="pill blue">New</span>}
           </div>
           <div className="card-acts" onClick={(e) => e.stopPropagation()}>
@@ -7137,8 +7137,8 @@ export default function App({ initialView = "store" } = {}) {
         </div>
         <div className="card-body">
           <div className="lb-main">
+            <div className="rv-card-brand">{p.brand}</div>
             <h3><button onClick={() => openProduct(p.id)}>{p.name}</button></h3>
-            <div className="card-sub">{subtitleOf(p)}</div>
             {p.reviews > 0 && <div className="card-rate">
               {renderStars(p.rating, 12)}
               <span className="rc">({p.reviews.toLocaleString("en-US")})</span>
@@ -7157,8 +7157,8 @@ export default function App({ initialView = "store" } = {}) {
               <div className="price">{money(inf.final)}{inf.was && <s>{money(inf.was)}</s>}</div>
               {inf.promo && <div className="price-off">{inf.promo.name}</div>}
             </div>
-            <button className="add-btn" disabled={out} onClick={() => addToCart(p.id)} aria-label={"Add " + p.name + " to cart"}>
-              {out ? <X size={16} /> : <ShoppingCart size={17} />}
+            <button className="add-btn" disabled={out} onClick={() => addToCart(p.id)} aria-label={"Add " + p.name + " to bag"}>
+              {out ? <X size={16} /> : <ShoppingBag size={16} />}<span>{out ? "Sold out" : "Add to bag"}</span>
             </button>
           </div>
         </div>
@@ -7215,7 +7215,8 @@ export default function App({ initialView = "store" } = {}) {
   );
 
   const renderNav = () => <StoreHeader config={config} products={products} categories={parents}
-    active={storeView} special={special} category={category} cartCount={cartCount} wishCount={wishlist.length}
+    active={storeView} special={special} category={category}
+    city={form.city} cities={PK_CITIES.map((c) => c.name)} onCity={selectCity} cartCount={cartCount} wishCount={wishlist.length}
     onHome={() => { setStoreView("home"); setMobileMenu(false); window.scrollTo(0, 0); }}
     onShop={goShop} onSpecial={navSpecial} onProduct={openProduct}
     onSearch={(value) => { goShop("All", true); setQuery(value); }}
@@ -7252,7 +7253,6 @@ export default function App({ initialView = "store" } = {}) {
   const renderHero = () => <BrandHero onShop={(cat) => goShop(cat)} onFinder={() => setFinderOpen(true)} />;
 
   /* ══════════════════════════ CATEGORY ROW ══════════════════════════ */
-  const renderCategoryRow = () => <CollectionGrid categories={categories} onShop={goShop} count={catCount} />;
 
   /* ══════════════════════════ FEATURED ══════════════════════════ */
   /* ══════════════════════════ SHOWREEL ══════════════════════════
@@ -7489,6 +7489,63 @@ export default function App({ initialView = "store" } = {}) {
     );
   };
 
+  /* ══════════════════════════ HOME ══════════════════════════
+     A marketplace front page: shortcuts, then shelves of products separated by
+     promotional tiles. Every number on a tile is worked out from the live catalogue,
+     so a tile never promises a price or a range the shop does not have. */
+  const renderHome = () => {
+    const live = products.filter((p) => p.active);
+    const price = (p) => pInfo(p).final;
+    const spec = (p, key) => ((p.specs || []).find(([k]) => k.toLowerCase() === key) || [])[1] || "";
+    const from = (list) => (list.length ? "from " + money(Math.min(...list.map(price))) : null);
+    const inCat = (id) => live.filter((p) => p.category === id);
+    const shelf = (id) => [...inCat(id)].sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0) || displaySold(b) - displaySold(a) || price(a) - price(b));
+    const gaming = inCat("mouse").filter((p) => /gaming/i.test(spec(p, "type")) || /^Logitech G\d/.test(p.name));
+    const ddr5 = inCat("ram").filter((p) => /DDR5/i.test(spec(p, "memory type")));
+    const portable = inCat("drives").filter((p) => /portable/i.test(spec(p, "type")));
+    const internal = inCat("drives").filter((p) => !/portable|external/i.test(spec(p, "type")));
+    const tb = (p) => parseFloat((spec(p, "capacity").match(/([\d.]+)\s*TB/i) || [])[1]) || 0;
+    const maxTb = Math.max(0, ...inCat("drives").map(tb));
+    const brandsOf = (list) => [...new Set(list.map((p) => p.brand))].slice(0, 4).join(" · ");
+    const rail = (id, eyebrow, title) => {
+      const list = shelf(id);
+      return list.length >= 4 ? <ProductRail eyebrow={eyebrow} title={title} items={list.slice(0, 12)} renderCard={renderCard} onViewAll={() => goShop(id)} /> : null;
+    };
+    const recent = recentList();
+    return (
+      <>
+        {renderHero()}
+        <CategoryCircles categories={categories} count={catCount} onShop={goShop} onSpecial={navSpecial} />
+        <TrustBar config={config} />
+        <ProductRail eyebrow="Picked for you" title="Top picks this week" items={featured.best} renderCard={renderCard} onViewAll={() => goShop("All")} />
+        {(gaming.length > 0 || inCat("audio").length > 0) && <div className="ed-wrap rv-promo-row two reveal">
+          {gaming.length > 0 && <PromoBanner tone="cobalt" kicker="Gaming mice" title="Every move matters." value={from(gaming)} note={gaming.length + " models · " + brandsOf(gaming)} art="./assets/slides/slide-mouse-700.webp" onClick={() => goShop("mouse")} />}
+          {inCat("audio").length > 0 && <PromoBanner tone="graphite" kicker="Headsets & microphones" title="Be heard. Get immersed." value={from(inCat("audio"))} note={brandsOf(inCat("audio"))} art="./assets/slides/slide-headphones-700.webp" onClick={() => goShop("audio")} />}
+        </div>}
+        {rail("mouse", "Mice", "Mice for work and play")}
+        {inCat("ram").length > 0 && <div className="ed-wrap rv-promo-row one reveal">
+          <PromoBanner wide tone="steel" kicker={ddr5.length ? "DDR4 and DDR5" : "Memory"} title="Room to do more." value={from(inCat("ram"))} note={brandsOf(inCat("ram"))} art="ram" cta="Upgrade your memory" onClick={() => goShop("ram")} />
+        </div>}
+        {rail("audio", "Audio", "Headsets & microphones")}
+        <div className="ed-wrap rv-promo-row three reveal">
+          {inCat("keyboard").length > 0 && <PromoBanner tone="ice" kicker="Keyboards" title="Find your flow." value={from(inCat("keyboard"))} note={brandsOf(inCat("keyboard"))} art="./assets/slides/slide-keyboard-700.webp" onClick={() => goShop("keyboard")} />}
+          {portable.length > 0 && <PromoBanner tone="cobalt" kicker="Portable drives" title="Take it with you." value={from(portable)} note={brandsOf(portable)} art="drive" onClick={() => goShop("drives")} />}
+          {internal.length > 0 && <PromoBanner tone="graphite" kicker="Desktop & enterprise" title={maxTb ? "Up to " + maxTb + "TB." : "Big storage."} value={from(internal)} note={brandsOf(internal)} art="drive" onClick={() => goShop("drives")} />}
+        </div>
+        {rail("ram", "Memory", "RAM upgrades")}
+        <FinderBand onFinder={() => setFinderOpen(true)} />
+        {rail("drives", "Storage", "Hard drives")}
+        {rail("keyboard", "Keyboards", "Keyboards & keypads")}
+        <BudgetShelf products={products} priceOf={price} money={money}
+          onBudget={(lo, hi) => { goShop("All"); setPriceLo(lo); setPriceHi(hi); }} />
+        <BrandWall products={products} onBrand={(b) => { goShop("All"); setBrands([b]); }} />
+        {renderPromoBanners()}
+        {recent.length >= 2 && <ProductRail eyebrow="Pick up where you left off" title="Recently viewed" items={recent} renderCard={renderCard} />}
+        <HelpBand config={config} onTrack={() => { setStoreView("track"); window.scrollTo(0, 0); }} />
+      </>
+    );
+  };
+
   const renderFeatured = () => {
     if (!products.some(p => p.active)) return null;
     const tabs = [["best", "Best sellers"], ["new", "Just landed"], ["top", "Top rated"], ["deals", "On sale"]].filter(([k]) => k === "best" || (featured[k] || []).length);
@@ -7510,7 +7567,6 @@ export default function App({ initialView = "store" } = {}) {
   };
 
   /* ══════════════════════════ BANDS ══════════════════════════ */
-  const renderNewsBand = () => <RestockRequest config={config} onNotify={msg => pushToast(msg, Info)} />;
 
   const renderDealBand = () => {
     const best = Math.max(0, ...products.filter(p => p.active).map(p => pInfo(p).offPct));
@@ -7808,6 +7864,7 @@ export default function App({ initialView = "store" } = {}) {
     );
   };
 
+  const recentList = () => recent.map((id) => byId[id]).filter((p) => p && p.active).slice(0, 12);
   const renderRecent = () => {
     const list = recent.map((id) => byId[id]).filter(Boolean).slice(0, 6);
     if (list.length < 2) return null;
@@ -7864,7 +7921,8 @@ export default function App({ initialView = "store" } = {}) {
     onHome={() => { setStoreView("home"); window.scrollTo(0, 0); }} onShop={goShop} onSpecial={navSpecial}
     onAccount={() => { setStoreView("portal"); setPortalOrder(null); window.scrollTo(0, 0); }}
     onTrack={() => { setStoreView("track"); window.scrollTo(0, 0); }}
-    onTrade={() => { setStoreView("b2b"); window.scrollTo(0, 0); }} onConsole={openConsole} onInfo={setInfoTopic} />;
+    onTrade={() => { setStoreView("b2b"); window.scrollTo(0, 0); }} onConsole={openConsole} onInfo={setInfoTopic}
+    onNotify={(msg) => pushToast(msg, Info)} />;
 
   /* ══════════════════════════ PRODUCT DETAIL ══════════════════════════ */
   const renderProductDetail = () => {
@@ -9001,7 +9059,8 @@ export default function App({ initialView = "store" } = {}) {
       const last = bought.reduce((t, po) => Math.max(t, po.at || 0), 0);
       return { sup, orders: bought.length, units, spend, faultsUnits: faultsUnits + back, sellThrough, defect, score, last, products: ids.size };
     }).sort((x, y) => (y.score ?? -1) - (x.score ?? -1) || y.spend - x.spend);
-    return { days, fast, slow, slowTied, vendors };
+    const atPrice = rows.some((r) => r.p.stock > 0 && r.units === 0 && !(r.p.cost > 0));
+    return { days, fast, slow, slowTied, atPrice, vendors };
   }, [dashRange, orders, docs, products, suppliers, purchases, faults, lots]);
 
   const channelData = useMemo(() => {
@@ -9420,7 +9479,7 @@ export default function App({ initialView = "store" } = {}) {
           return (
             <div className="mv-grid">
               <div className="cpanel mv-panel">
-                <div className="cpanel-h"><h3><Zap size={16} /> Fast-moving items</h3><div className="r"><span className="spec">units sold · {M.days} days</span></div></div>
+                <div className="cpanel-h"><h3><Zap size={16} /> Fast-moving items</h3><div className="r"><span className="spec">units sold · {M.days} day{M.days === 1 ? "" : "s"}</span></div></div>
                 <div className="cpanel-b">
                   {M.fast.length === 0 && <p className="hint" style={{ marginTop: 0 }}>Nothing has sold in this range yet. Fast movers appear here as orders come in.</p>}
                   {M.fast.map((r, i) => (
@@ -9433,7 +9492,7 @@ export default function App({ initialView = "store" } = {}) {
                 </div>
               </div>
               <div className="cpanel mv-panel">
-                <div className="cpanel-h"><h3><Clock size={16} /> Slow-moving items</h3><div className="r"><span className="spec">{money(M.slowTied)} unsold stock</span></div></div>
+                <div className="cpanel-h"><h3><Clock size={16} /> Slow-moving items</h3><div className="r"><span className="spec" title={M.atPrice ? "Valued at selling price where no cost price is entered" : "Valued at cost"}>{money(M.slowTied)} idle{M.atPrice ? " at retail" : ""}</span></div></div>
                 <div className="cpanel-b">
                   {M.slow.length === 0 && <p className="hint" style={{ marginTop: 0 }}>No slow stock: everything in stock sold in this range.</p>}
                   {M.slow.map((r) => (
@@ -17874,17 +17933,7 @@ export default function App({ initialView = "store" } = {}) {
           <main id="main-content" tabIndex={-1}>
           {storeView === "home" && (
             <>
-              {renderHero()}
-              <TrustBar config={config} />
-              {renderCategoryRow()}
-              {renderFeatured()}
-              <BudgetShelf products={products} priceOf={p => pInfo(p).final} money={money}
-                onBudget={(lo, hi) => { goShop("All"); setPriceLo(lo); setPriceHi(hi); }} />
-              <FinderBand onFinder={() => setFinderOpen(true)} />
-              <BrandWall products={products} onBrand={(b) => { goShop("All"); setBrands([b]); }} />
-              {renderPromoBanners()}
-              {renderRecent()}
-              {renderNewsBand()}
+              {renderHome()}
             </>
           )}
           {storeView === "shop" && (
@@ -17913,6 +17962,12 @@ export default function App({ initialView = "store" } = {}) {
             wished={wishlist.includes(quickId)} compared={compare.includes(quickId)} cartQuantity={cart.find(l => l.id === quickId)?.qty || 0} config={config}
             onClose={() => setQuickId(null)} onAdd={addToCart} onWish={() => toggleWish(quickId)} onCompare={() => toggleCompare(quickId)}
             onDetails={() => { setQuickId(null); openProduct(quickId); }} onBag={() => { setQuickId(null); setCartOpen(true); }} />}
+          <BottomNav active={storeView === "home" ? "home" : storeView === "portal" ? "account" : ""} cartCount={cartCount}
+            onHome={() => { setStoreView("home"); setMobileMenu(false); window.scrollTo(0, 0); }}
+            onCategories={() => setMobileMenu(true)}
+            onSearch={() => { window.scrollTo(0, 0); setTimeout(() => document.getElementById("rv-search-input")?.focus(), 60); }}
+            onCart={() => setCartOpen(true)}
+            onAccount={() => { setStoreView("portal"); setPortalOrder(null); window.scrollTo(0, 0); }} />
           {renderCartDrawer()}
           {renderCompareTray()}
           {renderCompareModal()}
