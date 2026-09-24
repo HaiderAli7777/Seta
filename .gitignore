@@ -7,3 +7,4 @@ node_modules/
 dist/
 build/
 reports/product-photos.csv
+reports/photo-fetch.csv

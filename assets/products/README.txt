@@ -5,6 +5,11 @@ Example: g304.jpg. JPG, PNG, WebP and AVIF all work; a plain white background an
 The build trims, centres and pads every photo and saves fast WebP versions by itself.
 Use photos you are allowed to use: your own, the manufacturer's official product images, or your distributor's.
 
+Quick start: on your own computer run  npm run photos:fetch
+It downloads the main image from each product's official manufacturer page (listed in
+src/catalog/photo-sources.json) into this folder and writes reports/photo-fetch.csv.
+Check every photo shows the model and colour you sell, then push.
+
 Mice
   fm10s.jpg                        A4Tech FM10S Silent Mouse
   op330s.jpg                       A4Tech OP-330S Silent Mouse

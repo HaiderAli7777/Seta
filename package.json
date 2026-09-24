@@ -13,7 +13,8 @@
     "test": "node --test tests/*.test.mjs",
     "check:catalog": "node scripts/validate-catalog.mjs",
     "check:release": "node scripts/validate-catalog.mjs --release",
-    "import:catalog": "node scripts/import-catalog.mjs"
+    "import:catalog": "node scripts/import-catalog.mjs",
+    "photos:fetch": "node scripts/fetch-product-photos.mjs"
   },
   "devDependencies": {
     "jsdom": "29.1.1"
