@@ -9,9 +9,17 @@
      GET  /api/orders            (admin) every order
      PUT  /api/orders            (admin) save order changes from the console
      GET  /api/track?id=         order status for the Track order page, without personal details
-     GET  /media/<file>          photos uploaded in the console
+     GET  /api/photos            official product photos the server has fetched so far
+     POST /api/photos/sync       (admin) look again for missing official photos now
+     POST /api/media/import      (admin) download a photo from a link and keep a copy here
+     GET  /media/<file>          photos uploaded in the console and official product photos
    Data lives in EPIC_DATA_DIR (default ~/epic-data), outside the deployed folder, so a
-   redeploy never touches it. No dependencies beyond Node.js itself. */
+   redeploy never touches it. No dependencies beyond Node.js itself.
+   Official product photos: after it starts, the server downloads the main image from each
+   product's official manufacturer page (src/catalog/photo-sources.json) into
+   <data>/media/products/, one product at a time, and tries missing ones again once a day.
+   The storefront shows them on products that have no photo of their own. Set
+   EPIC_PHOTO_SYNC=off to switch this off. */
 import { createServer } from 'node:http';
 import { readFile, writeFile, rename, mkdir, stat } from 'node:fs/promises';
 import { readFileSync, existsSync } from 'node:fs';
@@ -21,6 +29,7 @@ import { createHmac, createHash, randomBytes, randomInt, timingSafeEqual } from 
 import { gzipSync, brotliCompressSync, constants as zlib } from 'node:zlib';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { sellingPrice } from './src/catalog/logic.mjs';
+import { fetchOfficialPhoto } from './scripts/official-photos.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const TYPES = {
@@ -47,6 +56,7 @@ export function createApp(options = {}) {
   const dataDir = resolve(options.dataDir || process.env.EPIC_DATA_DIR || join(homedir(), 'epic-data'));
   const adminUser = String(options.adminUser ?? process.env.EPIC_ADMIN_USER ?? 'admin').trim().toLowerCase();
   const adminPassword = String(options.adminPassword ?? process.env.EPIC_ADMIN_PASSWORD ?? '');
+  const allowPrivateImports = !!options.allowPrivateImports;
   const catalog = new Map(JSON.parse(readFileSync(join(ROOT, 'src/catalog/products.json'), 'utf8')).map((p) => [p.id, { name: p.name, price: sellingPrice(p) }]));
 
   /* storage: small JSON files, written atomically, one write at a time */
@@ -120,6 +130,71 @@ export function createApp(options = {}) {
       return out;
     }
     return value;
+  };
+
+  /* official product photos, fetched in the background and kept in the data folder */
+  const photoDir = join(dataDir, 'media', 'products');
+  let photoRun = null;
+  const officialPhotos = async () => {
+    const index = await readJson('photos.json', {});
+    const out = {};
+    for (const [id, e] of Object.entries(index)) if (e.file && existsSync(join(photoDir, e.file))) out[id] = './media/products/' + e.file;
+    return out;
+  };
+  const syncPhotos = ({ sources, retryAfterMs = 86400000, pauseMs = 1200, timeoutMs = 20000 } = {}) => {
+    if (photoRun) return photoRun;
+    photoRun = (async () => {
+      const list = sources || JSON.parse(readFileSync(join(ROOT, 'src/catalog/photo-sources.json'), 'utf8')).products;
+      const summary = { saved: 0, failed: 0, skipped: 0 };
+      for (const [id, src] of Object.entries(list)) {
+        if (!src || (!src.page && !src.image)) { summary.skipped++; continue; }
+        const index = await readJson('photos.json', {});
+        const e = index[id];
+        if (e?.file && existsSync(join(photoDir, e.file))) { summary.skipped++; continue; }
+        if (e?.error && Date.now() - e.at < retryAfterMs) { summary.skipped++; continue; }
+        let entry;
+        try {
+          const { buffer, ext, image } = await fetchOfficialPhoto(src, { timeoutMs });
+          const file = id.replace(/[^a-z0-9-]/gi, '') + '-' + createHash('sha1').update(buffer).digest('hex').slice(0, 8) + '.' + ext;
+          await mkdir(photoDir, { recursive: true });
+          await writeFile(join(photoDir, file), buffer);
+          entry = { file, image, page: src.page || '', at: Date.now() };
+          summary.saved++;
+        } catch (error) {
+          entry = { error: String(error.message || error).slice(0, 200), page: src.page || '', at: Date.now() };
+          summary.failed++;
+        }
+        await serial(async () => { const idx = await readJson('photos.json', {}); idx[id] = entry; await writeJson('photos.json', idx); });
+        if (pauseMs) await new Promise((r) => setTimeout(r, pauseMs));
+      }
+      return summary;
+    })().finally(() => { photoRun = null; });
+    return photoRun;
+  };
+
+  /* a photo link pasted in the console: download it once so the shop keeps its own copy
+     (retailer sites often block other sites from showing their images) */
+  const PRIVATE_HOST = /^(localhost|.*\.local|.*\.internal|0\.0\.0\.0|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?|\[?f[cd])/i;
+  const importMedia = async (link) => {
+    let url;
+    try { url = new URL(String(link || '').trim()); } catch { throw new HttpError(400, 'That does not look like a web link.'); }
+    if (!/^https?:$/.test(url.protocol)) throw new HttpError(400, 'Only http and https links can be imported.');
+    if (!allowPrivateImports && PRIVATE_HOST.test(url.hostname)) throw new HttpError(400, 'That link points to a private address.');
+    let res;
+    try {
+      res = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36', accept: 'image/avif,image/webp,image/png,image/jpeg,*/*' }, redirect: 'follow', signal: AbortSignal.timeout(20000) });
+    } catch { throw new HttpError(502, 'The photo could not be downloaded. Try another link.'); }
+    if (!res.ok) throw new HttpError(502, `The other site answered ${res.status}. Try another link.`);
+    const type = (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif', 'image/gif': 'gif' }[type];
+    if (!ext) throw new HttpError(400, 'That link is not a photo. In Google Images, open the photo, right-click it and choose "Copy image address".');
+    const buffer = Buffer.from(await res.arrayBuffer());
+    if (buffer.length < 1500) throw new HttpError(400, 'That photo is too small.');
+    if (buffer.length > 10 * 1024 * 1024) throw new HttpError(400, 'That photo is over 10 MB.');
+    const name = createHash('sha1').update(buffer).digest('hex').slice(0, 16) + '.' + ext;
+    await mkdir(join(dataDir, 'media'), { recursive: true });
+    if (!existsSync(join(dataDir, 'media', name))) await writeFile(join(dataDir, 'media', name), buffer);
+    return './media/' + name;
   };
 
   const newOrderId = (orders) => {
@@ -221,6 +296,18 @@ export function createApp(options = {}) {
     const route = url.pathname.replace(/^\/api\//, '').replace(/\/+$/, '');
     const m = req.method;
     if (route === 'health' && m === 'GET') return json(res, 200, { ok: true, admin: !!adminPassword, time: Date.now() });
+    if (route === 'photos' && m === 'GET') return json(res, 200, { photos: await officialPhotos() });
+    if (route === 'photos/sync' && m === 'POST') {
+      await requireAdmin(req);
+      const running = !!photoRun;
+      syncPhotos().then((r) => console.log('Official photos:', r)).catch((e) => console.error('Official photos failed:', e.message));
+      return json(res, 202, { started: !running, running });
+    }
+    if (route === 'media/import' && m === 'POST') {
+      await requireAdmin(req);
+      const body = await readBody(req, 4 * 1024);
+      return json(res, 201, { url: await importMedia(body.url) });
+    }
     if (route === 'state' && m === 'GET') {
       const state = await readJson('state.json', {});
       const out = {}; for (const k of STATE_KEYS) if (state[k] !== undefined) out[k] = state[k];
@@ -297,13 +384,22 @@ export function createApp(options = {}) {
       if (!res.headersSent) json(res, status, { error: status === 500 ? 'Something went wrong on our side. Please try again.' : error.message });
     }
   };
-  return createServer(handler);
+  const server = createServer(handler);
+  server.syncPhotos = syncPhotos;
+  return server;
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
   const port = Number(process.env.PORT) || 3000;
-  createApp().listen(port, () => {
+  const app = createApp();
+  app.listen(port, () => {
     console.log(`EPIC DEVICES is running on port ${port}. Data folder: ${process.env.EPIC_DATA_DIR || join(homedir(), 'epic-data')}.` +
       (process.env.EPIC_ADMIN_PASSWORD ? '' : ' Admin sign-in is off until EPIC_ADMIN_PASSWORD is set.'));
+    if (process.env.EPIC_PHOTO_SYNC !== 'off') {
+      const run = () => app.syncPhotos().then((r) => { if (r.saved || r.failed) console.log(`Official photos: ${r.saved} saved, ${r.failed} not available yet.`); })
+        .catch((e) => console.error('Official photos failed:', e.message));
+      setTimeout(run, 5000).unref();
+      setInterval(run, 86400000).unref();
+    }
   });
 }

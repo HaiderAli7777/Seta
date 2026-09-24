@@ -1,6 +1,22 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowRight, ArrowUpRight, Banknote, ChevronDown, ChevronLeft, ChevronRight, Heart, Home, LayoutGrid, Mail, MapPin, Menu, MessageCircle, Package, Phone, RotateCcw, Search, ShieldCheck, ShoppingBag, SlidersHorizontal, Sparkles, Tag, Truck, User, X, Zap } from "lucide-react";
 import { CATEGORIES } from "./catalog/logic.mjs";
+import BRAND_LOGOS from "./catalog/brand-logos.json";
+
+/* Logo files in assets/brands (prepared by the build) come first, then the brand's
+   official logo on Wikimedia Commons, then the name set in the brand's colour. */
+const BUILT_LOGOS = typeof __EPIC_BRAND_LOGOS__ === "undefined" ? {} : __EPIC_BRAND_LOGOS__;
+export const brandLogoUrl = (brand) => {
+  if (BUILT_LOGOS[brand]) return BUILT_LOGOS[brand];
+  const file = BRAND_LOGOS.brands[brand]?.file;
+  return file ? `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=360` : "";
+};
+export function BrandLogo({ brand, className = "" }) {
+  const [failed, setFailed] = useState(false);
+  const url = brandLogoUrl(brand), meta = BRAND_LOGOS.brands[brand] || {};
+  if (!url || failed) return <span className={"rv-wordmark " + className} style={{ color: meta.color || "inherit", textTransform: meta.lower ? "lowercase" : "uppercase" }}>{brand}</span>;
+  return <img className={"rv-logo " + className} src={url} alt={brand} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} />;
+}
 
 const META = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
 const telHref = phone => `tel:${String(phone || "").replace(/[^+\d]/g, "")}`;
@@ -193,7 +209,7 @@ export function BrandWall({ products, onBrand }) {
       <div><span className="rv-eyebrow">Brands we stock</span><h2 id="rv-brands-title">Names you know. <em>Prices in rupees.</em></h2></div>
     </div>
     <div className="rv-brand-grid">
-      {brands.map(([name, n]) => <button key={name} onClick={() => onBrand(name)}><span>{name}</span><small>{n} {n === 1 ? "product" : "products"}</small></button>)}
+      {brands.map(([name, n]) => <button key={name} onClick={() => onBrand(name)} aria-label={`${name}, ${n} ${n === 1 ? "product" : "products"}`}><span className="rv-brand-mark"><BrandLogo brand={name} /></span><small>{n} {n === 1 ? "product" : "products"}</small></button>)}
     </div>
     <p className="rv-fineprint">Brand names are trademarks of their owners and are shown only to identify the products we sell.</p>
   </div></section>;
@@ -294,6 +310,15 @@ export function BottomNav({ active, cartCount, wishCount, onHome, onCategories, 
       <span className="rv-tab-ic"><I size={21} />{k === "bag" && cartCount > 0 && <b>{cartCount}</b>}</span>{label}
     </button>)}
   </nav>;
+}
+
+/* Floating WhatsApp button. On a product page the message names the product. */
+export function WhatsAppFab({ config, product, price }) {
+  const text = product ? `Hello ${config.storeName}, I'd like to order the ${product.name}${price ? ` (${price})` : ""}. Is it available?` : `Hello ${config.storeName}, I have a question about a product.`;
+  return <a className="rv-wa-fab" href={`${waHref(config.storePhone)}?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer" aria-label={product ? `Order ${product.name} on WhatsApp` : "Chat with us on WhatsApp"}>
+    <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M16 3a13 13 0 0 0-11.2 19.6L3 29l6.6-1.7A13 13 0 1 0 16 3Zm0 23.7a10.7 10.7 0 0 1-5.5-1.5l-.4-.2-3.9 1 1-3.8-.2-.4A10.7 10.7 0 1 1 16 26.7Zm5.9-8c-.3-.2-1.9-1-2.2-1s-.5-.2-.7.2-.8 1-1 1.2-.4.2-.7 0a8.8 8.8 0 0 1-4.4-3.8c-.3-.6.3-.5.9-1.7a.6.6 0 0 0 0-.5l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6a1.2 1.2 0 0 0-.9.4 3.6 3.6 0 0 0-1.1 2.7 6.3 6.3 0 0 0 1.3 3.3 14.4 14.4 0 0 0 5.5 4.9c2 .9 2.8.9 3.8.8a3.3 3.3 0 0 0 2.2-1.5 2.7 2.7 0 0 0 .2-1.5c-.1-.2-.3-.3-.6-.4Z"/></svg>
+    <span>{product ? "Order on WhatsApp" : "Chat with us"}</span>
+  </a>;
 }
 
 export function RestockRequest({ config, onNotify }) {

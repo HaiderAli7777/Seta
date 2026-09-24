@@ -1,8 +1,17 @@
-# EPIC DEVICES 6.1
+# EPIC DEVICES 6.2
 
 The online store for **epicdevicesltd.com**: storefront, checkout with delivery, and the business console, running as one Node.js app on Hostinger. Customers' orders are saved on the server and appear in the console.
 
-## What's new in 6.1
+## What's new in 6.2
+
+- **Product photos fill in by themselves.** After deploying, the server downloads the main photo from each product's official manufacturer page (44 of 49 have one, listed in `src/catalog/photo-sources.json`) into `~/epic-data/media/products/`, one product at a time, starting a few seconds after it starts. It tries missing ones again once a day. Photos you upload in the console or keep in `assets/products/` always come first. Set `EPIC_PHOTO_SYNC=off` to switch this off.
+- **Import a photo from any link** in the console: Products, Edit product, Display tab, Photos, "Paste an image address". In Google Images, open the photo, right-click it, choose Copy image address, paste, Import. The server keeps its own copy, so the photo doesn't break if the other site changes. Use photos you're allowed to use.
+- **Brand logos** on the brand wall and product pages: files in `assets/brands/` first, otherwise the brand's official logo from Wikimedia Commons (`src/catalog/brand-logos.json`), otherwise the name in the brand's colour.
+- **Frequently bought together** on every product page (for example a keyboard with an affordable mouse and headset) with one "Add all to bag" button, and a swipeable shelf of similar products.
+- **Order on WhatsApp** button on every page; on a product page the message names the product and its price.
+- **Search engines:** each product page gets its own title ("… | Price in Pakistan | EPIC DEVICES"), description and schema.org Product data (price in PKR, stock, brand, photo).
+
+## What was new in 6.1
 
 - **Marketplace home page.** Round category shortcuts, then shelves of products you can swipe (top picks, mice, audio, memory, drives, keyboards) with promotional tiles in between. Every price and range on a tile ("from Rs 5,280", "Up to 24TB") is worked out from the live catalogue. A "Do you need help?" band links WhatsApp, phone, email and order tracking; restock alerts moved into the footer.
 - **Product cards** show the brand, a two-line name, the price and a full-width **Add to bag** button; offers show a discount badge such as −15%.

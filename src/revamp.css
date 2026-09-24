@@ -680,3 +680,49 @@ html,body{background:#F3F5F8}
   .tx .rv-trust::-webkit-scrollbar{display:none}
   .tx .rv-trust>div{flex:0 0 72%;flex-direction:row;align-items:center;scroll-snap-align:start;padding:14px 16px;border-right:1px solid var(--line)}
 }
+
+/* ── brand logos ── */
+.tx .rv-logo{display:block;height:100%;width:auto;max-width:100%;object-fit:contain}
+.tx .rv-wordmark{font-family:var(--f-display);font-weight:800;font-stretch:118%;letter-spacing:-.01em;line-height:1;white-space:nowrap}
+.tx .rv-brand-mark{display:flex;align-items:center;height:34px;max-width:150px}
+.tx .rv-brand-mark .rv-wordmark{font-size:1.35rem}
+.tx .rv-brand-grid button{gap:12px}
+.tx .rv-brand-grid button .rv-logo{filter:grayscale(1) contrast(1.1);opacity:.85;transition:filter .25s,opacity .25s}
+.tx .rv-brand-grid button:hover .rv-logo{filter:none;opacity:1}
+.tx .rv-pdp-logo{display:inline-flex;align-items:center;height:26px;max-width:130px;border:0;background:none;padding:0;cursor:pointer;vertical-align:middle}
+.tx .rv-pdp-logo .rv-wordmark{font-size:1.05rem}
+.tx .rv-brand-mark .rv-wordmark{white-space:normal;font-size:1.15rem;line-height:1.05}
+
+/* ── product page: bundle ── */
+.tx .rv-bundle{margin-top:28px;padding:28px;border-radius:18px;background:#fff;border:1px solid var(--line)}
+.tx .rv-bundle-head{margin-bottom:18px}
+.epic-upgrade .rv-bundle h2{margin-top:10px;font-family:var(--f-display);font-weight:700;font-stretch:112%;font-size:clamp(1.3rem,2vw,1.6rem)}
+.tx .rv-bundle-row{display:flex;align-items:stretch;gap:12px;flex-wrap:wrap}
+.tx .rv-bundle-item{flex:1 1 180px;max-width:240px;display:grid;gap:6px;align-content:start;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff;text-align:left;cursor:pointer;color:var(--ink);transition:border-color .2s}
+.tx .rv-bundle-item:hover{border-color:var(--ink)}
+.tx .rv-bundle-item[aria-current]{cursor:default;border-color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue)}
+.tx .rv-bundle-media{display:grid;place-items:center;aspect-ratio:4/3;border-radius:10px;background:linear-gradient(170deg,#F5F7FA,#ECEFF3);color:#1D3B6E;overflow:hidden}
+.tx .rv-bundle-media img{width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply}
+.tx .rv-bundle-brand{font:700 10.5px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-top:4px}
+.tx .rv-bundle-name{font-size:13.5px;font-weight:600;line-height:1.35}
+.tx .rv-bundle-item b{font-size:15px}
+.tx .rv-bundle-plus{align-self:center;display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--surface2);color:var(--ink2);flex-shrink:0}
+.tx .rv-bundle-total{flex:1 1 220px;display:grid;align-content:center;gap:6px;padding:16px 20px;border-radius:14px;background:var(--surface2)}
+.tx .rv-bundle-total small{font-size:13px;color:var(--ink3)}
+.tx .rv-bundle-total strong{font-family:var(--f-display);font-weight:800;font-stretch:110%;font-size:1.8rem}
+.tx .rv-bundle-total .btn{margin-top:6px;justify-content:center}
+
+/* ── floating WhatsApp ── */
+.tx .rv-wa-fab{position:fixed;right:20px;bottom:20px;z-index:80;display:inline-flex;align-items:center;gap:10px;height:54px;padding:0 20px 0 16px;border-radius:27px;background:#1FAF55;color:#fff;font:700 14px var(--f-body);text-decoration:none;box-shadow:0 12px 28px -10px rgba(10,80,40,.6);transition:transform .2s var(--ease),background .2s}
+.tx .rv-wa-fab:hover{transform:translateY(-2px);background:#179447}
+@media (max-width:760px){
+  .tx .rv-wa-fab{right:14px;bottom:calc(76px + env(safe-area-inset-bottom));height:52px;width:52px;padding:0;justify-content:center;border-radius:50%}
+  .tx .rv-wa-fab span{display:none}
+  .tx .rv-bundle{padding:18px;margin-top:20px}
+  .tx .rv-bundle-row{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .tx .rv-bundle-item{flex:0 0 150px}
+  .tx .rv-bundle-total{flex:0 0 200px}
+}
+.tx:has(.buybar.show) .rv-wa-fab{bottom:100px}
+@media (max-width:760px){.tx:has(.buybar.show) .rv-wa-fab{bottom:calc(150px + env(safe-area-inset-bottom))}}
+.epic-upgrade .rv-import-row{display:flex;gap:8px;margin-top:10px}.epic-upgrade .rv-import-row .finp{flex:1;min-width:0}

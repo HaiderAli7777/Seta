@@ -1,0 +1,19 @@
+{
+  "note": "Official brand logos on Wikimedia Commons, used when assets/brands/ has no file for the brand. `file` is the Commons file name; `color` styles the brand name shown if no logo loads. Brand names and logos are trademarks of their owners and are shown only to identify the products the store sells.",
+  "brands": {
+    "Logitech": { "file": "Logitech_logo.svg", "color": "#000000" },
+    "A4Tech": { "file": "A4Tech_2008_logo.svg", "color": "#111111" },
+    "Seagate": { "file": "Seagate_logo.svg", "color": "#6EBE49" },
+    "Western Digital": { "file": "Western_Digital_logo_(2025).svg", "color": "#0F1B2D" },
+    "Lexar": { "file": "Lexar.svg", "color": "#0A58A8" },
+    "Kingston": { "file": "Kingston_Technology_Corporation_logo.png", "color": "#D8131B" },
+    "Corsair": { "file": "Corsair_2020_logo.svg", "color": "#000000" },
+    "Transcend": { "file": "Transcend_Logo.svg", "color": "#D7000F" },
+    "UGREEN": { "file": "UGREEN_wordmark.png", "color": "#000000" },
+    "Rapoo": { "file": null, "color": "#6B3CF5", "lower": true },
+    "XPG": { "file": null, "color": "#E3001B" },
+    "MAONO": { "file": null, "color": "#111111" },
+    "Amaze": { "file": null, "color": "#111111" },
+    "Bloody": { "file": null, "color": "#D2001E", "lower": true }
+  }
+}

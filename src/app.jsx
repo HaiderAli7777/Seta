@@ -5,7 +5,7 @@ import UPGRADE_CSS from "./upgrade.css";
 import EXPERIENCE_CSS from "./experience.css";
 import REVAMP_CSS from "./revamp.css";
 import { DiscoveryStrip, ProductFinder, QuickView, ProductCompare } from "./experience.jsx";
-import { StoreHeader, CategoryCircles, TrustBar, BudgetShelf, BrandWall, FinderBand, ProductRail, PromoBanner, HelpBand, BottomNav, StoreFooter, StoreInfo } from "./storefront.jsx";
+import { StoreHeader, CategoryCircles, TrustBar, BudgetShelf, BrandWall, FinderBand, ProductRail, PromoBanner, HelpBand, BottomNav, StoreFooter, StoreInfo, BrandLogo, WhatsAppFab } from "./storefront.jsx";
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   ShoppingCart, Search, Heart, User, Lock, Menu, X, Plus, Minus, Check, ChevronRight, ChevronLeft,
@@ -3916,6 +3916,12 @@ export default function App({ initialView = "store" } = {}) {
         if (Array.isArray(st.promos)) setPromos(st.promos);
         if (st.config && typeof st.config === "object") setConfig((c) => ({ ...c, ...st.config }));
         setStateLoaded(true);
+        /* official manufacturer photos the server has fetched; they fill in only where a
+           product has no photo of its own (console upload or assets/products file) */
+        serverApi("photos").then(({ photos }) => {
+          if (!alive || !photos || !Object.keys(photos).length) return;
+          setProducts((list) => list.map((p) => (!String(p.image || "").trim() && photos[p.id] ? { ...p, image: photos[p.id] } : p)));
+        }).catch(() => {});
       })
       .catch(() => { if (alive) setServer({ status: "offline", admin: false }); });
     return () => { alive = false; };
@@ -4780,6 +4786,23 @@ export default function App({ initialView = "store" } = {}) {
   };
 
   const productImgInput = useRef(null);
+  const [photoLink, setPhotoLink] = useState("");
+  const [importingPhoto, setImportingPhoto] = useState(false);
+  /* a link copied from Google Images or a supplier site: the server downloads it and
+     keeps its own copy; a data: link (what Google sometimes copies) is stored as it is */
+  const importPhotoLink = async () => {
+    const link = photoLink.trim();
+    if (!link) return;
+    const add = (url) => setProductDraft((d) => (!d ? d : !d.image ? { ...d, image: url } : { ...d, images: [...(d.images || []), url] }));
+    if (/^data:image\//.test(link)) { add(link); setPhotoLink(""); pushToast("Photo added", Check); return; }
+    if (server.status !== "online" || !adminToken) { pushToast("Sign in to the console on the live site to import photos", X, true); return; }
+    setImportingPhoto(true);
+    try {
+      const { url } = await serverApi("media/import", { method: "POST", body: { url: link }, token: adminToken });
+      add(url); setPhotoLink(""); pushToast("Photo imported and saved on the server", Check);
+    } catch (err) { pushToast(err.message || "Could not import that photo", X, true); }
+    setImportingPhoto(false);
+  };
   const onProductImageFiles = async (e) => {
     const files = e.target.files;
     const urls = await readImages(files, 8);
@@ -7925,6 +7948,32 @@ export default function App({ initialView = "store" } = {}) {
     onNotify={(msg) => pushToast(msg, Info)} />;
 
   /* ══════════════════════════ PRODUCT DETAIL ══════════════════════════ */
+  /* search engines and link previews: each product page gets its own title,
+     description and schema.org Product data (price, stock, brand) */
+  useEffect(() => {
+    if (typeof document === "undefined" || view !== "store") return;
+    const p = storeView === "product" && activeId ? byId[activeId] : null;
+    const base = "EPIC DEVICES | Better devices. Better experiences.";
+    const meta = document.querySelector('meta[name="description"]');
+    const old = document.getElementById("rv-product-ld");
+    if (old) old.remove();
+    if (!p) { document.title = base; return; }
+    const final = pInfo(p).final;
+    document.title = p.name + " | Price in Pakistan | " + config.storeName;
+    if (meta) meta.setAttribute("content", (p.name + ": " + money(final) + ". " + (p.blurb || "") + " Cash on delivery across Pakistan.").slice(0, 300));
+    const img = galleryFrames(p)[0];
+    const ld = document.createElement("script");
+    ld.type = "application/ld+json"; ld.id = "rv-product-ld";
+    ld.textContent = JSON.stringify({
+      "@context": "https://schema.org", "@type": "Product", name: p.name, sku: p.sku,
+      brand: { "@type": "Brand", name: p.brand }, category: catLabel(p.category), description: p.blurb || undefined,
+      image: img ? new URL(img, location.href).href : undefined,
+      offers: { "@type": "Offer", priceCurrency: "PKR", price: Math.round(final), url: location.href,
+                availability: "https://schema.org/" + (isSoldOut(p) ? "OutOfStock" : "InStock"), itemCondition: "https://schema.org/NewCondition" },
+    });
+    document.head.appendChild(ld);
+  }, [view, storeView, activeId, byId]);
+
   const renderProductDetail = () => {
     const p = activeId ? byId[activeId] : null;
     if (!p) {
@@ -7940,10 +7989,18 @@ export default function App({ initialView = "store" } = {}) {
       );
     }
     const I = productIcon(p), inf = pInfo(p), out = isSoldOut(p);
-    const related = products.filter((x) => x.active && x.category === p.category && x.id !== p.id).slice(0, 3);
+    const related = products.filter((x) => x.active && x.category === p.category && x.id !== p.id)
+      .sort((a, b) => displaySold(b) - displaySold(a) || Math.abs(pInfo(a).final - inf.final) - Math.abs(pInfo(b).final - inf.final)).slice(0, 12);
+    /* a starter bundle: this item plus the most affordable in-stock pick from each
+       category that is usually bought with it */
+    const COMPANIONS = { mouse: ["keyboard", "audio"], keyboard: ["mouse", "audio"], audio: ["mouse", "keyboard"], ram: ["drives"], drives: ["ram"] };
+    const pickFrom = (cat) => products.filter((x) => x.active && x.category === cat && !isSoldOut(x)).sort((a, b) => pInfo(a).final - pInfo(b).final)[0];
+    const bundle = out ? [] : [p, ...(COMPANIONS[p.category] || []).map(pickFrom).filter(Boolean)].slice(0, 3);
     const margin = p.price > 0 ? Math.round(((p.price - p.cost) / p.price) * 100) : 0;
     const parent = catById[p.category] ? catById[catById[p.category].parentId] : null;
+    const plural = (CATALOG_CATEGORIES.find((c) => c.id === p.category) || {}).plural;
     return (
+      <>
       <section className="section"><div className="wrap">
         <div className="crumb-bar">
           <button className="crumb-btn" onClick={() => { setActiveId(null); setStoreView("home"); window.scrollTo(0, 0); }}>Home</button>
@@ -7965,13 +8022,13 @@ export default function App({ initialView = "store" } = {}) {
             <div className="bb-p">{money(inf.final)}{out ? " · sold out" : ""}</div>
           </div>
           <button className="btn btn-pri" disabled={out} onClick={() => { addToCart(p.id, pdQty); setCartOpen(true); }}>
-            <ShoppingCart size={15} /> {out ? "Sold out" : "Add to cart"}
+            <ShoppingBag size={15} /> {out ? "Sold out" : "Add to bag"}
           </button>
         </div>
         <div className="pdp">
           <div className="pdp-head">
             <button className="btn btn-sm" onClick={() => { setActiveId(null); goShop(p.category); }}><ChevronLeft size={14} /> Back to {catLabel(p.category)}</button>
-            <div className="pdp-brand">{p.brand} <span className="mono">{p.sku}</span></div>
+            <div className="pdp-brand"><button className="rv-pdp-logo" onClick={() => { setActiveId(null); goShop("All"); setBrands([p.brand]); }} aria-label={"More from " + p.brand}><BrandLogo brand={p.brand} /></button> <span className="mono">{p.sku}</span></div>
           </div>
           <div className="pdp-body">
             <div className="pd-hero">
@@ -8124,23 +8181,34 @@ export default function App({ initialView = "store" } = {}) {
               </div>
             </div>
 
-            {related.length > 0 && (
-              <>
-                <div className="sec-title" style={{ marginBottom: 12 }}><span className="dashes"><i /><i /></span><h2 style={{ fontSize: 17 }}>Also in {catLabel(p.category)}</h2></div>
-                <div className="rel-grid">
-                  {related.map((r) => { const RI = productIcon(r); return (
-                    <button className="rel" key={r.id} onClick={() => openProduct(r.id)}>
-                      <span className="ic"><RI size={17} /></span>
-                      <div className="n">{r.name}</div>
-                      <div className="p">{money(pInfo(r).final)}</div>
-                    </button>
+            {bundle.length > 1 && (
+              <div className="rv-bundle">
+                <div className="rv-bundle-head"><span className="rv-eyebrow">Complete the setup</span><h2>Frequently bought together</h2></div>
+                <div className="rv-bundle-row">
+                  {bundle.map((b, i) => { const BI = productIcon(b); const img = galleryFrames(b)[0]; return (
+                    <React.Fragment key={b.id}>
+                      {i > 0 && <span className="rv-bundle-plus" aria-hidden="true"><Plus size={18} /></span>}
+                      <button className="rv-bundle-item" onClick={() => b.id !== p.id && openProduct(b.id)} aria-current={b.id === p.id ? "true" : undefined}>
+                        <span className="rv-bundle-media">{img ? <img src={img} alt="" loading="lazy" /> : <BI size={34} strokeWidth={1.3} />}</span>
+                        <span className="rv-bundle-brand">{b.brand}{b.id === p.id ? " · this item" : ""}</span>
+                        <span className="rv-bundle-name">{b.name}</span>
+                        <b>{money(pInfo(b).final)}</b>
+                      </button>
+                    </React.Fragment>
                   ); })}
+                  <div className="rv-bundle-total">
+                    <small>Total for {bundle.length} items</small>
+                    <strong>{money(bundle.reduce((t, b) => t + pInfo(b).final, 0))}</strong>
+                    <button className="btn btn-pri btn-lg" onClick={() => { bundle.forEach((b) => addToCart(b.id)); setCartOpen(true); }}><ShoppingBag size={17} /> Add all {bundle.length} to bag</button>
+                  </div>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>
       </div></section>
+      {related.length > 0 && <ProductRail eyebrow="Compare before you buy" title={plural ? "More " + plural.toLowerCase() : "More like this"} items={related} renderCard={renderCard} onViewAll={() => { setActiveId(null); goShop(p.category); }} />}
+      </>
     );
   };
 
@@ -17472,6 +17540,12 @@ export default function App({ initialView = "store" } = {}) {
                     <span>JPG, PNG or WebP. Up to 8 at a time, resized automatically.</span>
                   </div>
                   <input ref={productImgInput} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={onProductImageFiles} />
+                  <div className="rv-import-row">
+                    <input className="finp" value={photoLink} placeholder="Paste an image address, e.g. from Google Images"
+                           onChange={(e) => setPhotoLink(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); importPhotoLink(); } }} />
+                    <button className="btn btn-sm btn-pri" disabled={!photoLink.trim() || importingPhoto} onClick={importPhotoLink}>{importingPhoto ? "Importing…" : <><Download size={13} /> Import</>}</button>
+                  </div>
+                  <p className="hint">In Google Images, open the photo, right-click it, choose "Copy image address" and paste it here. The shop keeps its own copy. Use photos you are allowed to use, such as the brand's official images.</p>
                   {(d.image || (d.images || []).length > 0) && (
                     <div className="shotgrid">
                       {[d.image, ...(d.images || [])].filter(Boolean).map((u, i) => (
@@ -17962,6 +18036,7 @@ export default function App({ initialView = "store" } = {}) {
             wished={wishlist.includes(quickId)} compared={compare.includes(quickId)} cartQuantity={cart.find(l => l.id === quickId)?.qty || 0} config={config}
             onClose={() => setQuickId(null)} onAdd={addToCart} onWish={() => toggleWish(quickId)} onCompare={() => toggleCompare(quickId)}
             onDetails={() => { setQuickId(null); openProduct(quickId); }} onBag={() => { setQuickId(null); setCartOpen(true); }} />}
+          {config.storePhone && <WhatsAppFab config={config} product={storeView === "product" ? byId[activeId] : null} price={storeView === "product" && byId[activeId] ? money(pInfo(byId[activeId]).final) : ""} />}
           <BottomNav active={storeView === "home" ? "home" : storeView === "portal" ? "account" : ""} cartCount={cartCount}
             onHome={() => { setStoreView("home"); setMobileMenu(false); window.scrollTo(0, 0); }}
             onCategories={() => setMobileMenu(true)}

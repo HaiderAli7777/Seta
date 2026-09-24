@@ -85,3 +85,63 @@ test('the website is served compressed, with page fallback and no source files',
   assert.equal((await fetch(base + '/server.js')).status, 404);
   assert.equal((await fetch(base + '/src/app.jsx')).status, 404);
 });
+
+test('official product photos are fetched in the background, listed and served', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { createServer } = await import('node:http');
+  const photo = readFileSync(new URL('../assets/slides/slide-mouse-700.webp', import.meta.url));
+  /* a stand-in manufacturer site: one page with og:image, one with Product JSON-LD, one missing */
+  const maker = createServer((req, res) => {
+    if (req.url === '/og.html') { res.setHeader('content-type', 'text/html'); return res.end('<html><head><meta property="og:image" content="/p.webp?a=1&amp;b=2"></head></html>'); }
+    if (req.url === '/ld.html') { res.setHeader('content-type', 'text/html'); return res.end(`<script type="application/ld+json">{"@type":"Product","image":["http://127.0.0.1:${maker.address().port}/p.webp"]}</script>`); }
+    if (req.url.startsWith('/p.webp')) { res.setHeader('content-type', 'image/webp'); return res.end(photo); }
+    res.statusCode = 404; res.end();
+  });
+  await new Promise((r) => maker.listen(0, '127.0.0.1', r));
+  const site = `http://127.0.0.1:${maker.address().port}`;
+  try {
+    const summary = await server.syncPhotos({ pauseMs: 0, timeoutMs: 5000, sources: {
+      g304: { page: site + '/og.html' }, k120: { page: site + '/ld.html' }, m90: { page: site + '/gone.html' }, hs8i: { page: null },
+    } });
+    assert.deepEqual(summary, { saved: 2, failed: 1, skipped: 1 });
+    const { photos } = (await call('/api/photos')).body;
+    assert.deepEqual(Object.keys(photos).sort(), ['g304', 'k120']);
+    assert.match(photos.g304, /^\.\/media\/products\/g304-[0-9a-f]{8}\.webp$/);
+    const img = await fetch(base + photos.g304.slice(1));
+    assert.equal(img.status, 200);
+    assert.equal(img.headers.get('content-type'), 'image/webp');
+    assert.equal(Buffer.from(await img.arrayBuffer()).length, photo.length);
+    /* a second run keeps what it has and waits a day before retrying the failure */
+    assert.deepEqual(await server.syncPhotos({ pauseMs: 0, sources: { g304: { page: site + '/og.html' }, m90: { page: site + '/gone.html' } } }), { saved: 0, failed: 0, skipped: 2 });
+    assert.equal((await call('/api/photos/sync', { method: 'POST' })).status, 401, 'starting a sync needs the console');
+  } finally { maker.closeAllConnections(); maker.close(); }
+});
+
+test('a photo link pasted in the console is downloaded and kept on the server', async () => {
+  const { readFileSync, mkdtempSync: tmp } = await import('node:fs');
+  const { createServer } = await import('node:http');
+  const photo = readFileSync(new URL('../assets/slides/slide-keyboard-700.webp', import.meta.url));
+  const site = createServer((req, res) => {
+    if (req.url === '/k120.webp') { res.setHeader('content-type', 'image/webp'); return res.end(photo); }
+    res.setHeader('content-type', 'text/html'); res.end('<html>not a photo</html>');
+  });
+  await new Promise((r) => site.listen(0, '127.0.0.1', r));
+  const shop = createApp({ dataDir: tmp(join(tmpdir(), 'epic-data-')), adminPassword: 'pw for import', allowPrivateImports: true });
+  await new Promise((r) => shop.listen(0, '127.0.0.1', r));
+  const at = `http://127.0.0.1:${shop.address().port}`;
+  const post = async (path, body, auth) => { const r = await fetch(at + path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: 'Bearer ' + auth } : {}) }, body: JSON.stringify(body) }); return { status: r.status, body: await r.json() }; };
+  try {
+    const src = `http://127.0.0.1:${site.address().port}`;
+    assert.equal((await post('/api/media/import', { url: src + '/k120.webp' })).status, 401);
+    const auth = (await post('/api/login', { user: 'admin', password: 'pw for import' })).body.token;
+    const ok = await post('/api/media/import', { url: src + '/k120.webp' }, auth);
+    assert.equal(ok.status, 201);
+    assert.match(ok.body.url, /^\.\/media\/[0-9a-f]{16}\.webp$/);
+    const img = await fetch(at + ok.body.url.slice(1));
+    assert.equal(Buffer.from(await img.arrayBuffer()).length, photo.length);
+    assert.equal((await post('/api/media/import', { url: src + '/page.html' }, auth)).status, 400, 'a web page is not a photo');
+    assert.equal((await post('/api/media/import', { url: 'file:///etc/passwd' }, auth)).status, 400);
+    /* the normal server refuses private addresses */
+    assert.equal((await call('/api/media/import', { method: 'POST', body: { url: src + '/k120.webp' }, token })).status, 400);
+  } finally { shop.closeAllConnections(); shop.close(); site.closeAllConnections(); site.close(); }
+});
