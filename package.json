@@ -1,0 +1,35 @@
+{
+  "name": "epic-devices",
+  "version": "5.2.0",
+  "private": true,
+  "description": "EPIC DEVICES online store with checkout, delivery options and order management (storefront, console and server)",
+  "author": "Haider Ali",
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node server.js",
+    "dev": "node build.mjs && node server.js",
+    "test": "node --test tests/*.test.mjs",
+    "check:catalog": "node scripts/validate-catalog.mjs",
+    "check:release": "node scripts/validate-catalog.mjs --release",
+    "import:catalog": "node scripts/import-catalog.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "29.1.1"
+  },
+  "dependencies": {
+    "lucide-react": "0.383.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "recharts": "2.15.4",
+    "esbuild": "0.28.2"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "optionalDependencies": {
+    "sharp": "^0.35.4"
+  },
+  "main": "server.js"
+}

@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /console.html
+Disallow: /src/
+Disallow: /reports/
+Disallow: /scripts/
+Disallow: /tests/
+
+Sitemap: https://epicdevicesltd.com/sitemap.xml

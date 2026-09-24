@@ -1,0 +1,77 @@
+DirectoryIndex index.html
+
+# Correct types for the brand files
+AddType application/manifest+json .webmanifest
+AddType font/woff2 .woff2
+AddType image/svg+xml .svg
+AddType image/webp .webp
+
+# ── EPIC DEVICES · Apache configuration for Hostinger shared hosting ──
+
+# Force HTTPS. Hostinger issues a free certificate; this makes sure it is used.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # Single page app: anything that is not a real file falls back to index.html
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . index.html [L]
+</IfModule>
+
+# ── Security headers ──
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+  # The bundle is a separate file, so scripts are restricted to this origin.
+  # Styles stay 'unsafe-inline' because the app injects its stylesheet at runtime.
+  # Fonts are self hosted in assets/fonts, so nothing is loaded from Google.
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self'; frame-src 'self' https://www.youtube.com https://player.vimeo.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
+
+  # The HTML must never be cached or a deploy will not reach people.
+  <FilesMatch "\.(html)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+  # Unversioned artwork and fonts must revalidate periodically after edits.
+  <FilesMatch "\.(css|svg|woff2|png|jpg|webp|ico|webmanifest)$">
+    Header set Cache-Control "public, max-age=86400, must-revalidate"
+  </FilesMatch>
+  # Content-hashed application bundles are safe to cache for a year.
+  <FilesMatch "^(app|console)-[A-Z0-9]+\.js$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+
+  # Fonts rarely change; the service worker must always be checked for updates.
+  <FilesMatch "\.woff2$">
+    Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+  <FilesMatch "^sw\.js$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+# ── Compression ──
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript
+  AddOutputFilterByType DEFLATE application/javascript application/json
+  AddOutputFilterByType DEFLATE image/svg+xml application/manifest+json
+</IfModule>
+<IfModule mod_brotli.c>
+  AddOutputFilterByType BROTLI_COMPRESS text/html text/css application/javascript image/svg+xml
+</IfModule>
+
+# ── Keep source and config off the web ──
+<FilesMatch "(^\.|package(-lock)?\.json$|\.mjs$|\.jsx$|\.map$|\.md$)">
+  Require all denied
+</FilesMatch>
+<IfModule mod_rewrite.c>
+  RewriteRule ^(src|node_modules|scripts|tests|reports)/ - [F,L]
+</IfModule>
+
+ErrorDocument 404 /index.html

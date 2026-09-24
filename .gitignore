@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+*.log
+.env
+.env.*
+# built by `npm run build` (Hostinger builds it on every deploy)
+dist/
+build/
+reports/product-photos.csv

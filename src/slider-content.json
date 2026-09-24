@@ -1,0 +1,57 @@
+{
+  "autoplay": true,
+  "durationMs": 8000,
+  "slides": [
+    {
+      "id": "audio",
+      "theme": "ice",
+      "eyebrow": "THE SOUND COLLECTION",
+      "title": "Your world.",
+      "accent": "On repeat.",
+      "description": "The first song. The last call. The moments in between. Make room for sound that moves with you.",
+      "cta": "Discover audio",
+      "category": "Headphones",
+      "label": "Sound, reimagined",
+      "subtitle": "Find your everyday soundtrack",
+      "image": "./assets/slide-audio-v3-1536.webp",
+      "smallImage": "./assets/slide-audio-v3-768.webp",
+      "alt": "Conceptual silver and ivory headphones floating above a studio plinth",
+      "detail": "A little escape. Every day.",
+      "tags": ["Headphones", "Everyday listening"]
+    },
+    {
+      "id": "workspace",
+      "theme": "sage",
+      "eyebrow": "THE WORKSPACE COLLECTION",
+      "title": "Your space.",
+      "accent": "More you.",
+      "description": "Fresh ideas deserve a better space. Explore the thoughtful essentials that bring your whole setup together.",
+      "cta": "Upgrade your workspace",
+      "category": "grp_desk",
+      "label": "Find your flow",
+      "subtitle": "A workspace that feels like you",
+      "image": "./assets/slide-workspace-v3-1536.webp",
+      "smallImage": "./assets/slide-workspace-v3-768.webp",
+      "alt": "Conceptual silver laptop, compact keyboard and mouse in a warm studio setting",
+      "detail": "Make space for your next idea.",
+      "tags": ["Desk essentials", "Work & create"]
+    },
+    {
+      "id": "power",
+      "theme": "midnight",
+      "eyebrow": "THE POWER COLLECTION",
+      "title": "Go further.",
+      "accent": "Stay ready.",
+      "description": "Small essentials. A big part of your day. Stay connected with chargers, cables and power banks that go with you.",
+      "cta": "Explore power & charging",
+      "category": "grp_power",
+      "label": "Keep life moving",
+      "subtitle": "Power for the plans ahead",
+      "image": "./assets/slide-power-v3-1536.webp",
+      "smallImage": "./assets/slide-power-v3-768.webp",
+      "alt": "Conceptual graphite charger, USB cable and silver power bank on dark studio platforms",
+      "detail": "Your everyday, fully connected.",
+      "tags": ["Power & charging", "On the move"]
+    }
+  ]
+}

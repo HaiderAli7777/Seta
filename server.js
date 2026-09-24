@@ -1,0 +1,309 @@
+/* EPIC DEVICES server.
+   Serves the built website from dist/ and keeps the shop's shared data, so an order a
+   customer places on their phone reaches the console on yours:
+     GET  /api/health            is the server up, is admin sign-in configured
+     GET  /api/state             catalogue, categories, offers and store settings
+     PUT  /api/state             (admin) save catalogue and settings from the console
+     POST /api/login             (admin) password in, signed session token out
+     POST /api/orders            a customer places an order
+     GET  /api/orders            (admin) every order
+     PUT  /api/orders            (admin) save order changes from the console
+     GET  /api/track?id=         order status for the Track order page, without personal details
+     GET  /media/<file>          photos uploaded in the console
+   Data lives in EPIC_DATA_DIR (default ~/epic-data), outside the deployed folder, so a
+   redeploy never touches it. No dependencies beyond Node.js itself. */
+import { createServer } from 'node:http';
+import { readFile, writeFile, rename, mkdir, stat } from 'node:fs/promises';
+import { readFileSync, existsSync } from 'node:fs';
+import { join, extname, resolve, dirname, sep } from 'node:path';
+import { homedir } from 'node:os';
+import { createHmac, createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
+import { gzipSync, brotliCompressSync, constants as zlib } from 'node:zlib';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { sellingPrice } from './src/catalog/logic.mjs';
+
+const ROOT = dirname(fileURLToPath(import.meta.url));
+const TYPES = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.avif': 'image/avif',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2', '.webmanifest': 'application/manifest+json', '.xml': 'application/xml', '.txt': 'text/plain; charset=utf-8',
+  '.mp4': 'video/mp4', '.webm': 'video/webm',
+};
+const COMPRESS = /\.(html|js|css|json|svg|webmanifest|xml|txt)$/;
+const CSP = 'default-src \'self\'; script-src \'self\'; style-src \'self\' \'unsafe-inline\'; font-src \'self\'; img-src \'self\' data: blob: https:; media-src \'self\' data: blob: https:; connect-src \'self\'; frame-src \'self\' https://www.youtube.com https://player.vimeo.com; object-src \'none\'; base-uri \'self\'; form-action \'self\'; frame-ancestors \'self\'';
+const SECURITY = {
+  'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin', 'X-Frame-Options': 'SAMEORIGIN',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()', 'Content-Security-Policy': CSP,
+};
+const ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const STATE_KEYS = ['products', 'categories', 'promos', 'config'];
+const clean = (v, max) => String(v ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, max);
+
+class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
+
+export function createApp(options = {}) {
+  const dist = resolve(options.distDir || join(ROOT, 'dist'));
+  const dataDir = resolve(options.dataDir || process.env.EPIC_DATA_DIR || join(homedir(), 'epic-data'));
+  const adminUser = String(options.adminUser ?? process.env.EPIC_ADMIN_USER ?? 'admin').trim().toLowerCase();
+  const adminPassword = String(options.adminPassword ?? process.env.EPIC_ADMIN_PASSWORD ?? '');
+  const catalog = new Map(JSON.parse(readFileSync(join(ROOT, 'src/catalog/products.json'), 'utf8')).map((p) => [p.id, { name: p.name, price: sellingPrice(p) }]));
+
+  /* storage: small JSON files, written atomically, one write at a time */
+  let queue = Promise.resolve();
+  const serial = (fn) => { const run = queue.then(fn); queue = run.catch(() => {}); return run; };
+  const readJson = async (name, fallback) => {
+    try { return JSON.parse(await readFile(join(dataDir, name), 'utf8')); } catch (e) { if (e.code === 'ENOENT') return fallback; throw e; }
+  };
+  const writeJson = async (name, value) => {
+    await mkdir(dataDir, { recursive: true });
+    const tmp = join(dataDir, `${name}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`);
+    await writeFile(tmp, JSON.stringify(value));
+    await rename(tmp, join(dataDir, name));
+  };
+  let secret = null;
+  const getSecret = async () => {
+    if (secret) return secret;
+    const file = join(dataDir, 'secret.key');
+    try { secret = (await readFile(file, 'utf8')).trim(); } catch { secret = randomBytes(32).toString('hex'); await mkdir(dataDir, { recursive: true }); await writeFile(file, secret, { mode: 0o600 }); }
+    return secret;
+  };
+
+  /* sessions: a signed, expiring token; no server-side session store needed */
+  const b64 = (s) => Buffer.from(s).toString('base64url');
+  const sign = async (payload) => { const body = b64(JSON.stringify(payload)); return body + '.' + createHmac('sha256', await getSecret()).update(body).digest('base64url'); };
+  const verify = async (token) => {
+    const [body, mac] = String(token || '').split('.');
+    if (!body || !mac) return null;
+    const expected = createHmac('sha256', await getSecret()).update(body).digest('base64url');
+    if (mac.length !== expected.length || !timingSafeEqual(Buffer.from(mac), Buffer.from(expected))) return null;
+    try { const data = JSON.parse(Buffer.from(body, 'base64url').toString()); return data.exp > Date.now() ? data : null; } catch { return null; }
+  };
+  const same = (a, b) => timingSafeEqual(createHash('sha256').update(String(a)).digest(), createHash('sha256').update(String(b)).digest());
+  const requireAdmin = async (req) => {
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    if (!(await verify(token))) throw new HttpError(401, 'Please sign in again.');
+  };
+
+  /* simple per-address limits for orders and sign-in attempts */
+  const hits = new Map();
+  const limit = (key, max, windowMs) => {
+    const now = Date.now(), list = (hits.get(key) || []).filter((t) => now - t < windowMs);
+    if (list.length >= max) throw new HttpError(429, 'Too many attempts. Please wait a few minutes and try again.');
+    list.push(now); hits.set(key, list);
+    if (hits.size > 5000) hits.clear();
+  };
+  const ipOf = (req) => String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+
+  const readBody = (req, max) => new Promise((ok, fail) => {
+    let size = 0; const chunks = [];
+    req.on('data', (c) => { size += c.length; if (size > max) { fail(new HttpError(413, 'That request is too large.')); req.destroy(); } else chunks.push(c); });
+    req.on('end', () => { try { ok(chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : {}); } catch { fail(new HttpError(400, 'The request could not be read.')); } });
+    req.on('error', fail);
+  });
+
+  /* photos uploaded in the console arrive as data URLs; store them as files */
+  const saveMedia = async (value) => {
+    if (typeof value === 'string') {
+      const m = value.match(/^data:image\/(png|jpe?g|webp|gif|avif);base64,([A-Za-z0-9+/=\s]+)$/);
+      if (!m || value.length < 256) return value;
+      const buffer = Buffer.from(m[2], 'base64');
+      const name = createHash('sha1').update(buffer).digest('hex').slice(0, 16) + '.' + (m[1] === 'jpeg' ? 'jpg' : m[1]);
+      await mkdir(join(dataDir, 'media'), { recursive: true });
+      if (!existsSync(join(dataDir, 'media', name))) await writeFile(join(dataDir, 'media', name), buffer);
+      return './media/' + name;
+    }
+    if (Array.isArray(value)) return Promise.all(value.map(saveMedia));
+    if (value && typeof value === 'object') {
+      const out = {};
+      for (const [k, v] of Object.entries(value)) out[k] = await saveMedia(v);
+      return out;
+    }
+    return value;
+  };
+
+  const newOrderId = (orders) => {
+    const taken = new Set(orders.map((o) => o.id));
+    for (;;) {
+      let id = 'ED-';
+      for (let i = 0; i < 6; i += 1) id += ID_CHARS[randomInt(ID_CHARS.length)];
+      if (!taken.has(id)) return id;
+    }
+  };
+
+  const createOrder = async (body, ip) => {
+    limit('order:' + ip, 6, 10 * 60 * 1000);
+    if (body.website) throw new HttpError(400, 'Order rejected.');              // honeypot field
+    const c = body.customer || {};
+    const customer = { name: clean(c.name, 80), email: clean(c.email, 120).toLowerCase(), phone: clean(c.phone, 30), city: clean(c.city, 60), address: clean(c.address, 300) };
+    if (!customer.name) throw new HttpError(400, 'Add your name to continue.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) throw new HttpError(400, 'Enter a valid email address.');
+    if (customer.phone.replace(/\D/g, '').length < 10) throw new HttpError(400, 'That phone number looks too short.');
+    if (!customer.city) throw new HttpError(400, 'Choose your city.');
+    if (customer.address.length < 5) throw new HttpError(400, 'Add your delivery address.');
+    const rawLines = Array.isArray(body.lines) ? body.lines.slice(0, 50) : [];
+    if (!rawLines.length) throw new HttpError(400, 'Your bag is empty.');
+    return serial(async () => {
+      const state = await readJson('state.json', {});
+      const stored = new Map((state.products || []).map((p) => [p.id, p]));
+      let review = false;
+      const lines = rawLines.map((l) => {
+        const id = clean(l.id, 80), qty = Math.max(1, Math.min(99, parseInt(l.qty, 10) || 0));
+        const known = stored.get(id) || catalog.get(id);
+        if (!known) throw new HttpError(400, 'An item in your bag is no longer available. Please refresh the page.');
+        const listed = Number(known.price) || 0, price = Number(l.price);
+        const unit = Number.isFinite(price) && price > 0 ? price : listed;
+        if (listed && Math.abs(unit - listed) / listed > 0.3) review = true;   // offers apply, but a big gap is flagged
+        return { id, qty, price: Math.round(unit * 100) / 100, cost: Number(stored.get(id)?.cost) || 0 };
+      });
+      const subtotal = Math.round(lines.reduce((s, l) => s + l.price * l.qty, 0) * 100) / 100;
+      const num = (v) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Math.round(Number(v) * 100) / 100 : 0);
+      const shipping = num(body.shipping), tax = num(body.tax), discount = num(body.discount);
+      const expected = Math.round((subtotal + shipping + tax - discount) * 100) / 100;
+      const total = Math.abs(num(body.total) - expected) <= 1 ? num(body.total) : expected;
+      const orders = await readJson('orders.json', []);
+      const order = {
+        id: newOrderId(orders), createdAt: Date.now(), customer,
+        zoneId: clean(body.zoneId, 20), methodId: clean(body.methodId, 40), paymentMethod: clean(body.paymentMethod, 40) || 'cod',
+        lines, subtotal, weight: num(body.weight), shipping, shipCost: num(body.shipCost), tax, total, discount,
+        promoCode: body.promoCode ? clean(body.promoCode, 40) : null,
+        etaMin: num(body.etaMin), etaMax: num(body.etaMax), status: 'Processing', paid: false,
+        note: 'Placed on the website' + (review ? '. Prices differ from the catalogue, please check before confirming.' : ''),
+        codPaid: 0, freightPaid: 0, serials: [], channel: 'website',
+      };
+      orders.unshift(order);
+      await writeJson('orders.json', orders);
+      await writeJson(`orders-backup-${new Date().toISOString().slice(0, 10)}.json`, orders);
+      if (state.products) {
+        state.products = state.products.map((p) => { const l = lines.find((x) => x.id === p.id); return l && Number.isFinite(p.stock) ? { ...p, stock: Math.max(0, p.stock - l.qty) } : p; });
+        await writeJson('state.json', state);
+      }
+      return order;
+    });
+  };
+
+  /* static files with compression and sensible caching */
+  const cache = new Map();
+  const cacheControl = (path) => {
+    if (/\/assets\/[a-z]+-[A-Z0-9]{8}\.js$/.test(path) || path.startsWith('/media/') || /-[0-9a-f]{8}(-\d+)?\.(webp|svg|png)$/.test(path)) return 'public, max-age=31536000, immutable';
+    if (/\.(html)$/.test(path) || path.endsWith('/sw.js') || path === '/') return 'no-cache';
+    if (/\.(woff2)$/.test(path)) return 'public, max-age=2592000';
+    return 'public, max-age=86400';
+  };
+  const sendFile = async (req, res, file, urlPath) => {
+    const info = await stat(file);
+    const type = TYPES[extname(file).toLowerCase()] || 'application/octet-stream';
+    let entry = cache.get(file);
+    if (!entry || entry.mtime !== info.mtimeMs) {
+      const raw = await readFile(file);
+      entry = { mtime: info.mtimeMs, raw };
+      if (COMPRESS.test(file) && raw.length > 1024) {
+        entry.br = brotliCompressSync(raw, { params: { [zlib.BROTLI_PARAM_QUALITY]: 9 } });
+        entry.gz = gzipSync(raw, { level: 9 });
+      }
+      cache.set(file, entry);
+    }
+    const accept = String(req.headers['accept-encoding'] || '');
+    const encoding = entry.br && /\bbr\b/.test(accept) ? 'br' : entry.gz && /\bgzip\b/.test(accept) ? 'gzip' : null;
+    const body = encoding === 'br' ? entry.br : encoding === 'gzip' ? entry.gz : entry.raw;
+    const headers = { ...SECURITY, 'Content-Type': type, 'Content-Length': body.length, 'Cache-Control': cacheControl(urlPath), 'Last-Modified': new Date(info.mtimeMs).toUTCString(), Vary: 'Accept-Encoding' };
+    if (encoding) headers['Content-Encoding'] = encoding;
+    res.writeHead(200, headers);
+    res.end(req.method === 'HEAD' ? undefined : body);
+  };
+  const json = (res, status, data) => {
+    const body = JSON.stringify(data);
+    res.writeHead(status, { ...SECURITY, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Length': Buffer.byteLength(body) });
+    res.end(body);
+  };
+
+  const api = async (req, res, url) => {
+    const route = url.pathname.replace(/^\/api\//, '').replace(/\/+$/, '');
+    const m = req.method;
+    if (route === 'health' && m === 'GET') return json(res, 200, { ok: true, admin: !!adminPassword, time: Date.now() });
+    if (route === 'state' && m === 'GET') {
+      const state = await readJson('state.json', {});
+      const out = {}; for (const k of STATE_KEYS) if (state[k] !== undefined) out[k] = state[k];
+      return json(res, 200, out);
+    }
+    if (route === 'state' && m === 'PUT') {
+      await requireAdmin(req);
+      const body = await readBody(req, 40 * 1024 * 1024);
+      const saved = await serial(async () => {
+        const state = await readJson('state.json', {});
+        const keys = [];
+        for (const k of STATE_KEYS) if (body[k] !== undefined) { state[k] = await saveMedia(body[k]); keys.push(k); }
+        state.updatedAt = Date.now();
+        await writeJson('state.json', state);
+        const out = {}; for (const k of keys) out[k] = state[k];
+        return out;
+      });
+      return json(res, 200, { ok: true, saved });
+    }
+    if (route === 'login' && m === 'POST') {
+      if (!adminPassword) throw new HttpError(503, 'Admin sign-in is not set up on the server. Add EPIC_ADMIN_PASSWORD in Hostinger and redeploy.');
+      limit('login:' + ipOf(req), 10, 15 * 60 * 1000);
+      const body = await readBody(req, 10 * 1024);
+      if (!same(String(body.user || '').trim().toLowerCase(), adminUser) || !same(String(body.password || ''), adminPassword)) throw new HttpError(401, "That username and password don't match.");
+      const expires = Date.now() + 12 * 60 * 60 * 1000;
+      return json(res, 200, { token: await sign({ u: adminUser, exp: expires }), expires });
+    }
+    if (route === 'orders' && m === 'POST') return json(res, 201, { order: await createOrder(await readBody(req, 200 * 1024), ipOf(req)) });
+    if (route === 'orders' && m === 'GET') { await requireAdmin(req); return json(res, 200, { orders: await readJson('orders.json', []) }); }
+    if (route === 'orders' && m === 'PUT') {
+      await requireAdmin(req);
+      const body = await readBody(req, 20 * 1024 * 1024);
+      const changes = (Array.isArray(body.orders) ? body.orders : []).filter((o) => o && typeof o.id === 'string');
+      const count = await serial(async () => {
+        const orders = await readJson('orders.json', []);
+        const index = new Map(orders.map((o, i) => [o.id, i]));
+        for (const o of changes) { if (index.has(o.id)) orders[index.get(o.id)] = o; else { orders.unshift(o); } }
+        await writeJson('orders.json', orders);
+        return changes.length;
+      });
+      return json(res, 200, { ok: true, count });
+    }
+    if (route === 'track' && m === 'GET') {
+      const id = clean(url.searchParams.get('id'), 20).toUpperCase();
+      const order = (await readJson('orders.json', [])).find((o) => String(o.id).toUpperCase() === id);
+      if (!order) throw new HttpError(404, 'No order found with that number.');
+      const { customer, ...rest } = order;
+      delete rest.serials; delete rest.note;
+      return json(res, 200, { order: { ...rest, lines: order.lines.map(({ cost, ...l }) => l), customer: { name: String(customer?.name || '').split(' ')[0], city: customer?.city || '', address: '', email: '', phone: '' } } });
+    }
+    throw new HttpError(404, 'Not found.');
+  };
+
+  const handler = async (req, res) => {
+    try {
+      const url = new URL(req.url, 'http://localhost');
+      if (url.pathname.startsWith('/api/')) return await api(req, res, url);
+      if (req.method !== 'GET' && req.method !== 'HEAD') throw new HttpError(405, 'Method not allowed.');
+      let path = decodeURIComponent(url.pathname);
+      if (path.startsWith('/media/')) {
+        const file = resolve(dataDir, 'media', path.slice(7));
+        if (!file.startsWith(resolve(dataDir, 'media') + sep) || !existsSync(file)) throw new HttpError(404, 'Not found.');
+        return await sendFile(req, res, file, path);
+      }
+      if (path.endsWith('/')) path += 'index.html';
+      const file = resolve(dist, '.' + path);
+      if (!file.startsWith(dist + sep)) throw new HttpError(404, 'Not found.');
+      if (existsSync(file) && (await stat(file)).isFile()) return await sendFile(req, res, file, path);
+      if (!extname(path)) return await sendFile(req, res, join(dist, 'index.html'), '/index.html');
+      throw new HttpError(404, 'Not found.');
+    } catch (error) {
+      const status = error.status || 500;
+      if (status === 500) console.error(error);
+      if (!res.headersSent) json(res, status, { error: status === 500 ? 'Something went wrong on our side. Please try again.' : error.message });
+    }
+  };
+  return createServer(handler);
+}
+
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+  const port = Number(process.env.PORT) || 3000;
+  createApp().listen(port, () => {
+    console.log(`EPIC DEVICES is running on port ${port}. Data folder: ${process.env.EPIC_DATA_DIR || join(homedir(), 'epic-data')}.` +
+      (process.env.EPIC_ADMIN_PASSWORD ? '' : ' Admin sign-in is off until EPIC_ADMIN_PASSWORD is set.'));
+  });
+}
