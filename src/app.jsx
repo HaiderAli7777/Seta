@@ -2,8 +2,9 @@ import { legacyProducts, legacyCategories } from "./catalog/legacy.mjs";
 import BrandHero from "./brand-hero.jsx";
 import UPGRADE_CSS from "./upgrade.css";
 import EXPERIENCE_CSS from "./experience.css";
+import REVAMP_CSS from "./revamp.css";
 import { DiscoveryStrip, ProductFinder, QuickView, ProductCompare } from "./experience.jsx";
-import { StoreHeader, CollectionGrid, CollectionSpotlights, RestockRequest, StoreFooter, StoreInfo } from "./storefront.jsx";
+import { StoreHeader, CollectionGrid, TrustBar, BudgetShelf, BrandWall, FinderBand, RestockRequest, StoreFooter, StoreInfo } from "./storefront.jsx";
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   ShoppingCart, Search, Heart, User, Lock, Menu, X, Plus, Minus, Check, ChevronRight, ChevronLeft,
@@ -4242,10 +4243,15 @@ export default function App({ initialView = "store" } = {}) {
 
   const featured = useMemo(() => {
     const live = products.filter((p) => p.active);
+    /* ties (a new shop has no sales or ratings yet) are broken by taking one product from
+       each category in turn, so the shelf shows the range instead of eight mice */
+    const seen = {}, spread = new Map();
+    live.forEach((p) => { seen[p.category] = (seen[p.category] || 0) + 1; spread.set(p.id, seen[p.category]); });
+    const tie = (a, b) => spread.get(a.id) - spread.get(b.id);
     return {
-      best: [...live].sort((a, b) => displaySold(b) - displaySold(a)).slice(0, 8),
-      new: [...live].filter((p) => p.isNew).concat([...live].filter((p) => !p.isNew)).slice(0, 8),
-      top: [...live].sort((a, b) => b.rating - a.rating).slice(0, 8),
+      best: [...live].sort((a, b) => displaySold(b) - displaySold(a) || (b.featured ? 1 : 0) - (a.featured ? 1 : 0) || tie(a, b)).slice(0, 8),
+      new: [...live].filter((p) => p.isNew).slice(0, 8),
+      top: live.some((p) => p.reviews > 0) ? [...live].sort((a, b) => b.rating - a.rating || tie(a, b)).slice(0, 8) : [],
       deals: [...live].filter((p) => pInfo(p).offPct > 0).sort((a, b) => pInfo(b).offPct - pInfo(a).offPct).slice(0, 8),
     };
   }, [products, salesByProduct, autoPromos]);
@@ -7090,7 +7096,13 @@ export default function App({ initialView = "store" } = {}) {
           <span className="glow" /><span className="pad" />
           {(() => {
             const frames = galleryFrames(p);
-            if (!frames.length) return <I size={listMode ? 44 : 58} strokeWidth={1.3} className="icn" />;
+            if (!frames.length) return (
+              <span className="rv-ph">
+                <span className="rv-ph-brand">{p.brand}</span>
+                <I size={listMode ? 40 : 54} strokeWidth={1.25} className="icn" />
+                <span className="rv-ph-specs">{(p.specs || []).filter(([k]) => !/model|colour/i.test(k)).slice(0, 2).map(([k, v]) => <i key={k}>{v}</i>)}</span>
+              </span>
+            );
             /* every angle is stacked and cross-faded by CSS on hover, so cycling
                costs no state and no re-render however many cards are on screen */
             return (
@@ -7110,7 +7122,6 @@ export default function App({ initialView = "store" } = {}) {
           <div className="card-tags">
             {inf.offPct > 0 && <span className="pill violet">Sale</span>}
             {p.isNew && <span className="pill blue">New</span>}
-            {p.featured && !p.isNew && inf.offPct === 0 && <span className="pill line">Pick</span>}
           </div>
           <div className="card-acts" onClick={(e) => e.stopPropagation()}>
             <button className={"mini " + (wished ? "on" : "")} onClick={() => toggleWish(p.id)} aria-pressed={wished} aria-label={wished ? "Remove from wishlist" : "Save to wishlist"}>
@@ -7127,10 +7138,10 @@ export default function App({ initialView = "store" } = {}) {
           <div className="lb-main">
             <h3><button onClick={() => openProduct(p.id)}>{p.name}</button></h3>
             <div className="card-sub">{subtitleOf(p)}</div>
-            <div className="card-rate">
+            {p.reviews > 0 && <div className="card-rate">
               {renderStars(p.rating, 12)}
               <span className="rc">({p.reviews.toLocaleString("en-US")})</span>
-            </div>
+            </div>}
           </div>
           <div className="lb-mid">
             {(low || out) && (
@@ -7478,24 +7489,21 @@ export default function App({ initialView = "store" } = {}) {
   };
 
   const renderFeatured = () => {
-    if (!products.some(p => p.active)) return <CollectionSpotlights categories={categories} onShop={goShop} />;
-    const tabs = [["best", "Best sellers"], ["new", "Just landed"], ["top", "Top rated"], ["deals", "On sale"]];
+    if (!products.some(p => p.active)) return null;
+    const tabs = [["best", "Best sellers"], ["new", "Just landed"], ["top", "Top rated"], ["deals", "On sale"]].filter(([k]) => k === "best" || (featured[k] || []).length);
     const list = featured[featTab] || [];
     return (
-      <section className="section tight reveal"><div className="wrap">
-        <div className="sec-head">
-          <div className="sec-title">
-            <span className="dashes"><i /><i /></span>
-            <h2>Your next great find.</h2>
-          </div>
-          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-            <div className="ftabs">{tabs.map(([k, l]) => <button key={k} className={featTab === k ? "on" : ""} onClick={() => setFeatTab(k)}>{l}</button>)}</div>
-            <button className="link" onClick={() => goShop("All")}>View All Products <ArrowRight size={15} /></button>
+      <section className="rv-section rv-featured reveal"><div className="wrap">
+        <div className="rv-head">
+          <div><span className="rv-eyebrow">Picked for you</span><h2>Your next great find.</h2></div>
+          <div className="rv-head-tools">
+            {tabs.length > 1 && <div className="ftabs" role="group" aria-label="Filter featured products">{tabs.map(([k, l]) => <button key={k} className={featTab === k ? "on" : ""} aria-pressed={featTab === k} onClick={() => setFeatTab(k)}>{l}</button>)}</div>}
+            <button className="rv-textlink" onClick={() => goShop("All")}>View all <ArrowRight size={15} /></button>
           </div>
         </div>
         {list.length === 0
           ? <div className="empty"><Sparkles size={34} color="var(--ink3)" strokeWidth={1.3} /><h4>{featTab === "deals" ? "More good things are on the way" : "Watch this space"}</h4><p>{featTab === "deals" ? "Explore the full collection while we prepare our next offers." : "Our next arrivals will appear here. Contact our team if you are looking for something specific."}</p><button className="btn btn-pri" onClick={() => goShop("All")}>Explore all products <ArrowRight size={15} /></button></div>
-          : <div className="grid five">{list.slice(0, 5).map(renderCard)}</div>}
+          : <div className="grid rv-grid4">{list.slice(0, 8).map(renderCard)}</div>}
       </div></section>
     );
   };
@@ -17739,7 +17747,7 @@ export default function App({ initialView = "store" } = {}) {
   const inConsole = view === "console" && authed;
   return (
     <div className={"tx epic-upgrade th-" + config.theme + (animOn ? " anim" : "")}>
-      <style>{CSS_A + CSS_B + CSS_C + CSS_D + themeCss(config.theme) + UPGRADE_CSS + EXPERIENCE_CSS}</style>
+      <style>{CSS_A + CSS_B + CSS_C + CSS_D + themeCss(config.theme) + UPGRADE_CSS + EXPERIENCE_CSS + REVAMP_CSS}</style>
 
       {view === "store" && (
         <>
@@ -17752,12 +17760,16 @@ export default function App({ initialView = "store" } = {}) {
           {storeView === "home" && (
             <>
               {renderHero()}
+              <TrustBar config={config} />
               {renderCategoryRow()}
-              <DiscoveryStrip onFinder={() => setFinderOpen(true)} />
               {renderFeatured()}
-              {renderNewsBand()}
+              <BudgetShelf products={products} priceOf={p => pInfo(p).final} money={money}
+                onBudget={(lo, hi) => { goShop("All"); setPriceLo(lo); setPriceHi(hi); }} />
+              <FinderBand onFinder={() => setFinderOpen(true)} />
+              <BrandWall products={products} onBrand={(b) => { goShop("All"); setBrands([b]); }} />
               {renderPromoBanners()}
               {renderRecent()}
+              {renderNewsBand()}
             </>
           )}
           {storeView === "shop" && (
