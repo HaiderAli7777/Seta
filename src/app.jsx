@@ -1,4 +1,5 @@
 import { legacyProducts, legacyCategories } from "./catalog/legacy.mjs";
+import { CATEGORIES as CATALOG_CATEGORIES } from "./catalog/logic.mjs";
 import BrandHero from "./brand-hero.jsx";
 import UPGRADE_CSS from "./upgrade.css";
 import EXPERIENCE_CSS from "./experience.css";
@@ -4605,12 +4606,12 @@ export default function App({ initialView = "store" } = {}) {
     setForm((prev) => ({ ...prev, city: name, zoneId, methodId }));
   };
   const goCheckout = () => {
-    if (!cart.length) { pushToast("Your cart is empty", X, true); return; }
+    if (!cart.length) { pushToast("Your bag is empty", X, true); return; }
     setCartOpen(false); setStoreView("checkout"); window.scrollTo(0, 0);
   };
   const placeOrder = async () => {
     if (placing) return;
-    if (!cart.length) { pushToast("Your cart is empty", X, true); return; }
+    if (!cart.length) { pushToast("Your bag is empty", X, true); return; }
     const labels = { name: "name", email: "email", phone: "phone number", address: "delivery address", city: "city" };
     for (const f of ["name", "email", "phone", "address", "city"]) if (!form[f].trim()) { pushToast("Add your " + labels[f] + " to continue", X, true); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) { pushToast("Enter a valid email address", X, true); return; }
@@ -7214,7 +7215,7 @@ export default function App({ initialView = "store" } = {}) {
   );
 
   const renderNav = () => <StoreHeader config={config} products={products} categories={parents}
-    active={storeView} special={special} cartCount={cartCount} wishCount={wishlist.length}
+    active={storeView} special={special} category={category} cartCount={cartCount} wishCount={wishlist.length}
     onHome={() => { setStoreView("home"); setMobileMenu(false); window.scrollTo(0, 0); }}
     onShop={goShop} onSpecial={navSpecial} onProduct={openProduct}
     onSearch={(value) => { goShop("All", true); setQuery(value); }}
@@ -7237,7 +7238,7 @@ export default function App({ initialView = "store" } = {}) {
       <button className="ml" onClick={() => { setStoreView("home"); setMobileMenu(false); window.scrollTo(0, 0); }}>Home <ChevronRight size={17} /></button>
       <button className="ml" onClick={() => goShop("All")}>Shop all <ChevronRight size={17} /></button>
       <button className="ml" onClick={() => { setMobileMenu(false); setFinderOpen(true); }}>Find my upgrade <Sparkles size={17} /></button>
-      {children.map((c) => <button className="ml" key={c.id} onClick={() => goShop(c.id)}>{c.label} <ChevronRight size={17} /></button>)}
+      {(children.length ? children : parents).map((c) => <button className="ml" key={c.id} onClick={() => goShop(c.id)}>{c.label} <ChevronRight size={17} /></button>)}
       <button className="ml" onClick={() => navSpecial("new")}>New arrivals <ChevronRight size={17} /></button>
       <button className="ml" onClick={() => navSpecial("deals")}>Deals <ChevronRight size={17} /></button>
       <button className="ml" onClick={() => { setStoreView("wishlist"); setMobileMenu(false); window.scrollTo(0, 0); }}>Wishlist ({wishlist.length}) <ChevronRight size={17} /></button>
@@ -7536,7 +7537,7 @@ export default function App({ initialView = "store" } = {}) {
           <div className={"shophero" + (media ? " withmedia" : "")}>
             <div>
               <h1>{cat
-                ? <><span className="gtext">{cat.label}</span></>
+                ? <><span className="gtext">{(CATALOG_CATEGORIES.find((x) => x.id === cat.id) || {}).plural || cat.label}</span></>
                 : <>{special === "deals" ? "Discover a great deal." : special === "new" ? "Meet the newest arrivals." : "Find your next upgrade."}</>}</h1>
               <p>{cat && cat.blurb
                 ? cat.blurb
@@ -7563,7 +7564,7 @@ export default function App({ initialView = "store" } = {}) {
         <button className={"ptab " + (category === "All" ? "on" : "")} onClick={() => { setCategory("All"); setPage(1); }}>
           <span className="ic"><LayoutGrid size={16} /></span> All Products
         </button>
-        {children.map((c) => {
+        {(children.length ? children : parents).map((c) => {
           const I = iconOf(c.iconKey);
           return (
             <button className={"ptab " + (category === c.id ? "on" : "")} key={c.id} onClick={() => { setCategory(c.id); setPage(1); }}>
@@ -7597,16 +7598,23 @@ export default function App({ initialView = "store" } = {}) {
           {facetHead("cat", "Category")}
           {openFacets.cat && (
             <div className="facet-b">
-              <button className={"fcat all " + (cats.length === 0 ? "on" : "")} onClick={() => { setCats([]); setCategory("All"); setPage(1); }}>
+              <button className={"fcat all " + (cats.length === 0 && category === "All" ? "on" : "")} onClick={() => { setCats([]); setCategory("All"); setPage(1); }}>
                 All products<span className="ct">{products.filter((p) => p.active).length}</span>
               </button>
               {parents.map((g) => {
                 const kids = childrenOf(g.id).map((c) => c.id);
-                const groupOn = kids.length > 0 && kids.every((k) => cats.includes(k));
+                /* a category with no sub-categories is picked on its own; the one opened
+                   from the menu counts as picked until the sidebar takes over */
+                const groupOn = kids.length > 0 ? kids.every((k) => cats.includes(k)) : cats.includes(g.id) || (cats.length === 0 && category === g.id);
+                const pickLeaf = () => {
+                  const base = cats.length === 0 && category !== "All" ? [category] : cats;
+                  setCats(groupOn ? base.filter((x) => x !== g.id) : [...new Set([...base, g.id])]);
+                  setCategory("All");
+                };
                 return (
                   <React.Fragment key={g.id}>
-                    <button className={"fcat group " + (groupOn ? "on" : "")}
-                            onClick={() => { setCats((v) => (groupOn ? v.filter((x) => !kids.includes(x)) : [...new Set([...v, ...kids])])); setPage(1); }}>
+                    <button className={"fcat group " + (groupOn ? "on" : "")} aria-pressed={groupOn}
+                            onClick={() => { if (!kids.length) pickLeaf(); else setCats((v) => (groupOn ? v.filter((x) => !kids.includes(x)) : [...new Set([...v, ...kids])])); setPage(1); }}>
                       {g.label}<span className="ct">{catCount(g.id)}</span>
                     </button>
                     {childrenOf(g.id).map((c) => (
@@ -7666,7 +7674,7 @@ export default function App({ initialView = "store" } = {}) {
           )}
         </div>
 
-        <div className="facet">
+        {tagFacets.length > 0 && <div className="facet">
           {facetHead("feat", "Features")}
           {openFacets.feat && (
             <div className="facet-b">
@@ -7676,12 +7684,11 @@ export default function App({ initialView = "store" } = {}) {
                   <span className="ct">{count}</span>
                 </button>
               ))}
-              {tagFacets.length === 0 && <p className="hint" style={{ margin: 0 }}>Product features will appear with the collection.</p>}
             </div>
           )}
-        </div>
+        </div>}
 
-        <div className="facet">
+        {products.some((p) => p.active && p.reviews > 0) && <div className="facet">
           {facetHead("rate", "Ratings")}
           {openFacets.rate && (
             <div className="facet-b">
@@ -7692,7 +7699,7 @@ export default function App({ initialView = "store" } = {}) {
               ))}
             </div>
           )}
-        </div>
+        </div>}
 
         <div className="facet">
           {facetHead("avail", "Availability")}
@@ -7929,7 +7936,12 @@ export default function App({ initialView = "store" } = {}) {
                                  setPan({ x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100 });
                                }}
                                onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                        : <I size={84} strokeWidth={1.1} />)}
+                        : <span className="rv-pd-ph">
+                            <span className="rv-ph-brand">{p.brand}</span>
+                            <I size={96} strokeWidth={1.05} />
+                            <span className="rv-ph-specs">{(p.specs || []).filter(([k]) => !/model/i.test(k)).slice(0, 3).map(([k, v]) => <i key={k}>{v}</i>)}</span>
+                            <small>Product photo coming soon</small>
+                          </span>)}
                   {gallerySlide !== "video" && galleryFrames(p).length > 0 && (
                     <div className="zoombar">
                       <button onClick={() => setZoom((z) => Math.max(1, Math.round((z - 0.5) * 10) / 10))} disabled={zoom <= 1} aria-label="Zoom out"><Minus size={14} /></button>
@@ -7960,13 +7972,13 @@ export default function App({ initialView = "store" } = {}) {
                 <div className="pd-crumbtag">{catLabel(p.category)}</div>
                 <h1 className="pdp-title">{p.name}</h1>
                 {p.tagline ? <p className="pdp-tag">{p.tagline}</p> : null}
-                <div className="card-rate pd-rate">
+                {p.reviews > 0 && <div className="card-rate pd-rate">
                   {renderStars(p.rating, 14)}
                   <span className="rc">{p.rating.toFixed(1)}</span>
                   <span className="rdot" />
                   <span className="rc">{p.reviews.toLocaleString("en-US")} reviews</span>
                   {displaySold(p) > 0 && <><span className="rdot" /><span className="rc">{displaySold(p).toLocaleString("en-US")} sold</span></>}
-                </div>
+                </div>}
 
                 <div className="pd-price">
                   <span className="pd-now">{money(inf.final)}</span>
@@ -8004,7 +8016,9 @@ export default function App({ initialView = "store" } = {}) {
                 </div>
 
                 <div className="pd-trust">
-                  <div><span className="tk"><ShieldCheck size={15} /></span><b>{p.warranty} month warranty</b><small>Covered by the brand</small></div>
+                  {p.warranty > 0
+                    ? <div><span className="tk"><ShieldCheck size={15} /></span><b>{p.warranty} month warranty</b><small>Covered by the brand</small></div>
+                    : <div><span className="tk"><ShieldCheck size={15} /></span><b>Genuine stock</b><small>Checked before dispatch</small></div>}
                   <div><span className="tk"><RotateCcw size={15} /></span><b>{config.returnWindowDays} day returns</b><small>{config.deliveries ? (config.storePaysReturnFreight ? "Return pickup available" : "Return postage applies") : "Contact our team to arrange"}</small></div>
                   <div><span className="tk"><Banknote size={15} /></span><b>{config.deliveries ? "Cash on delivery" : "Store collection"}</b><small>{config.deliveries ? "Pay when your order arrives" : "Collect from our Lahore store"}</small></div>
                 </div>
@@ -8034,7 +8048,7 @@ export default function App({ initialView = "store" } = {}) {
                     <div><span className="sk">Category</span><span className="sv">{catLabel(p.category)}</span></div>
                     <div><span className="sk">Brand</span><span className="sv">{p.brand}</span></div>
                     <div><span className="sk">SKU</span><span className="sv mono">{p.sku}</span></div>
-                    <div><span className="sk">Warranty</span><span className="sv">{p.warranty} months</span></div>
+                    {p.warranty > 0 && <div><span className="sk">Warranty</span><span className="sv">{p.warranty} months</span></div>}
                     <div><span className="sk">Shipping weight</span><span className="sv">{(p.weightKg != null ? p.weightKg : (weightBy[p.category] || 0.3)).toFixed(2)} kg</span></div>
                   </div>
                 </div>
@@ -8046,7 +8060,7 @@ export default function App({ initialView = "store" } = {}) {
                     <div><span className="di"><MapPin size={14} /></span><div><b>Delivering to {form.city}</b><p>{cartBase.etaMin || 1} to {cartBase.etaMax || 3} working days by {(config.methods.find((m) => m.active !== false) || {}).name || "Standard"}.</p></div></div>
                     <div><span className="di"><Banknote size={14} /></span><div><b>Free over {money(config.freeShipThreshold)}</b><p>Otherwise delivery is calculated at checkout by weight and zone.</p></div></div>
                     <div><span className="di"><RotateCcw size={14} /></span><div><b>{config.returnWindowDays} days to change your mind</b><p>Raise a return from your orders page and we will book the pickup.</p></div></div>
-                    <div><span className="di"><ShieldCheck size={14} /></span><div><b>Genuine stock</b><p>Every unit is checked before dispatch and carries {p.warranty} months of brand warranty.</p></div></div>
+                    <div><span className="di"><ShieldCheck size={14} /></span><div><b>Genuine stock</b><p>Every unit is checked before dispatch{p.warranty > 0 ? " and carries " + p.warranty + " months of brand warranty" : ". Ask our team about warranty cover for this model"}.</p></div></div>
                   </div>
                 </div>
               </div>
@@ -8081,7 +8095,7 @@ export default function App({ initialView = "store" } = {}) {
         <div className="overlay" onClick={() => setCartOpen(false)} />
         <aside className="drawer" role="dialog" aria-modal="true" aria-label="Shopping bag" tabIndex={-1}>
           <div className="drawer-head">
-            <h3><ShoppingBag size={19} color="var(--blue)" /> Your cart <span className="pill soft">{cartCount} item{cartCount === 1 ? "" : "s"}</span></h3>
+            <h3><ShoppingBag size={19} color="var(--blue)" /> Your bag <span className="pill soft">{cartCount} item{cartCount === 1 ? "" : "s"}</span></h3>
             <button className="modal-x" aria-label="Close bag" onClick={() => setCartOpen(false)}><X size={17} /></button>
           </div>
           <div className="drawer-body">
@@ -8799,7 +8813,7 @@ export default function App({ initialView = "store" } = {}) {
                     <div className="field"><label>What are you after</label>
                       <select className="inp" value={f.interest} onChange={(e) => setF({ interest: e.target.value })}>
                         <option value="">Pick a category</option>
-                        {children.map((c) => <option key={c.id} value={c.label}>{c.label}</option>)}
+                        {(children.length ? children : parents).map((c) => <option key={c.id} value={c.label}>{c.label}</option>)}
                         <option value="Mixed order">A mix of things</option>
                       </select>
                     </div>
@@ -9545,7 +9559,7 @@ export default function App({ initialView = "store" } = {}) {
             <button className="btn btn-sm" onClick={() => bulkPrice(10)}><TrendingUp size={13} /> +10% price</button>
             <select onChange={(e) => { bulkMove(e.target.value); e.target.value = ""; }} defaultValue="">
               <option value="" disabled>Move to category…</option>
-              {children.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+              {(children.length ? children : parents).map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
             <button className="btn btn-sm" onClick={bulkDelete} style={{ color: "#FFB4A2" }}><Trash2 size={13} /> Delete</button>
             <button className="btn btn-sm" style={{ marginLeft: "auto" }} onClick={() => setSelected([])}>Clear</button>
@@ -10282,7 +10296,7 @@ export default function App({ initialView = "store" } = {}) {
                 {draft.scope === "all" ? <input className="finp" value="Whole catalog" disabled /> : (
                   <select className="finp" value={draft.target} onChange={(e) => setDraft({ ...draft, target: e.target.value })}>
                     <option value="">Choose…</option>
-                    {draft.scope === "category" && children.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                    {draft.scope === "category" && (children.length ? children : parents).map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
                     {draft.scope === "brand" && allBrands.map((b) => <option key={b} value={b}>{b}</option>)}
                     {draft.scope === "product" && products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>

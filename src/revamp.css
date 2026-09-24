@@ -421,9 +421,51 @@ html,body{background:#F3F5F8}
   .tx .rv-footer{padding-top:48px}
   .epic-upgrade .shop-grid{grid-template-columns:1fr}
   .epic-upgrade .shophero{padding:28px 22px;border-radius:16px}
+  .epic-upgrade .pilltabs{display:none}
+  .epic-upgrade #catalog{padding-top:16px}
 }
 @media (max-width:380px){
   .tx .rv-brand>span{font-size:14px}
   .tx .rv-act{padding:0 7px}
 }
 @media (min-width:761px){.tx .rv-cat-copy{padding-right:46px}}
+
+/* ── product page ── */
+.epic-upgrade .crumb-bar{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.epic-upgrade .crumb-btn{border:0;background:none;padding:4px 2px;font:500 13px var(--f-body);color:var(--ink3);cursor:pointer}
+.epic-upgrade .crumb-btn:hover{color:var(--blue);text-decoration:underline;text-underline-offset:3px}
+.epic-upgrade .crumb-now{font-weight:600;color:var(--ink)}
+.epic-upgrade .crumb-bar svg{color:var(--ink4)}
+.epic-upgrade .pd-media{border-radius:20px;border:1px solid var(--line);background:linear-gradient(170deg,#F4F6F9,#E6EBF1)}
+.epic-upgrade .pd-media .glow,.epic-upgrade .pd-media .pad{display:none}
+.epic-upgrade .pd-media .tick{font:600 10.5px/1 var(--f-mono);letter-spacing:.12em;border-radius:6px;background:#fff;border:0;box-shadow:inset 0 0 0 1px var(--line)}
+.epic-upgrade .rv-pd-ph{display:grid;justify-items:center;gap:22px;color:#1D3B6E;text-align:center}
+.epic-upgrade .rv-pd-ph .rv-ph-brand{justify-self:center;margin:0;font-size:clamp(18px,2vw,26px);color:#8B97A8}
+.epic-upgrade .rv-pd-ph .rv-ph-specs i{font-size:12px;padding:7px 10px}
+.epic-upgrade .rv-pd-ph small{font:500 12px var(--f-mono);color:var(--ink3)}
+.epic-upgrade .pd-crumbtag{font:600 11.5px/1 var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--blue)}
+.epic-upgrade .pd-info .pdp-title{font-family:var(--f-display);font-weight:700;font-stretch:112%;font-size:clamp(1.8rem,3vw,2.6rem);line-height:1.05;letter-spacing:-.015em;margin:12px 0 10px}
+.epic-upgrade .pd-now{font-family:var(--f-body);font-weight:800;font-size:clamp(1.8rem,2.6vw,2.3rem);letter-spacing:-.02em}
+.epic-upgrade .pd-blurb{font-size:15px;line-height:1.7;color:var(--ink2)}
+.epic-upgrade .pd-stock{border-radius:14px;border:1px solid var(--line);background:#fff}
+.epic-upgrade .pd-cta{min-height:54px;font-size:16px}
+.epic-upgrade .pd-buy .icon-only{min-height:54px;width:54px;border-radius:10px;background:#fff;border:1px solid var(--line2)}
+.epic-upgrade .pd-qty{height:54px;border-radius:10px}
+.epic-upgrade .pd-trust>div{border-radius:14px;border:1px solid var(--line);background:#fff}
+.epic-upgrade .pd-trust .tk{background:var(--blue-soft);color:var(--blue);border-radius:8px}
+.epic-upgrade .cpanel{border-radius:18px;border:1px solid var(--line);box-shadow:none}
+.epic-upgrade .cpanel-h h3{font-family:var(--f-display);font-stretch:110%;font-weight:700;font-size:17px}
+.epic-upgrade .specgrid .sk{color:var(--ink3)}
+.epic-upgrade .specgrid .sv{font-weight:600;color:var(--ink)}
+.epic-upgrade .buybar{border-radius:14px;box-shadow:var(--sh-3);border:1px solid var(--line)}
+
+/* ── bag drawer + primary button sheen ── */
+.epic-upgrade .btn-pri{overflow:hidden}
+.epic-upgrade .btn-pri::after{opacity:0}
+.tx.anim.epic-upgrade .btn-pri:hover::after{opacity:1}
+.epic-upgrade .drawer-foot{display:block;padding:20px 24px 24px;border-top:1px solid var(--line)}
+.epic-upgrade .drawer-foot .sum-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;font-size:14px;color:var(--ink2)}
+.epic-upgrade .drawer-foot .sum-row .v{font:600 14px var(--f-body);color:var(--ink)}
+.epic-upgrade .drawer-foot .sum-row.total{margin-top:8px;padding-top:14px;border-top:1px solid var(--line2);font-weight:700;color:var(--ink)}
+.epic-upgrade .drawer-foot .sum-row.total .v{font-size:22px;font-weight:800}
+.epic-upgrade .drawer-foot .btn-pri{min-height:54px;font-size:16px}

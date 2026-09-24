@@ -35,12 +35,13 @@ const ART = {
   drives: { Svg: DriveArt, tone: "steel" },
 };
 
-export function StoreHeader({ config, products, categories, active, special, cartCount, wishCount, onHome, onShop, onSpecial, onProduct, onSearch, onCart, onWish, onAccount, onMenu, onTrade, onFinder, money }) {
+export function StoreHeader({ config, products, categories, active, special, category = "All", cartCount, wishCount, onHome, onShop, onSpecial, onProduct, onSearch, onCart, onWish, onAccount, onMenu, onTrade, onFinder, money }) {
   const [search, setSearch] = useState("");
   const [focused, setFocused] = useState(false);
   const [selected, setSelected] = useState(-1);
   const headerRef = useRef(null);
   const searchRef = useRef(null);
+  const navRef = useRef(null);
   const matches = search.trim() ? products.filter(p => p.active && search.trim().toLowerCase().split(/\s+/).every(term => [p.name, p.brand, p.sku, p.tags?.join(" ")].join(" ").toLowerCase().includes(term))).slice(0, 6) : [];
   const chooseProduct = p => { setFocused(false); setSearch(""); setSelected(-1); onProduct(p.id); };
   const searchKey = e => {
@@ -61,8 +62,15 @@ export function StoreHeader({ config, products, categories, active, special, car
     document.addEventListener("keydown", key);
     return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", key); };
   }, []);
+  /* on narrow screens the nav row scrolls sideways: keep the current page's link in view */
+  useEffect(() => {
+    const nav = navRef.current, on = nav?.querySelector(".on");
+    if (!nav || !on || nav.scrollWidth <= nav.clientWidth) return;
+    nav.scrollLeft = Math.max(0, on.offsetLeft - (nav.clientWidth - on.offsetWidth) / 2);
+  }, [active, special, category]);
   const submit = e => { e.preventDefault(); if (!search.trim()) return; onSearch(search.trim()); setFocused(false); setSearch(""); };
   const shopping = active === "shop" && special === "none";
+  const allOn = shopping && category === "All";
   return <header className="rv-header" ref={headerRef}>
     <div className="ed-wrap rv-mast">
       <button className="rv-brand" onClick={onHome} aria-label={`${config.storeName} home`}>
@@ -91,9 +99,9 @@ export function StoreHeader({ config, products, categories, active, special, car
         <button className="rv-act rv-burger" onClick={onMenu} aria-label="Open menu"><Menu size={22} /></button>
       </div>
     </div>
-    <div className="rv-navline"><nav className="ed-wrap rv-nav" aria-label="Main navigation">
-      <button className={shopping ? "on" : ""} onClick={() => onShop("All")}>All products</button>
-      {categories.slice(0, 7).map(c => <button key={c.id} onClick={() => onShop(c.id)}>{META[c.id]?.plural || c.label}</button>)}
+    <div className="rv-navline"><nav className="ed-wrap rv-nav" aria-label="Main navigation" ref={navRef}>
+      <button className={allOn ? "on" : ""} onClick={() => onShop("All")}>All products</button>
+      {categories.slice(0, 7).map(c => <button key={c.id} className={shopping && category === c.id ? "on" : ""} aria-current={shopping && category === c.id ? "page" : undefined} onClick={() => onShop(c.id)}>{META[c.id]?.plural || c.label}</button>)}
       <span className="rv-nav-sep" aria-hidden="true" />
       <button className={active === "shop" && special === "new" ? "on" : ""} onClick={() => onSpecial("new")}>New in</button>
       <button className={(active === "shop" && special === "deals" ? "on " : "") + "rv-nav-deals"} onClick={() => onSpecial("deals")}><Zap size={13} /> Offers</button>

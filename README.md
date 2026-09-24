@@ -1,8 +1,18 @@
-# EPIC DEVICES 5.2
+# EPIC DEVICES 6.0
 
 The online store for **epicdevicesltd.com**: storefront, checkout with delivery, and the business console, running as one Node.js app on Hostinger. Customers' orders are saved on the server and appear in the console.
 
-## What's new in 5.2
+## What's new in 6.0: the storefront redesign
+
+Checkout, orders, the console and deployment work exactly as in 5.2. Only what customers see has changed, plus a few storefront bugs found along the way.
+
+- **New look.** A single cobalt hero stage with wide display type, a graphite header bar and footer, and one blue accent throughout. The design layer lives in `src/revamp.css` and loads last.
+- **Header.** Search sits in the middle with suggestions; every category is one click away in the nav bar, which highlights the page you're on (and scrolls to it on phones).
+- **Home page.** Trust strip (cash on delivery, nationwide delivery, genuine stock, returns), a category showcase, a mixed "picked for you" shelf, shop by budget, the product finder, a brand wall and a restock/WhatsApp contact block.
+- **Product cards and pages without photos** now show the brand, the category icon and key specs (for example "1200 DPI · Silent") instead of a lone icon. Empty star ratings, "0 month warranty" and empty filter groups are hidden until there is real data.
+- **Fixed:** the home page's category section was empty (it looked for categories from an older catalogue); the shop sidebar's category filter did nothing with the current flat categories; the mobile menu, B2B enquiry form, bulk "move to category" and promotion category pickers had empty category lists.
+
+## What was new in 5.2
 
 - **The full store structure is back**: Track order, My orders, B2B and wholesale, categories, new arrivals, offers, wishlist, cart, checkout, order confirmation and the complete console, in the new logo and single brand theme.
 - **Checkout with delivery.** Customers enter their details, city and delivery address, choose a delivery speed (Standard, Express, or Same-day in major cities) priced by city zone, and pay by cash on delivery or card/bank transfer.
@@ -79,7 +89,9 @@ On Windows PowerShell use `$env:EPIC_ADMIN_PASSWORD="choose-one"; npm run dev`.
 ```
 server.js                    Node server: website, catalogue and settings, orders, tracking, photos
 src/app.jsx                  storefront and console (one app)
-src/brand-hero.jsx           single-tone hero slider
+src/brand-hero.jsx           cobalt hero slider
+src/storefront.jsx           header, home sections, footer
+src/revamp.css               storefront design layer (loaded last)
 src/main.jsx                 opens the store on index.html and the console on console.html
 src/catalog/                 the 49 products, pricing rules and category setup
 assets/                      logo files, slides, fonts, artwork, product photos
