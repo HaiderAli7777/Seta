@@ -469,3 +469,35 @@ html,body{background:#F3F5F8}
 .epic-upgrade .drawer-foot .sum-row.total{margin-top:8px;padding-top:14px;border-top:1px solid var(--line2);font-weight:700;color:var(--ink)}
 .epic-upgrade .drawer-foot .sum-row.total .v{font-size:22px;font-weight:800}
 .epic-upgrade .drawer-foot .btn-pri{min-height:54px;font-size:16px}
+
+/* ── console: stock movement + vendor scorecard ── */
+.epic-upgrade .mv-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+.epic-upgrade .mv-panel{min-width:0}
+.epic-upgrade .mv-grid>:last-child{grid-column:1/-1}
+.epic-upgrade .mv-grid>:last-child .cpanel-b{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:24px}
+.epic-upgrade .mv-grid>:last-child .mv-row+.mv-row{box-shadow:none}
+.epic-upgrade .mv-grid>:last-child .mv-row{border-bottom:1px solid var(--line)}
+.epic-upgrade .mv-warn{font-style:normal;font-weight:700;color:var(--warn)}
+.epic-upgrade .mv-panel .cpanel-b{display:grid;gap:4px}
+.epic-upgrade .mv-row{display:flex;align-items:center;gap:12px;width:100%;padding:10px 8px;border:0;border-radius:10px;background:none;text-align:left;font:inherit;color:inherit}
+.epic-upgrade button.mv-row{cursor:pointer}
+.epic-upgrade button.mv-row:hover{background:var(--surface2)}
+.epic-upgrade .mv-row+.mv-row{box-shadow:0 -1px 0 var(--line)}
+.epic-upgrade .mv-rank{display:grid;place-items:center;width:26px;height:26px;flex-shrink:0;border-radius:7px;background:var(--blue-soft);color:var(--blue);font:700 12px var(--f-mono)}
+.epic-upgrade .mv-main{flex:1;min-width:0}
+.epic-upgrade .mv-main b{display:block;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.epic-upgrade .mv-main small{display:block;margin-top:2px;font-size:11.5px;color:var(--ink3);line-height:1.4}
+.epic-upgrade .mv-num{text-align:right;flex-shrink:0}
+.epic-upgrade .mv-num b{display:block;font:700 13.5px var(--f-mono)}
+.epic-upgrade .mv-num small{font-size:11px;color:var(--ink3)}
+.epic-upgrade .mv-flag{flex-shrink:0;padding:4px 8px;border-radius:6px;background:var(--surface3);color:var(--ink2);font:700 10.5px var(--f-mono);text-transform:uppercase;letter-spacing:.05em}
+.epic-upgrade .mv-flag.warn{background:var(--warn-soft);color:var(--warn)}
+.epic-upgrade .mv-flag.ok{background:var(--ok-soft);color:var(--ok)}
+.epic-upgrade .mv-flag.mid{background:var(--blue-soft);color:var(--blue-d)}
+.epic-upgrade .mv-flag.bad{background:var(--bad-soft);color:var(--bad)}
+.epic-upgrade .mv-score{display:grid;place-items:center;width:40px;height:40px;flex-shrink:0;border-radius:50%;font:800 14px var(--f-mono);background:var(--surface3);color:var(--ink2)}
+.epic-upgrade .mv-score.ok{background:var(--ok-soft);color:var(--ok);box-shadow:inset 0 0 0 2px var(--ok)}
+.epic-upgrade .mv-score.mid{background:var(--blue-soft);color:var(--blue-d);box-shadow:inset 0 0 0 2px var(--blue)}
+.epic-upgrade .mv-score.bad{background:var(--bad-soft);color:var(--bad);box-shadow:inset 0 0 0 2px var(--bad)}
+.epic-upgrade .mv-tip{margin:8px 8px 0;font-size:12px}
+@media (max-width:1100px){.epic-upgrade .mv-grid,.epic-upgrade .mv-grid>:last-child .cpanel-b{grid-template-columns:1fr}}

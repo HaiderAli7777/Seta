@@ -8956,6 +8956,54 @@ export default function App({ initialView = "store" } = {}) {
     setDashTo(isoDay(Date.now()));
   };
 
+  /* Stock movement for the dashboard: what sells fast, what sits, and which suppliers
+     deliver stock that sells and does not come back faulty. Every sale counts once:
+     website orders plus confirmed sale invoices, the same doors channelData uses. */
+  const movement = useMemo(() => {
+    const { a, b } = dashRange;
+    const days = Math.max(1, Math.ceil((b - a) / DAY));
+    const sold = {}, soldAll = {}, lastSold = {};
+    const tally = (id, qty, at) => {
+      if (!id) return;
+      soldAll[id] = (soldAll[id] || 0) + qty;
+      lastSold[id] = Math.max(lastSold[id] || 0, at || 0);
+      if (at >= a && at <= b) sold[id] = (sold[id] || 0) + qty;
+    };
+    orders.filter((o) => o.status !== "Cancelled").forEach((o) => o.lines.forEach((l) => tally(l.id, num(l.qty), o.createdAt)));
+    docs.filter((d) => d.side === "sale" && d.stage === "invoice" && d.confirmed).forEach((d) => (d.lines || []).forEach((l) => tally(l.id, num(l.qty), d.at)));
+    const rows = products.filter((p) => p.active && p.kind !== "service").map((p) => {
+      const units = sold[p.id] || 0, perDay = units / days;
+      const unitValue = p.cost > 0 ? p.cost : p.price;
+      return { p, units, perDay, cover: perDay > 0 ? p.stock / perDay : Infinity, last: lastSold[p.id] || 0,
+               tied: Math.max(0, p.stock) * unitValue, revenue: units * p.price };
+    });
+    const fast = rows.filter((r) => r.units > 0).sort((x, y) => y.units - x.units || y.revenue - x.revenue).slice(0, 6);
+    const fastIds = new Set(fast.map((r) => r.p.id));
+    const slow = rows.filter((r) => r.p.stock > 0 && !fastIds.has(r.p.id))
+      .sort((x, y) => x.perDay - y.perDay || y.tied - x.tied).slice(0, 6);
+    const slowTied = rows.filter((r) => r.p.stock > 0 && r.units === 0).reduce((t, r) => t + r.tied, 0);
+
+    const lotSupplier = Object.fromEntries(lots.map((l) => [l.id, l.supplierId]));
+    const vendors = suppliers.map((sup) => {
+      const pos = purchases.filter((po) => po.supplierId === sup.id);
+      const bought = pos.filter((po) => po.kind !== "return"), returned = pos.filter((po) => po.kind === "return");
+      const units = bought.reduce((t, po) => t + po.lines.reduce((x, l) => x + num(l.qty), 0), 0);
+      const back = returned.reduce((t, po) => t + po.lines.reduce((x, l) => x + num(l.qty), 0), 0);
+      const spend = bought.reduce((t, po) => t + num(po.total), 0);
+      const faultsUnits = faults.filter((f) => (f.supplierId || lotSupplier[f.lotId]) === sup.id).reduce((t, f) => t + num(f.qty), 0);
+      const ids = new Set(bought.flatMap((po) => po.lines.map((l) => l.id)));
+      const soldUnits = [...ids].reduce((t, id) => t + (soldAll[id] || 0), 0);
+      const sellThrough = units > 0 ? Math.min(1, soldUnits / units) : 0;
+      const defect = units > 0 ? Math.min(1, (faultsUnits + back) / units) : 0;
+      const credit = Math.min(60, num(sup.terms)) / 60;
+      /* half on whether their stock sells, a third on whether it arrives sound, the rest on credit terms */
+      const score = units > 0 ? Math.round(100 * (0.5 * sellThrough + 0.35 * (1 - Math.min(1, defect * 5)) + 0.15 * credit)) : null;
+      const last = bought.reduce((t, po) => Math.max(t, po.at || 0), 0);
+      return { sup, orders: bought.length, units, spend, faultsUnits: faultsUnits + back, sellThrough, defect, score, last, products: ids.size };
+    }).sort((x, y) => (y.score ?? -1) - (x.score ?? -1) || y.spend - x.spend);
+    return { days, fast, slow, slowTied, vendors };
+  }, [dashRange, orders, docs, products, suppliers, purchases, faults, lots]);
+
   const channelData = useMemo(() => {
     const { a, b } = dashRange;
     const inR = (t) => t >= a && t <= b;
@@ -9363,6 +9411,59 @@ export default function App({ initialView = "store" } = {}) {
             </div>
           </div>
         </div>
+
+        {(() => {
+          const M = movement;
+          const ago = (t) => { if (!t) return "never sold"; const d = Math.floor((Date.now() - t) / DAY); return d <= 0 ? "sold today" : "last sold " + d + " day" + (d === 1 ? "" : "s") + " ago"; };
+          const coverTxt = (c) => c === Infinity ? "no sales yet" : c < 1 ? "under a day left" : Math.round(c) + " days of stock";
+          const tone = (sc) => sc == null ? "" : sc >= 75 ? "ok" : sc >= 50 ? "mid" : "bad";
+          return (
+            <div className="mv-grid">
+              <div className="cpanel mv-panel">
+                <div className="cpanel-h"><h3><Zap size={16} /> Fast-moving items</h3><div className="r"><span className="spec">units sold · {M.days} days</span></div></div>
+                <div className="cpanel-b">
+                  {M.fast.length === 0 && <p className="hint" style={{ marginTop: 0 }}>Nothing has sold in this range yet. Fast movers appear here as orders come in.</p>}
+                  {M.fast.map((r, i) => (
+                    <button className="mv-row" key={r.p.id} onClick={() => { setTab("inventory"); }}>
+                      <span className="mv-rank">{i + 1}</span>
+                      <span className="mv-main"><b>{r.p.name}</b><small>{r.p.brand} · {coverTxt(r.cover)}{r.cover < 14 && <em className="mv-warn"> · reorder soon</em>}</small></span>
+                      <span className="mv-num"><b>{r.units}</b><small>{(r.perDay * 7).toFixed(1)}/wk</small></span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="cpanel mv-panel">
+                <div className="cpanel-h"><h3><Clock size={16} /> Slow-moving items</h3><div className="r"><span className="spec">{money(M.slowTied)} unsold stock</span></div></div>
+                <div className="cpanel-b">
+                  {M.slow.length === 0 && <p className="hint" style={{ marginTop: 0 }}>No slow stock: everything in stock sold in this range.</p>}
+                  {M.slow.map((r) => (
+                    <button className="mv-row" key={r.p.id} onClick={() => { setTab("promotions"); }}>
+                      <span className="mv-main"><b>{r.p.name}</b><small>{r.p.stock} in stock · {ago(r.last)}</small></span>
+                      <span className="mv-num"><b>{money(r.tied)}</b><small>{r.units ? r.units + " sold" : "0 sold"}</small></span>
+                      <span className="mv-flag">{r.units ? "Slow" : "Idle"}</span>
+                    </button>
+                  ))}
+                  {M.slow.length > 0 && <p className="hint mv-tip">Idle stock ties up cash. Try an offer under Promotions or a bundle with a fast mover.</p>}
+                </div>
+              </div>
+              <div className="cpanel mv-panel">
+                <div className="cpanel-h"><h3><Warehouse size={16} /> Vendor scorecard</h3><div className="r"><button className="btn btn-sm" onClick={() => setTab("vendors")}>Vendors</button></div></div>
+                <div className="cpanel-b">
+                  {M.vendors.length === 0 && <p className="hint" style={{ marginTop: 0 }}>Add your suppliers under Vendors and record purchases. Each one is then scored on how well their stock sells, how much arrives faulty or goes back, and their credit terms.</p>}
+                  {M.vendors.slice(0, 6).map((v) => (
+                    <div className="mv-row vendor" key={v.sup.id}>
+                      <span className={"mv-score " + tone(v.score)}>{v.score == null ? "–" : v.score}</span>
+                      <span className="mv-main"><b>{v.sup.name}</b>
+                        <small>{v.units ? Math.round(v.sellThrough * 100) + "% sold through · " + (v.defect * 100).toFixed(1) + "% faulty or returned · " + (v.sup.terms || 0) + "-day terms" : "No purchases recorded yet"}</small></span>
+                      <span className="mv-num"><b>{money(v.spend)}</b><small>{v.orders} PO{v.orders === 1 ? "" : "s"}</small></span>
+                      {v.score != null && <span className={"mv-flag " + tone(v.score)}>{v.score >= 75 ? "Preferred" : v.score >= 50 ? "Good" : "Review"}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="cpanel" style={{ marginTop: 14 }}>
           <div className="cpanel-h">
