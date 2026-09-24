@@ -34,3 +34,17 @@ Saira (variable weight and width, trimmed to weights 500 to 800 and widths 100 t
 Photos and logos come only from files kept in the repository (`assets/products/` and `assets/brands/`), supplied by the store owner from sources he is allowed to use: his own photographs, manufacturers' official press or partner material, or distributor catalogues. Nothing is downloaded from other websites during the build. `scripts/product-photos.mjs` trims each photo, centres it on white with even padding and writes square WebP files at 480 and 960 px; logos are copied (SVG, with a size added when the file only has a viewBox) or resized to 96 px high WebP. Output names include a content hash.
 
 Brand names and logos are trademarks of their owners and are shown only to identify the products the store sells.
+
+## Product photos added in 6.2
+
+Five photos in `assets/products/` were cropped by the store owner's request from Google Images results he supplied as screenshots on 24 September 2026, with the light-grey backdrop cleaned to white:
+
+| File | Product | Listing the photo came from |
+| --- | --- | --- |
+| op330s.png | A4Tech OP-330S | A4Tech's own store listing |
+| op720s.png | A4Tech OP-720S | A4Tech's own store listing |
+| h111.png | Logitech H111 | PakDukaan listing (Logitech product shot) |
+| maono-t1.png | MAONO Wave T1 Mini (USB-C) | Computer Zone listing (MAONO product shot) |
+| lexar-ddr4-8.png | Lexar 8GB DDR4 | Junaid Tech listing (Lexar product shot) |
+
+They are small (about 350 px) because they come from search thumbnails. Replace them with the brands' full-size official images when you can: `npm run photos:fetch`, the console's Import field, or files from your distributor.

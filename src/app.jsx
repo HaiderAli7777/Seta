@@ -3858,7 +3858,7 @@ export default function App({ initialView = "store" } = {}) {
     const current = cart.find(l => l.id === id)?.qty || 0;
     if (current >= p.stock) { pushToast("All available units are already in your bag", Info); return; }
     setCart(c => { const ex = c.find(l => l.id === id); const next = Math.min(p.stock, (ex?.qty || 0) + requested); return ex ? c.map(l => l.id === id ? { ...l, qty: next } : l) : [...c, { id, qty: next }]; });
-    pushToast(p.name + " added to cart", ShoppingCart);
+    pushToast(p.name + " added to your bag", ShoppingCart);
   };
   const setQty = (id, qty) => setCart(c => c.map(l => l.id === id ? { ...l, qty: Math.min(Math.max(1, Math.floor(Number(qty) || 1)), Math.max(1, byId[id]?.stock || 1)) } : l));
   const removeLine = (id) => setCart((c) => c.filter((l) => l.id !== id));
@@ -3890,7 +3890,7 @@ export default function App({ initialView = "store" } = {}) {
       live.forEach((id) => { const ex = next.find((l) => l.id === id); if (ex) next = next.map((l) => (l.id === id ? { ...l, qty: Math.min(byId[id].stock, l.qty + 1) } : l)); else next = [...next, { id, qty: 1 }]; });
       return next;
     });
-    pushToast(live.length + " item" + (live.length > 1 ? "s" : "") + " moved to cart", ShoppingCart);
+    pushToast(live.length + " item" + (live.length > 1 ? "s" : "") + " moved to your bag", ShoppingCart);
   };
 
   /* ── server sync ──
@@ -8120,7 +8120,7 @@ export default function App({ initialView = "store" } = {}) {
                   </div>
                   <button className="btn btn-pri btn-lg pd-cta" disabled={out}
                           onClick={() => { addToCart(p.id, pdQty); setCartOpen(true); }}>
-                    {out ? "Sold out" : <><ShoppingCart size={16} /> Add {pdQty > 1 ? pdQty + " to cart" : "to cart"}</>}
+                    {out ? "Sold out" : <><ShoppingBag size={16} /> Add {pdQty > 1 ? pdQty + " to bag" : "to bag"}</>}
                   </button>
                   <button className={"btn btn-lg icon-only " + (wishlist.includes(p.id) ? "btn-soft" : "")} onClick={() => toggleWish(p.id)} aria-label="Wishlist">
                     <Heart size={16} fill={wishlist.includes(p.id) ? "currentColor" : "none"} />
@@ -8320,7 +8320,7 @@ export default function App({ initialView = "store" } = {}) {
           <div className="sec-title"><span className="dashes"><i /><i /></span><h2>Your Wishlist</h2></div>
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn" onClick={() => goShop("All")}><ChevronLeft size={15} /> Back to shop</button>
-            {list.length > 0 && <button className="btn btn-pri" onClick={moveWishlistToCart}><ShoppingCart size={15} /> Move all to cart</button>}
+            {list.length > 0 && <button className="btn btn-pri" onClick={moveWishlistToCart}><ShoppingCart size={15} /> Move all to bag</button>}
           </div>
         </div>
         {list.length === 0

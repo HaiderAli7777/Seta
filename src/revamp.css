@@ -726,3 +726,6 @@ html,body{background:#F3F5F8}
 .tx:has(.buybar.show) .rv-wa-fab{bottom:100px}
 @media (max-width:760px){.tx:has(.buybar.show) .rv-wa-fab{bottom:calc(150px + env(safe-area-inset-bottom))}}
 .epic-upgrade .rv-import-row{display:flex;gap:8px;margin-top:10px}.epic-upgrade .rv-import-row .finp{flex:1;min-width:0}
+.epic-upgrade .card-media:has(.shots){background:#fff}
+.epic-upgrade .pd-media:has(img.shot){background:#fff}
+.epic-upgrade .card-media .shot,.epic-upgrade .pd-media .shot{filter:none}
