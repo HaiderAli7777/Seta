@@ -15,6 +15,15 @@ AddType image/webp .webp
   RewriteCond %{HTTP:X-Forwarded-Proto} !https
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
+  # Store API and saved photos on standard hosting: api/index.php answers /api/* and
+  # /media/* when the Node.js app (server.js) is not running.
+  RewriteRule ^api/index\.php$ - [L]
+  RewriteRule ^api/(.*)$ api/index.php?route=$1 [QSA,L]
+  RewriteRule ^media/(.+)$ api/index.php?media=$1 [QSA,L]
+  # the console signs in with a bearer token; pass it through to PHP
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
   # Single page app: anything that is not a real file falls back to index.html
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d

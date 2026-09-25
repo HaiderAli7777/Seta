@@ -1,8 +1,17 @@
-# EPIC DEVICES 6.2
+# EPIC DEVICES 6.3
 
 The online store for **epicdevicesltd.com**: storefront, checkout with delivery, and the business console, running as one Node.js app on Hostinger. Customers' orders are saved on the server and appear in the console.
 
-## What's new in 6.2
+## What's new in 6.3
+
+- **Orders always reach the console.** If the site shows "Preview order" or orders don't appear in the console, the website is being published as static files without its server. 6.3 ships a PHP version of the store API (`api/index.php`) that runs on standard Hostinger hosting, so checkout saves real orders even then. The Node.js app (below) remains the best setup; either way orders land in `~/epic-data/orders.json` and show under Orders in the console.
+  - **Console password on standard hosting:** in hPanel File Manager, open your home folder (the one above `public_html`/`domains`), create a folder `epic-data`, and in it a file `admin-password.txt` with your password on the first line. Username: `admin`. (With the Node.js app, keep using the `EPIC_ADMIN_PASSWORD` environment variable.)
+  - Check: https://epicdevicesltd.com/api/health should show `"ok":true` and `"admin":true`.
+- **Checkout:** cash on delivery only for now. Card / bank transfer is off; switch either on or off any time in the console: Settings, Checkout. The "Major cities" box and badge are gone, delivery times read naturally ("1 working day", "Same working day"), and the parcel-weight line is hidden from customers.
+- **Google:** the page now carries real text (what the shop sells, every product with its price, contact details) for search engines and for anyone without JavaScript; every product and category has its own address (`/?product=k120`, `/?category=mouse`) that opens directly and works with the Back button; `sitemap.xml` lists all 55 pages; Google-sized icons (48 px and 192 px) are declared. After deploying, open [Google Search Console](https://search.google.com/search-console), add the site, submit `https://epicdevicesltd.com/sitemap.xml`, and use URL Inspection → Request indexing on the home page. Google updates the "No information is available" result and the icon on its next crawl, usually within days.
+- The floating WhatsApp button no longer covers the Store console link at the bottom of the page.
+
+## What was new in 6.2
 
 - **Product photos fill in by themselves.** After deploying, the server downloads the main photo from each product's official manufacturer page (44 of 49 have one, listed in `src/catalog/photo-sources.json`) into `~/epic-data/media/products/`, one product at a time, starting a few seconds after it starts. It tries missing ones again once a day. Photos you upload in the console or keep in `assets/products/` always come first. Set `EPIC_PHOTO_SYNC=off` to switch this off.
 - **Import a photo from any link** in the console: Products, Edit product, Display tab, Photos, "Paste an image address". In Google Images, open the photo, right-click it, choose Copy image address, paste, Import. The server keeps its own copy, so the photo doesn't break if the other site changes. Use photos you're allowed to use.

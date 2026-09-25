@@ -55,7 +55,10 @@ export function createApp(options = {}) {
   const dist = resolve(options.distDir || join(ROOT, 'dist'));
   const dataDir = resolve(options.dataDir || process.env.EPIC_DATA_DIR || join(homedir(), 'epic-data'));
   const adminUser = String(options.adminUser ?? process.env.EPIC_ADMIN_USER ?? 'admin').trim().toLowerCase();
-  const adminPassword = String(options.adminPassword ?? process.env.EPIC_ADMIN_PASSWORD ?? '');
+  /* the environment variable, or (same as the PHP API) the first line of <data>/admin-password.txt */
+  const passwordFile = join(dataDir, 'admin-password.txt');
+  const adminPassword = String(options.adminPassword ?? (process.env.EPIC_ADMIN_PASSWORD
+    || (existsSync(passwordFile) ? readFileSync(passwordFile, 'utf8').split('\n')[0].trim() : '')));
   const allowPrivateImports = !!options.allowPrivateImports;
   const catalog = new Map(JSON.parse(readFileSync(join(ROOT, 'src/catalog/products.json'), 'utf8')).map((p) => [p.id, { name: p.name, price: sellingPrice(p) }]));
 

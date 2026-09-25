@@ -18,7 +18,10 @@
 <meta property="og:image:height" content="630" />
 <meta property="og:image:alt" content="The EPIC DEVICES logo beside a graphite keyboard on a blue backdrop" />
 <meta name="twitter:card" content="summary_large_image" />
+<meta name="robots" content="index, follow, max-image-preview:large" />
+<link rel="icon" href="/favicon.ico" sizes="48x48" />
 <link rel="icon" href="./assets/brand/favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="./assets/brand/icon-192.png" sizes="192x192" type="image/png" />
 <link rel="icon" href="./assets/brand/favicon-32.png" sizes="32x32" type="image/png" />
 <link rel="apple-touch-icon" href="./assets/brand/apple-touch-icon.png" />
 <link rel="manifest" href="./site.webmanifest" />
@@ -37,6 +40,7 @@
   @keyframes boot{from{transform:translateX(-110%)}to{transform:translateX(250%)}}
   @media (prefers-reduced-motion:reduce){#boot .bar i{animation:none;width:100%}}
   noscript{display:block;padding:40px;text-align:center;font-family:system-ui,sans-serif;color:#17202A}
+  .seo-prerender{max-width:900px;margin:32px auto;padding:0 16px;font:15px/1.6 system-ui,sans-serif;color:#17202A}.seo-prerender a{color:#0B5CE6}
 </style>
 </head>
 <body>
@@ -45,4 +49,4 @@
 <span class="bar"><i></i></span>
 </div>
 <noscript>EPIC DEVICES needs JavaScript switched on. You can also reach us on WhatsApp at +92 305 7777817.</noscript>
-<div id="root"></div>
+<div id="root"><!--EPIC:PRERENDER--></div>

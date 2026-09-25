@@ -729,3 +729,7 @@ html,body{background:#F3F5F8}
 .epic-upgrade .card-media:has(.shots){background:#fff}
 .epic-upgrade .pd-media:has(img.shot){background:#fff}
 .epic-upgrade .card-media .shot,.epic-upgrade .pd-media .shot{filter:none}
+
+/* the floating WhatsApp button never covers the last links of the page (Store console) */
+.tx .rv-footer .rv-foot-bottom{padding-bottom:100px}
+@media (max-width:760px){.tx .rv-footer .rv-foot-bottom{padding-bottom:84px}}

@@ -2492,7 +2492,7 @@ async function serverApi(path, { method = "GET", body, token } = {}) {
   return data;
 }
 const money2 = (n) => "Rs " + Number(n || 0).toLocaleString("en-PK", { maximumFractionDigits: 2 });
-const isLocalPreview = () => typeof location !== "undefined" && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+const isLocalPreview = () => typeof location !== "undefined" && (location.protocol === "file:" || /^(localhost|127\.0\.0\.1)$/.test(location.hostname));
 
 const DEMO = false;
 const ifDemo = (rows) => (DEMO ? rows : []);
@@ -2787,7 +2787,7 @@ const INITIAL_CONFIG = {
       sub: "Every unit traced back to the batch it arrived in before it reaches you" },
   ],
   storeName: "EPIC DEVICES", storeSub: "Better devices. Better experiences.", logoUrl: EPIC_MARK(), currency: "Rs", freeShipThreshold: 10000, handlingFee: 100, taxRate: 0,
-  lowStock: 15, codEnabled: true, cardEnabled: true, guestCheckout: true,
+  lowStock: 15, codEnabled: true, cardEnabled: false, paymentSetup63: true, guestCheckout: true,
   /* operating cost model. Drives the P&L, the product margin report and the price builder.
      COD cash-handling and RTO are the two line items that quietly sink Pakistani ecommerce. */
   packagingCost: 60, codFeePct: 1.5, gatewayFeePct: 2.5, rtoReturnLegPct: 85,
@@ -3914,7 +3914,9 @@ export default function App({ initialView = "store" } = {}) {
         if (Array.isArray(st.products) && st.products.length) setProducts(st.products);
         if (Array.isArray(st.categories) && st.categories.length) setCategories(st.categories);
         if (Array.isArray(st.promos)) setPromos(st.promos);
-        if (st.config && typeof st.config === "object") setConfig((c) => ({ ...c, ...st.config }));
+        /* 6.3: the shop takes cash on delivery only for now. Saved settings from before are
+           switched to that once; after this the console's Checkout toggles decide. */
+        if (st.config && typeof st.config === "object") setConfig((c) => ({ ...c, ...st.config, ...(st.config.paymentSetup63 ? {} : { codEnabled: true, cardEnabled: false, paymentSetup63: true }) }));
         setStateLoaded(true);
         /* official manufacturer photos the server has fetched; they fill in only where a
            product has no photo of its own (console upload or assets/products file) */
@@ -4219,6 +4221,12 @@ export default function App({ initialView = "store" } = {}) {
     return () => { window.cancelAnimationFrame(raf); clearTimeout(safety); io.disconnect(); };
   }, [animOn, view, storeView, category, page, activeId, tab, query]);
 
+
+  /* a payment method switched off in the console is never left selected at checkout */
+  useEffect(() => {
+    if (form.paymentMethod === "card" && !config.cardEnabled && config.codEnabled) setForm((f) => ({ ...f, paymentMethod: "cod" }));
+    else if (form.paymentMethod === "cod" && !config.codEnabled && config.cardEnabled) setForm((f) => ({ ...f, paymentMethod: "card" }));
+  }, [config.codEnabled, config.cardEnabled, form.paymentMethod]);
 
   /* if the admin retires the delivery method a shopper had selected, move them to a live one
      instead of quoting a method that is no longer offered */
@@ -4638,25 +4646,35 @@ export default function App({ initialView = "store" } = {}) {
       logAct("order", "Order " + order.id + " placed by " + order.customer.name);
       pushToast("Order " + order.id + " placed", PackageCheck);
     };
-    if (server.status !== "online") {
-      if (isLocalPreview()) {   // local preview without the server keeps the original in-browser order
+    /* a local copy with no server (the review file, a laptop preview) keeps the order in
+       this browser; the real site always sends it to the store's backend */
+    if (server.status !== "online" && isLocalPreview()) {
         finish({ ...draft, id: "TX-" + seq, createdAt: Date.now(), lines: draft.lines.map((l) => ({ ...l, cost: byId[l.id].cost })), status: "Processing", paid: false,
           note: "Preview order, saved in this browser only", codPaid: 0, freightPaid: 0, serials: [] });
         setSeq((q) => q + 1);
         return;
-      }
-      /* the live site cannot reach the server: send the order on WhatsApp so it still arrives */
+    }
+    const whatsappFallback = () => {
+      /* the backend could not be reached at all: send the order on WhatsApp so it still arrives */
       const text = ["Hello EPIC DEVICES, I would like to place this order:", ""]
         .concat(cart.map((l, i) => (i + 1) + ". " + byId[l.id].name + " x " + l.qty + " = " + money2(pInfo(byId[l.id]).final * l.qty)))
         .concat(["", "Total: " + money2(cartFinalTotal), "Name: " + form.name, "Phone: " + form.phone, "Email: " + form.email, "Address: " + form.address + ", " + form.city, "Payment: " + form.paymentMethod]).join("\n");
-      window.open("https://wa.me/" + String(config.storePhone || "").replace(/\D/g, "") + "?text=" + encodeURIComponent(text), "_blank", "noopener");
-      pushToast("Online ordering is unavailable right now, so we opened WhatsApp with your order.", X, true);
-      return;
-    }
+      const url = "https://wa.me/" + String(config.storePhone || "").replace(/\D/g, "") + "?text=" + encodeURIComponent(text);
+      const tab = window.open(url, "_blank");
+      if (tab) tab.opener = null; else window.location.href = url;
+      pushToast("We couldn't reach the store just now, so we opened WhatsApp with your order.", X, true);
+    };
     setPlacing(true);
-    try { const { order } = await serverApi("orders", { method: "POST", body: draft }); finish(order); }
-    catch (e) { pushToast(e.message || "We couldn't place your order. Please try again.", X, true); }
-    finally { setPlacing(false); }
+    try {
+      const { order } = await serverApi("orders", { method: "POST", body: draft });
+      if (server.status !== "online") setServer((s) => ({ ...s, status: "online" }));
+      finish(order);
+    } catch (e) {
+      /* no backend answered (network down, or the host serves only static files) */
+      /* (a static-only host answers with its web page, so a 200 without data counts too) */
+      if (!e.status || e.status === 200 || e.status === 404 || e.status === 405 || e.status >= 502) whatsappFallback();
+      else pushToast(e.message || "We couldn't place your order. Please try again.", X, true);
+    } finally { setPlacing(false); }
   };
   const doTrack = async () => {
     const id = trackId.trim().toUpperCase();
@@ -7948,6 +7966,33 @@ export default function App({ initialView = "store" } = {}) {
     onNotify={(msg) => pushToast(msg, Info)} />;
 
   /* ══════════════════════════ PRODUCT DETAIL ══════════════════════════ */
+  /* every product and category has its own address (?product=k120, ?category=mouse), so
+     links can be shared, the Back button works and search engines can list each page */
+  const urlSynced = useRef(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || view !== "store") return;
+    const apply = () => {
+      const q = new URLSearchParams(location.search);
+      const pid = q.get("product"), cat = q.get("category");
+      if (pid && byId[pid]) { openProduct(pid); return; }
+      if (cat && categories.some((c) => c.id === cat)) { goShop(cat); return; }
+      if (!pid && !cat) { setActiveId(null); setStoreView((v) => (v === "product" || v === "shop" ? "home" : v)); }
+    };
+    if (!urlSynced.current) { urlSynced.current = true; apply(); }
+    const onPop = () => { urlSynced.current = "pop"; apply(); };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [view]);
+  useEffect(() => {
+    if (typeof window === "undefined" || view !== "store" || /\/console(\.html)?$/.test(location.pathname)) return;
+    const q = storeView === "product" && activeId ? "?product=" + encodeURIComponent(activeId)
+      : storeView === "shop" && category !== "All" && special === "none" ? "?category=" + encodeURIComponent(category) : "";
+    const next = location.pathname + q;
+    if (next === location.pathname + location.search) return;
+    if (urlSynced.current === "pop") { urlSynced.current = true; return; }
+    try { window.history[storeView === "product" ? "pushState" : "replaceState"](null, "", next); } catch { /* sandboxed previews */ }
+  }, [view, storeView, activeId, category, special]);
+
   /* search engines and link previews: each product page gets its own title,
      description and schema.org Product data (price, stock, brand) */
   useEffect(() => {
@@ -7957,6 +8002,8 @@ export default function App({ initialView = "store" } = {}) {
     const meta = document.querySelector('meta[name="description"]');
     const old = document.getElementById("rv-product-ld");
     if (old) old.remove();
+    const canon = document.querySelector('link[rel="canonical"]');
+    if (canon) canon.setAttribute("href", "https://epicdevicesltd.com/" + (p ? "?product=" + encodeURIComponent(p.id) : ""));
     if (!p) { document.title = base; return; }
     const final = pInfo(p).final;
     document.title = p.name + " | Price in Pakistan | " + config.storeName;
@@ -8431,7 +8478,7 @@ export default function App({ initialView = "store" } = {}) {
           <button style={{ background: "none", border: "none", color: "inherit", fontWeight: 500 }} onClick={() => goShop("All")}>Shop</button>
           <span>/</span><b>Checkout</b>
         </div>
-        {server.status !== "online" && <div className="ed-preview-note"><Info size={18} /><span>Preview: this copy of the site is not connected to the store server, so an order stays in this browser.</span></div>}
+        {server.status !== "online" && isLocalPreview() && <div className="ed-preview-note"><Info size={18} /><span>Preview: this copy of the site is not connected to the store server, so an order stays in this browser.</span></div>}
         <div className="sec-head" style={{ marginBottom: 20 }}>
           <div className="sec-title"><span className="dashes"><i /><i /></span><h2>{config.deliveries ? "Delivery & payment" : "Collection & payment"}</h2></div>
         </div>
@@ -8452,10 +8499,6 @@ export default function App({ initialView = "store" } = {}) {
                 </div>
               </div>
               <div className="field"><label>{config.deliveries ? "Delivery address" : "Address for your order record"}</label><textarea className="textarea" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="House / flat, street, area, landmark" /></div>
-              <div className="zone-info">
-                <div className="zn"><MapPin size={14} /> {cartBase.zone.name}</div>
-                <div className="zr">{cartBase.zone.region}</div>
-              </div>
             </div>
 
             {config.deliveries && (
@@ -8467,8 +8510,8 @@ export default function App({ initialView = "store" } = {}) {
                   <button className={"method " + (form.methodId === m.id ? "on" : "")} key={m.id} onClick={() => setForm({ ...form, methodId: m.id })}>
                     <span className="radio" />
                     <span>
-                      <span className="m-name">{m.name}{m.id === "sameday" && <span className="pill blue">Major cities</span>}</span>
-                      <span className="m-eta">{t.etaMin}-{t.etaMax} working days</span>
+                      <span className="m-name">{m.name}</span>
+                      <span className="m-eta">{m.id === "sameday" ? "Same working day" : t.etaMin === t.etaMax ? (t.etaMin <= 0 ? "Today" : t.etaMin + " working day" + (t.etaMin === 1 ? "" : "s")) : t.etaMin + "–" + t.etaMax + " working days"}</span>
                     </span>
                     <span className="m-price">{t.free ? <span className="pill ok">FREE</span> : money(t.shipping)}</span>
                   </button>
@@ -8527,10 +8570,9 @@ export default function App({ initialView = "store" } = {}) {
               <div className="sum-row"><span className="k">Shipping</span><span className="v">{cartBase.free ? <span className="pill ok">FREE</span> : money(cartBase.shipping)}</span></div>
               {config.taxRate > 0 && <div className="sum-row"><span className="k">Tax</span><span className="v">{money(cartBase.tax)}</span></div>}
               {codeDiscount > 0 && <div className="sum-row disc"><span className="k">Discount</span><span className="v">−{money(codeDiscount)}</span></div>}
-              <div className="sum-row"><span className="k">Parcel weight</span><span className="v">{cartBase.weight.toFixed(2)} kg</span></div>
               <div className="sum-row total"><span>Total</span><span className="v">{money(cartFinalTotal)}</span></div>
               <button className="btn btn-pri btn-lg btn-block" style={{ marginTop: 14 }} onClick={placeOrder} disabled={placing} aria-busy={placing}>
-                <ShoppingBag size={17} /> {placing ? "Placing your order…" : server.status === "online" ? "Place order" : "Preview order"} · {money(cartFinalTotal)}
+                <ShoppingBag size={17} /> {placing ? "Placing your order…" : server.status !== "online" && isLocalPreview() ? "Preview order" : "Place order"} · {money(cartFinalTotal)}
               </button>
               <p className="hint" style={{ textAlign: "center", marginTop: 10 }}>Arriving in {cartBase.etaMin}-{cartBase.etaMax} working days</p>
             </div>
@@ -10622,7 +10664,7 @@ export default function App({ initialView = "store" } = {}) {
             </div>
             <div className="mini-toggle" onClick={() => setConfig({ ...config, cardEnabled: !config.cardEnabled })} style={{ marginBottom: 10 }}>
               <span className={"tgl " + (config.cardEnabled ? "on" : "")} />
-              <span>Card and bank transfer<small>Prepaid orders qualify for free express</small></span>
+              <span>Card and bank transfer<small>Customer pays in advance; your team confirms the payment details</small></span>
             </div>
             <div className="mini-toggle" onClick={() => setConfig({ ...config, guestCheckout: !config.guestCheckout })}>
               <span className={"tgl " + (config.guestCheckout ? "on" : "")} />
