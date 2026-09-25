@@ -4002,7 +4002,9 @@ export default function App({ initialView = "store" } = {}) {
       } catch (e) { setLoginErr(e.message || "That username and password don't match. Check your credentials and try again."); }
       return;
     }
-    /* a static preview without the server: the demo sign-in still opens the console */
+    /* the demo sign-in opens the console only in a local copy (the review file, a laptop
+       preview); on the real site sign-in always goes through the store's backend */
+    if (!isLocalPreview()) { setLoginErr("The store server could not be reached. Please try again in a moment."); return; }
     if (login.user.trim().toLowerCase() === "admin" && login.pass === "epic123") {
       setAuthed(true); setLoginErr(""); setLogin({ user: "", pass: "" }); pushToast("Signed in to a preview. Nothing is saved on a server.", ShieldCheck);
     } else setLoginErr("That username and password don't match. Check your credentials and try again.");
