@@ -145,3 +145,35 @@ test('a photo link pasted in the console is downloaded and kept on the server', 
     assert.equal((await call('/api/media/import', { method: 'POST', body: { url: src + '/k120.webp' }, token })).status, 400);
   } finally { shop.closeAllConnections(); shop.close(); site.closeAllConnections(); site.close(); }
 });
+
+test('console users: the owner creates staff with limited sections, enforced by the server', async () => {
+  const owner = (await call('/api/login', { method: 'POST', body: { user: 'admin', password: 'correct horse battery' } })).body;
+  assert.equal(owner.me.owner, true); assert.equal(owner.me.admin, true);
+  const made = await call('/api/users', { method: 'POST', token: owner.token, body: { name: 'Ayesha', username: 'Ayesha', password: 'sales-pass-1', access: ['Sales', 'Nonsense'] } });
+  assert.equal(made.status, 200);
+  const ayesha = made.body.users.find((u) => u.username === 'ayesha');
+  assert.deepEqual(ayesha.access, ['Sales']); assert.equal(ayesha.hash, undefined, 'hashes never leave the server');
+  assert.equal((await call('/api/users', { method: 'POST', token: owner.token, body: { name: 'X', username: 'ayesha', password: 'another-1' } })).status, 400, 'usernames are unique');
+  assert.equal((await call('/api/users', { method: 'POST', token: owner.token, body: { name: 'Short', username: 'short', password: 'abc' } })).status, 400);
+
+  assert.equal((await call('/api/login', { method: 'POST', body: { user: 'ayesha', password: 'wrong-pass' } })).status, 401);
+  const staff = (await call('/api/login', { method: 'POST', body: { user: 'AYESHA', password: 'sales-pass-1' } })).body;
+  assert.deepEqual(staff.me.access, ['Sales']); assert.equal(staff.me.admin, false);
+  assert.equal((await call('/api/orders', { token: staff.token })).status, 200, 'Sales reads orders');
+  assert.equal((await call('/api/users', { token: staff.token })).status, 403, 'staff cannot list users');
+  assert.equal((await call('/api/users', { method: 'POST', token: staff.token, body: { name: 'Me2', username: 'me2', password: 'whatever-1', admin: true } })).status, 403);
+  const before = (await call('/api/state')).body.config;
+  const put = await call('/api/state', { method: 'PUT', token: staff.token, body: { config: { codEnabled: false }, products: [{ id: 'k120', price: 2310, stock: 7 }] } });
+  assert.deepEqual(Object.keys(put.body.saved), ['products'], 'Sales may update stock but not settings');
+  assert.deepEqual((await call('/api/state')).body.config, before);
+
+  assert.equal((await call('/api/me/password', { method: 'POST', token: staff.token, body: { current: 'nope-nope', next: 'new-pass-22' } })).status, 400);
+  assert.equal((await call('/api/me/password', { method: 'POST', token: staff.token, body: { current: 'sales-pass-1', next: 'new-pass-22' } })).status, 200);
+  assert.equal((await call('/api/login', { method: 'POST', body: { user: 'ayesha', password: 'new-pass-22' } })).status, 200);
+
+  /* the owner switches the account off: the open session stops working at once */
+  await call('/api/users', { method: 'PUT', token: owner.token, body: { id: ayesha.id, active: false } });
+  assert.equal((await call('/api/orders', { token: staff.token })).status, 401);
+  assert.equal((await call('/api/login', { method: 'POST', body: { user: 'ayesha', password: 'new-pass-22' } })).status, 401);
+  assert.equal((await call('/api/users?id=' + ayesha.id, { method: 'DELETE', token: owner.token })).body.users.length, 0);
+});

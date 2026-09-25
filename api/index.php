@@ -119,9 +119,54 @@ function verify_token(string $token): bool {
   $data = json_decode((string)base64_decode(strtr($parts[0], '-_', '+/')), true);
   return is_array($data) && ($data['exp'] ?? 0) > microtime(true) * 1000;
 }
-function require_admin(): void {
+function token_data(string $token): ?array {
+  if (!verify_token($token)) return null;
+  return json_decode((string)base64_decode(strtr(explode('.', $token)[0], '-_', '+/')), true);
+}
+/* Console users: the owner signs in with the password file (full access); staff users live in
+   users.json with a salted PBKDF2 hash (the same format server.js uses) and a list of sections. */
+function access_rules(): array {
+  static $rules = null;
+  if ($rules === null) $rules = json_decode((string)@file_get_contents(__DIR__ . '/access.json'), true) ?: ['sections' => [], 'readOrders' => [], 'writeOrders' => [], 'writeState' => [], 'media' => []];
+  return $rules;
+}
+function owner_name(): string { return strtolower(trim((string)(getenv('EPIC_ADMIN_USER') ?: 'admin'))); }
+function hash_password(string $password): string {
+  $salt = random_bytes(16);
+  return 'pbkdf2_sha256$150000$' . base64_encode($salt) . '$' . base64_encode(hash_pbkdf2('sha256', $password, $salt, 150000, 32, true));
+}
+function check_password(string $password, string $stored): bool {
+  $parts = explode('$', $stored);
+  if (count($parts) !== 4 || $parts[0] !== 'pbkdf2_sha256') return false;
+  return hash_equals((string)base64_decode($parts[3]), hash_pbkdf2('sha256', $password, (string)base64_decode($parts[2]), (int)$parts[1], 32, true));
+}
+function public_user(array $u): array { unset($u['hash']); return $u; }
+function principal_for(?array $data): array {
+  if (!$data) throw new HttpError(401, 'Please sign in again.');
+  $sections = access_rules()['sections'];
+  if (empty($data['uid'])) return ['username' => owner_name(), 'name' => 'Owner', 'owner' => true, 'admin' => true, 'access' => $sections];
+  foreach (read_json('users.json', []) as $u) if (($u['id'] ?? '') === $data['uid']) {
+    if (empty($u['active'])) break;
+    $out = public_user($u); $out['owner'] = false;
+    $out['access'] = !empty($u['admin']) ? $sections : array_values(array_intersect($u['access'] ?? [], $sections));
+    return $out;
+  }
+  throw new HttpError(401, 'Your account is no longer active. Ask the store owner.');
+}
+function principal(): array {
   $auth = (string)($_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
-  if (!verify_token(preg_replace('/^Bearer\s+/i', '', $auth))) throw new HttpError(401, 'Please sign in again.');
+  return principal_for(token_data(preg_replace('/^Bearer\s+/i', '', $auth)));
+}
+function can(array $who, array $sections): bool { return !empty($who['admin']) || (bool)array_intersect($sections, $who['access'] ?? []); }
+function require_access(array $sections): array {
+  $who = principal();
+  if (!can($who, $sections)) throw new HttpError(403, "Your account doesn't have access to that. Ask the store owner.");
+  return $who;
+}
+function clean_user(array $b): array {
+  return ['name' => clean($b['name'] ?? '', 60), 'username' => preg_replace('/[^a-z0-9._-]/', '', strtolower(clean($b['username'] ?? '', 40))),
+    'admin' => !empty($b['admin']), 'active' => ($b['active'] ?? true) !== false,
+    'access' => array_values(array_intersect(is_array($b['access'] ?? null) ? $b['access'] : [], access_rules()['sections']))];
 }
 function admin_password(): string {
   global $DATA;
@@ -248,31 +293,92 @@ try {
     send(200, (object)$out);
   }
   if ($route === 'state' && $m === 'PUT') {
-    require_admin();
+    $who = principal();
     $b = body(40 * 1024 * 1024);
-    send(200, (object)with_lock(function () use ($b) {
+    $saved = with_lock(function () use ($b, $who) {
       $state = read_json('state.json', []); $out = [];
-      foreach (STATE_KEYS as $k) if (array_key_exists($k, $b)) { $state[$k] = save_media($b[$k]); $out[$k] = $state[$k]; }
+      /* each part is saved only by someone whose sections cover it */
+      foreach (STATE_KEYS as $k) if (array_key_exists($k, $b) && can($who, access_rules()['writeState'][$k] ?? [])) { $state[$k] = save_media($b[$k]); $out[$k] = $state[$k]; }
       $state['updatedAt'] = (int)(microtime(true) * 1000);
       write_json('state.json', $state);
       return $out;
-    }));
+    });
+    send(200, ['ok' => true, 'saved' => (object)$saved]);
   }
   if ($route === 'login' && $m === 'POST') {
-    $password = admin_password();
-    if ($password === '') { global $DATA; throw new HttpError(503, "Console sign-in is not set up yet. Create the file $DATA/admin-password.txt with your password on the first line (Hostinger File Manager)."); }
     limit('login:' . ip(), 10, 15 * 60 * 1000);
     $b = body(10 * 1024);
-    $user = strtolower(trim((string)(getenv('EPIC_ADMIN_USER') ?: 'admin')));
-    if (!hash_equals(hash('sha256', $user), hash('sha256', strtolower(trim((string)($b['user'] ?? '')))))
-      || !hash_equals(hash('sha256', $password), hash('sha256', (string)($b['password'] ?? '')))) throw new HttpError(401, "That username and password don't match.");
+    $name = strtolower(trim((string)($b['user'] ?? ''))); $password = (string)($b['password'] ?? '');
     $expires = (int)(microtime(true) * 1000) + 12 * 60 * 60 * 1000;
-    send(200, ['token' => sign_token(['u' => $user, 'exp' => $expires]), 'expires' => $expires]);
+    if (hash_equals(hash('sha256', owner_name()), hash('sha256', $name))) {
+      $owner = admin_password();
+      if ($owner === '') throw new HttpError(503, "Console sign-in is not set up yet. Create the file $DATA/admin-password.txt with your password on the first line (Hostinger File Manager).");
+      if (!hash_equals(hash('sha256', $owner), hash('sha256', $password))) throw new HttpError(401, "That username and password don't match.");
+      $data = ['u' => owner_name(), 'exp' => $expires];
+    } else {
+      $found = null;
+      foreach (read_json('users.json', []) as $u) if (($u['username'] ?? '') === $name) $found = $u;
+      if (!$found || empty($found['active']) || !check_password($password, (string)($found['hash'] ?? ''))) throw new HttpError(401, "That username and password don't match.");
+      $data = ['u' => $found['username'], 'uid' => $found['id'], 'exp' => $expires];
+    }
+    send(200, ['token' => sign_token($data), 'expires' => $expires, 'me' => principal_for($data)]);
+  }
+  if ($route === 'me' && $m === 'GET') send(200, ['me' => principal()]);
+  if ($route === 'me/password' && $m === 'POST') {
+    $who = principal();
+    if (!empty($who['owner'])) throw new HttpError(400, "The owner's password lives in admin-password.txt. Change it there.");
+    $b = body(10 * 1024);
+    if (strlen((string)($b['next'] ?? '')) < 8) throw new HttpError(400, 'Use a password of at least 8 characters.');
+    with_lock(function () use ($who, $b) {
+      $list = read_json('users.json', []);
+      foreach ($list as &$u) if (($u['id'] ?? '') === $who['id']) {
+        if (!check_password((string)($b['current'] ?? ''), (string)$u['hash'])) throw new HttpError(400, 'Your current password is not right.');
+        $u['hash'] = hash_password((string)$b['next']); $u['updatedAt'] = (int)(microtime(true) * 1000);
+      }
+      unset($u);
+      write_json('users.json', $list);
+    });
+    send(200, ['ok' => true]);
+  }
+  if ($route === 'users') {
+    $who = principal();
+    if (empty($who['admin'])) throw new HttpError(403, 'Only the owner and admins can manage users.');
+    if ($m === 'GET') send(200, ['users' => array_map('public_user', read_json('users.json', [])), 'owner' => owner_name()]);
+    $b = $m === 'DELETE' ? [] : body(20 * 1024);
+    $list = with_lock(function () use ($m, $b, $who) {
+      $list = read_json('users.json', []);
+      $taken = fn($name, $except = null) => $name === owner_name() || (bool)array_filter($list, fn($x) => $x['username'] === $name && $x['id'] !== $except);
+      if ($m === 'POST') {
+        $u = clean_user($b);
+        if ($u['username'] === '' || $u['name'] === '') throw new HttpError(400, 'Add a name and a username.');
+        if ($taken($u['username'])) throw new HttpError(400, 'That username is already taken.');
+        if (strlen((string)($b['password'] ?? '')) < 8) throw new HttpError(400, 'Use a password of at least 8 characters.');
+        $list[] = ['id' => 'U' . bin2hex(random_bytes(5))] + $u + ['hash' => hash_password((string)$b['password']), 'createdAt' => (int)(microtime(true) * 1000), 'createdBy' => $who['username']];
+      } elseif ($m === 'PUT') {
+        $i = null;
+        foreach ($list as $k => $x) if ($x['id'] === ($b['id'] ?? null)) $i = $k;
+        if ($i === null) throw new HttpError(404, 'That user no longer exists.');
+        $u = clean_user(array_merge($list[$i], $b));
+        if ($taken($u['username'], $list[$i]['id'])) throw new HttpError(400, 'That username is already taken.');
+        if (isset($b['password']) && $b['password'] !== '') {
+          if (strlen((string)$b['password']) < 8) throw new HttpError(400, 'Use a password of at least 8 characters.');
+          $list[$i]['hash'] = hash_password((string)$b['password']);
+        }
+        $list[$i] = array_merge($list[$i], $u, ['updatedAt' => (int)(microtime(true) * 1000)]);
+      } elseif ($m === 'DELETE') {
+        $before = count($list);
+        $list = array_values(array_filter($list, fn($x) => $x['id'] !== ($_GET['id'] ?? '')));
+        if (count($list) === $before) throw new HttpError(404, 'That user no longer exists.');
+      } else throw new HttpError(405, 'Method not allowed.');
+      write_json('users.json', $list);
+      return $list;
+    });
+    send(200, ['users' => array_map('public_user', $list)]);
   }
   if ($route === 'orders' && $m === 'POST') send(201, ['order' => create_order(body(200 * 1024))]);
-  if ($route === 'orders' && $m === 'GET') { require_admin(); send(200, ['orders' => read_json('orders.json', [])]); }
+  if ($route === 'orders' && $m === 'GET') { require_access(access_rules()['readOrders']); send(200, ['orders' => read_json('orders.json', [])]); }
   if ($route === 'orders' && $m === 'PUT') {
-    require_admin();
+    require_access(access_rules()['writeOrders']);
     $b = body(20 * 1024 * 1024);
     $changes = array_values(array_filter(is_array($b['orders'] ?? null) ? $b['orders'] : [], fn($o) => is_array($o) && is_string($o['id'] ?? null)));
     $count = with_lock(function () use ($changes) {

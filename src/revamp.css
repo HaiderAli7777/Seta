@@ -733,3 +733,18 @@ html,body{background:#F3F5F8}
 /* the floating WhatsApp button never covers the last links of the page (Store console) */
 .tx .rv-footer .rv-foot-bottom{padding-bottom:100px}
 @media (max-width:760px){.tx .rv-footer .rv-foot-bottom{padding-bottom:84px}}
+
+/* ── console: users & access ── */
+.epic-upgrade .rv-users td{vertical-align:middle}
+.epic-upgrade .rv-users-note{font-size:12px;color:var(--ink3)}
+.epic-upgrade .rv-users-acts{display:flex;gap:6px;justify-content:flex-end}
+.epic-upgrade .rv-access-list{display:flex;flex-wrap:wrap;gap:4px}
+.epic-upgrade .rv-access-h{display:block;margin-bottom:10px;font-size:13px;font-weight:600}
+.epic-upgrade .rv-access-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.epic-upgrade .rv-access-opt{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid var(--line2);border-radius:10px;background:#fff;text-align:left;cursor:pointer;color:var(--ink)}
+.epic-upgrade .rv-access-opt:hover{border-color:var(--ink3)}
+.epic-upgrade .rv-access-opt.on{border-color:var(--blue);background:var(--blue-soft)}
+.epic-upgrade .rv-access-opt b{display:block;font-size:13.5px}
+.epic-upgrade .rv-access-opt small{display:block;margin-top:2px;font-size:11.5px;color:var(--ink3);line-height:1.4}
+.epic-upgrade .rv-check{display:grid;place-items:center;width:20px;height:20px;flex-shrink:0;margin-top:1px;border-radius:6px;border:1.5px solid var(--line3);background:#fff;color:#fff}
+.epic-upgrade .rv-access-opt.on .rv-check{background:var(--blue);border-color:var(--blue)}

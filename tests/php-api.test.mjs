@@ -47,8 +47,8 @@ test('PHP API: orders placed on standard hosting reach the console', { skip: !ha
   assert.equal((await call('/api/orders', { token })).body.orders[0].status, 'Packed');
   const png = 'data:image/png;base64,' + Buffer.alloc(600, 7).toString('base64');
   const saved = await call('/api/state', { method: 'PUT', token, body: { products: [{ id: 'k120', price: 2310, stock: 48, image: png }] } });
-  assert.match(saved.body.products[0].image, /^\.\/media\/[0-9a-f]{16}\.png$/);
-  const img = await fetch(base + saved.body.products[0].image.slice(1));
+  assert.match(saved.body.saved.products[0].image, /^\.\/media\/[0-9a-f]{16}\.png$/);
+  const img = await fetch(base + saved.body.saved.products[0].image.slice(1));
   assert.equal(img.status, 200); assert.equal(img.headers.get('content-type'), 'image/png');
   assert.equal((await call('/api/state')).body.products[0].stock, 48);
   /* nothing outside the media folder can be read through /media or the API */
@@ -79,4 +79,23 @@ test('PHP API: says where the password file goes, and reads one saved by Notepad
     const ok = await fetch(at + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: 'admin', password: 'Notepad Pass 9' }) });
     assert.equal(ok.status, 200);
   } finally { p2.kill(); }
+});
+
+test('PHP API: console users with limited sections, same rules as server.js', { skip: !hasPhp && 'php is not installed' }, async () => {
+  const owner = (await call('/api/login', { method: 'POST', body: { user: 'admin', password: 'php pass 123' } })).body;
+  assert.equal(owner.me.owner, true);
+  const made = await call('/api/users', { method: 'POST', token: owner.token, body: { name: 'Ali', username: 'ali.sales', password: 'sales-pass-1', access: ['Sales'] } });
+  const ali = made.body.users.find((u) => u.username === 'ali.sales');
+  assert.ok(ali && !ali.hash);
+  const staff = (await call('/api/login', { method: 'POST', body: { user: 'ali.sales', password: 'sales-pass-1' } })).body;
+  assert.deepEqual(staff.me.access, ['Sales']);
+  assert.equal((await call('/api/orders', { token: staff.token })).status, 200);
+  assert.equal((await call('/api/users', { token: staff.token })).status, 403);
+  const put = await call('/api/state', { method: 'PUT', token: staff.token, body: { config: { codEnabled: false }, products: [{ id: 'k120', price: 2310, stock: 5 }] } });
+  assert.deepEqual(Object.keys(put.body.saved), ['products']);
+  assert.equal((await call('/api/me/password', { method: 'POST', token: staff.token, body: { current: 'sales-pass-1', next: 'better-pass-2' } })).status, 200);
+  await call('/api/users', { method: 'PUT', token: owner.token, body: { id: ali.id, active: false } });
+  assert.equal((await call('/api/orders', { token: staff.token })).status, 401, 'switched off users are out at once');
+  assert.equal((await call('/api/users', { method: 'PUT', token: owner.token, body: { id: ali.id, active: true, password: 'reset-pass-3' } })).status, 200);
+  assert.equal((await call('/api/login', { method: 'POST', body: { user: 'ali.sales', password: 'reset-pass-3' } })).status, 200);
 });

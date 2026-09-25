@@ -9,6 +9,9 @@
      GET  /api/orders            (admin) every order
      PUT  /api/orders            (admin) save order changes from the console
      GET  /api/track?id=         order status for the Track order page, without personal details
+     GET  /api/me                who is signed in and which console sections they may open
+     POST /api/me/password       change your own password (staff users)
+     GET/POST/PUT/DELETE /api/users   (owner and admins) console users and their access
      GET  /api/photos            official product photos the server has fetched so far
      POST /api/photos/sync       (admin) look again for missing official photos now
      POST /api/media/import      (admin) download a photo from a link and keep a copy here
@@ -25,7 +28,7 @@ import { readFile, writeFile, rename, mkdir, stat } from 'node:fs/promises';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, extname, resolve, dirname, sep } from 'node:path';
 import { homedir } from 'node:os';
-import { createHmac, createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
+import { createHmac, createHash, randomBytes, randomInt, timingSafeEqual, pbkdf2Sync } from 'node:crypto';
 import { gzipSync, brotliCompressSync, constants as zlib } from 'node:zlib';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { sellingPrice } from './src/catalog/logic.mjs';
@@ -92,11 +95,78 @@ export function createApp(options = {}) {
     if (mac.length !== expected.length || !timingSafeEqual(Buffer.from(mac), Buffer.from(expected))) return null;
     try { const data = JSON.parse(Buffer.from(body, 'base64url').toString()); return data.exp > Date.now() ? data : null; } catch { return null; }
   };
-  const same = (a, b) => timingSafeEqual(createHash('sha256').update(String(a)).digest(), createHash('sha256').update(String(b)).digest());
-  const requireAdmin = async (req) => {
-    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-    if (!(await verify(token))) throw new HttpError(401, 'Please sign in again.');
+  /* Console users. The owner signs in with the password from EPIC_ADMIN_PASSWORD or
+     admin-password.txt and has full access; everyone else is a user kept in users.json with
+     a salted PBKDF2 hash (the PHP API reads and writes the same format) and a list of
+     console sections. Access is looked up on every request, so changes apply at once. */
+  const ACCESS = JSON.parse(readFileSync(join(ROOT, 'src/catalog/access.json'), 'utf8'));
+  const hashPassword = (password) => {
+    const salt = randomBytes(16);
+    return `pbkdf2_sha256$150000$${salt.toString('base64')}$${pbkdf2Sync(String(password), salt, 150000, 32, 'sha256').toString('base64')}`;
   };
+  const checkPassword = (password, stored) => {
+    const [kind, iter, salt, hash] = String(stored || '').split('$');
+    if (kind !== 'pbkdf2_sha256' || !hash) return false;
+    const got = pbkdf2Sync(String(password), Buffer.from(salt, 'base64'), Number(iter), 32, 'sha256');
+    const want = Buffer.from(hash, 'base64');
+    return got.length === want.length && timingSafeEqual(got, want);
+  };
+  const publicUser = ({ hash, ...u }) => u;
+  const principal = async (req) => {
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    const data = await verify(token);
+    if (!data) throw new HttpError(401, 'Please sign in again.');
+    if (!data.uid) return { username: adminUser, name: 'Owner', owner: true, admin: true, access: ACCESS.sections };
+    const user = (await readJson('users.json', [])).find((u) => u.id === data.uid);
+    if (!user || !user.active) throw new HttpError(401, 'Your account is no longer active. Ask the store owner.');
+    return { ...publicUser(user), owner: false, access: user.admin ? ACCESS.sections : (user.access || []).filter((a) => ACCESS.sections.includes(a)) };
+  };
+  const can = (who, sections) => who.admin || sections.some((s) => who.access.includes(s));
+  const requireAccess = async (req, sections) => {
+    const who = await principal(req);
+    if (!can(who, sections)) throw new HttpError(403, "Your account doesn't have access to that. Ask the store owner.");
+    return who;
+  };
+  const cleanUser = (b) => ({
+    name: clean(b.name, 60), username: clean(b.username, 40).toLowerCase().replace(/[^a-z0-9._-]/g, ''),
+    admin: !!b.admin, active: b.active !== false,
+    access: (Array.isArray(b.access) ? b.access : []).filter((a) => ACCESS.sections.includes(a)),
+  });
+  const users = async (req, res, m, url) => {
+    if (m === 'GET') { await requireAccess(req, []); return json(res, 200, { users: (await readJson('users.json', [])).map(publicUser), owner: adminUser }); }
+    const who = await principal(req);
+    if (!who.admin) throw new HttpError(403, 'Only the owner and admins can manage users.');
+    const body = m === 'DELETE' ? {} : await readBody(req, 20 * 1024);
+    return json(res, 200, { users: await serial(async () => {
+      const list = await readJson('users.json', []);
+      if (m === 'POST') {
+        const u = cleanUser(body);
+        if (!u.username || !u.name) throw new HttpError(400, 'Add a name and a username.');
+        if (u.username === adminUser || list.some((x) => x.username === u.username)) throw new HttpError(400, 'That username is already taken.');
+        if (String(body.password || '').length < 8) throw new HttpError(400, 'Use a password of at least 8 characters.');
+        list.push({ id: 'U' + randomBytes(5).toString('hex'), ...u, hash: hashPassword(body.password), createdAt: Date.now(), createdBy: who.username });
+      } else if (m === 'PUT') {
+        const i = list.findIndex((x) => x.id === body.id);
+        if (i < 0) throw new HttpError(404, 'That user no longer exists.');
+        const u = cleanUser({ ...list[i], ...body });
+        if (u.username !== list[i].username && (u.username === adminUser || list.some((x) => x.username === u.username))) throw new HttpError(400, 'That username is already taken.');
+        if (body.password !== undefined && body.password !== '') {
+          if (String(body.password).length < 8) throw new HttpError(400, 'Use a password of at least 8 characters.');
+          list[i].hash = hashPassword(body.password);
+        }
+        list[i] = { ...list[i], ...u, updatedAt: Date.now() };
+      } else if (m === 'DELETE') {
+        const id = url.searchParams.get('id');
+        if (!list.some((x) => x.id === id)) throw new HttpError(404, 'That user no longer exists.');
+        list.splice(list.findIndex((x) => x.id === id), 1);
+      } else throw new HttpError(405, 'Method not allowed.');
+      await writeJson('users.json', list);
+      return list.map(publicUser);
+    }) });
+  };
+
+  const same = (a, b) => timingSafeEqual(createHash('sha256').update(String(a)).digest(), createHash('sha256').update(String(b)).digest());
+  const requireAdmin = (req) => requireAccess(req, ACCESS.media);
 
   /* simple per-address limits for orders and sign-in attempts */
   const hits = new Map();
@@ -317,12 +387,13 @@ export function createApp(options = {}) {
       return json(res, 200, out);
     }
     if (route === 'state' && m === 'PUT') {
-      await requireAdmin(req);
+      const who = await principal(req);
       const body = await readBody(req, 40 * 1024 * 1024);
       const saved = await serial(async () => {
         const state = await readJson('state.json', {});
         const keys = [];
-        for (const k of STATE_KEYS) if (body[k] !== undefined) { state[k] = await saveMedia(body[k]); keys.push(k); }
+        /* each part is saved only by someone whose sections cover it */
+        for (const k of STATE_KEYS) if (body[k] !== undefined && can(who, ACCESS.writeState[k] || [])) { state[k] = await saveMedia(body[k]); keys.push(k); }
         state.updatedAt = Date.now();
         await writeJson('state.json', state);
         const out = {}; for (const k of keys) out[k] = state[k];
@@ -331,17 +402,40 @@ export function createApp(options = {}) {
       return json(res, 200, { ok: true, saved });
     }
     if (route === 'login' && m === 'POST') {
-      if (!adminPassword) throw new HttpError(503, 'Admin sign-in is not set up on the server. Add EPIC_ADMIN_PASSWORD in Hostinger and redeploy.');
       limit('login:' + ipOf(req), 10, 15 * 60 * 1000);
       const body = await readBody(req, 10 * 1024);
-      if (!same(String(body.user || '').trim().toLowerCase(), adminUser) || !same(String(body.password || ''), adminPassword)) throw new HttpError(401, "That username and password don't match.");
+      const name = String(body.user || '').trim().toLowerCase(), password = String(body.password || '');
       const expires = Date.now() + 12 * 60 * 60 * 1000;
-      return json(res, 200, { token: await sign({ u: adminUser, exp: expires }), expires });
+      if (same(name, adminUser)) {
+        if (!adminPassword) throw new HttpError(503, 'Owner sign-in is not set up on the server. Add EPIC_ADMIN_PASSWORD in Hostinger, or create admin-password.txt in the epic-data folder.');
+        if (!same(password, adminPassword)) throw new HttpError(401, "That username and password don't match.");
+        return json(res, 200, { token: await sign({ u: adminUser, exp: expires }), expires, me: await principal({ headers: { authorization: 'Bearer ' + await sign({ u: adminUser, exp: expires }) } }) });
+      }
+      const user = (await readJson('users.json', [])).find((u) => u.username === name);
+      if (!user || !user.active || !checkPassword(password, user.hash)) throw new HttpError(401, "That username and password don't match.");
+      const token = await sign({ u: user.username, uid: user.id, exp: expires });
+      return json(res, 200, { token, expires, me: await principal({ headers: { authorization: 'Bearer ' + token } }) });
     }
+    if (route === 'me' && m === 'GET') return json(res, 200, { me: await principal(req) });
+    if (route === 'me/password' && m === 'POST') {
+      const who = await principal(req);
+      if (who.owner) throw new HttpError(400, "The owner's password lives in admin-password.txt (or EPIC_ADMIN_PASSWORD). Change it there.");
+      const body = await readBody(req, 10 * 1024);
+      if (String(body.next || '').length < 8) throw new HttpError(400, 'Use a password of at least 8 characters.');
+      await serial(async () => {
+        const list = await readJson('users.json', []);
+        const u = list.find((x) => x.id === who.id);
+        if (!u || !checkPassword(String(body.current || ''), u.hash)) throw new HttpError(400, 'Your current password is not right.');
+        u.hash = hashPassword(body.next); u.updatedAt = Date.now();
+        await writeJson('users.json', list);
+      });
+      return json(res, 200, { ok: true });
+    }
+    if (route === 'users') return users(req, res, m, url);
     if (route === 'orders' && m === 'POST') return json(res, 201, { order: await createOrder(await readBody(req, 200 * 1024), ipOf(req)) });
-    if (route === 'orders' && m === 'GET') { await requireAdmin(req); return json(res, 200, { orders: await readJson('orders.json', []) }); }
+    if (route === 'orders' && m === 'GET') { await requireAccess(req, ACCESS.readOrders); return json(res, 200, { orders: await readJson('orders.json', []) }); }
     if (route === 'orders' && m === 'PUT') {
-      await requireAdmin(req);
+      await requireAccess(req, ACCESS.writeOrders);
       const body = await readBody(req, 20 * 1024 * 1024);
       const changes = (Array.isArray(body.orders) ? body.orders : []).filter((o) => o && typeof o.id === 'string');
       const count = await serial(async () => {

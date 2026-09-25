@@ -1,0 +1,13 @@
+{
+  "note": "Console access. A user is given sections; the server checks them on every request. Admins (and the owner, who signs in with the password file) have every section and manage users.",
+  "sections": ["Overview", "Catalog", "Sales", "Purchasing", "Logistics", "Finance", "Reports", "People", "Store"],
+  "readOrders": ["Overview", "Sales", "Logistics", "Finance", "Reports"],
+  "writeOrders": ["Sales", "Logistics"],
+  "writeState": {
+    "products": ["Catalog", "Purchasing", "Sales"],
+    "categories": ["Catalog"],
+    "promos": ["Catalog"],
+    "config": ["Store", "Finance", "Logistics", "Purchasing", "People"]
+  },
+  "media": ["Catalog"]
+}

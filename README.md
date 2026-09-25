@@ -1,8 +1,15 @@
-# EPIC DEVICES 6.3
+# EPIC DEVICES 6.4
 
 The online store for **epicdevicesltd.com**: storefront, checkout with delivery, and the business console, running as one Node.js app on Hostinger. Customers' orders are saved on the server and appear in the console.
 
-## What's new in 6.3
+## What's new in 6.4: console users and access
+
+- **The owner sign-in is unchanged:** username `admin`, password on the first line of `epic-data/admin-password.txt` (or `EPIC_ADMIN_PASSWORD`). The owner can open everything. Change that password by editing the file.
+- **Users & access** (console, Team section; owner and admins only): add a user with their name, username and password, then tick the sections they may open: Overview, Catalog, Sales, Purchasing, Logistics, Finance, Reports, People, Store. Or make them an **Admin** (everything, including managing users). Edit a user to change their sections or set a new password, switch an account off to block it at once, or delete it.
+- **Staff change their own password** from "Change my password" at the bottom of the console menu.
+- The server checks access on every request, not just the menu: a user without Sales can't read orders, only Catalog/Purchasing/Sales can save products, only Store/Finance/Logistics/Purchasing/People can save settings, and a switched-off user is signed out immediately. The rules live in `src/catalog/access.json`; passwords are stored salted and hashed (PBKDF2) in `epic-data/users.json`, identical for the Node and PHP backends.
+
+## What was new in 6.3
 
 - **Orders always reach the console.** If the site shows "Preview order" or orders don't appear in the console, the website is being published as static files without its server. 6.3 ships a PHP version of the store API (`api/index.php`) that runs on standard Hostinger hosting, so checkout saves real orders even then. The Node.js app (below) remains the best setup; either way orders land in `~/epic-data/orders.json` and show under Orders in the console.
   - **Console password on standard hosting:** in hPanel File Manager, open your home folder (the one above `public_html`/`domains`), create a folder `epic-data`, and in it a file `admin-password.txt` with your password on the first line. Username: `admin`. (With the Node.js app, keep using the `EPIC_ADMIN_PASSWORD` environment variable.)

@@ -19,7 +19,7 @@ AddType image/webp .webp
   # /media/* when the Node.js app (server.js) is not running.
   # the shop's data folder is never served, wherever it was created
   RewriteRule (^|/)epic-data(/|$) - [F,L]
-  RewriteRule ^api/catalog\.json$ - [L]
+  RewriteRule ^api/(catalog|access)\.json$ - [L]
   RewriteRule ^api/index\.php$ - [L]
   RewriteRule ^api/(.*)$ api/index.php?route=$1 [QSA,L]
   RewriteRule ^media/(.+)$ api/index.php?media=$1 [QSA,L]

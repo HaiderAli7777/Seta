@@ -1,5 +1,6 @@
 import { legacyProducts, legacyCategories } from "./catalog/legacy.mjs";
 import { CATEGORIES as CATALOG_CATEGORIES } from "./catalog/logic.mjs";
+import ACCESS from "./catalog/access.json";
 import BrandHero from "./brand-hero.jsx";
 import UPGRADE_CSS from "./upgrade.css";
 import EXPERIENCE_CSS from "./experience.css";
@@ -3901,6 +3902,11 @@ export default function App({ initialView = "store" } = {}) {
   const [server, setServer] = useState({ status: "checking", admin: false });
   const [adminToken, setAdminToken] = useState(() => { try { return sessionStorage.getItem("epic:token") || ""; } catch { return ""; } });
   const [placing, setPlacing] = useState(false);
+  /* who is signed in to the console and which sections they may open (local previews: the owner) */
+  const OWNER_ME = { username: "admin", name: "Owner", owner: true, admin: true, access: ACCESS.sections };
+  const [me, setMe] = useState(OWNER_ME);
+  const [usersList, setUsersList] = useState(null);
+  const canSee = (sections) => me.admin || sections.some((x) => (me.access || []).includes(x));
   const [stateLoaded, setStateLoaded] = useState(false);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const syncedState = useRef({});
@@ -3936,13 +3942,18 @@ export default function App({ initialView = "store" } = {}) {
   useEffect(() => {
     if (server.status !== "online" || !adminToken) return;
     let alive = true;
-    serverApi("orders", { token: adminToken })
-      .then(({ orders: list }) => {
-        if (!alive) return;
-        syncedOrders.current = new Map(list.map((o) => [o.id, JSON.stringify(o)]));
-        setOrders(list); setOrdersLoaded(true); setAuthed(true);
+    serverApi("me", { token: adminToken })
+      .then(({ me: who }) => {
+        if (!alive) return null;
+        setMe(who); setAuthed(true);
+        if (!(who.admin || ACCESS.readOrders.some((x) => who.access.includes(x)))) return null;
+        return serverApi("orders", { token: adminToken }).then(({ orders: list }) => {
+          if (!alive) return;
+          syncedOrders.current = new Map(list.map((o) => [o.id, JSON.stringify(o)]));
+          setOrders(list); setOrdersLoaded(true);
+        });
       })
-      .catch((e) => { if (alive && e.status === 401) { setAdminToken(""); try { sessionStorage.removeItem("epic:token"); } catch { /* storage off */ } } });
+      .catch((e) => { if (alive && e.status === 401) { setAdminToken(""); setAuthed(false); try { sessionStorage.removeItem("epic:token"); } catch { /* storage off */ } } });
     return () => { alive = false; };
   }, [server.status, adminToken]);
   // console edits to the catalogue and settings are saved a moment after they happen
@@ -3950,7 +3961,8 @@ export default function App({ initialView = "store" } = {}) {
     if (!authed || !adminToken || server.status !== "online" || !stateLoaded) return;
     const current = { products, categories, promos, config };
     const changed = {};
-    for (const k of Object.keys(current)) { const text = JSON.stringify(current[k]); if (text !== syncedState.current[k]) changed[k] = { value: current[k], text }; }
+    for (const k of Object.keys(current)) {
+      if (!canSee(ACCESS.writeState[k] || [])) continue; const text = JSON.stringify(current[k]); if (text !== syncedState.current[k]) changed[k] = { value: current[k], text }; }
     if (!Object.keys(changed).length) return;
     const t = setTimeout(() => {
       const body = {};
@@ -3960,10 +3972,10 @@ export default function App({ initialView = "store" } = {}) {
         .catch((e) => pushToast(e.status === 401 ? "Your session ended. Sign in again to keep saving." : "Couldn't save to the server. Check your connection.", X, true));
     }, 1200);
     return () => clearTimeout(t);
-  }, [products, categories, promos, config, authed, adminToken, server.status, stateLoaded]);
+  }, [products, categories, promos, config, authed, adminToken, server.status, stateLoaded, me]);
   // order changes made in the console go back to the server
   useEffect(() => {
-    if (!authed || !adminToken || server.status !== "online" || !ordersLoaded) return;
+    if (!authed || !adminToken || server.status !== "online" || !ordersLoaded || !canSee(ACCESS.writeOrders)) return;
     const changed = orders.filter((o) => syncedOrders.current.get(o.id) !== JSON.stringify(o));
     if (!changed.length) return;
     const t = setTimeout(() => {
@@ -3997,8 +4009,9 @@ export default function App({ initialView = "store" } = {}) {
       try {
         const r = await serverApi("login", { method: "POST", body: { user: login.user, password: login.pass } });
         try { sessionStorage.setItem("epic:token", r.token); } catch { /* storage off: this tab only */ }
+        if (r.me) setMe(r.me);
         setAdminToken(r.token);
-        setLoginErr(""); setLogin({ user: "", pass: "" }); pushToast("Signed in to the console", ShieldCheck);
+        setLoginErr(""); setLogin({ user: "", pass: "" }); pushToast(r.me && !r.me.owner ? "Welcome, " + r.me.name : "Signed in to the console", ShieldCheck);
       } catch (e) { setLoginErr(e.message || "That username and password don't match. Check your credentials and try again."); }
       return;
     }
@@ -4009,7 +4022,7 @@ export default function App({ initialView = "store" } = {}) {
       setAuthed(true); setLoginErr(""); setLogin({ user: "", pass: "" }); pushToast("Signed in to a preview. Nothing is saved on a server.", ShieldCheck);
     } else setLoginErr("That username and password don't match. Check your credentials and try again.");
   };
-  const logout = () => { setAuthed(false); setAdminToken(""); setOrdersLoaded(false); try { sessionStorage.removeItem("epic:token"); } catch { /* storage off */ } setView("store"); setStoreView("shop"); pushToast("Signed out", LogOut); };
+  const logout = () => { setAuthed(false); setAdminToken(""); setMe(OWNER_ME); setUsersList(null); setOrdersLoaded(false); try { sessionStorage.removeItem("epic:token"); } catch { /* storage off */ } setView("store"); setStoreView("shop"); pushToast("Signed out", LogOut); };
   const openConsole = () => { setView("console"); setMobileMenu(false); window.scrollTo(0, 0); };
 
   /* ── storefront filtering ── */
@@ -17891,7 +17904,10 @@ export default function App({ initialView = "store" } = {}) {
       ["settings", "Settings", Settings, null],
       ["activity", "Activity", History, null],
     ]],
-  ];
+  ].map(([sec, items]) => [sec, items.filter(() => canSee([sec]))])
+    .concat(me.admin ? [["Team", [["users", "Users & access", Users, (usersList || []).length || null]]]] : [])
+    .filter(([, items]) => items.length);
+  const allowedTabs = CONSOLE_NAV.flatMap(([, items]) => items.map((i) => i[0]));
   const TAB_TITLES = {
     dashboard: "Dashboard", products: "Products", categories: "Categories", inventory: "Inventory", faults: "Faulty & damaged",
     lots: "Lots & serials", b2b: "B2B & wholesale inquiries", sales: "Quotations, orders & invoices", buying: "RFQs, purchase orders & bills",
@@ -17899,6 +17915,123 @@ export default function App({ initialView = "store" } = {}) {
     apar: "Receivable & payable", ledger: "Party ledgers", purchases: "Purchases & returns", expenses: "Expenses", balance: "Balance sheet", treasury: "Cash & bank", vendors: "Vendors", aged: "Aged receivables & payables", terms: "Payment terms", taxes: "Tax configuration", accounts: "Chart of accounts", ledger2: "General ledger", statements: "Financial statements", letterhead: "Letterhead",
     people: "Employees", loans: "Loans & advances", payroll: "Payroll", partners: "Delivery partners", finance: "Courier settlements",
     pnl: "Profit & loss", prodprofit: "Product profit", pricing: "Price builder", settings: "Settings", activity: "Activity",
+    users: "Users & access",
+  };
+
+  /* ── console users (owner and admins) ── */
+  const [userDraft, setUserDraft] = useState(null);
+  const [savingUser, setSavingUser] = useState(false);
+  const [pwBox, setPwBox] = useState(null);
+  const liveServer = server.status === "online" && !!adminToken;
+  const loadUsers = () => {
+    if (!liveServer || !me.admin) return;
+    serverApi("users", { token: adminToken }).then((r) => setUsersList(r.users)).catch((e) => pushToast(e.message, X, true));
+  };
+  useEffect(() => { if (authed && tab === "users") loadUsers(); }, [authed, tab, liveServer, me.admin]);
+  /* a tab the signed-in user may not open falls back to their first section */
+  useEffect(() => { if (authed && allowedTabs.length && !allowedTabs.includes(tab)) setTab(allowedTabs[0]); }, [authed, me, tab]);
+  const saveUser = async () => {
+    const d = userDraft;
+    if (!d.name.trim() || !d.username.trim()) { pushToast("Add a name and a username", X, true); return; }
+    if (!d.id && d.password.length < 8) { pushToast("Use a password of at least 8 characters", X, true); return; }
+    if (d.password && d.password.length < 8) { pushToast("Use a password of at least 8 characters", X, true); return; }
+    if (!d.admin && !d.access.length) { pushToast("Give at least one section, or make the user an admin", X, true); return; }
+    setSavingUser(true);
+    try {
+      const body = { id: d.id, name: d.name, username: d.username, access: d.access, admin: d.admin, active: d.active, ...(d.password ? { password: d.password } : {}) };
+      const r = await serverApi("users", { method: d.id ? "PUT" : "POST", body, token: adminToken });
+      setUsersList(r.users); setUserDraft(null);
+      pushToast(d.id ? "User updated" : "User created. Share the username and password with " + d.name, Check);
+      logAct("settings", (d.id ? "Updated" : "Created") + " console user " + d.username);
+    } catch (e) { pushToast(e.message, X, true); }
+    setSavingUser(false);
+  };
+  const removeUser = async (u) => {
+    if (!window.confirm("Delete " + u.name + " (" + u.username + ")? They will be signed out at once.")) return;
+    try { const r = await serverApi("users?id=" + encodeURIComponent(u.id), { method: "DELETE", token: adminToken }); setUsersList(r.users); pushToast("User deleted", Trash2); logAct("settings", "Deleted console user " + u.username); }
+    catch (e) { pushToast(e.message, X, true); }
+  };
+  const changeMyPassword = async () => {
+    if (pwBox.next.length < 8) { pushToast("Use a password of at least 8 characters", X, true); return; }
+    if (pwBox.next !== pwBox.again) { pushToast("The new passwords don't match", X, true); return; }
+    try { await serverApi("me/password", { method: "POST", body: { current: pwBox.current, next: pwBox.next }, token: adminToken }); setPwBox(null); pushToast("Password changed", Check); }
+    catch (e) { pushToast(e.message, X, true); }
+  };
+  const SECTION_HINTS = {
+    Overview: "Dashboard and reports on the front page", Catalog: "Products, categories, stock, promotions",
+    Sales: "Orders, customers, returns, quotations, B2B", Purchasing: "RFQs, vendors, purchases",
+    Logistics: "Delivery partners, courier settlements", Finance: "Receivables, ledgers, expenses, cash, tax",
+    Reports: "Profit & loss, product profit, pricing", People: "Employees, loans, payroll", Store: "Settings, letterhead, activity",
+  };
+  const renderUsers = () => {
+    if (!liveServer) return <div className="empty"><Users size={34} color="var(--ink3)" strokeWidth={1.3} /><h4>Users are managed on the live site</h4><p>Sign in on epicdevicesltd.com to create users and choose what each person can open.</p></div>;
+    const d = userDraft;
+    const toggle = (sec) => setUserDraft({ ...d, access: d.access.includes(sec) ? d.access.filter((x) => x !== sec) : [...d.access, sec] });
+    return (
+      <div>
+        <div className="cpanel" style={{ marginBottom: 14 }}>
+          <div className="cpanel-h"><h3><Users size={16} /> Console users</h3>
+            <div className="r"><button className="btn btn-pri btn-sm" onClick={() => setUserDraft({ id: null, name: "", username: "", password: "", access: ["Overview", "Sales"], admin: false, active: true })}><PlusCircle size={14} /> Add user</button></div></div>
+          <div className="cpanel-b">
+            <table className="dtable rv-users">
+              <thead><tr><th>Name</th><th>Username</th><th>Access</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                <tr><td><b>Owner</b></td><td className="mono">{usersList ? "admin" : ""}</td><td><span className="pill blue">Everything</span></td><td><span className="pill ok">Active</span></td>
+                  <td className="rv-users-note">Password is in epic-data/admin-password.txt</td></tr>
+                {(usersList || []).map((u) => (
+                  <tr key={u.id}>
+                    <td><b>{u.name}</b></td><td className="mono">{u.username}</td>
+                    <td>{u.admin ? <span className="pill blue">Admin · everything</span> : <span className="rv-access-list">{u.access.map((a) => <span className="pill soft" key={a}>{a}</span>)}</span>}</td>
+                    <td>{u.active ? <span className="pill ok">Active</span> : <span className="pill">Switched off</span>}</td>
+                    <td className="rv-users-acts">
+                      <button className="btn btn-sm" onClick={() => setUserDraft({ ...u, password: "" })}><Pencil size={13} /> Edit</button>
+                      <button className="btn btn-sm" onClick={() => removeUser(u)} aria-label={"Delete " + u.name}><Trash2 size={13} /></button>
+                    </td>
+                  </tr>
+                ))}
+                {usersList && !usersList.length && <tr><td colSpan={5} className="hint">No staff users yet. Add one to give a team member their own sign-in.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {d && (
+          <div className="cpanel rv-user-form">
+            <div className="cpanel-h"><h3>{d.id ? "Edit " + d.name : "New user"}</h3><div className="r"><button className="btn btn-sm btn-ghost" onClick={() => setUserDraft(null)}><X size={14} /> Cancel</button></div></div>
+            <div className="cpanel-b">
+              <div className="form-row three">
+                <div className="field"><label>Full name</label><input className="finp" value={d.name} onChange={(e) => setUserDraft({ ...d, name: e.target.value })} placeholder="Ayesha Malik" /></div>
+                <div className="field"><label>Username</label><input className="finp" value={d.username} onChange={(e) => setUserDraft({ ...d, username: e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, "") })} placeholder="ayesha" autoComplete="off" /></div>
+                <div className="field"><label>{d.id ? "New password (leave empty to keep)" : "Password"}</label><input className="finp" type="text" value={d.password} onChange={(e) => setUserDraft({ ...d, password: e.target.value })} placeholder="At least 8 characters" autoComplete="new-password" /></div>
+              </div>
+              <div className="mini-toggle" onClick={() => setUserDraft({ ...d, admin: !d.admin })} style={{ margin: "6px 0 14px" }}>
+                <span className={"tgl " + (d.admin ? "on" : "")} />
+                <span>Admin<small>Opens every section and can manage users</small></span>
+              </div>
+              {!d.admin && (
+                <>
+                  <label className="rv-access-h">Sections this user can open</label>
+                  <div className="rv-access-grid">
+                    {ACCESS.sections.map((sec) => (
+                      <button type="button" key={sec} className={"rv-access-opt " + (d.access.includes(sec) ? "on" : "")} onClick={() => toggle(sec)} aria-pressed={d.access.includes(sec)}>
+                        <span className="rv-check">{d.access.includes(sec) && <Check size={13} />}</span>
+                        <span><b>{sec}</b><small>{SECTION_HINTS[sec]}</small></span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              <div className="mini-toggle" onClick={() => setUserDraft({ ...d, active: !d.active })} style={{ marginTop: 14 }}>
+                <span className={"tgl " + (d.active ? "on" : "")} />
+                <span>Account active<small>Switch off to block sign-in at once without deleting the user</small></span>
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+                <button className="btn btn-pri" disabled={savingUser} onClick={saveUser}><Save size={15} /> {savingUser ? "Saving…" : d.id ? "Save changes" : "Create user"}</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderConsole = () => {
@@ -17926,9 +18059,10 @@ export default function App({ initialView = "store" } = {}) {
           ))}
           <div className="rail-foot">
             <div className="rail-user">
-              <span className="av">A</span>
-              <div style={{ minWidth: 0 }}><div className="nm">admin</div><div className="rl">Store owner</div></div>
+              <span className="av">{me.owner ? "A" : (me.name || "U").slice(0, 1).toUpperCase()}</span>
+              <div style={{ minWidth: 0 }}><div className="nm">{me.owner ? "admin" : me.name}</div><div className="rl">{me.owner ? "Store owner" : me.admin ? "Admin" : me.access.join(" · ")}</div></div>
             </div>
+            {!me.owner && liveServer && <button className="rail-btn" onClick={() => setPwBox({ current: "", next: "", again: "" })} title="Change my password"><Lock size={16} /><span className="lb">Change my password</span></button>}
             <button className="rail-btn" onClick={() => { window.location.href = "./index.html"; }} title="View store">
               <Store size={16} /><span className="lb">View store</span>
             </button>
@@ -18029,6 +18163,7 @@ export default function App({ initialView = "store" } = {}) {
             {tab === "pricing" && renderPricing()}
             {tab === "settings" && renderSettings()}
             {tab === "activity" && renderActivity()}
+            {tab === "users" && me.admin && renderUsers()}
           </div>
         </div>
       </div>
@@ -18094,6 +18229,19 @@ export default function App({ initialView = "store" } = {}) {
       )}
 
       {view === "console" && (authed ? renderConsole() : renderLogin())}
+      {inConsole && pwBox && (
+        <div className="modal-wrap" onClick={() => setPwBox(null)}>
+          <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Change my password">
+            <div className="modal-head"><h3><Lock size={16} /> Change my password</h3><button className="modal-x" onClick={() => setPwBox(null)} aria-label="Close"><X size={16} /></button></div>
+            <div className="modal-body">
+              <div className="field"><label>Current password</label><input className="finp" type="password" autoComplete="current-password" value={pwBox.current} onChange={(e) => setPwBox({ ...pwBox, current: e.target.value })} /></div>
+              <div className="field"><label>New password</label><input className="finp" type="password" autoComplete="new-password" value={pwBox.next} onChange={(e) => setPwBox({ ...pwBox, next: e.target.value })} placeholder="At least 8 characters" /></div>
+              <div className="field"><label>New password again</label><input className="finp" type="password" autoComplete="new-password" value={pwBox.again} onChange={(e) => setPwBox({ ...pwBox, again: e.target.value })} /></div>
+            </div>
+            <div className="modal-foot"><button className="btn btn-pri" onClick={changeMyPassword}><Save size={15} /> Change password</button></div>
+          </div>
+        </div>
+      )}
       {inConsole && renderProductModal()}
       {inConsole && renderCatModal()}
       {inConsole && renderAdjustModal()}

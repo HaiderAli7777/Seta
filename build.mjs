@@ -31,6 +31,7 @@ for (const file of readdirSync('assets')) if (/\.(webp|jpe?g|png)$/i.test(file))
 // It checks order prices against the catalogue, so the built-in prices go with it.
 mkdirSync(`${OUT}/api`, { recursive: true });
 cpSync('api/index.php', `${OUT}/api/index.php`);
+cpSync('src/catalog/access.json', `${OUT}/api/access.json`);
 {
   const { sellingPrice } = await import('./src/catalog/logic.mjs');
   const list = JSON.parse(readFileSync('src/catalog/products.json', 'utf8'));
@@ -107,7 +108,7 @@ for (const page of pages) {
   if (page.storefront) sources.push(readFileSync(`${OUT}/${page.bundle}`, 'utf8'));
   for (const text of sources) for (const [, ref] of text.matchAll(assetRef)) if (!existsSync(`${OUT}/${ref}`)) missing.add(ref);
 }
-for (const file of ['index.html', 'console.html', '.htaccess', 'sw.js', 'api/index.php', 'api/catalog.json']) if (!existsSync(`${OUT}/${file}`)) missing.add(file);
+for (const file of ['index.html', 'console.html', '.htaccess', 'sw.js', 'api/index.php', 'api/catalog.json', 'api/access.json']) if (!existsSync(`${OUT}/${file}`)) missing.add(file);
 if (missing.size) throw new Error('Missing from dist/: ' + [...missing].join(', '));
 
 console.log(`Ready: ${OUT}/ holds the finished website. Start it with: node server.js`);
