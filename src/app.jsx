@@ -8627,7 +8627,7 @@ export default function App({ initialView = "store" } = {}) {
       <div className="login-card">
         <div className="login-lock"><Lock size={24} /></div>
         <h2>Store Console</h2>
-        <p className="ls">Catalog, orders and settings for {config.storeName}.</p><p className="ed-session-hint">Session preview · Changes reset when the page reloads.</p>
+        <p className="ls">Catalog, orders and settings for {config.storeName}.</p>{server.status !== "online" && isLocalPreview() && <p className="ed-session-hint">Session preview · Changes reset when the page reloads.</p>}
         {loginErr && <div className="login-err"><AlertTriangle size={14} /> {loginErr}</div>}
         <div className="field"><label>Username</label>
           <input className="inp" value={login.user} onChange={(e) => setLogin({ ...login, user: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") doLogin(); }} placeholder="admin" autoComplete="username" />
