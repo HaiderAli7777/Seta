@@ -30,7 +30,18 @@ function candidate_dirs(): array {
   $site = dirname(__DIR__);                                  // the published website folder
   $list[] = dirname($site) . '/epic-data';                   // next to public_html
   if (preg_match('#^(/home/[^/]+/domains/[^/]+)#', __DIR__, $m)) $list[] = $m[1] . '/epic-data';
-  if (preg_match('#^(/home/[^/]+)#', __DIR__, $m)) $list[] = $m[1] . '/domains/epic-data';
+  /* the folder Hostinger's File Manager opens in is domains/<site>/ (next to public_html and
+     hbuilds). The published files may run from elsewhere, so look in every site folder. */
+  $homes = [];
+  if (preg_match('#^(/home/[^/]+)#', __DIR__, $m)) $homes[] = $m[1];
+  if (preg_match('#^(/home/[^/]+)#', (string)($_SERVER['DOCUMENT_ROOT'] ?? ''), $m)) $homes[] = $m[1];
+  if ($h = getenv('HOME')) $homes[] = rtrim($h, '/');
+  foreach (array_unique($homes) as $home) {
+    $host = preg_replace('/^www\./', '', strtolower((string)($_SERVER['HTTP_HOST'] ?? '')));
+    if ($host !== '') $list[] = "$home/domains/$host/epic-data";
+    foreach ((@glob("$home/domains/*/epic-data", GLOB_ONLYDIR) ?: []) as $d) $list[] = $d;
+    $list[] = "$home/public_html/epic-data";
+  }
   $list[] = $site . '/epic-data';                            // inside the website (blocked from the web by .htaccess)
   $list[] = dirname((string)($_SERVER['DOCUMENT_ROOT'] ?? $site)) . '/epic-data';
   return array_values(array_unique(array_map(fn($d) => rtrim($d, '/'), $list)));
@@ -279,6 +290,7 @@ try {
     $out = ['ok' => true, 'admin' => $ready, 'time' => (int)(microtime(true) * 1000), 'backend' => 'php'];
     /* until sign-in works, say exactly where the password file is expected */
     if (!$ready) $out['setup'] = ['passwordFile' => "$DATA/admin-password.txt", 'dataFolderExists' => is_dir($DATA), 'dataFolderWritable' => is_dir($DATA) && is_writable($DATA),
+      'siteRunsFrom' => __DIR__, 'openBasedir' => (string)ini_get('open_basedir'),
       'alsoChecked' => array_values(array_filter(candidate_dirs(), fn($d) => $d !== $DATA))];
     send(200, $out);
   }
