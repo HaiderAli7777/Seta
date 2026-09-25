@@ -59,3 +59,24 @@ test('PHP API: orders placed on standard hosting reach the console', { skip: !ha
     assert.ok(!text.includes(secret) && !text.includes('php pass 123'), sneaky);
   }
 });
+
+test('PHP API: says where the password file goes, and reads one saved by Notepad', { skip: !hasPhp && 'php is not installed' }, async () => {
+  const empty = mkdtempSync(join(tmpdir(), 'epic-php-empty-'));
+  const port = 20100 + Math.floor(Math.random() * 500);
+  const p2 = spawn('php', ['-S', `127.0.0.1:${port}`, '-t', 'dist', 'tests/php-router.php'], { cwd: root, env: { ...process.env, EPIC_DATA_DIR: empty }, stdio: 'ignore' });
+  try {
+    const at = `http://127.0.0.1:${port}`;
+    let h;
+    for (let i = 0; i < 50; i++) { try { h = await (await fetch(at + '/api/health')).json(); break; } catch { await new Promise((r) => setTimeout(r, 100)); } }
+    assert.equal(h.admin, false);
+    assert.equal(h.setup.passwordFile, join(empty, 'admin-password.txt'));
+    const login = await fetch(at + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: 'admin', password: 'x' }) });
+    assert.equal(login.status, 503);
+    assert.match((await login.json()).error, new RegExp(empty.replace(/[/\\]/g, '.') + '.admin-password\\.txt'));
+    /* Windows Notepad: byte-order mark, CRLF line ending */
+    writeFileSync(join(empty, 'admin-password.txt'), '﻿Notepad Pass 9\r\n');
+    assert.equal((await (await fetch(at + '/api/health')).json()).admin, true);
+    const ok = await fetch(at + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: 'admin', password: 'Notepad Pass 9' }) });
+    assert.equal(ok.status, 200);
+  } finally { p2.kill(); }
+});

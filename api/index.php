@@ -18,17 +18,34 @@ final class HttpError extends Exception {
   public function __construct(int $status, string $message) { parent::__construct($message); $this->status = $status; }
 }
 
+/* Where the shop's data folder can be. Hostinger accounts differ (home folder, domains/,
+   public_html), so every usual place is considered; the first that already holds the shop's
+   data or the password file wins, otherwise the home folder is used. */
+function candidate_dirs(): array {
+  $list = [];
+  if ($env = getenv('EPIC_DATA_DIR')) $list[] = $env;
+  if (preg_match('#^(/home/[^/]+)#', __DIR__, $m)) $list[] = $m[1] . '/epic-data';
+  if ($home = getenv('HOME')) $list[] = rtrim($home, '/') . '/epic-data';
+  if (function_exists('posix_getpwuid')) { $pw = posix_getpwuid(posix_geteuid()); if (!empty($pw['dir'])) $list[] = rtrim($pw['dir'], '/') . '/epic-data'; }
+  $site = dirname(__DIR__);                                  // the published website folder
+  $list[] = dirname($site) . '/epic-data';                   // next to public_html
+  if (preg_match('#^(/home/[^/]+/domains/[^/]+)#', __DIR__, $m)) $list[] = $m[1] . '/epic-data';
+  if (preg_match('#^(/home/[^/]+)#', __DIR__, $m)) $list[] = $m[1] . '/domains/epic-data';
+  $list[] = $site . '/epic-data';                            // inside the website (blocked from the web by .htaccess)
+  $list[] = dirname((string)($_SERVER['DOCUMENT_ROOT'] ?? $site)) . '/epic-data';
+  return array_values(array_unique(array_map(fn($d) => rtrim($d, '/'), $list)));
+}
+function password_file(string $dir): ?string {
+  foreach (['admin-password.txt', 'admin-password.txt.txt', 'admin-password', 'Admin-password.txt', 'admin password.txt'] as $name)
+    if (is_file("$dir/$name") && is_readable("$dir/$name")) return "$dir/$name";
+  return null;
+}
 function data_dir(): string {
-  $dir = getenv('EPIC_DATA_DIR');
-  if (!$dir) {
-    $home = getenv('HOME');
-    if (!$home && preg_match('#^(/home/[^/]+)#', __DIR__, $m)) $home = $m[1];
-    if (!$home && function_exists('posix_getpwuid')) $home = (posix_getpwuid(posix_geteuid()) ?: [])['dir'] ?? '';
-    if (!$home) $home = dirname((string)($_SERVER['DOCUMENT_ROOT'] ?? __DIR__));
-    $dir = rtrim($home, '/') . '/epic-data';
-  }
-  if (!is_dir($dir)) @mkdir($dir, 0700, true);
-  return $dir;
+  $dirs = candidate_dirs();
+  foreach ($dirs as $d) if (password_file($d) || is_file("$d/orders.json") || is_file("$d/state.json")) return $d;
+  foreach ($dirs as $d) if (is_dir($d) && is_writable($d)) return $d;
+  foreach ($dirs as $d) if (@mkdir($d, 0700, true) || is_dir($d)) return $d;
+  return $dirs[0];
 }
 $DATA = data_dir();
 
@@ -109,7 +126,10 @@ function require_admin(): void {
 function admin_password(): string {
   global $DATA;
   $p = (string)getenv('EPIC_ADMIN_PASSWORD');
-  if ($p === '' && is_file("$DATA/admin-password.txt")) $p = trim(strtok((string)file_get_contents("$DATA/admin-password.txt"), "\n") ?: '');
+  if ($p === '' && ($file = password_file($DATA))) {
+    $text = preg_replace('/^\xEF\xBB\xBF/', '', (string)file_get_contents($file));   // editors may add a byte-order mark
+    $p = trim((string)strtok($text, "\r\n"));
+  }
   return $p;
 }
 
@@ -209,7 +229,14 @@ try {
   $route = trim((string)($_GET['route'] ?? preg_replace('#^.*/api/#', '', (string)parse_url((string)($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH))), '/');
   $m = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-  if ($route === 'health' && $m === 'GET') send(200, ['ok' => true, 'admin' => admin_password() !== '', 'time' => (int)(microtime(true) * 1000), 'backend' => 'php']);
+  if ($route === 'health' && $m === 'GET') {
+    $ready = admin_password() !== '';
+    $out = ['ok' => true, 'admin' => $ready, 'time' => (int)(microtime(true) * 1000), 'backend' => 'php'];
+    /* until sign-in works, say exactly where the password file is expected */
+    if (!$ready) $out['setup'] = ['passwordFile' => "$DATA/admin-password.txt", 'dataFolderExists' => is_dir($DATA), 'dataFolderWritable' => is_dir($DATA) && is_writable($DATA),
+      'alsoChecked' => array_values(array_filter(candidate_dirs(), fn($d) => $d !== $DATA))];
+    send(200, $out);
+  }
   if ($route === 'photos' && $m === 'GET') {
     $out = [];
     foreach (read_json('photos.json', []) as $id => $e) if (!empty($e['file']) && is_file("$DATA/media/products/{$e['file']}")) $out[$id] = './media/products/' . $e['file'];
@@ -233,7 +260,7 @@ try {
   }
   if ($route === 'login' && $m === 'POST') {
     $password = admin_password();
-    if ($password === '') throw new HttpError(503, 'Console sign-in is not set up yet. In Hostinger File Manager create epic-data/admin-password.txt in your home folder with your password on the first line.');
+    if ($password === '') { global $DATA; throw new HttpError(503, "Console sign-in is not set up yet. Create the file $DATA/admin-password.txt with your password on the first line (Hostinger File Manager)."); }
     limit('login:' . ip(), 10, 15 * 60 * 1000);
     $b = body(10 * 1024);
     $user = strtolower(trim((string)(getenv('EPIC_ADMIN_USER') ?: 'admin')));
