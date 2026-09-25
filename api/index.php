@@ -179,10 +179,17 @@ function clean_user(array $b): array {
     'admin' => !empty($b['admin']), 'active' => ($b['active'] ?? true) !== false,
     'access' => array_values(array_intersect(is_array($b['access'] ?? null) ? $b['access'] : [], access_rules()['sections']))];
 }
+/* the password file may sit in any usual folder, not only the one holding the orders: the shop's
+   data can already live in one place while the owner creates the file in another (File Manager) */
+function find_password_file(): ?string {
+  global $DATA;
+  foreach (array_unique(array_merge([$DATA], candidate_dirs())) as $d) if ($f = password_file($d)) return $f;
+  return null;
+}
 function admin_password(): string {
   global $DATA;
   $p = (string)getenv('EPIC_ADMIN_PASSWORD');
-  if ($p === '' && ($file = password_file($DATA))) {
+  if ($p === '' && ($file = find_password_file())) {
     $text = preg_replace('/^\xEF\xBB\xBF/', '', (string)file_get_contents($file));   // editors may add a byte-order mark
     $p = trim((string)strtok($text, "\r\n"));
   }

@@ -1,7 +1,7 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -98,4 +98,23 @@ test('PHP API: console users with limited sections, same rules as server.js', { 
   assert.equal((await call('/api/orders', { token: staff.token })).status, 401, 'switched off users are out at once');
   assert.equal((await call('/api/users', { method: 'PUT', token: owner.token, body: { id: ali.id, active: true, password: 'reset-pass-3' } })).status, 200);
   assert.equal((await call('/api/login', { method: 'POST', body: { user: 'ali.sales', password: 'reset-pass-3' } })).status, 200);
+});
+
+test('PHP API: finds the password file in another folder when the orders already live elsewhere', { skip: !hasPhp && 'php is not installed' }, async () => {
+  /* live site: orders.json sits in ~/epic-data, the owner made the password file in the site folder's epic-data */
+  const orders = mkdtempSync(join(tmpdir(), 'epic-php-orders-'));
+  writeFileSync(join(orders, 'orders.json'), '[]');
+  const home = mkdtempSync(join(tmpdir(), 'epic-php-home-'));
+  mkdirSync(join(home, 'epic-data'));
+  writeFileSync(join(home, 'epic-data', 'admin-password.txt'), 'lives elsewhere 7\n');
+  const port = 20700 + Math.floor(Math.random() * 500);
+  const p3 = spawn('php', ['-S', `127.0.0.1:${port}`, '-t', 'dist', 'tests/php-router.php'], { cwd: root, env: { ...process.env, EPIC_DATA_DIR: orders, HOME: home }, stdio: 'ignore' });
+  try {
+    const at = `http://127.0.0.1:${port}`;
+    let h;
+    for (let i = 0; i < 50; i++) { try { h = await (await fetch(at + '/api/health')).json(); break; } catch { await new Promise((r) => setTimeout(r, 100)); } }
+    assert.equal(h.admin, true);
+    const ok = await fetch(at + '/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: 'admin', password: 'lives elsewhere 7' }) });
+    assert.equal(ok.status, 200);
+  } finally { p3.kill(); }
 });
