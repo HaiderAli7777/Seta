@@ -3910,6 +3910,7 @@ export default function App({ initialView = "store" } = {}) {
   const [stateLoaded, setStateLoaded] = useState(false);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const syncedState = useRef({});
+  const pendingMerge = useRef({});
   const syncedOrders = useRef(new Map());
   useEffect(() => {
     let alive = true;
@@ -3917,12 +3918,29 @@ export default function App({ initialView = "store" } = {}) {
       .then((h) => { if (alive) setServer({ status: "online", admin: !!h.admin }); return serverApi("state"); })
       .then((st) => {
         if (!alive || !st) return;
-        if (Array.isArray(st.products) && st.products.length) setProducts(st.products);
-        if (Array.isArray(st.categories) && st.categories.length) setCategories(st.categories);
+        /* products added to the catalogue in a later release (they carry addedIn) join a shop
+           whose list was already saved, once per batch: the batch is remembered in config, so
+           a product the owner deletes afterwards does not come back. The merge is saved the
+           next time someone who can edit the catalogue signs in. */
+        const batches = [...new Set(legacyProducts.map((p) => p.addedIn).filter(Boolean))];
+        const done = new Set((st.config && st.config.catalogBatches) || []);
+        const savedProducts = Array.isArray(st.products) && st.products.length ? st.products : null;
+        const savedCats = Array.isArray(st.categories) && st.categories.length ? st.categories : null;
+        const have = new Set((savedProducts || []).map((p) => p.id));
+        const fresh = savedProducts ? legacyProducts.filter((p) => p.addedIn && !done.has(p.addedIn) && !have.has(p.id)) : [];
+        const needCats = savedCats ? legacyCategories.filter((c) => fresh.some((p) => p.category === c.id) && !savedCats.some((x) => x.id === c.id)) : [];
+        if (savedProducts) setProducts(fresh.length ? [...savedProducts, ...fresh] : savedProducts);
+        if (savedCats) setCategories(needCats.length ? [...savedCats, ...needCats] : savedCats);
+        const unsaved = {};
+        if (fresh.length) unsaved.products = JSON.stringify(savedProducts);
+        if (needCats.length) unsaved.categories = JSON.stringify(savedCats);
+        if (batches.some((b) => !done.has(b))) unsaved.config = "";
+        pendingMerge.current = unsaved;
+        setConfig((c) => ({ ...c, catalogBatches: [...new Set([...done, ...batches])] }));
         if (Array.isArray(st.promos)) setPromos(st.promos);
         /* 6.3: the shop takes cash on delivery only for now. Saved settings from before are
            switched to that once; after this the console's Checkout toggles decide. */
-        if (st.config && typeof st.config === "object") setConfig((c) => ({ ...c, ...st.config, ...(st.config.paymentSetup63 ? {} : { codEnabled: true, cardEnabled: false, paymentSetup63: true }) }));
+        if (st.config && typeof st.config === "object") setConfig((c) => ({ ...c, ...st.config, catalogBatches: c.catalogBatches, ...(st.config.paymentSetup63 ? {} : { codEnabled: true, cardEnabled: false, paymentSetup63: true }) }));
         setStateLoaded(true);
         /* official manufacturer photos the server has fetched; they fill in only where a
            product has no photo of its own (console upload or assets/products file) */
@@ -3936,7 +3954,7 @@ export default function App({ initialView = "store" } = {}) {
   }, []);
   // remember what the server already holds, so only real edits are sent back
   useEffect(() => {
-    if (stateLoaded) syncedState.current = { products: JSON.stringify(products), categories: JSON.stringify(categories), promos: JSON.stringify(promos), config: JSON.stringify(config) };
+    if (stateLoaded) syncedState.current = { products: JSON.stringify(products), categories: JSON.stringify(categories), promos: JSON.stringify(promos), config: JSON.stringify(config), ...pendingMerge.current };
   }, [stateLoaded]);
   // a saved session signs the console straight back in and loads every order
   useEffect(() => {

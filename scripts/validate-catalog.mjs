@@ -13,7 +13,8 @@ export function validateRows(products) {
     if(!Array.isArray(p.specs) || !p.specs.length || p.specs.some(s=>!Array.isArray(s)||s.length!==2||s.some(v=>typeof v!=='string'||!v.trim()))) throw new Error('Invalid specifications: '+p.id);
     if(new Set(p.specs.map(s=>s[0])).size!==p.specs.length) throw new Error('Duplicate specification labels: '+p.id);
     const source = new URL(p.sourceUrl);
-    if(source.protocol!=='https:' || !['czone.com.pk','www.czone.com.pk'].includes(source.hostname)) throw new Error('Invalid Czone source URL: '+p.id);
+    if(source.protocol!=='https:' || !['czone.com.pk','www.czone.com.pk','pacific.pk','www.pacific.pk'].includes(source.hostname)) throw new Error('Invalid source URL (Czone or Pacific): '+p.id);
+    if(p.addedIn!==undefined && !/^\d{4}-\d{2}[a-z0-9-]*$/.test(p.addedIn)) throw new Error('Invalid addedIn batch: '+p.id);
     if(!/^\d{4}-\d{2}-\d{2}$/.test(p.retrievedAt)) throw new Error('Missing retrieval date: '+p.id);
     if(!['confirm','in-stock','out-of-stock'].includes(p.availability)) throw new Error('Invalid availability: '+p.id);
     if(!Array.isArray(p.images)) throw new Error('Invalid images: '+p.id);
