@@ -68,3 +68,68 @@ Hard drives
   wd-passport-4tb.jpg              WD My Passport 4TB, Black
   wd-passport-5tb.jpg              WD My Passport 5TB, Black
   wd-ultrastar-10tb.jpg            WD Ultrastar DC HC330 10TB
+
+Added 6.5 (price on request until you set a price in the console)
+  Keyboards
+    logitech-k230.jpg                Logitech K230 Compact Wireless Keyboard
+    logitech-mk345.jpg               Logitech MK345 Wireless Keyboard & Mouse Combo
+    logitech-mk270.jpg               Logitech MK270 Wireless Keyboard & Mouse Combo
+    logitech-k380.jpg                Logitech K380 Multi-Device Bluetooth Keyboard
+    logitech-mx-keys-mini.jpg        Logitech MX Keys Mini Wireless Keyboard
+    asus-rog-strix-flare.jpg         ASUS ROG Strix Flare RGB Mechanical Gaming Keyboard
+    asus-rog-falcata.jpg             ASUS ROG Falcata 75% Split Gaming Keyboard
+    asus-rog-azoth-x.jpg             ASUS ROG Azoth X Gaming Keyboard
+    a4tech-kr83.jpg                  A4Tech KR-83 Comfortkey Wired Keyboard, Black
+    a4tech-krs83.jpg                 A4Tech KRS-83 Comfortkey Natural A-Shape Keyboard, Black
+    bloody-s87.jpg                   Bloody S87 RGB TKL Mechanical Keyboard, Red Switch
+  Mice
+    logitech-m325.jpg                Logitech M325 Wireless Mouse, Light Silver
+    logitech-m185.jpg                Logitech M185 Compact Wireless Mouse
+    logitech-m331.jpg                Logitech M331 Silent Plus Wireless Mouse
+    logitech-m590.jpg                Logitech M590 Multi-Device Silent Mouse
+    logitech-mx-anywhere-2s.jpg      Logitech MX Anywhere 2S Wireless Mouse
+    logitech-g603.jpg                Logitech G603 LIGHTSPEED Wireless Gaming Mouse
+    asus-rog-strix-impact-ii.jpg     ASUS ROG Strix Impact II Gaming Mouse
+    asus-rog-gladius-iii.jpg         ASUS ROG Gladius III Gaming Mouse
+    a4tech-fb45cs.jpg                A4Tech FB45CS Air2 Fstyler Wireless Mouse, Stone Grey
+    a4tech-fb26cs.jpg                A4Tech FB26CS Air2 Fstyler Wireless Mouse, Smoky Grey
+    rapoo-v16.jpg                    Rapoo V16 RGB Optical Gaming Mouse, Black
+  Headsets
+    logitech-zone-wireless.jpg       Logitech Zone Wireless Headset
+    logitech-h800.jpg                Logitech H800 Wireless Bluetooth Headset
+    logitech-g633.jpg                Logitech G633 Artemis Spectrum RGB 7.1 Gaming Headset
+    logitech-g431.jpg                Logitech G431 7.1 Surround Gaming Headset
+    asus-tuf-h3-wireless.jpg         ASUS TUF Gaming H3 Wireless Headset
+    bloody-gr585.jpg                 Bloody GR585 Wireless & Wired Gaming Headset, Black
+  Speakers
+    logitech-z623.jpg                Logitech Z623 2.1 THX Speaker System
+    logitech-z906.jpg                Logitech Z906 5.1 Surround Sound Speaker System
+    logitech-z607.jpg                Logitech Z607 5.1 Surround Speakers with Bluetooth
+    logitech-z313.jpg                Logitech Z313 Speaker System with Subwoofer
+    logitech-z120.jpg                Logitech Z120 Compact USB-Powered Stereo Speakers
+  RAM
+    transcend-ddr5-5600-16.jpg       Transcend 16GB DDR5 5600MHz Desktop Memory
+    transcend-ddr4-3200-8.jpg        Transcend 8GB DDR4 3200MHz Desktop Memory
+    transcend-ddr4-3200-16.jpg       Transcend 16GB DDR4 3200MHz Desktop Memory
+    xpg-d35g-3200-32-white.jpg       XPG SPECTRIX D35G RGB 32GB DDR4 3200MHz, White
+    xpg-lancer-rgb-5200-16.jpg       XPG LANCER RGB 16GB DDR5 5200MHz
+    xpg-lancer-rgb-5200-32.jpg       XPG LANCER RGB 32GB DDR5 5200MHz (2×16GB)
+  SSDs
+    transcend-mte255s-1tb.jpg        Transcend MTE255S 1TB NVMe M.2 SSD
+    adata-legend-860-500.jpg         ADATA LEGEND 860 500GB PCIe Gen4 M.2 SSD
+    xpg-sx8200-pro-512.jpg           XPG SX8200 Pro 512GB NVMe M.2 SSD
+    xpg-s20g-500.jpg                 XPG SPECTRIX S20G RGB 500GB NVMe M.2 SSD
+    xpg-s40g-1tb.jpg                 XPG SPECTRIX S40G RGB 1TB NVMe M.2 SSD
+    transcend-jetdrive-725-240.jpg   Transcend JetDrive 725 240GB SSD Upgrade Kit for Mac
+    transcend-jetdrive-520-480.jpg   Transcend JetDrive 520 480GB SSD Upgrade Kit for Mac
+    transcend-jetdrive-850-480.jpg   Transcend JetDrive 850 480GB SSD Upgrade Kit for Mac
+  USB flash drives
+    transcend-jf750-16.jpg           Transcend JetFlash 750 16GB USB 3.1 Flash Drive
+    transcend-jf780-128.jpg          Transcend JetFlash 780 128GB USB 3.1 Flash Drive
+    transcend-jf790c-256.jpg         Transcend JetFlash 790C 256GB USB-C Flash Drive
+  USB & adapters
+    ugreen-50283.jpg                 UGREEN 50283 USB-C Male to USB 3.0 Female Adapter
+    ugreen-70444.jpg                 UGREEN 70444 USB-C to HDMI Adapter
+    ugreen-90340.jpg                 UGREEN 90340 AX1800 Wi-Fi 6 USB Adapter
+    ugreen-10352.jpg                 UGREEN 10352 USB 2.0 A to B Printer Cable 5m
+    ugreen-40189.jpg                 UGREEN 40189 HDMI Video Capture Card

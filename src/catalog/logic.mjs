@@ -4,6 +4,10 @@ export const CATEGORIES = [
   { id: 'audio', label: 'Headsets & Microphones', plural: 'Headsets & microphones', tagline: 'Be heard. Get immersed.', description: 'Audio for your calls, games and creative projects.', icon: 'Headphones', tone: 'peach' },
   { id: 'ram', label: 'RAM', plural: 'Memory', tagline: 'Room to do more.', description: 'Find the capacity and memory generation your PC needs.', icon: 'MemoryStick', tone: 'lilac' },
   { id: 'drives', label: 'Hard Drives', plural: 'Hard drives', tagline: 'Keep what matters.', description: 'Portable, desktop and enterprise storage to fit your plans.', icon: 'HardDrive', tone: 'sand' },
+  { id: 'ssd', label: 'SSD', plural: 'SSDs', tagline: 'Start in seconds.', description: 'NVMe, SATA and Mac upgrade solid-state drives.', icon: 'Zap', tone: 'blue' },
+  { id: 'flash', label: 'USB Flash Drives', plural: 'Flash drives', tagline: 'Files in your pocket.', description: 'USB-A and USB-C flash drives for every day.', icon: 'Usb', tone: 'sage' },
+  { id: 'usb', label: 'USB & Adapters', plural: 'USB & adapters', tagline: 'Connect anything.', description: 'Adapters, cables, Wi-Fi and capture for your ports.', icon: 'Cable', tone: 'lilac' },
+  { id: 'speakers', label: 'Speakers', plural: 'Speakers', tagline: 'Fill the room.', description: 'Desktop, 2.1 and 5.1 speaker systems.', icon: 'Speaker', tone: 'peach' },
 ];
 
 // Calculate in paisa: source price + exactly 10%, rounded only to the nearest paisa.
@@ -11,10 +15,11 @@ export function sellingPaisa(sourcePrice) {
   if (!Number.isFinite(sourcePrice) || sourcePrice <= 0) throw new TypeError('A positive numeric source price is required.');
   return Math.round(Math.round(sourcePrice * 100) * 110 / 100);
 }
-export const sellingPrice = p => sellingPaisa(p.sourcePrice) / 100;
+// A product listed without a source price yet is "price on request": 0 here, set in the console later.
+export const sellingPrice = p => (p.sourcePrice == null && p.priceOnRequest ? 0 : sellingPaisa(p.sourcePrice) / 100);
 export const money = value => 'Rs. ' + Number(value).toLocaleString('en-PK', { minimumFractionDigits: Number.isInteger(value) ? 0 : 2, maximumFractionDigits: 2 });
 export const normalise = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, ' ').trim();
-const aliases = { mouse: 'mouse', mice: 'mouse', keyboard: 'keyboard', keyboards: 'keyboard', ram: 'ram', memory: 'ram', headset: 'audio', headsets: 'audio', headphone: 'audio', headphones: 'audio', microphone: 'audio', microphones: 'audio', mic: 'audio', hdd: 'drives', drive: 'drives', drives: 'drives' };
+const aliases = { mouse: 'mouse', mice: 'mouse', keyboard: 'keyboard', keyboards: 'keyboard', ram: 'ram', memory: 'ram', headset: 'audio', headsets: 'audio', headphone: 'audio', headphones: 'audio', microphone: 'audio', microphones: 'audio', mic: 'audio', hdd: 'drives', drive: 'drives', drives: 'drives', ssd: 'ssd', ssds: 'ssd', nvme: 'ssd', adapter: 'usb', adapters: 'usb', hub: 'usb', cable: 'usb', flash: 'flash', pendrive: 'flash', pendrives: 'flash', speaker: 'speakers', speakers: 'speakers' };
 const ignored = new Set(['a', 'an', 'the', 'i', 'want', 'need', 'show', 'me', 'find', 'please', 'for', 'my', 'with', 'some', 'buy', 'looking', 'at', 'and', 'hard', 'rs', 'pkr']);
 
 export function searchIntent(query = '') {
@@ -34,7 +39,7 @@ export function searchIntent(query = '') {
 export function filterProducts(products, { category = '', query = '', brand = '', max = 0, sort = 'featured' } = {}) {
   const intent = searchIntent(query);
   const priceMax = Math.min(...[Number(max), intent.ceiling].filter(n => n > 0)) || Infinity;
-  const rows = products.filter(p => (!category || p.category === category) && (!intent.category || p.category === intent.category) && (!brand || p.brand === brand) && sellingPrice(p) <= priceMax && intent.terms.every(t => (t === 'microphone' || t === 'headset' ? normalise(p.name) : normalise([p.name, p.brand, ...p.specs.flat()].join(' '))).replaceAll(' ', '').includes(t.replaceAll(' ', ''))));
+  const rows = products.filter(p => (!category || p.category === category) && (!intent.category || p.category === intent.category) && (!brand || p.brand === brand) && sellingPrice(p) <= priceMax && (priceMax === Infinity || sellingPrice(p) > 0) && intent.terms.every(t => (t === 'microphone' || t === 'headset' ? normalise(p.name) : normalise([p.name, p.brand, ...p.specs.flat()].join(' '))).replaceAll(' ', '').includes(t.replaceAll(' ', ''))));
   return rows.sort((a, b) => sort === 'price-asc' ? sellingPrice(a) - sellingPrice(b) : sort === 'price-desc' ? sellingPrice(b) - sellingPrice(a) : sort === 'name' ? a.name.localeCompare(b.name) : Number(!!b.featured) - Number(!!a.featured) || a.name.localeCompare(b.name));
 }
 
@@ -44,7 +49,7 @@ export function cleanIds(value, products, limit = Infinity) {
 }
 export function cleanBag(value, products) {
   if (!Array.isArray(value)) return [];
-  const valid = new Set(products.map(p => p.id));
+  const valid = new Set(products.filter(p => sellingPrice(p) > 0).map(p => p.id));   // price-on-request items are asked about, not bought
   const rows = new Map();
   value.forEach(line => {
     if (!line || !valid.has(line.id) || !Number.isFinite(line.quantity) || line.quantity <= 0) return;

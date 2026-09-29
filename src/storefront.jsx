@@ -43,13 +43,53 @@ function DriveArt() {
     <rect x="96" y="176" width="28" height="6" rx="3" fill="#7fb0ff" />
   </svg>;
 }
+function SsdArt() {
+  return <svg viewBox="0 0 320 120" className="rv-art-svg" aria-hidden="true">
+    <rect x="10" y="30" width="286" height="60" rx="6" fill="currentColor" opacity=".9" />
+    <rect x="44" y="42" width="70" height="36" rx="3" fill="#fff" opacity=".16" />
+    <rect x="126" y="42" width="54" height="36" rx="3" fill="#fff" opacity=".12" />
+    <rect x="192" y="42" width="54" height="36" rx="3" fill="#fff" opacity=".12" />
+    <circle cx="296" cy="60" r="9" fill="none" stroke="#fff" strokeOpacity=".35" strokeWidth="3" />
+    {Array.from({ length: 9 }).map((_, i) => i === 2 ? null : <rect key={i} x="2" y={34 + i * 6} width="10" height="3.4" rx="1" fill="#7fb0ff" opacity=".9" />)}
+  </svg>;
+}
+function FlashArt() {
+  return <svg viewBox="0 0 220 220" className="rv-art-svg drive" aria-hidden="true">
+    <rect x="72" y="18" width="76" height="52" rx="4" fill="none" stroke="currentColor" strokeWidth="7" opacity=".85" />
+    <rect x="88" y="32" width="14" height="10" rx="1" fill="currentColor" opacity=".8" /><rect x="118" y="32" width="14" height="10" rx="1" fill="currentColor" opacity=".8" />
+    <rect x="58" y="66" width="104" height="138" rx="20" fill="currentColor" opacity=".92" />
+    <circle cx="110" cy="176" r="10" fill="#fff" opacity=".22" />
+    <rect x="80" y="92" width="60" height="6" rx="3" fill="#7fb0ff" />
+  </svg>;
+}
+function UsbArt() {
+  return <svg viewBox="0 0 220 220" className="rv-art-svg drive" aria-hidden="true">
+    <rect x="34" y="60" width="152" height="100" rx="22" fill="currentColor" opacity=".92" />
+    {[0, 1, 2].map(i => <rect key={i} x={54 + i * 40} y="96" width="30" height="14" rx="3" fill="#fff" opacity=".22" />)}
+    <circle cx="164" cy="80" r="5" fill="#7fb0ff" />
+    <path d="M110 160v26q0 16 16 16h40" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round" opacity=".7" />
+  </svg>;
+}
+function SpeakerArt() {
+  return <svg viewBox="0 0 220 220" className="rv-art-svg drive" aria-hidden="true">
+    <rect x="50" y="16" width="120" height="192" rx="18" fill="currentColor" opacity=".92" />
+    <circle cx="110" cy="62" r="22" fill="none" stroke="#fff" strokeOpacity=".2" strokeWidth="3" /><circle cx="110" cy="62" r="7" fill="#fff" opacity=".2" />
+    <circle cx="110" cy="142" r="44" fill="none" stroke="#fff" strokeOpacity=".18" strokeWidth="3" /><circle cx="110" cy="142" r="24" fill="#fff" opacity=".12" />
+    <circle cx="110" cy="142" r="8" fill="#7fb0ff" />
+  </svg>;
+}
 const ART = {
   keyboard: { img: "./assets/slides/slide-keyboard-700.webp", tone: "cobalt" },
   mouse: { img: "./assets/slides/slide-mouse-700.webp", tone: "ice" },
   audio: { img: "./assets/slides/slide-headphones-700.webp", tone: "ice" },
+  speakers: { Svg: SpeakerArt, tone: "graphite" },
   ram: { Svg: RamArt, tone: "graphite" },
+  ssd: { Svg: SsdArt, tone: "steel" },
   drives: { Svg: DriveArt, tone: "steel" },
+  flash: { Svg: FlashArt, tone: "graphite" },
+  usb: { Svg: UsbArt, tone: "steel" },
 };
+const CATEGORY_ORDER = ["mouse", "keyboard", "audio", "speakers", "ram", "ssd", "drives", "flash", "usb"];
 
 export function StoreHeader({ config, products, categories, active, special, category = "All", city, cities = [], onCity, cartCount, wishCount, onHome, onShop, onSpecial, onProduct, onSearch, onCart, onWish, onAccount, onMenu, onTrade, onFinder, money }) {
   const [search, setSearch] = useState("");
@@ -148,7 +188,7 @@ export function TrustBar({ config }) {
 }
 
 export function CollectionGrid({ categories, onShop, count }) {
-  const order = ["keyboard", "mouse", "audio", "ram", "drives"];
+  const order = ["keyboard", "mouse", "audio", "ram", "drives", "speakers", "ssd", "flash", "usb"];
   const known = order.map(id => categories.find(c => c.id === id)).filter(Boolean);
   const extra = categories.filter(c => !c.parentId && !order.includes(c.id));
   const total = known.reduce((n, c) => n + (count(c.id) || 0), 0);
@@ -235,7 +275,7 @@ export function FinderBand({ onFinder, onCompare }) {
 }
 
 export function CategoryCircles({ categories, count, onShop, onSpecial }) {
-  const order = ["mouse", "keyboard", "audio", "ram", "drives"];
+  const order = CATEGORY_ORDER;
   const list = [...order.map(id => categories.find(c => c.id === id)).filter(Boolean), ...categories.filter(c => !c.parentId && !order.includes(c.id))];
   return <nav className="ed-wrap rv-circles" aria-label="Shop by category">
     {list.map(c => { const art = ART[c.id] || {}; const Svg = art.Svg; return <button key={c.id} onClick={() => onShop(c.id)}>

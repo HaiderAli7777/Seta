@@ -1540,5 +1540,1805 @@
     "sourceAvailability": "not-verified",
     "photoStatus": "pending",
     "featured": false
+  },
+  {
+    "id": "logitech-k230",
+    "name": "Logitech K230 Compact Wireless Keyboard",
+    "brand": "Logitech",
+    "category": "keyboard",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Compact keyboard"
+      ],
+      [
+        "Connection",
+        "Wireless"
+      ],
+      [
+        "Part number",
+        "920-003357"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/logitech-k230-compact-wireless-keyboard/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-mk345",
+    "name": "Logitech MK345 Wireless Keyboard & Mouse Combo",
+    "brand": "Logitech",
+    "category": "keyboard",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Keyboard and mouse combo"
+      ],
+      [
+        "Connection",
+        "Wireless"
+      ],
+      [
+        "Keyboard",
+        "Full size with palm rest"
+      ],
+      [
+        "Mouse",
+        "Contoured, right-handed"
+      ],
+      [
+        "Part number",
+        "920-006491"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/logitech-mk345-wireless-keyboard-and-mouse-combo/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-mk270",
+    "name": "Logitech MK270 Wireless Keyboard & Mouse Combo",
+    "brand": "Logitech",
+    "category": "keyboard",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Keyboard and mouse combo"
+      ],
+      [
+        "Connection",
+        "Wireless"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/keyboards/logitech-keyboards/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-k380",
+    "name": "Logitech K380 Multi-Device Bluetooth Keyboard",
+    "brand": "Logitech",
+    "category": "keyboard",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Compact keyboard"
+      ],
+      [
+        "Connection",
+        "Bluetooth"
+      ],
+      [
+        "Devices",
+        "Multi-device"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/keyboards/logitech-keyboards/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-mx-keys-mini",
+    "name": "Logitech MX Keys Mini Wireless Keyboard",
+    "brand": "Logitech",
+    "category": "keyboard",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Minimalist illuminated keyboard"
+      ],
+      [
+        "Connection",
+        "Wireless"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/keyboards/logitech-keyboards/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "asus-rog-strix-flare",
+    "name": "ASUS ROG Strix Flare RGB Mechanical Gaming Keyboard",
+    "brand": "ASUS",
+    "category": "keyboard",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Mechanical gaming keyboard"
+      ],
+      [
+        "Switches",
+        "Cherry MX RGB"
+      ],
+      [
+        "Lighting",
+        "RGB with illuminated badge"
+      ],
+      [
+        "Model",
+        "XA01/RD/US"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/asus-rog-strix-flare-rgb-mechanical-gaming-keyboard-xa01-rd-us/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "asus-rog-falcata",
+    "name": "ASUS ROG Falcata 75% Split Gaming Keyboard",
+    "brand": "ASUS",
+    "category": "keyboard",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "75% split gaming keyboard"
+      ],
+      [
+        "Switches",
+        "ROG HFX V2 magnetic, hot-swappable"
+      ],
+      [
+        "Keycaps",
+        "PBT"
+      ],
+      [
+        "Model",
+        "M703"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/asus-rog-falcata-gaming-keyboard-m703-rog-falcata-hfxv2-us-pbt/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "asus-rog-azoth-x",
+    "name": "ASUS ROG Azoth X Gaming Keyboard",
+    "brand": "ASUS",
+    "category": "keyboard",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Gaming keyboard"
+      ],
+      [
+        "Switches",
+        "ROG NX Snow V2"
+      ],
+      [
+        "Keycaps",
+        "PBT"
+      ],
+      [
+        "Model",
+        "M704"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/asus-rog-azoth-x-gaming-keyboard-m704-rog-azoth-x-nxswv2-us-pbt/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "a4tech-kr83",
+    "name": "A4Tech KR-83 Comfortkey Wired Keyboard — Black",
+    "brand": "A4Tech",
+    "category": "keyboard",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Full-size keyboard"
+      ],
+      [
+        "Connection",
+        "Wired USB"
+      ],
+      [
+        "Colour",
+        "Black"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/a4tech-kr-83-comfortkey-wired-keyboard-usb-black/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "a4tech-krs83",
+    "name": "A4Tech KRS-83 Comfortkey Natural A-Shape Keyboard — Black",
+    "brand": "A4Tech",
+    "category": "keyboard",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Natural A-shape keyboard"
+      ],
+      [
+        "Connection",
+        "Wired USB"
+      ],
+      [
+        "Colour",
+        "Black"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/a4tech-krs-83-comfortkey-wired-natural_a-shape-keyboard-usb-black/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "bloody-s87",
+    "name": "Bloody S87 RGB TKL Mechanical Keyboard — Red Switch",
+    "brand": "A4Tech",
+    "category": "keyboard",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "TKL mechanical gaming keyboard"
+      ],
+      [
+        "Switches",
+        "BLMS Red"
+      ],
+      [
+        "Lighting",
+        "RGB"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/a4tech-bloody-s87-rgb-blms-tkl-mechanical-keyboard-red/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-m325",
+    "name": "Logitech M325 Wireless Mouse — Light Silver",
+    "brand": "Logitech",
+    "category": "mouse",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Compact mouse"
+      ],
+      [
+        "Connection",
+        "Wireless"
+      ],
+      [
+        "Battery",
+        "Up to 18 months"
+      ],
+      [
+        "Colour",
+        "Light Silver"
+      ],
+      [
+        "Part number",
+        "910-002325"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/logitech-m325-wireless-mouse-light-silver/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-m185",
+    "name": "Logitech M185 Compact Wireless Mouse",
+    "brand": "Logitech",
+    "category": "mouse",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Compact mouse"
+      ],
+      [
+        "Connection",
+        "Wireless"
+      ],
+      [
+        "Part number",
+        "910-002255"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/mouse/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-m331",
+    "name": "Logitech M331 Silent Plus Wireless Mouse",
+    "brand": "Logitech",
+    "category": "mouse",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Silent mouse"
+      ],
+      [
+        "Connection",
+        "Wireless"
+      ],
+      [
+        "Clicks",
+        "Silent"
+      ],
+      [
+        "Part number",
+        "910-004914"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/mouse/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-m590",
+    "name": "Logitech M590 Multi-Device Silent Mouse",
+    "brand": "Logitech",
+    "category": "mouse",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Multi-device mouse"
+      ],
+      [
+        "Connection",
+        "Wireless and Bluetooth"
+      ],
+      [
+        "Clicks",
+        "Silent"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-tag/logitech-m590-mouse/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-mx-anywhere-2s",
+    "name": "Logitech MX Anywhere 2S Wireless Mouse",
+    "brand": "Logitech",
+    "category": "mouse",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Portable mouse"
+      ],
+      [
+        "Connection",
+        "Wireless"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/mouse/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-g603",
+    "name": "Logitech G603 LIGHTSPEED Wireless Gaming Mouse",
+    "brand": "Logitech",
+    "category": "mouse",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Gaming mouse"
+      ],
+      [
+        "Connection",
+        "LIGHTSPEED wireless"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/mouse/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "asus-rog-strix-impact-ii",
+    "name": "ASUS ROG Strix Impact II Gaming Mouse",
+    "brand": "ASUS",
+    "category": "mouse",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Ambidextrous gaming mouse"
+      ],
+      [
+        "Model",
+        "P506"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/mouse/asus-mouse/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "asus-rog-gladius-iii",
+    "name": "ASUS ROG Gladius III Gaming Mouse",
+    "brand": "ASUS",
+    "category": "mouse",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Asymmetrical gaming mouse"
+      ],
+      [
+        "Model",
+        "P514"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/mouse/asus-mouse/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "a4tech-fb45cs",
+    "name": "A4Tech FB45CS Air2 Fstyler Wireless Mouse — Stone Grey",
+    "brand": "A4Tech",
+    "category": "mouse",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Silent air mouse"
+      ],
+      [
+        "Connection",
+        "Bluetooth and 2.4 GHz"
+      ],
+      [
+        "Clicks",
+        "Silent"
+      ],
+      [
+        "Colour",
+        "Stone Grey"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/a4tech-fb45cs-air2-fstyler-dual-mode-bluetooth-2-4ghz-silent-click-wireless-mouse-usb-stone-grey/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "a4tech-fb26cs",
+    "name": "A4Tech FB26CS Air2 Fstyler Wireless Mouse — Smoky Grey",
+    "brand": "A4Tech",
+    "category": "mouse",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Silent mouse"
+      ],
+      [
+        "Connection",
+        "Bluetooth and 2.4 GHz"
+      ],
+      [
+        "Clicks",
+        "Silent"
+      ],
+      [
+        "Colour",
+        "Smoky Grey"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/brand/a4tech/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "rapoo-v16",
+    "name": "Rapoo V16 RGB Optical Gaming Mouse — Black",
+    "brand": "Rapoo",
+    "category": "mouse",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Gaming mouse"
+      ],
+      [
+        "Connection",
+        "Wired"
+      ],
+      [
+        "Lighting",
+        "RGB"
+      ],
+      [
+        "Colour",
+        "Black"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/rapoo-v16-rgb-optical-gaming-wired-mouse-black/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-zone-wireless",
+    "name": "Logitech Zone Wireless Headset",
+    "brand": "Logitech",
+    "category": "audio",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Wireless headset"
+      ],
+      [
+        "Noise cancelling",
+        "Active (ANC)"
+      ],
+      [
+        "Range",
+        "Up to 30 m"
+      ],
+      [
+        "Charging",
+        "Qi wireless"
+      ],
+      [
+        "Part number",
+        "981-000799"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/logitech-zone-wireless/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-h800",
+    "name": "Logitech H800 Wireless Bluetooth Headset",
+    "brand": "Logitech",
+    "category": "audio",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Wireless headset with microphone"
+      ],
+      [
+        "Connection",
+        "USB nano receiver and Bluetooth"
+      ],
+      [
+        "Battery",
+        "Up to 6 hours, rechargeable"
+      ],
+      [
+        "Part number",
+        "981-000503"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/logitech-h800-wireless-bluetooth-headset-with-microphone/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-g633",
+    "name": "Logitech G633 Artemis Spectrum RGB 7.1 Gaming Headset",
+    "brand": "Logitech",
+    "category": "audio",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Gaming headset"
+      ],
+      [
+        "Surround",
+        "7.1 Dolby and DTS"
+      ],
+      [
+        "Lighting",
+        "RGB"
+      ],
+      [
+        "Part number",
+        "981-000606"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/logitech-g633-artemis-spectrum-rgb-7-1-dolby-and-dts/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-g431",
+    "name": "Logitech G431 7.1 Surround Gaming Headset",
+    "brand": "Logitech",
+    "category": "audio",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Gaming headset"
+      ],
+      [
+        "Surround",
+        "7.1"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/headset/logitech-headset/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "asus-tuf-h3-wireless",
+    "name": "ASUS TUF Gaming H3 Wireless Headset",
+    "brand": "ASUS",
+    "category": "audio",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Wireless gaming headset"
+      ],
+      [
+        "Connection",
+        "2.4 GHz USB-C dongle"
+      ],
+      [
+        "Surround",
+        "7.1"
+      ],
+      [
+        "Works with",
+        "PC, PS5, Nintendo Switch"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/asus-tuf-gaming-h3-wireless-gaming-headset/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "bloody-gr585",
+    "name": "Bloody GR585 Wireless & Wired Gaming Headset — Black",
+    "brand": "A4Tech",
+    "category": "audio",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Gaming headset"
+      ],
+      [
+        "Connection",
+        "Wireless and wired"
+      ],
+      [
+        "Colour",
+        "Black"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/a4tech-bloody-gr585-all-in-one-wireless-wired-gaming-headset-usb-black/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-z623",
+    "name": "Logitech Z623 2.1 THX Speaker System",
+    "brand": "Logitech",
+    "category": "speakers",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "2.1 speaker system"
+      ],
+      [
+        "Sound",
+        "THX certified"
+      ],
+      [
+        "Power",
+        "200 W RMS, 400 W peak"
+      ],
+      [
+        "Part number",
+        "980-000403"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/logitech-z623-2-1-speaker-system-with-thx-certified-audio/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-z906",
+    "name": "Logitech Z906 5.1 Surround Sound Speaker System",
+    "brand": "Logitech",
+    "category": "speakers",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "5.1 speaker system"
+      ],
+      [
+        "Part number",
+        "980-000468"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/speakers/logitech-speakers/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-z607",
+    "name": "Logitech Z607 5.1 Surround Speakers with Bluetooth",
+    "brand": "Logitech",
+    "category": "speakers",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "5.1 speaker system"
+      ],
+      [
+        "Connection",
+        "Bluetooth"
+      ],
+      [
+        "Part number",
+        "980-001324"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/speakers/logitech-speakers/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-z313",
+    "name": "Logitech Z313 Speaker System with Subwoofer",
+    "brand": "Logitech",
+    "category": "speakers",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "2.1 speaker system"
+      ],
+      [
+        "Part number",
+        "980-000413"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/speakers/logitech-speakers/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "logitech-z120",
+    "name": "Logitech Z120 Compact USB-Powered Stereo Speakers",
+    "brand": "Logitech",
+    "category": "speakers",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Compact stereo speakers"
+      ],
+      [
+        "Power",
+        "USB powered"
+      ],
+      [
+        "Part number",
+        "980-000514"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/speakers/logitech-speakers/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "transcend-ddr5-5600-16",
+    "name": "Transcend 16GB DDR5 5600MHz Desktop Memory",
+    "brand": "Transcend",
+    "category": "ram",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "16GB"
+      ],
+      [
+        "Memory type",
+        "DDR5"
+      ],
+      [
+        "Speed",
+        "5600MHz"
+      ],
+      [
+        "Form factor",
+        "Desktop"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/transcend-ddr5-memory-module-5600mhz-16gb-desktop-ram/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "transcend-ddr4-3200-8",
+    "name": "Transcend 8GB DDR4 3200MHz Desktop Memory",
+    "brand": "Transcend",
+    "category": "ram",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "8GB"
+      ],
+      [
+        "Memory type",
+        "DDR4"
+      ],
+      [
+        "Speed",
+        "3200MHz"
+      ],
+      [
+        "Form factor",
+        "Desktop"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/ram/transcend-ram/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "transcend-ddr4-3200-16",
+    "name": "Transcend 16GB DDR4 3200MHz Desktop Memory",
+    "brand": "Transcend",
+    "category": "ram",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "16GB"
+      ],
+      [
+        "Memory type",
+        "DDR4"
+      ],
+      [
+        "Speed",
+        "3200MHz"
+      ],
+      [
+        "Form factor",
+        "Desktop"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/ram/transcend-ram/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "xpg-d35g-3200-32-white",
+    "name": "XPG SPECTRIX D35G RGB 32GB DDR4 3200MHz — White",
+    "brand": "XPG",
+    "category": "ram",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "32GB"
+      ],
+      [
+        "Memory type",
+        "DDR4"
+      ],
+      [
+        "Speed",
+        "3200MHz"
+      ],
+      [
+        "Lighting",
+        "RGB"
+      ],
+      [
+        "Colour",
+        "White"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/xpg-spectrix-d35g-ddr4-rgb-memory-module-3200mhz-32gb-desktop-ram-white/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "xpg-lancer-rgb-5200-16",
+    "name": "XPG LANCER RGB 16GB DDR5 5200MHz",
+    "brand": "XPG",
+    "category": "ram",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "16GB"
+      ],
+      [
+        "Memory type",
+        "DDR5"
+      ],
+      [
+        "Speed",
+        "5200MHz"
+      ],
+      [
+        "Lighting",
+        "RGB"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/ram/xpg-ram/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "xpg-lancer-rgb-5200-32",
+    "name": "XPG LANCER RGB 32GB DDR5 5200MHz (2×16GB)",
+    "brand": "XPG",
+    "category": "ram",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "32GB (2×16GB)"
+      ],
+      [
+        "Memory type",
+        "DDR5"
+      ],
+      [
+        "Speed",
+        "5200MHz"
+      ],
+      [
+        "Lighting",
+        "RGB"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/ram/xpg-ram/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "transcend-mte255s-1tb",
+    "name": "Transcend MTE255S 1TB NVMe M.2 SSD",
+    "brand": "Transcend",
+    "category": "ssd",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "1TB"
+      ],
+      [
+        "Interface",
+        "PCIe Gen4 x4 NVMe"
+      ],
+      [
+        "Form factor",
+        "M.2 2280, graphene heatsink"
+      ],
+      [
+        "Read",
+        "Up to 7,400 MB/s"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/transcend-mte225s-nvme-m-2-ssd-1tb/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "adata-legend-860-500",
+    "name": "ADATA LEGEND 860 500GB PCIe Gen4 M.2 SSD",
+    "brand": "ADATA",
+    "category": "ssd",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "500GB"
+      ],
+      [
+        "Interface",
+        "PCIe Gen4 x4 NVMe"
+      ],
+      [
+        "Form factor",
+        "M.2 2280"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/adata-legend-860-pcie-gen4-x4-m-2-2280-ssd-500gb/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "xpg-sx8200-pro-512",
+    "name": "XPG SX8200 Pro 512GB NVMe M.2 SSD",
+    "brand": "XPG",
+    "category": "ssd",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "512GB"
+      ],
+      [
+        "Interface",
+        "PCIe Gen3 x4 NVMe"
+      ],
+      [
+        "Form factor",
+        "M.2 2280"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/ssd/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "xpg-s20g-500",
+    "name": "XPG SPECTRIX S20G RGB 500GB NVMe M.2 SSD",
+    "brand": "XPG",
+    "category": "ssd",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "500GB"
+      ],
+      [
+        "Interface",
+        "PCIe Gen3 x4 NVMe"
+      ],
+      [
+        "Form factor",
+        "M.2 2280"
+      ],
+      [
+        "Lighting",
+        "RGB"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/ssd/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "xpg-s40g-1tb",
+    "name": "XPG SPECTRIX S40G RGB 1TB NVMe M.2 SSD",
+    "brand": "XPG",
+    "category": "ssd",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "1TB"
+      ],
+      [
+        "Interface",
+        "PCIe Gen3 x4 NVMe"
+      ],
+      [
+        "Form factor",
+        "M.2 2280"
+      ],
+      [
+        "Lighting",
+        "RGB"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product-category/ssd/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "transcend-jetdrive-725-240",
+    "name": "Transcend JetDrive 725 240GB SSD Upgrade Kit for Mac",
+    "brand": "Transcend",
+    "category": "ssd",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "240GB"
+      ],
+      [
+        "Type",
+        "SSD upgrade kit for Mac"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/transcend-jetdrive-725-ssd-upgrade-kits-for-mac-240gb-in-pakistan/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "transcend-jetdrive-520-480",
+    "name": "Transcend JetDrive 520 480GB SSD Upgrade Kit for Mac",
+    "brand": "Transcend",
+    "category": "ssd",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "480GB"
+      ],
+      [
+        "Type",
+        "SSD upgrade kit for Mac"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/transcend-jetdrive-520-ssd-upgrade-kits-for-mac-480gb-in-pakistan/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "transcend-jetdrive-850-480",
+    "name": "Transcend JetDrive 850 480GB SSD Upgrade Kit for Mac",
+    "brand": "Transcend",
+    "category": "ssd",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "480GB"
+      ],
+      [
+        "Type",
+        "SSD upgrade kit for Mac"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/transcend-jetdrive-850-ssd-upgrade-kits-for-mac-480gb-in-pakistan/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "transcend-jf750-16",
+    "name": "Transcend JetFlash 750 16GB USB 3.1 Flash Drive",
+    "brand": "Transcend",
+    "category": "flash",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "16GB"
+      ],
+      [
+        "Interface",
+        "USB 3.1"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/transcend-jetflash-750-usb-3-1-flash-drive-16gb-in-pakistan/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "transcend-jf780-128",
+    "name": "Transcend JetFlash 780 128GB USB 3.1 Flash Drive",
+    "brand": "Transcend",
+    "category": "flash",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "128GB"
+      ],
+      [
+        "Interface",
+        "USB 3.1"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/transcend-jetflash-780-usb-3-1-flash-drive-128gb-in-pakistan/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "transcend-jf790c-256",
+    "name": "Transcend JetFlash 790C 256GB USB-C Flash Drive",
+    "brand": "Transcend",
+    "category": "flash",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Capacity",
+        "256GB"
+      ],
+      [
+        "Interface",
+        "USB 3.2 Gen 1"
+      ],
+      [
+        "Connector",
+        "Retractable USB Type-C, capless"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/transcend-jetflash-790c-usb-3-2-flash-drive-256gb-in-pakistan/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "ugreen-50283",
+    "name": "UGREEN 50283 USB-C Male to USB 3.0 Female Adapter",
+    "brand": "UGREEN",
+    "category": "usb",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "OTG adapter"
+      ],
+      [
+        "Connectors",
+        "USB-C male to USB-A 3.0 female"
+      ],
+      [
+        "Extra",
+        "Lanyard"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/ugreen-50283-usb-c-male-to-usb-3-0-female-with-lanyard/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "ugreen-70444",
+    "name": "UGREEN 70444 USB-C to HDMI Adapter",
+    "brand": "UGREEN",
+    "category": "usb",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Video adapter"
+      ],
+      [
+        "Connectors",
+        "USB-C to HDMI"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/ugreen-usb-c-to-hdmi-adapter-70444/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "ugreen-90340",
+    "name": "UGREEN 90340 AX1800 Wi-Fi 6 USB Adapter",
+    "brand": "UGREEN",
+    "category": "usb",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Wireless network adapter"
+      ],
+      [
+        "Standard",
+        "Wi-Fi 6, AX1800 dual band"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/ugreen-ax1800-dual-band-wireless-adapter-wi-fi-6-90340/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "ugreen-10352",
+    "name": "UGREEN 10352 USB 2.0 A to B Printer Cable 5m",
+    "brand": "UGREEN",
+    "category": "usb",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Printer cable"
+      ],
+      [
+        "Connectors",
+        "USB-A to USB-B, USB 2.0"
+      ],
+      [
+        "Length",
+        "5 m"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/ugreen-usb-am-to-bm-2-0-print-cable-5m-10352/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
+  },
+  {
+    "id": "ugreen-40189",
+    "name": "UGREEN 40189 HDMI Video Capture Card",
+    "brand": "UGREEN",
+    "category": "usb",
+    "sourcePrice": null,
+    "priceOnRequest": true,
+    "specs": [
+      [
+        "Type",
+        "Video capture card"
+      ],
+      [
+        "Input",
+        "Single HDMI"
+      ]
+    ],
+    "images": [],
+    "sourceUrl": "https://pacific.pk/product/ugreen-video-capture-card-single-hdmi-input-40189/",
+    "sourceKind": "search-index",
+    "retrievedAt": "2026-09-29",
+    "liveVerifiedAt": null,
+    "availability": "confirm",
+    "sourceAvailability": "not-verified",
+    "photoStatus": "pending",
+    "featured": false,
+    "addedIn": "2026-09-pacific"
   }
 ]

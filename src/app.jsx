@@ -3830,6 +3830,16 @@ export default function App({ initialView = "store" } = {}) {
   const autoPromos = useMemo(() => promos.filter((p) => p.active && !p.code), [promos]);
   const codePromos = useMemo(() => promos.filter((p) => p.active && p.code), [promos]);
   const pInfo = (p) => priceInfo(p, autoPromos);
+  /* a product listed without a price yet (added from a supplier's range; the price is set
+     later in the console) shows "Price on request": customers ask on WhatsApp instead */
+  const onRequest = (p) => !!p && !(Number(p.price) > 0);
+  const moneyOr = (n) => (Number(n) > 0 ? money(n) : "Price on request");
+  const askPrice = (p) => {
+    const text = `Hello ${config.storeName}, what is the price of the ${p.name}? Is it available?`;
+    const url = "https://wa.me/" + String(config.storePhone || "").replace(/\D/g, "") + "?text=" + encodeURIComponent(text);
+    const tab = window.open(url, "_blank");
+    if (tab) tab.opener = null; else window.location.href = url;
+  };
   const catCount = (id) => {
     const kids = childrenOf(id).map((c) => c.id);
     return products.filter((p) => p.active && (p.category === id || kids.includes(p.category))).length;
@@ -3853,6 +3863,7 @@ export default function App({ initialView = "store" } = {}) {
   const addToCart = (id, qty = 1) => {
     const p = byId[id];
     if (!p) return;
+    if (onRequest(p)) { askPrice(p); return; }
     setCartPulse((n) => n + 1);
     if (isSoldOut(p)) { pushToast(p.name + " is sold out", X, true); return; }
     const requested = Math.max(1, Math.floor(Number(qty) || 1));
@@ -4063,7 +4074,7 @@ export default function App({ initialView = "store" } = {}) {
     if (minRating > 0) list = list.filter((p) => p.rating >= minRating);
     if (tagFilter.length) list = list.filter((p) => tagFilter.every((t) => p.tags.includes(t)));
     if (priceLo > 0) list = list.filter((p) => pInfo(p).final >= priceLo);
-    if (priceHi > 0) list = list.filter((p) => pInfo(p).final <= priceHi);
+    if (priceHi > 0) list = list.filter((p) => pInfo(p).final <= priceHi && !onRequest(p));
     if (query.trim()) {
       const q = query.toLowerCase();
       list = list.filter((p) => (p.name + " " + p.brand + " " + catLabel(p.category) + " " + p.sku + " " + p.tags.join(" ")).toLowerCase().includes(q));
@@ -4074,11 +4085,11 @@ export default function App({ initialView = "store" } = {}) {
     else if (sort === "Best selling") list = [...list].sort((a, b) => displaySold(b) - displaySold(a));
     else if (sort === "Newest") list = [...list].sort((a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0));
     else list = [...list].sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0));
-    return [...list].sort((a, b) => (isSoldOut(a) ? 1 : 0) - (isSoldOut(b) ? 1 : 0));
+    return [...list].sort((a, b) => (isSoldOut(a) ? 2 : onRequest(a) ? 1 : 0) - (isSoldOut(b) ? 2 : onRequest(b) ? 1 : 0));
   }, [products, categories, category, cats, brand, brands, special, query, sort, autoPromos, salesByProduct, priceLo, priceHi, minRating, inStockOnly, tagFilter]);
 
   const priceBounds = useMemo(() => {
-    const live = products.filter((p) => p.active);
+    const live = products.filter((p) => p.active && !onRequest(p));
     if (!live.length) return { min: 0, max: 1000 };
     const vals = live.map((p) => pInfo(p).final);
     const min = Math.floor(Math.min(...vals) / 500) * 500;
@@ -7228,11 +7239,11 @@ export default function App({ initialView = "store" } = {}) {
           </div>
           <div className="card-foot">
             <div>
-              <div className="price">{money(inf.final)}{inf.was && <s>{money(inf.was)}</s>}</div>
+              {onRequest(p) ? <div className="price por">Price on request</div> : <div className="price">{money(inf.final)}{inf.was && <s>{money(inf.was)}</s>}</div>}
               {inf.promo && <div className="price-off">{inf.promo.name}</div>}
             </div>
-            <button className="add-btn" disabled={out} onClick={() => addToCart(p.id)} aria-label={"Add " + p.name + " to bag"}>
-              {out ? <X size={16} /> : <ShoppingBag size={16} />}<span>{out ? "Sold out" : "Add to bag"}</span>
+            <button className="add-btn" disabled={out} onClick={() => addToCart(p.id)} aria-label={onRequest(p) ? "Ask the price of " + p.name + " on WhatsApp" : "Add " + p.name + " to bag"}>
+              {out ? <X size={16} /> : onRequest(p) ? <Phone size={16} /> : <ShoppingBag size={16} />}<span>{out ? "Sold out" : onRequest(p) ? "Ask price" : "Add to bag"}</span>
             </button>
           </div>
         </div>
@@ -7298,7 +7309,7 @@ export default function App({ initialView = "store" } = {}) {
     onAccount={() => { setStoreView("portal"); setPortalOrder(null); window.scrollTo(0, 0); }}
     onMenu={() => setMobileMenu(true)} onTrade={() => { setStoreView("b2b"); window.scrollTo(0, 0); }}
     onFinder={() => setFinderOpen(true)}
-    money={p => money(pInfo(p).final)} />;
+    money={p => moneyOr(pInfo(p).final)} />;
 
   const renderMobileMenu = () => (
     <div className="mmenu" role="dialog" aria-modal="true" aria-label="Navigation menu" tabIndex={-1}>
@@ -7610,7 +7621,7 @@ export default function App({ initialView = "store" } = {}) {
         <FinderBand onFinder={() => setFinderOpen(true)} />
         {rail("drives", "Storage", "Hard drives")}
         {rail("keyboard", "Keyboards", "Keyboards & keypads")}
-        <BudgetShelf products={products} priceOf={price} money={money}
+        <BudgetShelf products={products.filter((p) => !onRequest(p))} priceOf={price} money={money}
           onBudget={(lo, hi) => { goShop("All"); setPriceLo(lo); setPriceHi(hi); }} />
         <BrandWall products={products} onBrand={(b) => { goShop("All"); setBrands([b]); }} />
         {renderPromoBanners()}
@@ -7953,7 +7964,7 @@ export default function App({ initialView = "store" } = {}) {
             <button className="rel" key={p.id} onClick={() => openProduct(p.id)}>
               <span className="ic"><I size={17} /></span>
               <div className="n">{p.name}</div>
-              <div className="p">{money(pInfo(p).final)}</div>
+              <div className="p">{moneyOr(pInfo(p).final)}</div>
             </button>
           ); })}
         </div>
@@ -8040,7 +8051,7 @@ export default function App({ initialView = "store" } = {}) {
     if (!p) { document.title = base; return; }
     const final = pInfo(p).final;
     document.title = p.name + " | Price in Pakistan | " + config.storeName;
-    if (meta) meta.setAttribute("content", (p.name + ": " + money(final) + ". " + (p.blurb || "") + " Cash on delivery across Pakistan.").slice(0, 300));
+    if (meta) meta.setAttribute("content", (p.name + ": " + moneyOr(final) + ". " + (p.blurb || "") + " Cash on delivery across Pakistan.").slice(0, 300));
     const img = galleryFrames(p)[0];
     const ld = document.createElement("script");
     ld.type = "application/ld+json"; ld.id = "rv-product-ld";
@@ -8048,7 +8059,7 @@ export default function App({ initialView = "store" } = {}) {
       "@context": "https://schema.org", "@type": "Product", name: p.name, sku: p.sku,
       brand: { "@type": "Brand", name: p.brand }, category: catLabel(p.category), description: p.blurb || undefined,
       image: img ? new URL(img, location.href).href : undefined,
-      offers: { "@type": "Offer", priceCurrency: "PKR", price: Math.round(final), url: location.href,
+      offers: onRequest(p) ? undefined : { "@type": "Offer", priceCurrency: "PKR", price: Math.round(final), url: location.href,
                 availability: "https://schema.org/" + (isSoldOut(p) ? "OutOfStock" : "InStock"), itemCondition: "https://schema.org/NewCondition" },
     });
     document.head.appendChild(ld);
@@ -8074,8 +8085,8 @@ export default function App({ initialView = "store" } = {}) {
     /* a starter bundle: this item plus the most affordable in-stock pick from each
        category that is usually bought with it */
     const COMPANIONS = { mouse: ["keyboard", "audio"], keyboard: ["mouse", "audio"], audio: ["mouse", "keyboard"], ram: ["drives"], drives: ["ram"] };
-    const pickFrom = (cat) => products.filter((x) => x.active && x.category === cat && !isSoldOut(x)).sort((a, b) => pInfo(a).final - pInfo(b).final)[0];
-    const bundle = out ? [] : [p, ...(COMPANIONS[p.category] || []).map(pickFrom).filter(Boolean)].slice(0, 3);
+    const pickFrom = (cat) => products.filter((x) => x.active && x.category === cat && !isSoldOut(x) && !onRequest(x)).sort((a, b) => pInfo(a).final - pInfo(b).final)[0];
+    const bundle = out || onRequest(p) ? [] : [p, ...(COMPANIONS[p.category] || []).map(pickFrom).filter(Boolean)].slice(0, 3);
     const margin = p.price > 0 ? Math.round(((p.price - p.cost) / p.price) * 100) : 0;
     const parent = catById[p.category] ? catById[catById[p.category].parentId] : null;
     const plural = (CATALOG_CATEGORIES.find((c) => c.id === p.category) || {}).plural;
@@ -8099,10 +8110,10 @@ export default function App({ initialView = "store" } = {}) {
           </span>
           <div className="bb-i">
             <div className="bb-n">{p.name}</div>
-            <div className="bb-p">{money(inf.final)}{out ? " · sold out" : ""}</div>
+            <div className="bb-p">{moneyOr(inf.final)}{out ? " · sold out" : ""}</div>
           </div>
-          <button className="btn btn-pri" disabled={out} onClick={() => { addToCart(p.id, pdQty); setCartOpen(true); }}>
-            <ShoppingBag size={15} /> {out ? "Sold out" : "Add to bag"}
+          <button className="btn btn-pri" disabled={out} onClick={() => { if (onRequest(p)) { askPrice(p); return; } addToCart(p.id, pdQty); setCartOpen(true); }}>
+            {onRequest(p) ? <><Phone size={15} /> Ask price</> : <><ShoppingBag size={15} /> {out ? "Sold out" : "Add to bag"}</>}
           </button>
         </div>
         <div className="pdp">
@@ -8176,7 +8187,7 @@ export default function App({ initialView = "store" } = {}) {
                 </div>}
 
                 <div className="pd-price">
-                  <span className="pd-now">{money(inf.final)}</span>
+                  <span className="pd-now">{moneyOr(inf.final)}</span>
                   {inf.was ? <s className="pd-was">{money(inf.was)}</s> : null}
                   {inf.offPct > 0 ? <span className="pd-save">Save {money(inf.was - inf.final)} · {inf.offPct}%</span> : null}
                 </div>
@@ -8193,14 +8204,14 @@ export default function App({ initialView = "store" } = {}) {
                 </div>
 
                 <div className="pd-buy">
-                  <div className="qty pd-qty">
+                  {!onRequest(p) && <div className="qty pd-qty">
                     <button onClick={() => setPdQty((q) => Math.max(1, q - 1))} disabled={pdQty <= 1} aria-label="Fewer"><Minus size={14} /></button>
                     <span className="mono">{pdQty}</span>
                     <button onClick={() => setPdQty((q) => Math.min(p.stock, 10, q + 1))} disabled={pdQty >= Math.min(p.stock, 10)} aria-label="More"><Plus size={14} /></button>
-                  </div>
+                  </div>}
                   <button className="btn btn-pri btn-lg pd-cta" disabled={out}
-                          onClick={() => { addToCart(p.id, pdQty); setCartOpen(true); }}>
-                    {out ? "Sold out" : <><ShoppingBag size={16} /> Add {pdQty > 1 ? pdQty + " to bag" : "to bag"}</>}
+                          onClick={() => { if (onRequest(p)) { askPrice(p); return; } addToCart(p.id, pdQty); setCartOpen(true); }}>
+                    {out ? "Sold out" : onRequest(p) ? <><Phone size={16} /> Ask the price on WhatsApp</> : <><ShoppingBag size={16} /> Add {pdQty > 1 ? pdQty + " to bag" : "to bag"}</>}
                   </button>
                   <button className={"btn btn-lg icon-only " + (wishlist.includes(p.id) ? "btn-soft" : "")} onClick={() => toggleWish(p.id)} aria-label="Wishlist">
                     <Heart size={16} fill={wishlist.includes(p.id) ? "currentColor" : "none"} />
@@ -8383,7 +8394,7 @@ export default function App({ initialView = "store" } = {}) {
   };
 
   const renderCompareModal = () => compareOpen ? <ProductCompare products={compare.map(id => byId[id]).filter(Boolean)}
-    priceOf={p => pInfo(p).final} money={money} categoryOf={catLabel} cart={cart}
+    priceOf={p => pInfo(p).final} money={moneyOr} categoryOf={catLabel} cart={cart}
     onClose={() => setCompareOpen(false)} onRemove={toggleCompare} onClear={() => { setCompare([]); setCompareOpen(false); }}
     onShop={() => { setCompareOpen(false); goShop("All"); }} onProduct={id => { setCompareOpen(false); openProduct(id); }} onAdd={addToCart} /> : null;
 
@@ -18226,14 +18237,14 @@ export default function App({ initialView = "store" } = {}) {
           </main>
           {renderFooter()}
           <StoreInfo topic={infoTopic} onClose={() => setInfoTopic(null)} config={config} />
-          {finderOpen && <ProductFinder products={products} categories={categories} priceOf={p => pInfo(p).final} money={money} config={config}
+          {finderOpen && <ProductFinder products={products.filter((p) => !onRequest(p))} categories={categories} priceOf={p => pInfo(p).final} money={money} config={config}
             onClose={() => setFinderOpen(false)} onProduct={id => { setFinderOpen(false); openProduct(id); }}
             onBrowse={(cat, budget, available, sorting) => { setFinderOpen(false); goShop(cat); setPriceHi(budget); setInStockOnly(available); setSort(sorting); }} />}
-          {quickId && byId[quickId] && <QuickView key={quickId} product={byId[quickId]} info={pInfo(byId[quickId])} money={money} images={galleryFrames(byId[quickId])}
+          {quickId && byId[quickId] && <QuickView key={quickId} product={byId[quickId]} info={pInfo(byId[quickId])} money={moneyOr} images={galleryFrames(byId[quickId])}
             wished={wishlist.includes(quickId)} compared={compare.includes(quickId)} cartQuantity={cart.find(l => l.id === quickId)?.qty || 0} config={config}
             onClose={() => setQuickId(null)} onAdd={addToCart} onWish={() => toggleWish(quickId)} onCompare={() => toggleCompare(quickId)}
             onDetails={() => { setQuickId(null); openProduct(quickId); }} onBag={() => { setQuickId(null); setCartOpen(true); }} />}
-          {config.storePhone && <WhatsAppFab config={config} product={storeView === "product" ? byId[activeId] : null} price={storeView === "product" && byId[activeId] ? money(pInfo(byId[activeId]).final) : ""} />}
+          {config.storePhone && <WhatsAppFab config={config} product={storeView === "product" ? byId[activeId] : null} price={storeView === "product" && byId[activeId] && !onRequest(byId[activeId]) ? money(pInfo(byId[activeId]).final) : ""} />}
           <BottomNav active={storeView === "home" ? "home" : storeView === "portal" ? "account" : ""} cartCount={cartCount}
             onHome={() => { setStoreView("home"); setMobileMenu(false); window.scrollTo(0, 0); }}
             onCategories={() => setMobileMenu(true)}

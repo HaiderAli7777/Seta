@@ -32,6 +32,10 @@ test('PHP API: orders placed on standard hosting reach the console', { skip: !ha
     customer: { name: 'Sara Khan', email: 'sara@example.com', phone: '0301 2345678', city: 'Lahore', address: 'House 5, Street 9, DHA' },
     zoneId: 'z1', methodId: 'standard', paymentMethod: 'cod', lines: [{ id: 'k120', qty: 2, price: 2310 }], subtotal: 4620, shipping: 0, tax: 0, total: 4620, discount: 0 } });
   assert.equal(placed.status, 201);
+  const asked = await call('/api/orders', { method: 'POST', body: { customer: { name: 'Sara Khan', email: 'sara@example.com', phone: '0301 2345678', city: 'Lahore', address: 'House 5, Street 9, DHA' },
+    zoneId: 'z1', methodId: 'standard', paymentMethod: 'cod', lines: [{ id: 'logitech-k230', qty: 1, price: 50 }], subtotal: 50, shipping: 0, tax: 0, total: 50, discount: 0 } });
+  assert.equal(asked.status, 400, 'a price-on-request product cannot be bought at any price the browser sends');
+  assert.match(asked.body.error, /no price yet/);
   assert.match(placed.body.order.id, /^ED-[A-Z0-9]{6}$/);
   assert.equal(placed.body.order.total, 4620);
   assert.equal((await call('/api/orders')).status, 401, 'orders need a console session');

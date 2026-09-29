@@ -5,7 +5,7 @@
   "coverage": "partial",
   "liveVerification": "blocked-human-verification",
   "photoCoverage": 0,
-  "productCount": 49,
+  "productCount": 104,
   "sources": {
     "mouse": "https://www.czone.com.pk/mouse-pakistan-ppt.95.aspx",
     "logimouse": "https://www.czone.com.pk/mouse-pakistan-ppt.95.aspx?sort=1",
@@ -18,7 +18,8 @@
     "ddr5": "https://www.czone.com.pk/memory-module-ram-desktop-ddr5-memory-pakistan-pt.129.aspx",
     "external": "https://www.czone.com.pk/hard-drives-external-hard-drives-pakistan-pt.178.aspx",
     "desktop": "https://www.czone.com.pk/hard-drives-desktop-sata-hard-drives-pakistan-pt.94.aspx",
-    "enterprise": "https://www.czone.com.pk/hard-drives-enterprise-hard-drives-pakistan-pt.760.aspx"
+    "enterprise": "https://www.czone.com.pk/hard-drives-enterprise-hard-drives-pakistan-pt.760.aspx",
+    "pacific": "https://pacific.pk/"
   },
-  "notes": "Indexed catalogue snapshot only. Not a complete or live Czone extraction. All original product photos remain pending. Source stock is not EPIC stock."
+  "notes": "Indexed catalogue snapshot only. Not a complete or live Czone extraction. All original product photos remain pending. Source stock is not EPIC stock. 55 products added 2026-09-29 by name from Pacific Computers (pacific.pk) listings found through search; their prices are not set yet (price on request) and photos are pending."
 }

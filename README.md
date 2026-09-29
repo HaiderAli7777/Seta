@@ -1,8 +1,16 @@
-# EPIC DEVICES 6.4
+# EPIC DEVICES 6.5
 
 The online store for **epicdevicesltd.com**: storefront, checkout with delivery, and the business console, running as one Node.js app on Hostinger. Customers' orders are saved on the server and appear in the console.
 
-## What's new in 6.4: console users and access
+## What's new in 6.5: 55 more products and four new categories
+
+- **New categories:** SSDs, USB flash drives, USB & adapters, and speakers, alongside mice, keyboards, headsets, RAM and hard drives.
+- **55 products added by name** from the Pacific Computers (pacific.pk) range: keyboards, mice, headsets, speakers, RAM, SSDs, flash drives and UGREEN USB adapters. Nothing already in the catalogue was added twice.
+- **Price on request:** these products have no price yet. The store shows "Price on request" and an **Ask price** button that opens WhatsApp with the question written. They stay out of budget filters and bundles, and the server refuses to take an order for them. Set a price in the console (Catalog → edit the product) and the product sells normally from then on.
+- **New products reach a live shop:** products added in a new release (`addedIn` in `products.json`) join a shop whose product list is already saved, once. A product the owner deleted is not brought back. The merge is saved the next time someone who can edit the catalogue signs in.
+- Photos for the new products are pending: add them under `assets/products/{id}.jpg` (see the list in that folder's README) or upload them in the console.
+
+## What was new in 6.4: console users and access
 
 - **The owner sign-in is unchanged:** username `admin`, password on the first line of `epic-data/admin-password.txt` (or `EPIC_ADMIN_PASSWORD`). The owner can open everything. Change that password by editing the file.
 - **Users & access** (console, Team section; owner and admins only): add a user with their name, username and password, then tick the sections they may open: Overview, Catalog, Sales, Purchasing, Logistics, Finance, Reports, People, Store. Or make them an **Admin** (everything, including managing users). Edit a user to change their sections or set a new password, switch an account off to block it at once, or delete it.

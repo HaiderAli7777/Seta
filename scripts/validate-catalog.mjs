@@ -9,7 +9,8 @@ export function validateRows(products) {
     if(!p || !/^[a-z0-9][a-z0-9-]*$/.test(p.id) || ids.has(p.id)) throw new Error('Invalid or duplicate ID: '+p?.id);
     ids.add(p.id);
     if(!p.name || !p.brand || !categories.has(p.category)) throw new Error('Invalid product identity/category: '+p.id);
-    sellingPaisa(p.sourcePrice);
+    if(p.sourcePrice==null) { if(!p.priceOnRequest) throw new Error('Missing source price (or priceOnRequest): '+p.id); }
+    else sellingPaisa(p.sourcePrice);
     if(!Array.isArray(p.specs) || !p.specs.length || p.specs.some(s=>!Array.isArray(s)||s.length!==2||s.some(v=>typeof v!=='string'||!v.trim()))) throw new Error('Invalid specifications: '+p.id);
     if(new Set(p.specs.map(s=>s[0])).size!==p.specs.length) throw new Error('Duplicate specification labels: '+p.id);
     const source = new URL(p.sourceUrl);
@@ -36,7 +37,7 @@ export function writeAudit() {
   const products=JSON.parse(readFileSync('src/catalog/products.json','utf8'));
   const quote=value=>'"'+String(value??'').replaceAll('"','""')+'"';
   const fields=['id','name','category','source_price_pkr','markup_percent','selling_price_pkr','source_url','retrieved_at','source_kind','live_verified_at','photos'];
-  const rows=products.map(p=>[p.id,p.name,p.category,p.sourcePrice,10,(sellingPaisa(p.sourcePrice)/100).toFixed(2),p.sourceUrl,p.retrievedAt,p.sourceKind,p.liveVerifiedAt,p.images.length]);
+  const rows=products.map(p=>[p.id,p.name,p.category,p.sourcePrice,10,p.sourcePrice==null?'on request':(sellingPaisa(p.sourcePrice)/100).toFixed(2),p.sourceUrl,p.retrievedAt,p.sourceKind,p.liveVerifiedAt,p.images.length]);
   mkdirSync('reports',{recursive:true});
   writeFileSync('reports/catalog-price-audit.csv',[fields,...rows].map(r=>r.map(quote).join(',')).join('\n')+'\n');
 }

@@ -39,6 +39,9 @@ test('incomplete or tampered orders are refused with a clear message', async () 
   assert.match((await call('/api/orders', { method: 'POST', body: shortPhone })).body.error, /phone/);
   const unknown = order(); unknown.lines = [{ id: 'not-a-product', qty: 1, price: 10 }];
   assert.equal((await call('/api/orders', { method: 'POST', body: unknown })).status, 400);
+  const unpriced = order(); unpriced.lines = [{ id: 'logitech-k230', qty: 1, price: 50 }];
+  const asked = await call('/api/orders', { method: 'POST', body: unpriced });
+  assert.equal(asked.status, 400); assert.match(asked.body.error, /no price yet/);
   const cheap = order(); cheap.lines = [{ id: 'lexar-ddr4-8', qty: 1, price: 100 }];
   const flagged = await call('/api/orders', { method: 'POST', body: cheap });
   assert.match(flagged.body.order.note, /check before confirming/);

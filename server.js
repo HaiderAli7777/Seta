@@ -299,6 +299,7 @@ export function createApp(options = {}) {
         const id = clean(l.id, 80), qty = Math.max(1, Math.min(99, parseInt(l.qty, 10) || 0));
         const known = stored.get(id) || catalog.get(id);
         if (!known) throw new HttpError(400, 'An item in your bag is no longer available. Please refresh the page.');
+        if (!(Number(known.price) > 0)) throw new HttpError(400, `${known.name || 'An item in your bag'} has no price yet. Ask us for the price on WhatsApp.`);
         const listed = Number(known.price) || 0, price = Number(l.price);
         const unit = Number.isFinite(price) && price > 0 ? price : listed;
         if (listed && Math.abs(unit - listed) / listed > 0.3) review = true;   // offers apply, but a big gap is flagged

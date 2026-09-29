@@ -53,11 +53,11 @@ const rupees = (v) => 'Rs ' + Math.round(v).toLocaleString('en-US');
 const prerender = [
   '<div class="seo-prerender">',
   '<h1>EPIC DEVICES: computer accessories in Lahore, delivered across Pakistan</h1>',
-  '<p>Mice, keyboards, headsets and microphones, RAM and hard drives from Logitech, A4Tech, Rapoo, UGREEN, MAONO, Lexar, XPG, Corsair, Kingston, Seagate, Western Digital and Transcend. Prices in rupees, cash on delivery, genuine stock checked before dispatch.</p>',
+  '<p>Mice, keyboards, headsets and microphones, speakers, RAM, SSDs, hard drives, USB flash drives and USB adapters from Logitech, A4Tech, Rapoo, ASUS ROG, UGREEN, MAONO, Lexar, ADATA, XPG, Corsair, Kingston, Seagate, Western Digital and Transcend. Prices in rupees, cash on delivery, genuine stock checked before dispatch.</p>',
   ...CATEGORIES.map((c) => {
     const items = products.filter((p) => p.category === c.id);
     return `<section><h2><a href="./?category=${c.id}">${esc(c.plural)}</a></h2><p>${esc(c.description)}</p><ul>` +
-      items.map((p) => `<li><a href="./?product=${encodeURIComponent(p.id)}">${esc(p.name)}</a> · ${esc(p.brand)} · ${rupees(sellingPrice(p))}</li>`).join('') + '</ul></section>';
+      items.map((p) => `<li><a href="./?product=${encodeURIComponent(p.id)}">${esc(p.name)}</a> · ${esc(p.brand)} · ${sellingPrice(p) > 0 ? rupees(sellingPrice(p)) : 'Price on request'}</li>`).join('') + '</ul></section>';
   }),
   '<p>Order online or on WhatsApp: <a href="https://wa.me/923057777817">+92 305 7777817</a> · <a href="mailto:hello@epicdevicesltd.com">hello@epicdevicesltd.com</a> · Lahore, Pakistan</p>',
   '</div>',

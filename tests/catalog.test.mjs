@@ -9,12 +9,12 @@ test('10% markup uses paisa and never rounds up to a whole rupee',()=>{
   assert.equal(sellingPaisa(13999),1539890);
   assert.equal(sellingPaisa(900),99000);
   assert.equal(sellingPaisa(123.45),13580);
-  for(const p of products) assert.equal(sellingPaisa(p.sourcePrice),Math.round(p.sourcePrice*110));
+  for(const p of products.filter(p=>!p.priceOnRequest)) assert.equal(sellingPaisa(p.sourcePrice),Math.round(p.sourcePrice*110));
   for(const n of [0,-1,NaN,Infinity,'100']) assert.throws(()=>sellingPaisa(n));
 });
-test('catalogue is limited to the five requested categories with honest coverage',()=>{
-  assert.equal(validateRows(products).length,49);
-  assert.deepEqual([...new Set(products.map(p=>p.category))].sort(),['audio','drives','keyboard','mouse','ram']);
+test('catalogue covers the requested categories with honest coverage',()=>{
+  assert.equal(validateRows(products).length,104);
+  assert.deepEqual([...new Set(products.map(p=>p.category))].sort(),['audio','drives','flash','keyboard','mouse','ram','speakers','ssd','usb']);
   assert(products.every(p=>p.availability==='confirm' && p.liveVerifiedAt===null && p.images.length===0));
   assert.throws(()=>validateRows([...products,products[0]]),/duplicate/);
   assert.throws(()=>validateRows([{...products[0],category:'laptop'}]),/category/);
@@ -40,4 +40,16 @@ test('persisted bag data cannot inject unknown products, invalid quantities or d
   assert.deepEqual(cleanIds(['b100','b100','unknown','g304'],products,1),['b100']);
   assert.deepEqual(cleanBag({},products),[]);
   assert.equal(bagTotalPaisa([{id:'keys-to-go',quantity:3}],products),4619670);
+});
+test('products added by name (price on request) are never sold at a made-up price and are not duplicates',()=>{
+  const asked=products.filter(p=>p.priceOnRequest);
+  assert.equal(asked.length,55);
+  assert(asked.every(p=>p.sourcePrice===null && sellingPrice(p)===0 && p.addedIn==='2026-09-pacific' && /^https:\/\/pacific\.pk\//.test(p.sourceUrl)));
+  assert.deepEqual(cleanBag([{id:'logitech-k230',quantity:1},{id:'b100',quantity:1}],products),[{id:'b100',quantity:1}]);
+  assert(!filterProducts(products,{query:'keyboard under 5000'}).some(p=>p.priceOnRequest));
+  assert(filterProducts(products,{query:'flash drive'}).every(p=>p.category==='flash'));
+  assert.throws(()=>validateRows([{...asked[0],priceOnRequest:false}]),/source price/);
+  // one entry per product: same brand + name (ignoring colour dashes and punctuation) never appears twice
+  const key=p=>(p.brand+' '+p.name).toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  assert.equal(new Set(products.map(key)).size,products.length);
 });

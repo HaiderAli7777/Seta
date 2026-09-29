@@ -242,6 +242,7 @@ function create_order(array $b): array {
       $qty = max(1, min(99, (int)($l['qty'] ?? 0)));
       $known = $stored[$id] ?? (isset($catalog[$id]) ? ['price' => $catalog[$id]] : null);
       if (!$known) throw new HttpError(400, 'An item in your bag is no longer available. Please refresh the page.');
+      if (!((float)($known['price'] ?? 0) > 0)) throw new HttpError(400, ($known['name'] ?? 'An item in your bag') . ' has no price yet. Ask us for the price on WhatsApp.');
       $listed = (float)($known['price'] ?? 0); $price = $l['price'] ?? null;
       $unit = is_numeric($price) && (float)$price > 0 ? (float)$price : $listed;
       if ($listed > 0 && abs($unit - $listed) / $listed > 0.3) $review = true;
