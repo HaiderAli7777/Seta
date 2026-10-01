@@ -1,5 +1,7 @@
 # 3.3.0 — Customer-ready edition
 
+- Opens as a clean company ("My Company", one Administrator) with the full chart of accounts, product categories and expense items — no sample or demo data. Leftover demo books in the browser are replaced automatically.
+- New Invoeez icon and sidebar mark replace the old Mizan balance-scale symbol.
 - Opens on a complete sample company: 65-account chart of accounts, 27 product categories, 62 products/services/expense items, 20 customers, 17 vendors, price lists, a sales team and twelve months of quotations, invoices, bills, returns, receipts, payments, payroll, loan, depreciation, VAT, transfers, stock counts and scrap ending on the day the file is first opened.
 - Added Start my company: clears sample transactions, keeps the chart of accounts, categories, expense items and payment methods, optionally keeps sample products, customers/vendors and price lists, and sets the company profile and administrator.
 - Added the Setup guide (Workspace) with nine tracked steps, and a next-step card on the dashboard.

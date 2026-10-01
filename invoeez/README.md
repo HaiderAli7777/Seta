@@ -1,6 +1,6 @@
 # Invoeez — Enterprise Edition 3.3
 
-Version 3.3 is the customer-ready build. It opens on a **complete sample company** — a year of trading with products, customers, vendors, quotations, invoices, bills, returns, payments, journals, stock counts and fixed assets — and gives every new customer a guided way to **start their own company** and bring in their data from Excel.
+Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
 ## Open the application
 
@@ -8,24 +8,13 @@ Extract the ZIP and open **invoeez.html** in Chrome or Edge. It contains the app
 
 ## What a new customer sees
 
-1. **The sample company.** Zenith General Trading L.L.C., a Dubai IT distributor, with twelve months of activity ending on the day the file is first opened — so the dashboard, aging, VAT and stock screens always look current. A banner on every page says it is sample data.
-2. **Start my company** (banner, Setup guide, Settings or the user menu). Two steps: company details and administrator name, then what to keep. The chart of accounts, product categories, expense items and payment methods are always kept; sample products, customers/vendors and price lists/sales team can be kept or removed. Every sample transaction is removed.
-3. **Setup guide** (Workspace › Setup guide). Nine steps with live progress: company details, chart of accounts, categories, products, customers, vendors, opening balances, first invoice and a backup. The dashboard shows the next step until setup is complete.
-4. **Bring your data.** Import products & services and customers & vendors from Excel (.xlsx) or CSV. Download the template, fill it (your own column names usually work), and every row is checked before anything is saved. Product sheets can include an **opening quantity**; customer/vendor sheets an **opening balance**.
-5. **Opening balances.** One screen for bank and cash balances, what customers owe, what you owe vendors, and stock on hand. Everything posts against **3900 Opening Balance Equity**, so profit is untouched.
+The file opens as a **clean company** ("My Company") with everything set up but no transactions:
 
-### The sample company in numbers
+- **Chart of accounts:** 65 accounts — banks and cash, receivables, PDCs, deposits, inventory, VAT input/output, fixed assets and depreciation, payables, accruals, salaries, corporate tax, gratuity, loan, capital, retained earnings, 3900 Opening Balance Equity, four revenue lines, cost of sales and 30 expense accounts.
+- **Product categories:** 27, each with revenue, cost, inventory and adjustment accounts.
+- **Expense items** (rent, utilities, telecom, freight, insurance, …) and payment methods.
 
-| Area | Included |
-| --- | --- |
-| Chart of accounts | 65 accounts: three bank/cash accounts, receivables, PDCs, deposits, inventory and goods in transit, VAT input/output, fixed assets with accumulated depreciation, payables, accruals, salaries, corporate tax, gratuity, term loan, capital, retained earnings, opening balance equity, four revenue lines, cost of sales by stream, stock adjustments and 30 operating expense accounts. |
-| Product categories | 27 categories, each with revenue, cost, inventory and adjustment accounts: laptops, desktops, monitors, printers & consumables, networking, storage, peripherals, power & UPS, software & licences, installation, support & maintenance, consultancy, plus expense categories (rent, utilities, telecom, freight, professional fees, marketing, insurance, vehicles, travel, capital purchases and more). |
-| Products & services | 38 stocked products with brand, code, internal barcode, packing and low-stock level; 4 software licences; 6 services; 14 expense items. |
-| Customers & vendors | 20 customers (local, free zone and export, with salespeople, terms and price lists) and 17 vendors (distributors, an importer under reverse charge, landlord, utilities, telecom, insurance, audit, courier and more). |
-| Commercial setup | 5 price lists (trade, corporate tiers, education & healthcare, an expired promotion, a vendor cost sheet) and a 4-person sales team. |
-| Transactions | About 290 invoices, 150 bills (stock, imports with freight and customs, overheads, expenses), 18 quotations in every state, credit and debit notes, ~400 receipts and payments (bank, ADCB, cheque, cash, card, online), payroll, loan instalments, transfers, quarterly depreciation and VAT payments, an opening stock count, quarterly counts and scrap, and 4 fixed assets. Drafts are included so there is always something to finish. |
-
-The books balance, stock never goes below zero, and receivables show a realistic spread from not-due to 90+ days.
+Then the **Setup guide** (Workspace › Setup guide) walks through company details, products, customers, vendors, opening balances, the first invoice and a backup, with Excel/CSV import and an opening-balances screen. Books left in the browser by the old built-in demo or an earlier sample build are replaced by a clean company automatically; real company books are kept.
 
 ## Upgrade existing data
 
@@ -134,7 +123,8 @@ npm test
 | --- | --- |
 | `invoeez-source.jsx` | Original accounting/reporting application with integration changes. |
 | `enhancements-data.jsx` | Migration, account snapshots, search, pricing and history helpers. |
-| `sample-data.jsx` | Chart of accounts and category templates, and the generated sample company. |
+| `company-template.jsx` | Chart of accounts, category and expense-item templates for a new company. |
+| `tests/sample-fixture.jsx` | A generated year of trading used only by the tests. |
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
 | `dashboard.jsx` | New overview dashboard. |

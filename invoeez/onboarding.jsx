@@ -52,7 +52,7 @@ function setupSteps(state, company) {
   const opened = state.manual.some((e) => /^OPEN\//.test(e.number)) || state.docs.some((d) => d.lines.some((l) => l.product === OPENING_ITEM.id))
     || (state.stockOps || []).some((o) => /^Opening stock/.test(o.reason));
   return [
-    { k: "company", t: "Add your company details", s: "Name, TRN, address and logo print on every invoice and report.", done: !!setup.company || (company.name !== COMPANY.name && company.trn !== COMPANY.trn), icon: Building2 },
+    { k: "company", t: "Add your company details", s: "Name, TRN, address and logo print on every invoice and report.", done: !!setup.company || (company.name !== COMPANY.name && company.name !== "Zenith General Trading L.L.C."), icon: Building2 },
     { k: "accounts", t: "Review your chart of accounts", s: `${ACCOUNTS.length} accounts are ready. Rename your bank accounts and add any you need.`, done: !!setup.accounts, icon: BookOpen },
     { k: "categories", t: "Check your product categories", s: `${CATEGORIES.filter((c) => c.id !== OPENING_CATEGORY.id).length} categories decide which revenue, cost and stock accounts each product uses.`, done: !!setup.categories, icon: Layers },
     { k: "products", t: "Add products & services", s: own.length ? `${own.length} products and services so far.` : "Type them in, or import your item list from Excel.", done: own.length > 0, icon: Package },
@@ -129,13 +129,13 @@ function StartCompanyDialog({ state, company, close, onDone, backup }) {
           ["Product categories", `${CATEGORIES.length} categories with their revenue, cost and stock accounts`, true],
           ["Expense items & payment methods", "Rent, utilities, telecom and the other items bills and expenses use", true]].map(([t, s]) =>
           <label key={t} className="keep-row locked"><input type="checkbox" checked disabled /><span className="kt"><b>{t}</b><small>{s}</small></span><Pill tone="ok">Always kept</Pill></label>)}
-        {[["products", "Sample products & services", `${own} items — keep them if you sell similar things, edit or delete later`],
-          ["partners", "Sample customers & vendors", `${PARTNERS.length} records — usually not wanted`],
+        {[["products", "Products & services", `${own} items you have entered`],
+          ["partners", "Customers & vendors", `${PARTNERS.length} records`],
           ["pricing", "Price lists & sales team", `${(state.priceLists || []).length} price lists and ${(state.salespeople || []).length} salespeople`]].map(([k, t, s]) =>
           <label key={k} className={cx("keep-row", keep[k] && "on")}><input type="checkbox" checked={keep[k]} onChange={(e) => setKeep((x) => ({ ...x, [k]: e.target.checked }))} />
             <span className="kt"><b>{t}</b><small>{s}</small></span><Pill tone={keep[k] ? "ok" : ""}>{keep[k] ? "Keep" : "Remove"}</Pill></label>)}
       </div>
-      <div className="info-strip warn-strip"><AlertTriangle size={20} /><span><b>{txn} sample transactions will be removed.</b><br />
+      <div className="info-strip warn-strip"><AlertTriangle size={20} /><span><b>{txn} transactions will be removed.</b><br />
         Invoices, bills, payments, journals, stock counts and fixed assets start empty. Download a backup first if you might want them back.</span>
         <Btn icon={Download} onClick={backup}>Backup</Btn></div>
       <label className="check-label confirm-check"><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} />I understand — start {f.name.trim() || "my company"} with clean books.</label>
@@ -508,11 +508,8 @@ function SetupScreen({ state, setState, books, company, go, newDoc, toast, backu
     backup: [["Download backup", () => backup(), true]],
   };
   return <div className="setup-page">
-    <PageHead eyebrow="Workspace" title="Setup guide" sub="Nine short steps from an empty company to your first invoice. Do them in any order." />
-    {state.sample && <div className="setup-hero sample">
-      <span className="quick-icon mint"><Sparkles size={22} /></span>
-      <div><b>You are looking at the sample company.</b><p>Explore freely. When you are ready, start your own company — your chart of accounts, categories and expense items carry over, sample transactions are removed.</p></div>
-      <Btn kind="pri" icon={Rocket} onClick={startCompany}>Start my company</Btn></div>}
+    <PageHead eyebrow="Workspace" title="Setup guide" sub="Nine short steps from an empty company to your first invoice. Do them in any order.">
+      <Btn icon={RotateCcw} onClick={startCompany}>Start a new company</Btn></PageHead>
     <div className="setup-grid">
       <Card className="setup-steps" title={`${done} of ${steps.length} done`} sub={done === steps.length ? "Your company is set up. Well done." : "Tick them off at your own pace."}
         right={<div className="setup-bar" aria-hidden="true"><i style={{ width: (done / steps.length) * 100 + "%" }} /></div>}>
@@ -531,11 +528,6 @@ function SetupScreen({ state, setState, books, company, go, newDoc, toast, backu
             <button onClick={() => setDlg("opening")}><span className="quick-icon lilac"><Scale size={19} /></span><span><b>Opening balances</b><small>Bank, receivables, payables and stock on your start date</small></span><ChevronRight size={16} /></button>
           </div>
           <div className="row-btns templates"><Btn size="sm" icon={FileSpreadsheet} onClick={() => templateFor("products", "xlsx")}>Products template</Btn><Btn size="sm" icon={FileSpreadsheet} onClick={() => templateFor("partners", "xlsx")}>Customers & vendors template</Btn></div>
-        </Card>
-        <Card title={state.sample ? "Sample company" : "Practice first?"} sub={state.sample ? "Twelve months of realistic trading" : "Load the sample company to try things safely"}>
-          {state.sample ? <p className="muted small-note">Generated {dmy(state.sample.generated)} · {state.docs.length} documents · {state.payments.length} payments · {PRODUCTS.length} products · {PARTNERS.length} customers and vendors.</p>
-            : <p className="muted small-note">This replaces your current books. Download a backup first — you can restore it from Settings.</p>}
-          <div className="row-btns">{state.sample ? <Btn kind="pri" icon={Rocket} onClick={startCompany}>Start my company</Btn> : <Btn icon={RotateCcw} onClick={loadSample}>Load sample company</Btn>}</div>
         </Card>
       </div>
     </div>

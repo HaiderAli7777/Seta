@@ -113,13 +113,13 @@ const TAX = Object.fromEntries(TAXES.map((t) => [t.id, t]));
 const EMIRATES = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Umm Al Quwain", "Ras Al Khaimah", "Fujairah"];
 
 const COMPANY = {
-  name: "Zenith General Trading L.L.C.",
-  trn: "100412887600003",
-  address: "Office 1204, Burlington Tower, Business Bay",
-  city: "Dubai, United Arab Emirates",
-  phone: "+971 4 512 8840",
-  email: "accounts@zenithtrading.ae",
-  licence: "CN-1148372",
+  name: "My Company",
+  trn: "",
+  address: "",
+  city: "United Arab Emirates",
+  phone: "",
+  email: "",
+  licence: "",
   emirate: "Dubai",
   currency: "AED",
 };
@@ -3720,7 +3720,12 @@ function GeneralLedger({ books, p, setP, param , toast }) {
   );
 }
 
-function PartnerLedgerRep({ books, p, setP, param , toast }) {
+function PartnerLedgerRep(props) {
+  if (!PARTNERS.length) return (<div><PageHead eyebrow="Reports" title="Partner ledger" sub="Every posting with a customer or vendor." />
+    <Card><EmptyState icon={Users} title="No customers or vendors yet">Add one under Customers &amp; vendors, then their ledger appears here.</EmptyState></Card></div>);
+  return <PartnerLedgerBody {...props} />;
+}
+function PartnerLedgerBody({ books, p, setP, param , toast }) {
   const [pid, setPid] = useState(param || PARTNERS[0].id);
   React.useEffect(() => { if (param) setPid(param); }, [param]);
   const g = partnerLedger(books.flat, pid, p.from, p.to), pt = PMAP[pid];
@@ -4472,7 +4477,12 @@ function profitability(state, books, from, to, by) {
   return { rows: out, t, margin: t.revenue ? (t.profit / t.revenue) * 100 : 0 };
 }
 
-function StatementScreen({ state, books, p, setP, toast, fta, param }) {
+function StatementScreen(props) {
+  if (!PARTNERS.length) return (<div><PageHead eyebrow="Receivables" title="Customer statement" sub="Statements of account for customers and vendors." />
+    <Card><EmptyState icon={Users} title="No customers or vendors yet">Add a customer under Customers &amp; vendors, then their statement appears here.</EmptyState></Card></div>);
+  return <StatementBody {...props} />;
+}
+function StatementBody({ state, books, p, setP, toast, fta, param }) {
   const CO = useCo();
   const [pid, setPid] = useState(param || (PARTNERS.find((x) => x.role === "customer") || PARTNERS[0]).id);
   const [sheet, setSheet] = useState(false);
@@ -5550,11 +5560,7 @@ const ROLES = {
                 perms: ["view", "reports"] },
 };
 const SEED_USERS = [
-  { id: "u1", name: "Haider Ali", email: "haider@zenithtrading.ae", role: "admin", active: true },
-  { id: "u2", name: "Fatima Rahman", email: "fatima@zenithtrading.ae", role: "accountant", active: true },
-  { id: "u3", name: "Omar Siddiqui", email: "omar@zenithtrading.ae", role: "sales", active: true },
-  { id: "u4", name: "Priya Nair", email: "priya@zenithtrading.ae", role: "clerk", active: true },
-  { id: "u5", name: "Meridian Audit & Advisory", email: "audit@meridianaudit.ae", role: "viewer", active: false },
+  { id: "u1", name: "Administrator", email: "", role: "admin", active: true },
 ];
 const SCREEN_PERM = {
   categories:"master",pricelists:"master",salespeople:"master",stock_count:"journal",scrap:"journal",
@@ -5860,9 +5866,7 @@ function SettingsScreen({ company, setCompany, theme, setTheme, density, setDens
               <div className="setrow"><div className="st"><b>{state.sample ? "Start my company" : "Start a new company"}</b>
                 <span>Clears transactions; keeps the chart of accounts, categories and expense items</span></div>
                 <Btn kind={state.sample ? "pri" : "danger"} icon={Rocket} onClick={startCompany}>{state.sample ? "Start" : "Start over"}</Btn></div>
-              <div className="setrow"><div className="st"><b>Load the sample company</b>
-                <span>Replaces your books with twelve months of demo trading</span></div>
-                <Btn kind="danger" icon={RotateCcw} onClick={reset}>Load sample</Btn></div>
+
             </div>
           </Card>
 
@@ -5920,11 +5924,19 @@ const FTA_KEY = "mizan.fta";
 const NAVGRP_KEY = "mizan.navgroups";
 const ME_KEY = "mizan.me";
 const DENSITY_KEY = "mizan.density";
-const DEMO = () => buildSampleBooks(TODAY);
+/* A new install opens as a clean company: chart of accounts, categories and expense items, no transactions. */
+const DEMO = () => ({ ...freshBooks({}, { users: SEED_USERS }), salespeople: [], setup: {} });
+const isLegacyDemo = (p) => (p.schemaVersion || 0) < 5 && !p.sample && (p.manual || []).some((e) => e.number === "OPEN/2026/0001" && e.ref === "Opening balances — 01 Jan 2026");
+const isUntouchedLegacyDemo = (p) => isLegacyDemo(p) && !(p.partners || []).length && !(p.products || []).length && !(p.accounts || []).length
+  && p.docs.length === 43 && p.payments.length === 25 && (p.manual || []).length === 2 && !(p.stockOps || []).length;
 function loadBooks() {
   try {
     const raw = window.localStorage.getItem(STORE_KEY);
-    if (raw) { const p = JSON.parse(raw); if (p && Array.isArray(p.docs) && Array.isArray(p.payments)) return migrateBooks(p); }
+    if (raw) { const p = JSON.parse(raw); if (p && Array.isArray(p.docs) && Array.isArray(p.payments)) {
+      /* Books still holding the old built-in demo are sample data, not a company:
+         untouched ones become the new sample; edited ones are labelled as sample. */
+      if (p.sample || isUntouchedLegacyDemo(p)) return migrateBooks(DEMO());
+      return migrateBooks(p); } }
   } catch (e) { /* private mode or corrupt payload — fall through to the demo company */ }
   return migrateBooks(DEMO());
 }
@@ -5959,7 +5971,8 @@ function Invoeez() {
   }, [closed]);
   React.useEffect(() => { try { window.localStorage.setItem(ME_KEY, me); } catch (e) {} }, [me]);
   const [company, setCompany] = useState(() => {
-    try { const c = window.localStorage.getItem(CO_KEY); if (c) return { ...COMPANY, ...JSON.parse(c) }; } catch (e) {}
+    try { const c = window.localStorage.getItem(CO_KEY); if (c) { const v = JSON.parse(c);
+      if (v && v.name !== "Zenith General Trading L.L.C.") return { ...COMPANY, ...v }; } } catch (e) {}
     return COMPANY;
   });
   const [fta, setFta] = useState(() => {
@@ -6158,15 +6171,15 @@ function Invoeez() {
       <nav className={cx("side", mini && "mini", drawer && "open")}>
         <div className="side-top">
           <span className="logo">
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#EFD9A8" strokeWidth="1.7"
-              strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v18M6 7h12M7 7l-3 6.4a3.4 3.4 0 0 0 6 0zM20 7l-3 6.4a3.4 3.4 0 0 0 6 0z" /></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15382d" strokeWidth="1.8"
+              strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h9l4 4v14l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21V4a1 1 0 0 1 1-1z" /><path d="M9 9h6M9 12.5h6M9 16h3.5" /></svg>
           </span>
           <span className="wordmark"><b>Invoeez</b><span className="edition">Enterprise Edition</span></span>
         </div>
         <button className="co-card" onClick={() => go("settings")} title="Company profile">
           {company.logo ? <img className="logoimg" src={company.logo} alt="" />
             : <span className="av">{initials(company.name)}</span>}
-          <span className="t"><b>{company.name}</b><span>TRN {company.trn}</span></span>
+          <span className="t"><b>{company.name}</b><span>{company.trn ? `TRN ${company.trn}` : "Add company details"}</span></span>
         </button>
         <div className="nav-search"><Search size={14}/><input aria-label="Search navigation" placeholder="Find a section…" value={navSearch} onChange={e=>setNavSearch(e.target.value)}/></div>
         <div className="nav-scroll">
@@ -6289,8 +6302,7 @@ function Invoeez() {
               <div className="pop-sep" />
               <button className="pop-item" onClick={() => { setMenu(false); startCompany(); }}>
                 <Rocket size={15} strokeWidth={1.8} />{state.sample ? "Start my company" : "Start a new company"}</button>
-              <button className="pop-item" onClick={() => { setMenu(false); reset(); }}>
-                <RotateCcw size={15} strokeWidth={1.8} />Load sample company</button>
+
             </div></>)}
           </div>
         </div>
