@@ -1,0 +1,14 @@
+{
+  "name": "invoeez-enterprise",
+  "version": "3.3.0",
+  "description": "Invoeez Enterprise Edition \u2014 accounting, invoicing, pricing and stock management",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node tests/engine.cjs"
+  },
+  "type": "commonjs",
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  },
+  "private": true
+}

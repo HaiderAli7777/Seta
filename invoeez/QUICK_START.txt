@@ -1,0 +1,32 @@
+INVOEEZ — ENTERPRISE EDITION 3.3 — QUICK START
+
+TRY IT
+1. Extract this ZIP and open invoeez.html in Chrome or Edge.
+2. You are in the SAMPLE COMPANY (Zenith General Trading): a full year of
+   invoices, bills, payments, stock and reports. Try anything — it is not real.
+
+START YOUR OWN COMPANY
+3. Click "Start my company" (banner at the top, or Settings, or the user menu).
+4. Enter your company name, TRN and your name. Choose what to keep:
+   the chart of accounts, product categories and expense items are always kept.
+5. Follow Workspace > Setup guide:
+   - Company details and logo (Settings)
+   - Review the chart of accounts and product categories
+   - Import products and customers/vendors from Excel — templates are in the
+     templates folder and inside the app. Opening stock and opening balances
+     can be columns in those sheets.
+   - Enter opening balances (bank, customers, vendors, stock)
+   - Create your first invoice
+   - Download a backup
+
+KEEP YOUR DATA SAFE
+- Everything is stored in this browser on this computer. Use Settings >
+  Back up regularly and keep the file somewhere safe.
+- Always open the same file at the same address/folder in the same browser.
+
+UPGRADING FROM 3.2
+- Open the new file at the same address/folder in the same browser: your books
+  load automatically with every customer, vendor and product kept.
+- If they do not appear, use Settings > Restore with your backup file.
+
+See README.md for the full guide, hosting and build instructions.

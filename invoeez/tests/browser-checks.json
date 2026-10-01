@@ -1,0 +1,69 @@
+{
+  "version": "3.3.0",
+  "status": "passed",
+  "errors": [],
+  "checks": [
+    "sample company opens with banner, balanced ledger and current-dated activity",
+    "all 37 navigation screens render in sample mode without errors or slow renders",
+    "start my company: validation, keep options, company profile and administrator",
+    "setup guide progress and dashboard next-step card",
+    "import products from a compressed Excel workbook with invalid and duplicate rows",
+    "import customers and vendors from a semicolon CSV with opening balances",
+    "app templates (xlsx) download and import back cleanly",
+    "opening balances for bank and cash post against 3900",
+    "new invoice starts with no customer, focuses customer search, posts with imported stock",
+    "every screen in a brand-new company renders without errors",
+    "unpaid and overdue filters, show more paging on invoices, journals and payments",
+    "invoice print preview and PDF download with sample data",
+    "account rename and delete guards",
+    "load sample company after starting fresh",
+    "upgrade from the original 3.2 file in the same browser storage keeps renamed records",
+    "light, dark and 390px mobile layouts without horizontal overflow"
+  ],
+  "previous_release": {
+    "version": "3.2.0",
+    "status": "passed",
+    "errors": [],
+    "checks": [
+      "Invoeez and Enterprise Edition branding",
+      "accounts hidden by default in compact and detailed modes",
+      "invoice account edit and reset to category default",
+      "bill expense account edit and ledger posting",
+      "posted account controls locked",
+      "account toggle independent from cost",
+      "stock visible by default on invoice and bill",
+      "account values preserved after hiding and reload",
+      "desktop, tablet and mobile layouts"
+    ],
+    "previous_release": {
+      "status": "passed",
+      "errors": [],
+      "checks": [
+        "inline customer, vendor and product creation",
+        "blank new lines",
+        "barcode and token search",
+        "stock and cost display",
+        "journal tab",
+        "posted sales and purchase history",
+        "category migration",
+        "price list rules and live preview",
+        "manual discounts survive pricing refresh",
+        "Discount Master removed",
+        "compact and detailed line layouts",
+        "product cards and table",
+        "Collect/Pay and period dashboard controls",
+        "customer salesperson defaults",
+        "counts and scrap",
+        "scroll and focus",
+        "all original screens",
+        "dark and mobile layouts",
+        "reload persistence",
+        "invoice PDF download",
+        "live price preview on mobile",
+        "reduced-motion chart visibility",
+        "desktop, tablet and mobile overflow checks"
+      ],
+      "version": "3.1.0"
+    }
+  }
+}
