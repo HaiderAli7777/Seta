@@ -5926,7 +5926,8 @@ const ME_KEY = "mizan.me";
 const DENSITY_KEY = "mizan.density";
 /* A new install opens as a clean company: chart of accounts, categories and expense items, no transactions. */
 const DEMO = () => ({ ...freshBooks({}, { users: SEED_USERS }), salespeople: [], setup: {} });
-const isLegacyDemo = (p) => (p.schemaVersion || 0) < 5 && !p.sample && (p.manual || []).some((e) => e.number === "OPEN/2026/0001" && e.ref === "Opening balances — 01 Jan 2026");
+/* The old built-in demo company is recognised by its opening entry, even after transactions were added to it. */
+const isLegacyDemo = (p) => (p.manual || []).some((e) => e.number === "OPEN/2026/0001" && e.ref === "Opening balances — 01 Jan 2026");
 const isUntouchedLegacyDemo = (p) => isLegacyDemo(p) && !(p.partners || []).length && !(p.products || []).length && !(p.accounts || []).length
   && p.docs.length === 43 && p.payments.length === 25 && (p.manual || []).length === 2 && !(p.stockOps || []).length;
 function loadBooks() {
@@ -5935,7 +5936,7 @@ function loadBooks() {
     if (raw) { const p = JSON.parse(raw); if (p && Array.isArray(p.docs) && Array.isArray(p.payments)) {
       /* Books still holding the old built-in demo are sample data, not a company:
          untouched ones become the new sample; edited ones are labelled as sample. */
-      if (p.sample || isUntouchedLegacyDemo(p)) return migrateBooks(DEMO());
+      if (p.sample || isLegacyDemo(p)) return migrateBooks(DEMO());
       return migrateBooks(p); } }
   } catch (e) { /* private mode or corrupt payload — fall through to the demo company */ }
   return migrateBooks(DEMO());

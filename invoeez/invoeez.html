@@ -6599,7 +6599,7 @@ const NAVGRP_KEY = "mizan.navgroups";
 const ME_KEY = "mizan.me";
 const DENSITY_KEY = "mizan.density";
 const DEMO = () => ({ ...freshBooks({}, { users: SEED_USERS }), salespeople: [], setup: {} });
-const isLegacyDemo = (p) => (p.schemaVersion || 0) < 5 && !p.sample && (p.manual || []).some((e) => e.number === "OPEN/2026/0001" && e.ref === "Opening balances \u2014 01 Jan 2026");
+const isLegacyDemo = (p) => (p.manual || []).some((e) => e.number === "OPEN/2026/0001" && e.ref === "Opening balances \u2014 01 Jan 2026");
 const isUntouchedLegacyDemo = (p) => isLegacyDemo(p) && !(p.partners || []).length && !(p.products || []).length && !(p.accounts || []).length && p.docs.length === 43 && p.payments.length === 25 && (p.manual || []).length === 2 && !(p.stockOps || []).length;
 function loadBooks() {
   try {
@@ -6607,7 +6607,7 @@ function loadBooks() {
     if (raw) {
       const p = JSON.parse(raw);
       if (p && Array.isArray(p.docs) && Array.isArray(p.payments)) {
-        if (p.sample || isUntouchedLegacyDemo(p)) return migrateBooks(DEMO());
+        if (p.sample || isLegacyDemo(p)) return migrateBooks(DEMO());
         return migrateBooks(p);
       }
     }
