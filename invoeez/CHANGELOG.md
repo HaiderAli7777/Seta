@@ -1,3 +1,15 @@
+# 3.4.0 — InvoEez brand and clearer screens
+
+- The InvoEez logo replaces every trace of the old Mizan brand: the startup screen, browser-tab icon, sidebar and page title ("InvoEez — Invoice Made Easy").
+- New colour theme taken from the logo (indigo, royal blue and violet) in light and dark mode, including printed invoices, statements and PDF exports. Green and red now always mean money in/paid and overdue/owed.
+- Clearer menu: Home, Sales (with Customers), Purchases (with Vendors and Expenses), Products & stock, Money, Accounting, Reports, VAT & e-invoicing, Settings.
+- New "All reports" page that explains each report and shows its headline number.
+- Plain-language summaries on the dashboard, profit & loss, balance sheet, aged receivable/payable, VAT return and inventory valuation.
+- Invoices and bills show what matters: Paid, Partly paid, Due in N days, Overdue N days or Draft, with the balance due. Lists become easy-to-read cards on phones.
+- A payment recorded from an invoice or bill (or chosen on the Receipts & payments form) now settles that document; credit and debit notes settle the document they were raised from. Unallocated money still settles the oldest open item.
+- Fixed (present since 3.2): a quantity typed into a credit note was added to stock as text — 44 + "3" became 443. Quantities, prices and discounts are now always stored and calculated as numbers, which also repairs books saved earlier.
+- Friendly empty states for a brand-new company; theme-aware avatars; tidier customer and vendor tables.
+
 # 3.3.0 — Customer-ready edition
 
 - Opens as a clean company ("My Company", one Administrator) with the full chart of accounts, product categories and expense items — no sample or demo data. Leftover demo books in the browser are replaced automatically.

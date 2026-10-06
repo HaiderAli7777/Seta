@@ -467,7 +467,7 @@ function OpeningBalancesDialog({ state, setState, books, close, toast }) {
         <button className="icon-btn" title="Remove row" onClick={() => setRows(rows.length > 1 ? rows.filter((x) => x.id !== r.id) : [row()])}><Trash2 size={15} /></button>
       </div>; })}
     <Btn size="sm" icon={Plus} onClick={() => setRows([...rows, row()])}>Add row</Btn></div>;
-  return <StudioModal wide title="Opening balances" sub="Where your business stood on the day you start using Invoeez." close={close}>
+  return <StudioModal wide title="Opening balances" sub="Where your business stood on the day you start using InvoEez." close={close}>
     <div className="studio-form"><Field label="Start date (balances as at)"><Input type="date" max={TODAY} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
       <div className="info-strip"><Scale size={18} /><span>Each balance is posted against <b>3900 Opening Balance Equity</b>, so profit is not affected. Your accountant can later move that total to capital or retained earnings.</span></div></div>
     <h3 className="ob-head"><Landmark size={16} />Bank & cash</h3>
@@ -502,13 +502,13 @@ function SetupScreen({ state, setState, books, company, go, newDoc, toast, backu
     categories: [["Open categories", () => { mark("categories"); go("categories"); }]],
     products: [["Import from Excel", () => setDlg("products"), true], ["Add one", () => go("products")]],
     customers: [["Import from Excel", () => setDlg("partners"), true], ["Add one", () => go("partners")]],
-    vendors: [["Import from Excel", () => setDlg("partners"), true], ["Add one", () => go("partners")]],
+    vendors: [["Import from Excel", () => setDlg("partners"), true], ["Add one", () => go("vendors")]],
     opening: [["Enter balances", () => setDlg("opening"), true], ["Not needed", () => mark("opening")]],
     invoice: [["New invoice", () => newDoc("invoice"), true]],
     backup: [["Download backup", () => backup(), true]],
   };
   return <div className="setup-page">
-    <PageHead eyebrow="Workspace" title="Setup guide" sub="Nine short steps from an empty company to your first invoice. Do them in any order.">
+    <PageHead eyebrow="Home" title="Setup guide" sub="Nine short steps from an empty company to your first invoice. Do them in any order.">
       <Btn icon={RotateCcw} onClick={startCompany}>Start a new company</Btn></PageHead>
     <div className="setup-grid">
       <Card className="setup-steps" title={`${done} of ${steps.length} done`} sub={done === steps.length ? "Your company is set up. Well done." : "Tick them off at your own pace."}

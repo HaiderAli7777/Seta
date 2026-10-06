@@ -1,9 +1,9 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{transformSync}=require('esbuild'),path=require('node:path');
 const root=path.join(__dirname,'..');
-const source=['invoeez-source.jsx','enhancements-data.jsx','company-template.jsx','enhancements-ui.jsx','dashboard.jsx','design.jsx','onboarding.jsx'].concat(['tests/sample-fixture.jsx']).map(f=>fs.readFileSync(path.join(root,f),'utf8')).join('\n');
+const source=['invoeez-source.jsx','enhancements-data.jsx','company-template.jsx','enhancements-ui.jsx','dashboard.jsx','design.jsx','onboarding.jsx','brand-assets.jsx','brand.jsx','clarity.jsx'].concat(['tests/sample-fixture.jsx']).map(f=>fs.readFileSync(path.join(root,f),'utf8')).join('\n');
 const icons=[...fs.readFileSync(path.join(root,'runtime-prefix.js'),'utf8').matchAll(/var ([A-Z]\w+) = __mk/g)].map(m=>m[1]);
 const ctx={console,Intl,Date,Math,Number,crypto:require('node:crypto').webcrypto,React:{createContext:v=>v},window:{},setTimeout};icons.forEach(n=>ctx[n]=()=>null);vm.createContext(ctx);
-vm.runInContext(transformSync(source,{loader:'jsx',target:'es2020'}).code+`\n globalThis.api={buildSampleBooks,freshBooks,LEGACY_PARTNERS,LEGACY_PRODUCTS,TEMPLATE_ACCOUNTS,TEMPLATE_CATEGORIES,TEMPLATE_EXPENSE_ITEMS,DEMO,migrateBooks,deriveBooks,syncProducts,syncPartners,syncAccounts,syncMethods,pricingFor,productHistory,freezeAccounts,amounts,searchScore,cashMovement,validateStockOperation,PRODUCTS_SEED,DEFAULT_CATEGORIES,TODAY};`,ctx);
+vm.runInContext(transformSync(source,{loader:'jsx',target:'es2020'}).code+`\n globalThis.api={aging,buildSampleBooks,freshBooks,LEGACY_PARTNERS,LEGACY_PRODUCTS,TEMPLATE_ACCOUNTS,TEMPLATE_CATEGORIES,TEMPLATE_EXPENSE_ITEMS,DEMO,migrateBooks,deriveBooks,syncProducts,syncPartners,syncAccounts,syncMethods,pricingFor,productHistory,freezeAccounts,amounts,searchScore,cashMovement,validateStockOperation,PRODUCTS_SEED,DEFAULT_CATEGORIES,TODAY};`,ctx);
 const a=ctx.api;const clean=a.migrateBooks(a.DEMO());assert.equal(clean.docs.length+clean.payments.length+clean.manual.length+clean.stockOps.length,0);assert(!clean.sample&&clean.partners.length===0&&clean.accounts.length>=30&&clean.categories.length>=20);assert.equal(clean.users.length,1);
 let s=a.migrateBooks(a.buildSampleBooks(a.TODAY));a.syncAccounts(s.accounts);a.syncProducts(s.products,s.categories);a.syncPartners(s.partners);a.syncMethods(s.methods);
 const base=a.deriveBooks(s);assert(base.balanced);for(const e of base.entries)assert(Math.abs(e.lines.reduce((n,l)=>n+l.debit-l.credit,0))<.011,e.number);
@@ -46,9 +46,21 @@ for(const day of ['2026-01-02','2026-10-01','2027-03-31']){const x=a.buildSample
   assert(x.docs.every(d=>d.date<=day)&&x.payments.every(p=>p.date<=day)&&x.manual.every(e=>e.date<=day),'future-dated record '+day);
   assert.equal(new Set(x.docs.map(d=>d.number)).size,x.docs.length,'duplicate numbers '+day);
   assert(x.docs.filter(d=>d.type==='invoice').length>150&&x.partners.filter(p=>p.role==='vendor').length>=12&&x.categories.length>=20);}
+
+// A payment recorded against a document settles that document, not the oldest one.
+{const cust=s.partners.find(x=>x.role==='customer').id;const mk=(id,no,date,price)=>({id,type:'invoice',number:no,partner:cust,date,due:date,state:'posted',seq:99000+no.length,lines:[{id:id+'l',product:'s1',qty:1,price,disc:0,tax:'nt',desc:'x'}]});
+ const base={...s,docs:[mk('ta','INV/T/0001','2020-01-01',100),mk('tb','INV/T/0002','2020-01-02',50)],payments:[],stockOps:[]};
+ const open=(st)=>{const r=a.aging(st,'receivable','2030-01-01').rows.find(x=>x.partner.id===cust);return Object.fromEntries((r?r.items:[]).map(i=>[i.id,i.open]));};
+ let o=open({...base,payments:[{id:'pa',kind:'in',partner:cust,date:'2020-02-01',amount:50,doc:'tb',account:'1120',method:'m1'}]});assert.equal(o.ta,100);assert.equal(o.tb,undefined);
+ o=open({...base,payments:[{id:'pa',kind:'in',partner:cust,date:'2020-02-01',amount:50,account:'1120',method:'m1'}]});assert.equal(o.ta,50);assert.equal(o.tb,50);
+ o=open({...base,payments:[{id:'pa',kind:'in',partner:cust,date:'2020-02-01',amount:80,doc:'tb',account:'1120',method:'m1'}]});assert.equal(o.ta,70);assert.equal(o.tb,undefined);
+ o=open({...base,docs:[...base.docs,{...mk('tc','CN/T/0001','2020-01-05',50),type:'credit_note',ref:'INV/T/0002'}]});assert.equal(o.ta,100);assert.equal(o.tb,undefined);}
+// Quantities typed as text must never corrupt stock (a returned "3" adds 3, it is not appended).
+{const q0=a.deriveBooks(s).stock.g1.qty;const cn={id:'cnq',type:'credit_note',number:'CN/Q',partner:s.partners.find(x=>x.role==='customer').id,date:a.TODAY,due:a.TODAY,state:'posted',seq:999999,lines:[{id:'lq',product:'g1',qty:'3',price:'3450',disc:'0',tax:'s5',desc:'x'}]};
+ const b=a.deriveBooks({...s,docs:[...s.docs,cn]});assert.equal(b.stock.g1.qty,q0+3);assert(b.balanced);assert.equal(a.amounts(cn).net,10350);}
 // Starting fresh keeps the setup and removes every transaction.
 const fresh=a.freshBooks(s,{});assert.equal(fresh.docs.length+fresh.payments.length+fresh.manual.length+fresh.stockOps.length,0);
 assert.equal(fresh.partners.length,0);assert.equal(fresh.products.length,a.TEMPLATE_EXPENSE_ITEMS.length);assert.equal(fresh.accounts.length,s.accounts.length);assert.equal(fresh.categories.length,s.categories.length);assert.equal(fresh.sample,undefined);
 const kept=a.freshBooks(s,{products:true,partners:true});assert.equal(kept.products.length,s.products.length);assert.equal(kept.partners.length,s.partners.length);assert(kept.partners.every(p=>!p.pricelist&&!p.salesman));
 a.syncAccounts(fresh.accounts);a.syncProducts(fresh.products,fresh.categories);a.syncPartners(fresh.partners);assert(a.deriveBooks(a.migrateBooks(fresh)).balanced);
-console.log('PASS: clean new company, sample fixture, legacy master-data migration, start-fresh template, ledger balance, historical account preservation, inherited accounts, pricing tiers, date validity, manual discounts, retired-rule migration, cash movement, stock counts, scrap, costing methods, validation, search and history.');
+console.log('PASS: clean new company, document-specific settlement, sample fixture, legacy master-data migration, start-fresh template, ledger balance, historical account preservation, inherited accounts, pricing tiers, date validity, manual discounts, retired-rule migration, cash movement, stock counts, scrap, costing methods, validation, search and history.');

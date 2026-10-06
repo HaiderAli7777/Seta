@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.3.0";
+const BUILD = "3.4.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -222,7 +222,7 @@ function amounts(d) {
   let net = 0, vat = 0, rcm = 0;
   const lines = d.lines.map((l) => {
     const t = TAX[l.tax] || TAX.nt;
-    const amount = R2(l.qty * l.price * (1 - (l.disc || 0) / 100));
+    const amount = R2(+l.qty * +l.price * (1 - (+l.disc || 0) / 100));
     const taxAmt = R2((amount * t.rate) / 100);
     return { ...l, amount, taxAmt, kind: t.kind, rate: t.rate };
   });
@@ -298,7 +298,9 @@ function deriveBooks(state) {
 
   state.manual.forEach((je) => entries.push({ ...je, source: "manual", lines: je.lines.map((l) => ({ ...l })) }));
 
-  [...state.docs.filter((d) => d.state === "posted" && d.type !== "quote"), ...(state.stockOps||[]).filter(o=>o.state==='posted').map(o=>({...o,stockOperation:true,type:o.kind}))].sort((a, b) => a.date.localeCompare(b.date) || (a.seq||0) - (b.seq||0)).forEach((d) => {
+  /* Quantities and prices typed into a form can arrive as text; the ledger always works in numbers. */
+  const num = (d) => ({ ...d, lines: d.lines.map((l) => ({ ...l, qty: +l.qty || 0, price: +l.price || 0, disc: +l.disc || 0 })) });
+  [...state.docs.filter((d) => d.state === "posted" && d.type !== "quote").map(num), ...(state.stockOps||[]).filter(o=>o.state==='posted').map(o=>({...o,stockOperation:true,type:o.kind}))].sort((a, b) => a.date.localeCompare(b.date) || (a.seq||0) - (b.seq||0)).forEach((d) => {
     if(d.stockOperation){
       const L=[];
       d.lines.forEach(l=>{
@@ -459,12 +461,17 @@ function aging(state, kind, asOf) {
       .filter((d) => d.state === "posted" && d.partner === p.id && d.type === chargeT && d.date <= asOf)
       .map((d) => ({ id: d.id, number: d.number, date: d.date, due: d.due, ref: d.ref, amount: amounts(d).total, open: 0 }))
       .sort((a, b) => a.due.localeCompare(b.due) || a.number.localeCompare(b.number));
+    /* A payment recorded against a document, or a credit/debit note raised from one, settles that
+       document first. Anything left over settles the oldest open documents. */
+    charges.forEach((c) => (c.open = c.amount));
+    const byId = Object.fromEntries(charges.map((c) => [c.id, c])), byNo = Object.fromEntries(charges.map((c) => [c.number, c]));
+    const settle = (c, amt) => { if (!c) return amt; const ap = Math.min(amt, c.open); c.open = R2(c.open - ap); return R2(amt - ap); };
     let credit = 0;
     state.docs.filter((d) => d.state === "posted" && d.partner === p.id && d.type === creditT && d.date <= asOf)
-      .forEach((d) => (credit = R2(credit + amounts(d).total)));
+      .forEach((d) => (credit = R2(credit + settle(byId[d.against] || byNo[d.ref], amounts(d).total))));
     state.payments.filter((x) => x.partner === p.id && x.kind === payK && x.date <= asOf)
-      .forEach((x) => (credit = R2(credit + x.amount)));
-    charges.forEach((c) => { const ap = Math.min(credit, c.amount); credit = R2(credit - ap); c.open = R2(c.amount - ap); });
+      .forEach((x) => (credit = R2(credit + settle(byId[x.doc], x.amount))));
+    charges.forEach((c) => { const ap = Math.min(credit, c.open); credit = R2(credit - ap); c.open = R2(c.open - ap); });
     const items = charges.filter((c) => c.open > 0.004).map((c) => ({ ...c, b: bucketOf(c.due, asOf) }));
     if (!items.length && credit < 0.005) return;
     const b = [0, 0, 0, 0, 0, 0];
@@ -631,7 +638,7 @@ const CSS = `
 .side.mini{width:68px;flex-basis:68px}
 .side-top{padding:16px 17px 13px;display:flex;align-items:center;gap:11px}
 .logo{width:35px;height:35px;border-radius:10px;flex:0 0 35px;display:grid;place-items:center;
-  background:linear-gradient(148deg,#13755F,#0A4033);box-shadow:inset 0 1px 0 rgba(255,255,255,.24)}
+  background:linear-gradient(148deg,#3B2FA6,#231B6E);box-shadow:inset 0 1px 0 rgba(255,255,255,.24)}
 .wordmark{min-width:0}
 .wordmark b{display:block;color:var(--nav-brand);font-size:16.5px;font-weight:600;letter-spacing:-.024em;line-height:1.1}
 .wordmark span{display:block;color:var(--nav-sub);font-size:9.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;margin-top:4px}
@@ -716,7 +723,7 @@ const CSS = `
   border:1px solid transparent;transition:background .14s,color .14s,border-color .14s}
 .icon-btn:hover{background:var(--surface-2);color:var(--ink);border-color:var(--line)}
 .me{width:33px;height:33px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:600;
-  background:linear-gradient(148deg,#16785F,#0A4033);color:#fff;transition:box-shadow .14s,transform .14s}
+  background:linear-gradient(148deg,#3B2FA6,#231B6E);color:#fff;transition:box-shadow .14s,transform .14s}
 .me:hover{box-shadow:var(--ring);transform:translateY(-1px)}
 
 /* --------------------------------------------------------------- popover */
@@ -908,7 +915,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .post-h{display:flex;align-items:center;gap:9px;padding:14px 17px;border-bottom:1px solid var(--post-line);
   color:#8CA7B1;font-size:10.5px;font-weight:600;letter-spacing:.095em;text-transform:uppercase}
 .post-h .st{margin-left:auto;font-size:10px;letter-spacing:.03em;padding:2px 8px;border-radius:20px;
-  background:rgba(52,180,137,.17);color:#4FD0A6;text-transform:none;font-weight:500}
+  background:rgba(169,163,255,.18);color:#C3BEFF;text-transform:none;font-weight:500}
 .post-h .st.bad{background:rgba(226,129,112,.17);color:#F0A18C}
 .post table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px;
   font-variant-numeric:tabular-nums;letter-spacing:-.012em}
@@ -917,7 +924,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .post thead th:first-child{text-align:left}
 .post td{padding:8px 17px;color:#C3D6DD;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top}
 .post td .ac{color:#7A959F;font-size:10px;display:block;margin-top:3px;font-family:var(--sans);letter-spacing:0}
-.post td.d{text-align:right;color:#4FD0A6;white-space:nowrap}
+.post td.d{text-align:right;color:#C3BEFF;white-space:nowrap}
 .post td.c{text-align:right;color:#F0A18C;white-space:nowrap}
 .post .gut{box-shadow:inset 1px 0 0 rgba(214,171,87,.45)}
 .post tfoot td{border-top:1px solid rgba(214,171,87,.45);border-bottom:none;color:#fff;padding-top:11px}
@@ -973,13 +980,13 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
   border:1px solid rgba(255,255,255,.09);animation:slide .22s var(--ease)}
 @keyframes slide{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
 .toast .tico{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;flex:0 0 22px;
-  background:rgba(79,208,166,.19);color:#4FD0A6}
+  background:rgba(169,163,255,.2);color:#C3BEFF}
 .toast.warn .tico{background:rgba(240,161,140,.19);color:#F0A18C}
 
 /* ---------------------------------------------------------------- print */
 .sheet{background:#fff;color:#08191F;max-width:860px;margin:0 auto;border-radius:var(--r-l);
   box-shadow:var(--sh-3);overflow:hidden}
-.sheet-crest{background:linear-gradient(135deg,#0B4133 0%,#0E5C4A 48%,#12705B 100%);color:#fff;
+.sheet-crest{background:linear-gradient(135deg,#231B6E 0%,#2E2690 48%,#2D47A6 100%);color:#fff;
   padding:30px 46px 26px;position:relative;overflow:hidden}
 .sheet-crest::after{content:"";position:absolute;right:-70px;top:-90px;width:280px;height:280px;border-radius:50%;
   background:radial-gradient(circle,rgba(214,171,87,.28),transparent 62%)}
@@ -987,7 +994,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .sheet-crest h1{font-size:25px;font-weight:600;letter-spacing:-.03em;color:#fff}
 .sheet-crest .sub{font-size:12px;color:rgba(255,255,255,.72);margin-top:6px;line-height:1.6}
 .sheet-crest .doc{margin-left:auto;text-align:right}
-.sheet-crest .doc .no{font-family:var(--mono);font-size:17px;letter-spacing:-.02em;color:#F2D79B}
+.sheet-crest .doc .no{font-family:var(--mono);font-size:17px;letter-spacing:-.02em;color:#D9D5FF}
 .sheet-crest .doc .dt{font-size:11.5px;color:rgba(255,255,255,.72);margin-top:6px;line-height:1.75}
 .sheet-crest .badge{display:inline-block;font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
   background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);padding:4px 10px;border-radius:20px;margin-bottom:12px}
@@ -999,14 +1006,14 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .sheet-parties .lb{font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8CA0AA}
 .sheet-parties .nm{font-weight:600;margin-top:7px;font-size:14px}
 .sheet-parties .ad{font-size:12px;color:#5A737F;margin-top:4px;line-height:1.55}
-.sheet-parties .trn{font-family:var(--mono);font-size:11.5px;margin-top:7px;color:#0E5C4A}
+.sheet-parties .trn{font-family:var(--mono);font-size:11.5px;margin-top:7px;color:#312682}
 .sheet table.tbl th{background:#F2F6F7;color:#5A737F;border-bottom:1px solid #DFE8EC}
 .sheet table.tbl td{border-bottom:1px solid #EDF2F4;color:#08191F}
-.sheet .totbox{background:#F5F9F8;border:1px solid #DCEAE5;border-radius:var(--r);padding:16px 18px}
+.sheet .totbox{background:#F6F6FD;border:1px solid #E0DEF5;border-radius:var(--r);padding:16px 18px}
 .sheet .totbox .sumrow .k{color:#5A737F}
-.sheet .totbox .grand{display:flex;align-items:baseline;gap:12px;margin-top:12px;padding-top:13px;border-top:1px solid #CBE0D9}
-.sheet .totbox .grand b{font-size:12px;font-weight:600;color:#0E5C4A;letter-spacing:.02em}
-.sheet .totbox .grand span{margin-left:auto;font-family:var(--mono);font-size:23px;font-weight:600;letter-spacing:-.03em;color:#0B4133}
+.sheet .totbox .grand{display:flex;align-items:baseline;gap:12px;margin-top:12px;padding-top:13px;border-top:1px solid #D3D0F0}
+.sheet .totbox .grand b{font-size:12px;font-weight:600;color:#312682;letter-spacing:.02em}
+.sheet .totbox .grand span{margin-left:auto;font-family:var(--mono);font-size:23px;font-weight:600;letter-spacing:-.03em;color:#231B6E}
 .sheet .payblk{background:#FAFBFC;border:1px solid #E7EEF0;border-radius:var(--r);padding:14px 16px;font-size:11.5px;color:#5A737F;line-height:1.7}
 .sheet .foot{margin-top:30px;padding-top:18px;border-top:1px solid #E1E9ED;display:flex;gap:26px;flex-wrap:wrap;
   font-size:10.5px;color:#8CA0AA;line-height:1.6}
@@ -1020,7 +1027,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
   .page-head{position:static;padding:0 0 14px}
   .scrim{position:static;background:none;padding:0;display:block;backdrop-filter:none}
   .sheet,.card{box-shadow:none;border:none;max-width:none;break-inside:avoid}
-  .rframe-h{border-bottom:2px solid #0E5C4A!important;padding-left:0!important;padding-right:0!important}
+  .rframe-h{border-bottom:2px solid #312682!important;padding-left:0!important;padding-right:0!important}
   .tbl tbody tr{break-inside:avoid}
   @page{margin:14mm}
 }
@@ -1517,10 +1524,10 @@ function bucketize(from, to, gran) {
 /* Chart colours can't read CSS variables from SVG presentation attributes,
    so the active palette travels through context instead. */
 const PALETTE = {
-  light: { c1: "#0E5C4A", c2: "#B0801F", c3: "#1D5DA4", pos: "#0C7A56", neg: "#AE3123",
-    grid: "#DFE8EC", axis: "#668078", ring: "#FFFFFF" },
-  dark:  { c1: "#2FA184", c2: "#D6AB57", c3: "#66A7E8", pos: "#34B489", neg: "#E28170",
-    grid: "#22383F", axis: "#96B3A6", ring: "#111E23" },
+  light: { c1: "#3B32A8", c2: "#B0801F", c3: "#2F55B8", pos: "#0C7A56", neg: "#AE3123",
+    grid: "#E4E4F1", axis: "#6C6E96", ring: "#FFFFFF" },
+  dark:  { c1: "#A39DFF", c2: "#D6AB57", c3: "#7FA2FF", pos: "#34B489", neg: "#E28170",
+    grid: "#2A2952", axis: "#A5A3CF", ring: "#17163A" },
 };
 const ThemeCtx = React.createContext(PALETTE.light);
 const useC = () => React.useContext(ThemeCtx);
@@ -1563,7 +1570,7 @@ const sortRows = (rows, sort, get) => {
   });
 };
 const initials = (s) => s.replace(/[^A-Za-z ]/g, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-const AV_TONES = ["#0E5C4A", "#1F5FA6", "#A9741A", "#7A3E86", "#0D6E7A", "#A2452F"];
+const AV_TONES = ["#312682", "#2D47A6", "#A9741A", "#6A4FB8", "#1F6C8A", "#A2452F"];
 const toneFor = (s) => AV_TONES[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % AV_TONES.length];
 
 const Btn = ({ kind, size, icon: Ic, children, ...p }) => (
@@ -1582,7 +1589,7 @@ const Card = ({ title, sub, right, children, pad = true, style, className }) => 
 );
 const Pill = ({ tone, dot, children }) => <span className={cx("pill", tone)}>{dot && <i />}{children}</span>;
 const Avatar = ({ name, size = 28 }) => (
-  <span className="av" style={{ width: size, height: size, flexBasis: size, background: toneFor(name) + "18", color: toneFor(name) }}>{initials(name)}</span>
+  <span className={"av av-t" + AV_TONES.indexOf(toneFor(name))} style={{ width: size, height: size, flexBasis: size }}>{initials(name)}</span>
 );
 const Party = ({ name, meta }) => (
   <div className="who-cell"><Avatar name={name} /><div style={{ minWidth: 0 }}><b>{name}</b>{meta && <span>{meta}</span>}</div></div>
@@ -1828,7 +1835,7 @@ function exportExcel(title, meta, CO, tables, name) {
     t.head.forEach((h) => { head.push(rows.length); rows.push(h); });
     t.body.forEach((b, bi) => { if (t.bold.indexOf(bi) >= 0) bold.push(rows.length); rows.push(b); });
   });
-  rows.push([], [`Generated by Invoeez on ${dmy(TODAY)}`]);
+  rows.push([], [`Generated by InvoEez on ${dmy(TODAY)}`]);
   const bytes = buildXlsx([{ name: title.slice(0, 31), rows, head, bold }]);
   return saveBlob(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
     name + ".xlsx");
@@ -1841,21 +1848,21 @@ function exportPdf(title, meta, CO, tables, name) {
   const W = doc.internal.pageSize.getWidth();
   let y = 44;
   if (CO.logo) { try { doc.addImage(CO.logo, 40, 26, 0, 30); y = 74; } catch (e) { /* unsupported image */ } }
-  doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.setTextColor(12, 32, 42);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.setTextColor(27, 26, 61);
   doc.text(title, 40, y);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(105, 128, 140);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(95, 97, 135);
   doc.text(`${CO.name}   ·   TRN ${CO.trn}`, 40, y + 15);
   doc.text(meta, 40, y + 28);
-  doc.setDrawColor(14, 92, 74); doc.setLineWidth(1.4);
+  doc.setDrawColor(49, 38, 130); doc.setLineWidth(1.4);
   doc.line(40, y + 38, W - 40, y + 38);
   let startY = y + 50;
   tables.forEach((t) => {
     doc.autoTable({
       head: t.head.length ? t.head : undefined, body: t.body, startY,
       margin: { left: 40, right: 40, bottom: 46 },
-      styles: { font: "helvetica", fontSize: 8, cellPadding: 4.5, textColor: [20, 42, 52], lineColor: [225, 233, 237], lineWidth: 0.4 },
-      headStyles: { fillColor: [239, 244, 246], textColor: [70, 96, 107], fontStyle: "bold", fontSize: 7.5 },
-      alternateRowStyles: { fillColor: [252, 253, 254] },
+      styles: { font: "helvetica", fontSize: 8, cellPadding: 4.5, textColor: [27, 26, 61], lineColor: [226, 226, 240], lineWidth: 0.4 },
+      headStyles: { fillColor: [240, 240, 250], textColor: [69, 70, 111], fontStyle: "bold", fontSize: 7.5 },
+      alternateRowStyles: { fillColor: [251, 251, 254] },
       didParseCell: (h) => {
         if (h.section === "body" && t.bold.indexOf(h.row.index) >= 0) {
           h.cell.styles.fontStyle = "bold"; h.cell.styles.fillColor = [243, 247, 248];
@@ -1868,8 +1875,8 @@ function exportPdf(title, meta, CO, tables, name) {
   });
   const pages = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pages; i++) {
-    doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(150, 168, 178);
-    doc.text(`${CO.name} · generated by Invoeez on ${dmy(TODAY)}`, 40, doc.internal.pageSize.getHeight() - 22);
+    doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(150, 152, 184);
+    doc.text(`${CO.name} · generated by InvoEez on ${dmy(TODAY)}`, 40, doc.internal.pageSize.getHeight() - 22);
     doc.text(`Page ${i} of ${pages}`, W - 40, doc.internal.pageSize.getHeight() - 22, { align: "right" });
   }
   return saveBlob(doc.output("blob"), name + ".pdf");
@@ -2483,14 +2490,12 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
             <SortTh id="date" sort={sort} setSort={setSort}>Date</SortTh>
             <SortTh id="due" sort={sort} setSort={setSort}>{type === "quote" ? "Valid until" : "Due"}</SortTh>
             <SortTh id="ref" sort={sort} setSort={setSort} className="hide-narrow">Reference</SortTh>
-            <SortTh id="net" sort={sort} setSort={setSort} className="n">Net</SortTh>
-            <SortTh id="vat" sort={sort} setSort={setSort} className="n">VAT</SortTh>
             <SortTh id="total" sort={sort} setSort={setSort} className="n">Total</SortTh>
-            <SortTh id="open" sort={sort} setSort={setSort} className="n">Outstanding</SortTh>
+            {payable && <SortTh id="open" sort={sort} setSort={setSort} className="n">Balance due</SortTh>}
             <SortTh id="state" sort={sort} setSort={setSort}>Status</SortTh>
           </tr></thead>
           <tbody>
-            {list.length === 0 && <tr><td colSpan={10}>
+            {list.length === 0 && <tr><td colSpan={9}>
               <EmptyState icon={FileText} title={q || f !== "all" ? "Nothing matches this filter" : `No ${meta.label.toLowerCase()}s yet`}>
                 {q || f !== "all" ? "Clear the search or switch back to All." : `Create the first ${meta.short.toLowerCase()} to start posting to the ledger.`}
               </EmptyState></td></tr>}
@@ -2498,26 +2503,23 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
               const late = d.state === "posted" && op > 0.004 && d.due < TODAY;
               return (
                 <tr key={d.id} className="click" onClick={() => setEditing(d)}>
-                  <td className="mono nowrap" style={{ fontSize: 12.5 }}>{d.number}</td>
-                  <td><Party name={PMAP[d.partner].name} meta={PMAP[d.partner].trn ? "TRN " + PMAP[d.partner].trn : "Not VAT registered"} /></td>
-                  <td className="muted nowrap">{dmy(d.date)}</td>
-                  <td className="nowrap" style={{ color: late ? "var(--neg)" : "var(--ink-3)" }}>{dmy(d.due)}
+                  <td className="mono nowrap c-no" style={{ fontSize: 12.5 }}>{d.number}</td>
+                  <td className="c-party"><Party name={PMAP[d.partner].name} meta={PMAP[d.partner].trn ? "TRN " + PMAP[d.partner].trn : "Not VAT registered"} /></td>
+                  <td className="muted nowrap c-date">{dmy(d.date)}</td>
+                  <td className="nowrap c-due" style={{ color: late ? "var(--neg)" : "var(--ink-3)" }}>{dmy(d.due)}
                     {late && <div className="late-note">{daysBetween(d.due, TODAY)} {daysBetween(d.due, TODAY) === 1 ? "day" : "days"} overdue</div>}</td>
                   <td className="muted ref-cell hide-narrow" style={{ fontSize: 12.5 }} title={d.ref || ""}>{d.ref || "—"}</td>
-                  <td className="n">{money(a.net)}</td>
-                  <td className="n">{money(a.vat)}{a.rcm > 0 && <span style={{ color: "var(--gold)", fontSize: 11 }}> +RC</span>}</td>
-                  <td className="n" style={{ fontWeight: 600 }}>{money(a.total)}</td>
-                  <td className="n">{d.state !== "posted" ? "—" : op > 0.004 ? money(op) : <span className="pos">Settled</span>}</td>
-                  <td><Pill tone={type === "quote" ? (QUOTE_STATES[d.state] || QUOTE_STATES.draft).tone
-                    : d.state === "posted" ? "ok" : ""} dot>
-                    {type === "quote" ? (QUOTE_STATES[d.state] || QUOTE_STATES.draft).label : d.state}</Pill></td>
+                  <td className="n total-cell c-total" style={{ fontWeight: 600 }}>{money(a.total)}
+                    <small>{a.vat ? `incl. VAT ${money(a.vat, false)}` : "no VAT"}{a.rcm > 0 ? " · reverse charge" : ""}</small></td>
+                  {payable && <td className="n c-bal" style={{ fontWeight: 600, color: late ? "var(--neg)" : undefined }}>{d.state !== "posted" ? "—" : op > 0.004 ? money(op) : <span className="pos">0.00</span>}</td>}
+                  <td className="c-status">{(() => { const st = type === "quote" ? (QUOTE_STATES[d.state] || QUOTE_STATES.draft) : docStatus(d, op, type);
+                    return <span className="status-pill"><Pill tone={st.tone} dot>{st.label}</Pill></span>; })()}</td>
                 </tr>); })}
           </tbody>
-          {list.length > limit && <tbody><tr><td colSpan={10} className="show-more">
+          {list.length > limit && <tbody><tr><td colSpan={9} className="show-more">
             <Btn onClick={() => setLimit((n) => n + 200)}>Show {Math.min(200, list.length - limit)} more · {list.length - limit} not shown</Btn></td></tr></tbody>}
           {list.length > 0 && <tfoot><tr><td colSpan={4}>{type === "quote" ? "Live quotations" : "Posted totals"}</td><td className="hide-narrow" />
-            <td className="n">{money(t.net)}</td><td className="n">{money(t.vat)}</td><td className="n">{money(t.total)}</td>
-            <td className="n">{money(totalOpen)}</td><td /></tr></tfoot>}
+            <td className="n">{money(t.total)}</td>{payable && <td className="n">{money(totalOpen)}</td>}<td /></tr></tfoot>}
         </table></div>
       </Card>
     </div>
@@ -2577,7 +2579,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   const commit = (next) => setState((s) => {
     const exists = s.docs.some((x) => x.id === d.id);
     const seq = next.state === "posted" && !next.seq ? Math.max(0, ...s.docs.map((x) => x.seq||0), ...(s.stockOps||[]).map(x=>x.seq||0)) + 1 : next.seq;
-    const clean = { ...(next.state === "posted" ? freezeAccounts(next) : next), seq: next.state === "posted" ? seq : 0, isNew: undefined };
+    const numeric = { ...next, lines: next.lines.map((l) => ({ ...l, qty: +l.qty || 0, price: +l.price || 0, disc: +l.disc || 0 })) };
+    const clean = { ...(numeric.state === "posted" ? freezeAccounts(numeric) : numeric), seq: numeric.state === "posted" ? seq : 0, isNew: undefined };
     return { ...s, docs: exists ? s.docs.map((x) => (x.id === d.id ? clean : x)) : [...s.docs, clean] };
   });
   const save = () => { const err=validate();if(err)return toast(err,"warn");commit(d); toast(`${d.number} saved as draft`); close(); };
@@ -2611,7 +2614,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   const recordPayment = () => {
     const kind = d.type === "invoice" ? "in" : "out";
     const m = MET[payMethod] || METHODS[0];
-    const pm = { id: uid("pm"), kind, number: nextPay(state.payments, kind), partner: d.partner,
+    const pm = { id: uid("pm"), kind, number: nextPay(state.payments, kind), partner: d.partner, doc: d.id,
       date: TODAY, amount: R2(+payAmt || 0), method: m.id, account: m.account,
       memo: [`Settlement of ${d.number}`, payRef].filter(Boolean).join(" · ") };
     setState((x) => ({ ...x, payments: [...x.payments, pm] }));
@@ -2664,8 +2667,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
           <div className="micro">{meta.label} · {meta.journal} journal</div>
           <h1 style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 11 }}>
             {d.number}
-            <Pill tone={isQuote ? (QUOTE_STATES[d.state] || QUOTE_STATES.draft).tone : locked ? "ok" : ""} dot>
-              {isQuote ? (QUOTE_STATES[d.state] || QUOTE_STATES.draft).label : d.state}</Pill>
+            {(() => { const st = isQuote ? (QUOTE_STATES[d.state] || QUOTE_STATES.draft) : docStatus(d, outstanding, d.type);
+              return <Pill tone={st.tone} dot>{st.label}</Pill>; })()}
             {sale && state.einv && state.einv[d.id] &&
               <Pill tone={EINV_STATES[state.einv[d.id].status].tone} dot>
                 {EINV_STATES[state.einv[d.id].status].label}</Pill>}</h1>
@@ -2767,7 +2770,7 @@ const CAP_NOTE = {
   maybe: null,
   insecure: {
     head: "This page is not on a secure origin",
-    body: "Browsers only allow file sharing over https:// or on localhost. You are on a plain http:// address, so the PDF cannot be handed to WhatsApp. Open Invoeez at http://localhost:8080 or put it behind https and the attachment works automatically — this is the usual reason it stops working after it worked once.",
+    body: "Browsers only allow file sharing over https:// or on localhost. You are on a plain http:// address, so the PDF cannot be handed to WhatsApp. Open InvoEez at http://localhost:8080 or put it behind https and the attachment works automatically — this is the usual reason it stops working after it worked once.",
   },
   unsupported: {
     head: "This browser cannot share files",
@@ -2821,7 +2824,7 @@ function SendDialog({ channel, close, deliver, doc, party, msg, fileName, cap, w
               : <>
                 {note && <><b style={{ display: "block", marginBottom: 4 }}>{note.head}</b>{note.body}{" "}</>}
                 {wa
-                  ? "Meanwhile a wa.me link cannot carry a file — that is a WhatsApp limitation, not a setting. Invoeez will save the PDF, copy the message to your clipboard and open the chat; attach it with the paperclip. Fully automatic sending needs the WhatsApp Business API and a server."
+                  ? "Meanwhile a wa.me link cannot carry a file — that is a WhatsApp limitation, not a setting. InvoEez will save the PDF, copy the message to your clipboard and open the chat; attach it with the paperclip. Fully automatic sending needs the WhatsApp Business API and a server."
                   : "Your mail client opens with the message ready. The PDF is saved to your downloads — attach it before sending."}
               </>}</span>
           </div>
@@ -2866,21 +2869,21 @@ function PrintDoc({ d, close, fta, toast }) {
     if (!JS) { window.print(); return; }
     const doc = new JS({ orientation: "portrait", unit: "pt", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
-    doc.setFillColor(11, 65, 51); doc.rect(0, 0, W, 118, "F");
-    doc.setFillColor(214, 171, 87); doc.rect(0, 116, W, 2.5, "F");
+    doc.setFillColor(35, 27, 110); doc.rect(0, 0, W, 118, "F");
+    doc.setFillColor(124, 117, 208); doc.rect(0, 116, W, 2.5, "F");
     let ty = 44;
     if (CO.logo) { try { doc.addImage(CO.logo, 40, 26, 0, 26); ty = 68; } catch (e) {} }
     doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(15);
     doc.text(CO.name, 40, ty);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(196, 216, 210);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(204, 200, 240);
     doc.text(`${CO.address}\n${CO.city}\n${CO.phone}  ·  ${CO.email}`, 40, ty + 14);
     doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(255, 255, 255);
     doc.text(title.toUpperCase(), W - 40, 44, { align: "right" });
-    doc.setFont("courier", "normal"); doc.setFontSize(11); doc.setTextColor(242, 215, 155);
+    doc.setFont("courier", "normal"); doc.setFontSize(11); doc.setTextColor(214, 210, 255);
     doc.text(d.number, W - 40, 62, { align: "right" });
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(196, 216, 210);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(204, 200, 240);
     doc.text(`Issued ${dmy(d.date)}\nDue ${dmy(d.due)}\nPlace of supply: ${d.emirate}`, W - 40, 78, { align: "right" });
-    doc.setTextColor(20, 42, 52); doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
+    doc.setTextColor(27, 26, 61); doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
     doc.text("SUPPLIER", 40, 148); doc.text("RECIPIENT", W / 2, 148);
     doc.setFont("helvetica", "normal"); doc.setFontSize(9);
     doc.text(`${CO.name}\n${CO.address}\n${CO.city}\nTRN ${CO.trn}`, 40, 162);
@@ -2890,26 +2893,26 @@ function PrintDoc({ d, close, fta, toast }) {
       head: [["#", "Description", "Qty", "Unit price", "Taxable", "VAT %", "VAT", "Total"]],
       body: am.lines.map((l, i) => [i + 1, l.desc, `${l.qty}`, money(l.price, false), money(l.amount, false),
         `${l.rate}%`, money(l.taxAmt, false), money(l.amount + l.taxAmt, false)]),
-      styles: { font: "helvetica", fontSize: 8.5, cellPadding: 6, lineColor: [225, 233, 237], lineWidth: 0.4 },
-      headStyles: { fillColor: [242, 246, 247], textColor: [70, 96, 107], fontStyle: "bold", fontSize: 7.5 },
+      styles: { font: "helvetica", fontSize: 8.5, cellPadding: 6, lineColor: [226, 226, 240], lineWidth: 0.4 },
+      headStyles: { fillColor: [240, 240, 250], textColor: [69, 70, 111], fontStyle: "bold", fontSize: 7.5 },
       columnStyles: { 0: { cellWidth: 22 }, 2: { halign: "right" }, 3: { halign: "right" },
         4: { halign: "right" }, 5: { halign: "right" }, 6: { halign: "right" }, 7: { halign: "right", fontStyle: "bold" } },
     });
     let fy = doc.lastAutoTable.finalY + 22;
-    doc.setFillColor(245, 249, 248); doc.setDrawColor(220, 234, 229);
+    doc.setFillColor(246, 246, 253); doc.setDrawColor(224, 222, 245);
     doc.roundedRect(W - 250, fy - 14, 210, 78, 5, 5, "FD");
-    doc.setFontSize(9); doc.setTextColor(90, 115, 127);
+    doc.setFontSize(9); doc.setTextColor(95, 97, 135);
     doc.text("Taxable amount", W - 236, fy + 2); doc.text("VAT", W - 236, fy + 20);
-    doc.setTextColor(20, 42, 52);
+    doc.setTextColor(27, 26, 61);
     doc.text(money(am.net, false), W - 54, fy + 2, { align: "right" });
     doc.text(money(am.vat, false), W - 54, fy + 20, { align: "right" });
-    doc.setDrawColor(203, 224, 217); doc.line(W - 236, fy + 30, W - 54, fy + 30);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(11, 65, 51);
+    doc.setDrawColor(211, 208, 240); doc.line(W - 236, fy + 30, W - 54, fy + 30);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(49, 38, 130);
     doc.text("TOTAL AED", W - 236, fy + 48);
     doc.text(money(am.total, false), W - 54, fy + 48, { align: "right" });
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(90, 115, 127);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(95, 97, 135);
     doc.text(doc.splitTextToSize(words(am.total), W / 2 - 30), 40, fy + 2);
-    doc.setFontSize(7); doc.setTextColor(150, 168, 178);
+    doc.setFontSize(7); doc.setTextColor(150, 152, 184);
     doc.text(doc.splitTextToSize(`Issued under Federal Decree-Law No. 8 of 2017 on Value Added Tax and its Executive Regulations. All amounts in ${CO.currency}. Trade licence ${CO.licence}.`, W - 80),
       40, doc.internal.pageSize.getHeight() - 54);
     return doc;
@@ -3083,13 +3086,13 @@ function PaymentsScreen({ state, setState, toast }) {
       methodName(p.method), ACC[p.account] ? ACC[p.account].name : "", String(p.amount)));
   const rec = R2(list.filter((p) => p.kind === "in").reduce((s, p) => s + p.amount, 0));
   const paid = R2(list.filter((p) => p.kind === "out").reduce((s, p) => s + p.amount, 0));
-  const add = () => { setState((s) => ({ ...s, payments: [...s.payments, nw] }));
+  const add = () => { const rec = { ...nw }; if (!rec.doc) delete rec.doc; setState((s) => ({ ...s, payments: [...s.payments, rec] }));
     toast(`${nw.number} recorded`); setNw(null); };
 
   return (
     <div>
       <PageHead eyebrow="Treasury" title="Receipts &amp; payments"
-        sub="Settled against the oldest open document for each counterparty.">
+        sub="Money received from customers and paid to vendors. Each one settles the invoice or bill you choose — or the oldest open one.">
         <Btn icon={ArrowDownLeft} onClick={() => setNw(blank("in"))}>Record receipt</Btn>
         <Btn icon={ArrowUpRight} onClick={() => setNw(blank("out"))}>Record payment</Btn>
       </PageHead>
@@ -3108,10 +3111,17 @@ function PaymentsScreen({ state, setState, toast }) {
           <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14 }}>
             <Field label="Number"><Input value={nw.number} onChange={(e) => setNw({ ...nw, number: e.target.value })} /></Field>
             <Field label={nw.kind === "in" ? "Customer" : "Vendor"}>
-              <Select value={nw.partner} onChange={(e) => setNw({ ...nw, partner: e.target.value })}>
+              <Select value={nw.partner} onChange={(e) => setNw({ ...nw, partner: e.target.value, doc: "" })}>
                 <option value="">{nw.kind === "in" ? "Choose a customer…" : "Choose a vendor…"}</option>
                 {PARTNERS.filter((p) => (nw.kind === "in" ? p.role === "customer" : p.role === "vendor")).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </Select></Field>
+            {(() => { const open = nw.partner ? ((aging(state, nw.kind === "in" ? "receivable" : "payable", "9999-12-31").rows.find((r) => r.partner.id === nw.partner) || { items: [] }).items) : [];
+              return <Field label={nw.kind === "in" ? "Against invoice" : "Against bill"}>
+                <Select value={nw.doc || ""} disabled={!open.length} onChange={(e) => { const it = open.find((x) => x.id === e.target.value);
+                  setNw({ ...nw, doc: e.target.value, amount: it && !nw.amount ? it.open : nw.amount }); }}>
+                  <option value="">{open.length ? "Oldest open first (automatic)" : "Nothing open"}</option>
+                  {open.map((it) => <option key={it.id} value={it.id}>{it.number} · {money(it.open, false)} open · due {dmy(it.due)}</option>)}
+                </Select></Field>; })()}
             <Field label="Date"><Input type="date" value={nw.date} onChange={(e) => setNw({ ...nw, date: e.target.value })} /></Field>
             <Field label="Amount · AED"><Input n type="number" step="0.01" value={nw.amount} onChange={(e) => setNw({ ...nw, amount: +e.target.value || 0 })} /></Field>
             <MethodPicker dir={nw.kind === "in" ? "in" : "out"} value={nw.method} onChange={pickMethod}
@@ -3159,8 +3169,9 @@ function PaymentsScreen({ state, setState, toast }) {
   );
 }
 
-function PartnersScreen({ state, setState, go, toast, books, param }) {
-  const [role, setRole] = useState("all");
+function PartnersScreen({ state, setState, go, toast, books, param, fixed }) {
+  const [role, setRole] = useState(fixed || "all");
+  const noun = fixed === "vendor" ? "vendor" : fixed === "customer" ? "customer" : "customer or vendor";
   const [imp, setImp] = useState(false);
   const [q, setQ] = useState("");
   const [ed, setEd] = useState(null);
@@ -3190,10 +3201,11 @@ function PartnersScreen({ state, setState, go, toast, books, param }) {
     .filter((p) => hits(q, p.name, p.trn, p.contact, p.phone, p.emirate, p.address));
   return (
     <div>
-      <PageHead eyebrow="Master data" title="Customers &amp; vendors"
-        sub={`${PARTNERS.filter((p) => p.role === "customer").length} customers · ${PARTNERS.filter((p) => p.role === "vendor").length} vendors. TRN and territory drive the VAT treatment on every document.`}>
+      <PageHead eyebrow={fixed === "vendor" ? "Purchases" : "Sales"} title={fixed === "vendor" ? "Vendors" : fixed === "customer" ? "Customers" : "Customers & vendors"}
+        sub={fixed === "vendor" ? `${PARTNERS.filter((p) => p.role === "vendor").length} vendors — the businesses that bill you. Total you owe them is shown on each row.`
+          : `${PARTNERS.filter((p) => p.role === "customer").length} customers — the businesses you invoice. What each one owes you is shown on the row.`}>
         <Btn icon={FileSpreadsheet} onClick={() => setImp(true)}>Import from Excel</Btn>
-        <Btn kind="pri" icon={Plus} onClick={() => setEd(blank("customer"))}>New customer or vendor</Btn>
+        <Btn kind="pri" icon={Plus} onClick={() => setEd(blank(fixed || "customer"))}>New {noun}</Btn>
       </PageHead>
       {imp && <ImportDialog kind="partners" state={state} setState={setState} books={books} toast={toast} close={() => setImp(false)} />}
 
@@ -3245,29 +3257,29 @@ function PartnersScreen({ state, setState, go, toast, books, param }) {
         </Card>)}
       <Card pad={false}>
         <div className="toolbar">
-          <div className="seg">{[["all", "All"], ["customer", "Customers"], ["vendor", "Vendors"]].map(([k, l]) => (
-            <button key={k} className={cx(role === k && "on")} onClick={() => setRole(k)}>{l}</button>))}</div>
+          {!fixed && <div className="seg">{[["all", "All"], ["customer", "Customers"], ["vendor", "Vendors"]].map(([k, l]) => (
+            <button key={k} className={cx(role === k && "on")} onClick={() => setRole(k)}>{l}</button>))}</div>}
           <SearchBox value={q} onChange={setQ} placeholder="Search name, TRN, email or phone" width={280} />
           <span style={{ marginLeft: "auto", fontSize: 12.5, color: "var(--ink-3)" }}>
-            {list.length} of {PARTNERS.length}</span>
+            {list.length} of {PARTNERS.filter((p) => !fixed || p.role === fixed).length}</span>
         </div>
         <div className="tbl-wrap"><table className="tbl">
-          <thead><tr><th>Name</th><th>Role</th><th>TRN</th><th>Territory</th><th>Address</th>
-            <th className="n">Terms</th><th className="n">Open balance</th><th style={{ width: 168 }} /></tr></thead>
+          <thead><tr><th>Name</th>{!fixed && <th>Role</th>}<th>TRN</th><th>Territory &amp; address</th>
+            <th className="n">Terms</th><th className="n">{fixed === "vendor" ? "You owe" : fixed === "customer" ? "Owes you" : "Open balance"}</th><th style={{ width: 150 }} /></tr></thead>
           <tbody>{!list.length && <tr><td colSpan={8}>
-            <EmptyState icon={Users} title={PARTNERS.length ? "Nothing matches this search" : "Add your customers and vendors"}>
-              {PARTNERS.length ? "Clear the search or switch back to All." : "Add them one by one, or import a list from Excel with TRN, terms and opening balances."}</EmptyState>
-            {!PARTNERS.length && <div className="row-btns" style={{ justifyContent: "center", paddingBottom: 18 }}>
+            <EmptyState icon={Users} title={q ? "Nothing matches this search" : `No ${noun === "customer or vendor" ? "customers or vendors" : noun + "s"} yet`}>
+              {q ? "Clear the search to see everyone." : "Add them one by one, or import a list from Excel with TRN, payment terms and opening balances."}</EmptyState>
+            {!q && <div className="row-btns" style={{ justifyContent: "center", paddingBottom: 18 }}>
               <Btn icon={FileSpreadsheet} onClick={() => setImp(true)}>Import from Excel</Btn>
-              <Btn kind="pri" icon={Plus} onClick={() => setEd(blank("customer"))}>New customer or vendor</Btn></div>}</td></tr>}
+              <Btn kind="pri" icon={Plus} onClick={() => setEd(blank(fixed || "customer"))}>New {noun}</Btn></div>}</td></tr>}
             {list.map((p) => (
             <tr key={p.id}>
               <td><Party name={p.name} meta={[p.contact || p.phone,(state.salespeople||[]).find(x=>x.id===p.salesman)?.name].filter(Boolean).join(" · ")} /></td>
-              <td><Pill tone={p.role === "customer" ? "ok" : "info"}>{p.role}</Pill></td>
-              <td className="mono" style={{ fontSize: 12.5 }}>{p.trn || <span className="muted">Unregistered</span>}</td>
-              <td>{p.emirate}{p.designatedZone && <div><Pill tone="gold">Designated zone</Pill></div>}</td>
-              <td className="muted" style={{ fontSize: 12.5 }}>{p.address}</td>
-              <td className="n">{p.terms} days</td>
+              {!fixed && <td><Pill tone={p.role === "customer" ? "ok" : "info"}>{p.role}</Pill></td>}
+              <td className="mono nowrap" style={{ fontSize: 12.5 }}>{p.trn || <span className="muted">Not registered</span>}</td>
+              <td className="addr-cell"><b>{p.emirate}</b>{p.designatedZone && <> <Pill tone="gold">Designated zone</Pill></>}
+                {p.address && <small title={p.address}>{p.address}</small>}</td>
+              <td className="n nowrap">{p.terms ? `${p.terms} days` : "Cash"}</td>
               <td className="n" style={{ fontWeight: 600 }}>{money(balOf(p))}</td>
               <td style={{ whiteSpace: "nowrap" }}>
                 <button className="icon-btn" style={{ width: 28, height: 28, display: "inline-grid", verticalAlign: "-8px" }}
@@ -3276,7 +3288,8 @@ function PartnersScreen({ state, setState, go, toast, books, param }) {
                   title="Edit" onClick={() => setEd({ ...p })}><Pencil size={13} /></button>
                 <button className="icon-btn" style={{ width: 28, height: 28, display: "inline-grid", verticalAlign: "-8px" }}
                   title="Remove" onClick={() => remove(p)}><Trash2 size={13} /></button>
-                <Btn size="sm" kind="ghost" onClick={() => go("r_partner", p.id)}>Ledger <ChevronRight size={13} /></Btn></td>
+                <button className="icon-btn" style={{ width: 28, height: 28, display: "inline-grid", verticalAlign: "-8px" }}
+                  title="Ledger — every posting with this party" onClick={() => go("r_partner", p.id)}><BookOpen size={13} /></button></td>
             </tr>))}</tbody>
         </table></div>
       </Card>
@@ -3316,7 +3329,7 @@ function LegacyProductsScreen({ books, state, setState, toast }) {
   const total = R2(rows.reduce((s, r) => s + r.value, 0));
   return (
     <div>
-      <PageHead eyebrow="Master data" title="Products &amp; services"
+      <PageHead eyebrow="Products &amp; stock" title="Products &amp; services"
         sub={`${PRODUCTS.length} items · ${custom.length} added by you. Goods carry stock at weighted-average cost; services post straight to an account.`}>
         <div style={{ textAlign: "right", marginRight: 6 }}><div className="micro">Inventory at cost</div>
           <div className="num" style={{ fontSize: 20, fontWeight: 500, marginTop: 3 }}>{money(total, false)}</div></div>
@@ -3763,6 +3776,11 @@ function Aged({ state, kind, p, setP , toast }) {
   return (
     <ReportFrame toast={toast} title={isAR ? "Aged Receivable" : "Aged Payable"}
       meta={`As at ${dmy(p.asOf)} · aged on due date · AED`} right={<PeriodBar p={p} setP={setP} mode="asOf" />}>
+      <Insight tone={R2(a.grand - a.tot[0]) > 0.004 ? "warn" : ""}>{a.grand > 0.004
+        ? <>{isAR ? "Customers owe you" : "You owe vendors"} <b>{aed(a.grand)}</b> across {a.rows.length} {isAR ? "customer" : "vendor"}{a.rows.length === 1 ? "" : "s"}.{" "}
+          {R2(a.grand - a.tot[0]) > 0.004 ? <><b className="neg">{aed(R2(a.grand - a.tot[0]))}</b> ({pct(a.grand - a.tot[0], a.grand)}%) is past its due date{R2(a.tot[3] + a.tot[4] + a.tot[5]) > 0.004 ? <>, and <b className="neg">{aed(R2(a.tot[3] + a.tot[4] + a.tot[5]))}</b> is more than 60 days late</> : ""}.</> : "Nothing is overdue."}
+          {isAR ? " Click a customer to see each open invoice." : " Click a vendor to see each open bill."}</>
+        : <>Nothing is outstanding on {dmy(p.asOf)} — every {isAR ? "invoice has been paid" : "bill has been paid"}.</>}</Insight>
       <div className="card-b" style={{ borderBottom: "1px solid var(--line)" }}>
         <BarList rows={a.tot.map((v, i) => ({ label: BUCKETS[i], value: v,
           color: i > 2 ? "var(--neg)" : i > 0 ? "var(--warn)" : isAR ? "var(--brand)" : "var(--info)" }))} />
@@ -3806,6 +3824,10 @@ function ProfitLoss({ books, p, setP , toast }) {
   return (
     <ReportFrame toast={toast} title="Statement of Profit or Loss" meta={`${dmy(p.from)} to ${dmy(p.to)} · AED`}
       right={<PeriodBar p={p} setP={setP} />}>
+      <Insight tone={r.net < 0 ? "warn" : ""}>{r.revenue || r.expense || r.cost
+        ? <>From {dmy(p.from)} to {dmy(p.to)} you sold <b>{aed(r.revenue)}</b>. The goods and services you sold cost <b>{aed(r.cost)}</b>, leaving a gross profit of <b>{aed(r.gross)}</b> ({r.gm.toFixed(1)}%).
+          After <b>{aed(r.expense)}</b> of running costs, the business made a <b className={r.net >= 0 ? "pos" : "neg"}>{r.net >= 0 ? "profit" : "loss"} of {aed(Math.abs(r.net))}</b>.</>
+        : <>No sales or costs were recorded between {dmy(p.from)} and {dmy(p.to)}. Pick another period above.</>}</Insight>
       <div className="card-b" style={{ borderBottom: "1px solid var(--line)" }}>
         <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
           {[["Revenue", r.revenue, ""], ["Gross profit", r.gross, `${r.gm.toFixed(1)}% margin`],
@@ -3861,6 +3883,8 @@ function BalanceSheetRep({ books, p, setP , toast }) {
   return (
     <ReportFrame toast={toast} title="Statement of Financial Position" meta={`As at ${dmy(p.asOf)} · AED`}
       right={<PeriodBar p={p} setP={setP} mode="asOf" />}>
+      <Insight>On {dmy(p.asOf)} the business owns <b>{aed(b.totA)}</b> (cash, stock, money due from customers and equipment) and owes <b>{aed(b.totL)}</b> (vendors, VAT, loans and other liabilities),
+        so it is worth <b className={b.totE >= 0 ? "pos" : "neg"}>{aed(b.totE)}</b> to its owners.{Math.abs(b.diff) < 0.01 ? " Both sides agree." : ""}</Insight>
       <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 0 }}>
         <div style={{ borderRight: "1px solid var(--line)" }}>
           <Block title="Assets" groups={b.assets} total={b.totA} label="Total assets" /></div>
@@ -3891,6 +3915,8 @@ function VatReturn({ state, p, setP , toast }) {
   return (
     <ReportFrame toast={toast} title="VAT Return — FTA Form 201"
       meta={`Tax period ${dmy(p.from)} to ${dmy(p.to)} · TRN ${CO.trn} · AED`} right={<PeriodBar p={p} setP={setP} />}>
+      <Insight>You charged customers <b>{aed(v.out.vat)}</b> VAT and paid <b>{aed(v.inp.vat)}</b> VAT you can recover in this period, so{" "}
+        {v.due >= 0 ? <>you <b className="neg">pay the FTA {aed(v.due)}</b></> : <>the FTA <b className="pos">owes you {aed(-v.due)}</b></>}. Choose the tax period above that matches your VAT return.</Insight>
       <div className="card-b" style={{ borderBottom: "1px solid var(--line)" }}>
         <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))" }}>
           {[["Output tax due · Box 12", v.out.vat, "neg"], ["Recoverable input tax · Box 13", v.inp.vat, "pos"],
@@ -3946,6 +3972,9 @@ function StockReport({ books, p, setP , toast }) {
     <div className="grid">
       <ReportFrame toast={toast} title="Inventory Valuation" meta={`As at ${dmy(TODAY)} · inventory carrying value · AED`}
         right={<PeriodBar p={p} setP={setP} />}>
+        <Insight>{rows.length ? <>You hold <b>{rows.filter((r) => r.qty > 0).length}</b> of {rows.length} stocked products, valued at <b>{aed(total)}</b> at cost.
+          {rows.filter((r) => r.qty <= (r.pr.reorder ?? 5)).length ? <> <b className="neg">{rows.filter((r) => r.qty <= (r.pr.reorder ?? 5)).length}</b> are at or below their low-stock level.</> : " Nothing is running low."}</>
+          : <>No stocked products yet. Add products with the type "Storable goods" to track stock here.</>}</Insight>
         <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 0 }}>
           <div style={{ borderRight: "1px solid var(--line)" }}>
             <div className="tbl-wrap"><table className="tbl">
@@ -4085,7 +4114,7 @@ function AssetsScreen({ state, setState, books, toast }) {
           <tbody>
             {list.length === 0 && <tr><td colSpan={9}>
               <EmptyState icon={Layers} title="No assets on the register">
-                Add your first asset and Invoeez will handle the monthly charge.</EmptyState></td></tr>}
+                Add your first asset and InvoEez will handle the monthly charge.</EmptyState></td></tr>}
             {list.map((a) => (
               <tr key={a.id}>
                 <td className="mono" style={{ fontSize: 12.5 }}>{a.code || "—"}</td>
@@ -4589,19 +4618,19 @@ function StatementSheet({ close, party, g, buckets, due, p, msg, toast, isCust }
     if (!JS) return null;
     const doc = new JS({ orientation: "portrait", unit: "pt", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
-    doc.setFillColor(11, 65, 51); doc.rect(0, 0, W, 108, "F");
-    doc.setFillColor(214, 171, 87); doc.rect(0, 106, W, 2.5, "F");
+    doc.setFillColor(35, 27, 110); doc.rect(0, 0, W, 108, "F");
+    doc.setFillColor(124, 117, 208); doc.rect(0, 106, W, 2.5, "F");
     let ty = 42;
     if (CO.logo) { try { doc.addImage(CO.logo, 40, 24, 0, 24); ty = 64; } catch (e) {} }
     doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(14);
     doc.text(CO.name, 40, ty);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(196, 216, 210);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(204, 200, 240);
     doc.text(`${CO.address}\n${CO.city}\nTRN ${CO.trn}`, 40, ty + 13);
     doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
     doc.text("STATEMENT OF ACCOUNT", W - 40, 42, { align: "right" });
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(196, 216, 210);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(204, 200, 240);
     doc.text(`${dmy(p.from)} to ${dmy(p.to)}`, W - 40, 60, { align: "right" });
-    doc.setTextColor(20, 42, 52); doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
+    doc.setTextColor(27, 26, 61); doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
     doc.text("ACCOUNT", 40, 136);
     doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
     doc.text(`${party.name}\n${party.address || ""}\nTRN ${party.trn || "not registered"}`, 40, 150);
@@ -4612,9 +4641,9 @@ function StatementSheet({ close, party, g, buckets, due, p, msg, toast, isCust }
         g.rows.map((l) => [dmy(l.date), l.number, l.label, l.debit ? money(l.debit, false) : "",
           l.credit ? money(l.credit, false) : "", money(l.run, false)])),
       foot: [["", "", "Closing balance", money(g.d, false), money(g.c, false), money(g.close, false)]],
-      styles: { font: "helvetica", fontSize: 8.5, cellPadding: 5, lineColor: [225, 233, 237], lineWidth: 0.4 },
-      headStyles: { fillColor: [242, 246, 247], textColor: [70, 96, 107], fontStyle: "bold", fontSize: 7.5 },
-      footStyles: { fillColor: [242, 246, 247], textColor: [20, 42, 52], fontStyle: "bold" },
+      styles: { font: "helvetica", fontSize: 8.5, cellPadding: 5, lineColor: [226, 226, 240], lineWidth: 0.4 },
+      headStyles: { fillColor: [240, 240, 250], textColor: [69, 70, 111], fontStyle: "bold", fontSize: 7.5 },
+      footStyles: { fillColor: [240, 240, 250], textColor: [27, 26, 61], fontStyle: "bold" },
       columnStyles: { 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right" } },
     });
     let y = doc.lastAutoTable.finalY + 24;
@@ -4622,14 +4651,14 @@ function StatementSheet({ close, party, g, buckets, due, p, msg, toast, isCust }
       startY: y, margin: { left: 40, right: 40 },
       head: [BUCKETS], body: [buckets.map((v) => money(v, false))],
       styles: { font: "helvetica", fontSize: 8.5, cellPadding: 5, halign: "right" },
-      headStyles: { fillColor: [242, 246, 247], textColor: [70, 96, 107], fontStyle: "bold", fontSize: 7.5, halign: "right" },
+      headStyles: { fillColor: [240, 240, 250], textColor: [69, 70, 111], fontStyle: "bold", fontSize: 7.5, halign: "right" },
     });
     y = doc.lastAutoTable.finalY + 26;
-    doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(11, 65, 51);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(49, 38, 130);
     doc.text(isCust ? "TOTAL DUE  AED" : "TOTAL OWED  AED", W - 200, y);
     doc.text(money(due, false), W - 40, y, { align: "right" });
-    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(150, 168, 178);
-    doc.text(`${CO.name} · TRN ${CO.trn} · generated by Invoeez on ${dmy(TODAY)}`,
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(150, 152, 184);
+    doc.text(`${CO.name} · TRN ${CO.trn} · generated by InvoEez on ${dmy(TODAY)}`,
       40, doc.internal.pageSize.getHeight() - 34);
     return doc;
   };
@@ -4995,7 +5024,7 @@ function buildFAF(state, books, CO, from, to) {
   row("Period Start", from);
   row("Period End", to);
   row("FAF Creation Date", TODAY);
-  row("Product Version", `Invoeez Enterprise Edition ${BUILD}`);
+  row("Product Version", `InvoEez Enterprise Edition ${BUILD}`);
   row("FAF Version", "FAF v1.0");
   row("");
 
@@ -5267,7 +5296,7 @@ function FtaScreen({ state, setState, books, company, fta, setFta, p, setP, toas
               accredited provider &rarr; buyer&rsquo;s provider &rarr; buyer, with tax data reported onward to the
               FTA as the fifth corner.
             </p>
-            {[["Corner 1", "You — Invoeez issues the structured invoice"],
+            {[["Corner 1", "You — InvoEez issues the structured invoice"],
               ["Corner 2", "Your Accredited Service Provider validates and transmits"],
               ["Corner 3", "The buyer's provider receives it"],
               ["Corner 4", "Your customer"],
@@ -5445,7 +5474,7 @@ function FtaScreen({ state, setState, books, company, fta, setFta, p, setP, toas
       {tab === "conn" && (
         <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", alignItems: "start" }}>
           <Card title="Accredited Service Provider" pad={false}
-            sub="Invoeez hands structured documents to your ASP, which validates, transmits and reports to the FTA">
+            sub="InvoEez hands structured documents to your ASP, which validates, transmits and reports to the FTA">
             <div className="setsec">
               <div className="setgrid">
                 <Field label="Provider name" span={2}>
@@ -5505,7 +5534,7 @@ function FtaScreen({ state, setState, books, company, fta, setFta, p, setP, toas
               <p className="explain" style={{ marginBottom: 16 }}>
                 The UAE deliberately chose the opposite. The FTA runs a <b>decentralised</b> Peppol model with no
                 clearance endpoint. Invoices are exchanged provider to provider and the tax data is reported onward.
-                There is nothing to connect an accounting system directly to &mdash; not for Invoeez, not for SAP.
+                There is nothing to connect an accounting system directly to &mdash; not for InvoEez, not for SAP.
                 If a vendor sells you &ldquo;direct FTA submission&rdquo;, they are describing an ASP relationship.
               </p>
               {[["Clearance before issuing", "Required", "Not used"],
@@ -5569,6 +5598,7 @@ const SCREEN_PERM = {
   accounts: "master", journal: "journal", r_stock: "reports", r_pnl: "reports", r_bs: "reports",
   r_tb: "reports", r_gl: "reports", r_partner: "reports", r_aged_ar: "reports", r_aged_ap: "reports",
   r_prod: "reports", r_cust: "reports", r_vat: "tax", fta: "tax", settings: "settings", users: "settings", setup: "master",
+  customers: "master", vendors: "master", reports: "reports",
 };
 
 function UsersScreen({ state, setState, me, setMe, toast }) {
@@ -5813,7 +5843,7 @@ function SettingsScreen({ company, setCompany, theme, setTheme, density, setDens
                 <Btn size="sm" kind="wa" icon={MessageCircle} onClick={() => {
                   const num = String(d.phone || "").replace(/[^0-9]/g, "");
                   if (!num) { toast("Add a company WhatsApp number below first", "warn"); return; }
-                  window.open(`https://wa.me/${num}?text=${encodeURIComponent("Test message from " + d.name + " via Invoeez.")}`, "_blank");
+                  window.open(`https://wa.me/${num}?text=${encodeURIComponent("Test message from " + d.name + " via InvoEez.")}`, "_blank");
                 }}>Send yourself a test</Btn>
               </div>
             </div>
@@ -5894,27 +5924,27 @@ function SettingsScreen({ company, setCompany, theme, setTheme, density, setDens
 /* ========================================================================== */
 
 const NAV = [
- {g:"Workspace",items:[{k:"dash",l:"Dashboard",i:LayoutDashboard},{k:"setup",l:"Setup guide",i:ListChecks}]},
- {g:"Master data",items:[{k:"partners",l:"Customers & vendors",i:Users},{k:"products",l:"Products & services",i:Package},{k:"categories",l:"Product categories",i:Layers},{k:"pricelists",l:"Price lists",i:Banknote},{k:"salespeople",l:"Sales team",i:Users},{k:"accounts",l:"Chart of accounts",i:BookOpen}]},
- {g:"Sales",items:[{k:"quotes",l:"Quotations",i:FileText},{k:"invoices",l:"Invoices",i:Receipt},{k:"credit_notes",l:"Credit notes",i:FileMinus}]},
- {g:"Purchases",items:[{k:"bills",l:"Vendor bills",i:ShoppingCart},{k:"debit_notes",l:"Debit notes",i:FilePlus}]},
- {g:"Stock management",items:[{k:"stock_count",l:"Stock counts & adjustments",i:Layers},{k:"scrap",l:"Damage & scrap",i:Trash2},{k:"r_stock",l:"Inventory valuation",i:Package}]},
- {g:"Accounting & banking",items:[{k:"journal",l:"Journal entries",i:BookOpen},{k:"payments",l:"Receipts & payments",i:Receipt},{k:"banking",l:"Banking",i:Landmark},{k:"methods",l:"Payment methods",i:Banknote},{k:"expenses",l:"Expenses",i:Wallet},{k:"assets",l:"Fixed assets",i:Layers}]},
-  { g: "Financial reports", items: [
+ {g:"Home",items:[{k:"dash",l:"Dashboard",i:LayoutDashboard},{k:"setup",l:"Setup guide",i:ListChecks}]},
+ {g:"Sales",items:[{k:"customers",l:"Customers",i:Users},{k:"quotes",l:"Quotations",i:FileText},{k:"invoices",l:"Invoices",i:Receipt},{k:"credit_notes",l:"Credit notes",i:FileMinus},{k:"salespeople",l:"Sales team",i:Users}]},
+ {g:"Purchases",items:[{k:"vendors",l:"Vendors",i:Truck},{k:"bills",l:"Vendor bills",i:ShoppingCart},{k:"debit_notes",l:"Debit notes",i:FilePlus},{k:"expenses",l:"Expenses",i:Wallet}]},
+ {g:"Products & stock",items:[{k:"products",l:"Products & services",i:Package},{k:"categories",l:"Product categories",i:Layers},{k:"pricelists",l:"Price lists",i:Banknote},{k:"stock_count",l:"Stock counts & adjustments",i:Boxes},{k:"scrap",l:"Damage & scrap",i:Trash2},{k:"r_stock",l:"Inventory valuation",i:Package}]},
+ {g:"Money",items:[{k:"payments",l:"Receipts & payments",i:Receipt},{k:"banking",l:"Bank & cash",i:Landmark},{k:"methods",l:"Payment methods",i:Banknote}]},
+ {g:"Accounting",items:[{k:"accounts",l:"Chart of accounts",i:BookOpen},{k:"journal",l:"Journal entries",i:BookOpen},{k:"assets",l:"Fixed assets",i:Layers}]},
+ { g: "Reports", items: [
+    { k: "reports", l: "All reports", i: PieChart },
     { k: "r_pnl", l: "Profit & loss", i: BarChart3 },
     { k: "r_bs", l: "Balance sheet", i: Scale },
-    { k: "r_tb", l: "Trial balance", i: CircleDot },
-    { k: "r_gl", l: "General ledger", i: BookOpen },
-    { k: "r_partner", l: "Partner ledger", i: Users },
-    { k: "r_stmt", l: "Customer statement", i: Send },
     { k: "r_aged_ar", l: "Aged receivable", i: Receipt },
     { k: "r_aged_ap", l: "Aged payable", i: Receipt },
-    { k: "r_method", l: "Payments by method", i: Banknote },
+    { k: "r_stmt", l: "Customer statement", i: Send },
     { k: "r_prod", l: "Profit by product", i: Package },
     { k: "r_cust", l: "Profit by customer", i: Users },
-    { k: "r_vat", l: "VAT return — FTA 201", i: Building2 }] },
- {g:"Compliance",items:[{k:"fta",l:"FTA & e-invoicing",i:ShieldCheck}]},
- {g:"Settings & tools",items:[{k:"users",l:"Users & access",i:Users},{k:"settings",l:"Settings & backup",i:Settings}]},
+    { k: "r_method", l: "Payments by method", i: Banknote },
+    { k: "r_tb", l: "Trial balance", i: CircleDot },
+    { k: "r_gl", l: "General ledger", i: BookOpen },
+    { k: "r_partner", l: "Partner ledger", i: Users }] },
+ {g:"VAT & e-invoicing",items:[{k:"r_vat",l:"VAT return — FTA 201",i:Building2},{k:"fta",l:"FTA & e-invoicing",i:ShieldCheck}]},
+ {g:"Settings",items:[{k:"users",l:"Users & access",i:Users},{k:"settings",l:"Settings & backup",i:Settings}]},
 ];
 const DOC_VIEWS = { quotes: "quote", invoices: "invoice", credit_notes: "credit_note", bills: "bill", debit_notes: "debit_note" };
 const STORE_KEY = "mizan.books.v2";
@@ -5965,7 +5995,7 @@ function Invoeez() {
   });
   const [closed, setClosed] = useState(() => {
     try { const c = window.localStorage.getItem(NAVGRP_KEY); if (c) return JSON.parse(c); } catch (e) {}
-    return {"Master data":true,"Purchases":true,"Accounting & banking":true,"Financial reports":true,"Compliance":true,"Settings & tools":true};
+    return {"Products & stock":true,"Money":true,"Accounting":true,"Reports":true,"VAT & e-invoicing":true,"Settings":true};
   });
   React.useEffect(() => {
     try { window.localStorage.setItem(NAVGRP_KEY, JSON.stringify(closed)); } catch (e) {}
@@ -6028,6 +6058,7 @@ function Invoeez() {
     window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3400);
   };
   const go = (k, p) => {
+    if (k === "partners") k = p && PMAP[p] && PMAP[p].role === "vendor" ? "vendors" : "customers";
     scrollPageTop(); setNavSearch("");
     const group=NAV.find(g=>g.items.some(i=>i.k===k));if(group)setClosed(c=>({...c,[group.g]:false}));
     setDrawer(false);
@@ -6128,7 +6159,9 @@ function Invoeez() {
       case "expenses": return <ExpensesScreen state={state} setState={setState} books={books} toast={toast} />;
       case "assets": return <AssetsScreen state={state} setState={setState} books={books} toast={toast} />;
       case "payments": return <PaymentsScreen state={state} setState={setState} toast={toast} />;
-      case "partners": return <PartnersScreen state={state} setState={setState} go={go} toast={toast} books={books} param={param} />;
+      case "partners": case "customers": return <PartnersScreen key="customers" fixed="customer" state={state} setState={setState} go={go} toast={toast} books={books} param={param} />;
+      case "vendors": return <PartnersScreen key="vendors" fixed="vendor" state={state} setState={setState} go={go} toast={toast} books={books} param={param} />;
+      case "reports": return <ReportsHub state={state} books={books} go={go} allowed={allowed} />;
       case "products": return <ProductsScreen books={books} state={state} setState={setState} toast={toast} param={param} />;
       case "categories": return <CategoriesScreen state={state} setState={setState} books={books} toast={toast}/>;
       case "pricelists": return <PricingScreen state={state} setState={setState} toast={toast}/>;
@@ -6162,7 +6195,7 @@ function Invoeez() {
     <ThemeCtx.Provider value={palette}>
     <CompanyCtx.Provider value={company}>
     <div className="mz" data-theme={theme} data-density={density} style={{ height: "100vh" }}>
-      <style>{CSS + DESIGN_CSS + ONBOARD_CSS}</style>
+      <style>{CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS}</style>
       {starting && <StartCompanyDialog state={state} company={company} backup={backup} close={() => setStarting(false)} onDone={companyStarted} />}
       {cmdk && <CommandPalette items={cmdItems} close={() => setCmdk(false)} run={(i) => i.act()} />}
       <Toasts items={toasts} />
@@ -6171,11 +6204,9 @@ function Invoeez() {
         onClick={() => setDrawer(false)} role="presentation" />}
       <nav className={cx("side", mini && "mini", drawer && "open")}>
         <div className="side-top">
-          <span className="logo">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15382d" strokeWidth="1.8"
-              strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h9l4 4v14l-2.5-1.5L14 21l-2-1.5L10 21l-2.5-1.5L5 21V4a1 1 0 0 1 1-1z" /><path d="M9 9h6M9 12.5h6M9 16h3.5" /></svg>
-          </span>
-          <span className="wordmark"><b>Invoeez</b><span className="edition">Enterprise Edition</span></span>
+          <span className="brand-tile" title="InvoEez — Invoice Made Easy">
+            <img className="brand-lockup" src={BRAND_LOCKUP} alt="InvoEez — Invoice Made Easy" />
+            <img className="brand-mark" src={BRAND_MARK} alt="InvoEez" /></span>
         </div>
         <button className="co-card" onClick={() => go("settings")} title="Company profile">
           {company.logo ? <img className="logoimg" src={company.logo} alt="" />
@@ -6275,7 +6306,9 @@ function Invoeez() {
               {can("journal") && <button onClick={() => { setNewMenu(false); go("journal"); }}>
                 <Landmark size={15} strokeWidth={1.8} />Journal entry</button>}
               {can("master") && <><button onClick={() => { setNewMenu(false); go("partners"); }}>
-                <Users size={15} strokeWidth={1.8} />Customer or vendor</button>
+                <Users size={15} strokeWidth={1.8} />Customer</button>
+              <button onClick={() => { setNewMenu(false); go("vendors"); }}>
+                <Truck size={15} strokeWidth={1.8} />Vendor</button>
               <button onClick={() => { setNewMenu(false); go("products"); }}>
                 <Package size={15} strokeWidth={1.8} />Product or service</button>
               <button onClick={() => { setNewMenu(false); go("accounts"); }}>

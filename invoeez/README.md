@@ -1,4 +1,4 @@
-# Invoeez — Enterprise Edition 3.3
+# InvoEez — Invoice Made Easy (3.4)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -125,6 +125,9 @@ npm test
 | `enhancements-data.jsx` | Migration, account snapshots, search, pricing and history helpers. |
 | `company-template.jsx` | Chart of accounts, category and expense-item templates for a new company. |
 | `tests/sample-fixture.jsx` | A generated year of trading used only by the tests. |
+| `brand-assets.jsx` | The InvoEez logo (mark and full logo) as embedded images, cut from `brand/logo-source.jpg`. |
+| `brand.jsx` | Brand colour layer for light and dark mode. |
+| `clarity.jsx` | Plain-language summaries, payment status and the All reports page. |
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
 | `dashboard.jsx` | New overview dashboard. |

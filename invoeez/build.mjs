@@ -1,6 +1,6 @@
 import {transform} from 'esbuild';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
-const files=['invoeez-source.jsx','enhancements-data.jsx','company-template.jsx','enhancements-ui.jsx','dashboard.jsx','design.jsx','onboarding.jsx'];
+const files=['invoeez-source.jsx','enhancements-data.jsx','company-template.jsx','enhancements-ui.jsx','dashboard.jsx','design.jsx','onboarding.jsx','brand-assets.jsx','brand.jsx','clarity.jsx'];
 const source=(await Promise.all(files.map(x=>readFile(new URL(x,import.meta.url),'utf8')))).join('\n\n');
 const result=await transform(source,{loader:'jsx',target:'es2020',jsxFactory:'React.createElement',jsxFragment:'React.Fragment',legalComments:'inline'});
 const prefix=await readFile(new URL('runtime-prefix.js',import.meta.url),'utf8');
