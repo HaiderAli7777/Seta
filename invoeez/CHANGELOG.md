@@ -1,3 +1,14 @@
+# 3.5.0 — Faster data entry
+
+- New InvoEez logo (framed "ine" mark) on the startup screen, browser tab, sidebar and printouts, with the colour theme retuned to its deep indigo, royal blue and violet.
+- Compact, Odoo-style line grid on invoices, bills, quotations, credit and debit notes: one row per item with product, description, quantity, unit, price, discount, VAT and amount, so many items fit on one screen. Press Enter in the last quantity or price to add the next line. The previous card layout stays available under "Detailed".
+- Quantity starts empty; picking a product moves the cursor straight to the quantity, and the amount updates as you type. Posting with an empty quantity is blocked and the cursor jumps to that line.
+- Addresses are split into Address line 1 and Address line 2 for customers, vendors and your company, on forms, imports, printouts, statements, PDFs and PINT AE e-invoices.
+- Create a salesperson, product category or brand without leaving the form: choose "＋ New…" in the drop-down on customers, vendors, invoices, bills and products. Brands are now a list of existing brands.
+- Product code / SKU is optional. Settings → Products & stock lets you choose automatic numbering (prefix and digits, e.g. P-00001) or manual codes; imports without a code follow the same rule.
+- First purchase sets the cost: when a product with no cost is bought for the first time, the vendor bill price becomes its cost price. Every bill records the last purchase price, which new bills offer by default.
+- Costing method (weighted average, FIFO or standard) now lives in Settings → Products & stock. Product screens show the current unit cost under the chosen method next to the last purchase price.
+
 # 3.4.0 — InvoEez brand and clearer screens
 
 - The InvoEez logo replaces every trace of the old Mizan brand: the startup screen, browser-tab icon, sidebar and page title ("InvoEez — Invoice Made Easy").

@@ -86,7 +86,7 @@ function SetupProgress({ state, company, go }) {
 /* ------------------------------------------------------- start a company -- */
 function StartCompanyDialog({ state, company, close, onDone, backup }) {
   const sample = !!state.sample;
-  const [f, setF] = useState({ name: sample ? "" : company.name === COMPANY.name ? "" : company.name, trn: "", licence: "", address: "", city: "", emirate: "Dubai",
+  const [f, setF] = useState({ name: sample ? "" : company.name === COMPANY.name ? "" : company.name, trn: "", licence: "", address: "", address2: "", city: "", emirate: "Dubai",
     phone: "", email: "", admin: "", adminEmail: "" });
   const [keep, setKeep] = useState({ products: false, partners: false, pricing: false });
   const [ok, setOk] = useState(false), [step, setStep] = useState(1), [error, setError] = useState("");
@@ -103,7 +103,7 @@ function StartCompanyDialog({ state, company, close, onDone, backup }) {
     const users = [{ id: "u1", name: f.admin.trim(), email: f.adminEmail.trim(), role: "admin", active: true }];
     const books = migrateBooks(freshBooks(state, { ...keep, users }));
     books.setup = {};
-    onDone(books, { ...COMPANY, name: f.name.trim(), trn: f.trn.replace(/\s/g, ""), licence: f.licence.trim(), address: f.address.trim(),
+    onDone(books, { ...COMPANY, name: f.name.trim(), trn: f.trn.replace(/\s/g, ""), licence: f.licence.trim(), address: f.address.trim(), address2: f.address2.trim(),
       city: f.city.trim() || "United Arab Emirates", emirate: f.emirate, phone: f.phone.trim(), email: f.email.trim(), logo: "" });
   };
   return <StudioModal wide title={sample ? "Start my company" : "Start a new company"} sub={step === 1 ? "Step 1 of 2 · Who you are" : "Step 2 of 2 · What to keep"} close={close}>
@@ -113,7 +113,8 @@ function StartCompanyDialog({ state, company, close, onDone, backup }) {
         <Field label="Registered company name" span={2}><Input autoFocus value={f.name} placeholder="e.g. Al Manara Trading L.L.C." onChange={(e) => set("name", e.target.value)} /></Field>
         <Field label="Tax Registration Number (TRN)"><Input value={f.trn} placeholder="15 digits, or leave blank" onChange={(e) => set("trn", e.target.value)} /></Field>
         <Field label="Trade licence"><Input value={f.licence} placeholder="Optional" onChange={(e) => set("licence", e.target.value)} /></Field>
-        <Field label="Address" span={2}><Input value={f.address} placeholder="Office, building, street, area" onChange={(e) => set("address", e.target.value)} /></Field>
+        <Field label="Address line 1"><Input value={f.address} placeholder="Office / building, street" onChange={(e) => set("address", e.target.value)} /></Field>
+        <Field label="Address line 2"><Input value={f.address2} placeholder="Area, P.O. Box (optional)" onChange={(e) => set("address2", e.target.value)} /></Field>
         <Field label="City and country"><Input value={f.city} placeholder="Dubai, United Arab Emirates" onChange={(e) => set("city", e.target.value)} /></Field>
         <Field label="Emirate"><Select value={f.emirate} onChange={(e) => set("emirate", e.target.value)}>{EMIRATES.map((x) => <option key={x}>{x}</option>)}</Select></Field>
         <Field label="Telephone"><Input value={f.phone} placeholder="+971 4 000 0000" onChange={(e) => set("phone", e.target.value)} /></Field>
@@ -214,7 +215,7 @@ async function readSpreadsheet(file) {
 const IMPORT_SPECS = {
   products: {
     title: "Import products & services", noun: "products",
-    cols: [["code", "Product code / SKU", ["code", "productcode", "sku", "itemcode", "partnumber", "partno"]],
+    cols: [["code", "Product code / SKU (optional)", ["productcodesku", "code", "productcode", "sku", "itemcode", "partnumber", "partno"]],
       ["name", "Product name", ["name", "productname", "item", "itemname", "description", "productdescription"]],
       ["type", "Type (goods or service)", ["type", "itemtype", "kind", "producttype"]],
       ["category", "Category", ["category", "productcategory", "group", "itemgroup"]],
@@ -236,13 +237,14 @@ const IMPORT_SPECS = {
       ["role", "Type (customer or vendor)", ["type", "role", "partnertype", "customerorvendor"]],
       ["trn", "TRN", ["trn", "taxregistrationnumber", "vatnumber", "taxnumber", "vatno"]],
       ["emirate", "Emirate / territory", ["emirate", "territory", "region", "city", "state"]],
-      ["address", "Address", ["address", "fulladdress", "street"]],
+      ["address", "Address line 1", ["address", "addressline1", "address1", "fulladdress", "street"]],
+      ["address2", "Address line 2", ["addressline2", "address2", "area", "street2"]],
       ["contact", "Email", ["email", "emailaddress", "contact", "mail"]],
       ["phone", "Phone / WhatsApp", ["phone", "mobile", "whatsapp", "telephone", "tel", "phonenumber"]],
       ["terms", "Payment terms (days)", ["paymentterms", "terms", "creditdays", "days", "creditterms"]],
       ["balance", "Opening balance", ["openingbalance", "balance", "balancedue", "amountdue", "outstanding"]]],
-    example: [["Al Manara Trading L.L.C.", "customer", "100123456700003", "Dubai", "Office 402, Al Barsha 1", "accounts@almanara.ae", "+971501112233", 30, 12500],
-      ["Gulf Paper Supplies", "vendor", "100765432100003", "Sharjah", "Industrial Area 6", "ar@gulfpaper.ae", "+971655544433", 45, 4800]],
+    example: [["Al Manara Trading L.L.C.", "customer", "100123456700003", "Dubai", "Office 402, Al Barsha Business Tower", "Al Barsha 1, P.O. Box 12345", "accounts@almanara.ae", "+971501112233", 30, 12500],
+      ["Gulf Paper Supplies", "vendor", "100765432100003", "Sharjah", "Warehouse 14, Street 7", "Industrial Area 6", "ar@gulfpaper.ae", "+971655544433", 45, 4800]],
   },
 };
 const normHead = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -269,7 +271,7 @@ function templateFor(kind, format) {
   const spec = IMPORT_SPECS[kind], head = spec.cols.map((c) => c[1]);
   if (format === "csv") return saveText([head, ...spec.example].map((r) => r.map((c) => /[",;\n]/.test(String(c)) ? `"${String(c).replace(/"/g, '""')}"` : c).join(",")).join("\r\n"), `invoeez-${kind === "partners" ? "customers-vendors" : kind}-template.csv`, "text/csv;charset=utf-8");
   const guide = kind === "products"
-    ? [["How to fill this sheet"], [], ["Product code / SKU", "Required and unique. Existing codes are updated."], ["Product name", "Required."], ["Type", "goods (kept in stock) or service."],
+    ? [["How to fill this sheet"], [], ["Product code / SKU", "Optional. Leave empty to get the next automatic code (Settings › Products & stock). Existing codes are updated."], ["Product name", "Required."], ["Type", "goods (kept in stock) or service."],
       ["Category", "Must match a category name — new names create a new category."], ["VAT", "5%, 0%, exempt or out of scope. Blank means 5%."],
       ["Opening quantity", "Optional. Stock on hand on your start date, valued at cost."], [], ["Categories in your books"], ...CATEGORIES.map((c) => [c.name])]
     : [["How to fill this sheet"], [], ["Name", "Required."], ["Type", "customer or vendor."], ["TRN", "15 digits, or blank if not VAT registered."],
@@ -293,9 +295,9 @@ function analyseImport(kind, rows, opts) {
       const name = get(r, "name"); let code = get(r, "code");
       const typeRaw = normHead(get(r, "type")), kindOf = /serv|labou?r|nonstock|nonstockitem/.test(typeRaw) ? "service" : "goods";
       if (name.length < 2) errs.push("Name is missing");
-      if (!code) { code = (kindOf === "goods" ? "P-" : "S-") + String(PRODUCTS.length + out.length + 1).padStart(4, "0"); warn.push("Code generated"); }
-      if (seen.has(normSearch(code))) errs.push("Code repeated in this file"); seen.add(normSearch(code));
-      const existing = PRODUCTS.find((p) => normSearch(p.code) === normSearch(code));
+      if (!code && opts.autoCodes) { code = nextProductCode(opts.state, out.map((x) => x.rec.code)); warn.push("Code " + code + " assigned"); }
+      if (code && seen.has(normSearch(code))) errs.push("Code repeated in this file"); if (code) seen.add(normSearch(code));
+      const existing = code ? PRODUCTS.find((p) => p.code && normSearch(p.code) === normSearch(code)) : PRODUCTS.find((p) => normSearch(p.name) === normSearch(name));
       const catName = get(r, "category"), cat = CATEGORIES.find((c) => normSearch(c.name) === normSearch(catName));
       if (catName && !cat) warn.push(`New category “${catName}”`);
       const price = numOf(get(r, "price")), cost = numOf(get(r, "cost")), reorder = numOf(get(r, "reorder")), qty = numOf(get(r, "qty"));
@@ -327,7 +329,7 @@ function analyseImport(kind, rows, opts) {
       if (existing && opts.existing === "skip") warn.push("Already exists — will be skipped");
       out.push({ row: i + 2, errs, warn, existing, skip: !!existing && opts.existing === "skip",
         rec: { ...(existing || newPartner(role || "customer")), role: role || "customer", name, trn: trn || existing?.trn || "", emirate: emirate || existing?.emirate || "Dubai",
-          address: get(r, "address") || existing?.address || "", contact: get(r, "contact") || existing?.contact || "", phone: get(r, "phone") || existing?.phone || "",
+          address: get(r, "address") || existing?.address || "", address2: get(r, "address2") || existing?.address2 || "", contact: get(r, "contact") || existing?.contact || "", phone: get(r, "phone") || existing?.phone || "",
           terms: terms ?? existing?.terms ?? 30 },
         balance: balance || 0 });
     }
@@ -340,7 +342,7 @@ function ImportDialog({ kind, state, setState, books, close, toast }) {
   const [file, setFile] = useState(null), [rows, setRows] = useState(null), [error, setError] = useState(""), [busy, setBusy] = useState(false);
   const [opts, setOpts] = useState({ existing: "update", role: kind === "partners" ? "column" : "", date: TODAY });
   const [drag, setDrag] = useState(false);
-  const result = useMemo(() => (rows ? analyseImport(kind, rows, opts) : null), [rows, opts, kind]);
+  const result = useMemo(() => (rows ? analyseImport(kind, rows, { ...opts, state, autoCodes: autoCodes(state) }) : null), [rows, opts, kind]);
   const load = async (f) => {
     if (!f) return; setBusy(true); setError(""); setFile(f);
     try { const r = await readSpreadsheet(f); if (r.length < 2) throw new Error("The sheet needs a header row and at least one data row."); setRows(r); }
@@ -365,7 +367,7 @@ function ImportDialog({ kind, state, setState, books, close, toast }) {
       next = { ...next, categories: cats, products: [...next.products.filter((p) => !ids.has(p.id)), ...recs] };
       if (withQty.length) {
         recs.forEach((r) => { PROD[r.id] = enrichProduct(r); });
-        const lines = withQty.map((x) => { const r = recs.find((y) => y.code === x.rec.code); return { product: r.id, qty: x.qty, unit: r.cost, record: r }; });
+        const lines = withQty.map((x) => { const r = recs.find((y) => y.id === x.rec.id); return { product: r.id, qty: x.qty, unit: r.cost, record: r }; });
         next = { ...next, stockOps: [...(next.stockOps || []), openingStockOp(next, books, lines, opts.date, "Opening stock — imported from " + (file?.name || "spreadsheet"))] };
       }
     } else {

@@ -26,7 +26,7 @@ function cashMovement(entries, codes, from, to) {
   return {incoming:R2(incoming),outgoing:R2(outgoing),net:R2(incoming-outgoing)};
 }
 const newProduct = () => ({id:uid('pr'),code:'',barcode:'',name:'',brand:'',category:'cat_goods',packing:'',kind:'goods',uom:'Units',price:0,cost:0,tax:'s5',income:'4100',expense:'5100',inventory:'1300',reorder:5,custom:true});
-const newPartner = (role='customer') => ({id:uid('p'),name:'',role,trn:'',emirate:'Dubai',address:'',contact:'',phone:'',terms:30,salesman:'',pricelist:'',custom:true});
+const newPartner = (role='customer') => ({id:uid('p'),name:'',role,trn:'',emirate:'Dubai',address:'',address2:'',contact:'',phone:'',terms:30,salesman:'',pricelist:'',custom:true});
 function enrichProduct(p) {
   const category=p.category || (p.kind==='goods'?'cat_goods':p.code?.startsWith('EX-')?'cat_'+p.expense:'cat_services');
   const c=CATEGORIES.find(c=>c.id===category);
@@ -38,7 +38,7 @@ function freezeAccounts(d) {return {...d,lines:d.lines.map(l=>({...l,accounts:l.
 function migrateBooks(raw) {
   const s={docs:[],payments:[],manual:[],accounts:[],partners:[],products:[],assets:[],methods:[],users:SEED_USERS,einv:{},costing:'avco',...raw};
   s.categories=raw.categories||DEFAULT_CATEGORIES.map(c=>({...c}));
-  s.priceLists=raw.priceLists||[];s.stockOps=raw.stockOps||[];
+  s.priceLists=raw.priceLists||[];s.stockOps=raw.stockOps||[];s.brands=raw.brands||[];s.settings={productCodes:'auto',codePrefix:'P-',codeDigits:5,...(raw.settings||{})};
   s.salespeople=raw.salespeople||SEED_USERS.filter(u=>['admin','sales'].includes(u.role)).map(u=>({id:u.id,name:u.name,active:true}));
   // Capture the original accounts before category inheritance is applied.
   if((raw.schemaVersion||0)<3){
@@ -70,14 +70,15 @@ function migrateBooks(raw) {
   s.schemaVersion=5;return s;
 }
 function pricingFor(state, product, qty, date, listId, side='sale') {
-  let price=side==='sale'?+product.price:+product.cost,source=side==='sale'?'Product price':'Product cost';
+  const lastBuy=+product.lastPurchase||0;
+  let price=side==='sale'?+product.price:(lastBuy||+product.cost),source=side==='sale'?'Product price':lastBuy?'Last purchase price':'Product cost';
   const valid=r=>r.active!==false&&(!r.from||r.from<=date)&&(!r.to||r.to>=date);
   const pl=(state.priceLists||[]).find(x=>x.id===listId&&valid(x)&&x.side===side);
   if(pl){
     const eligible=(pl.rules||[]).filter(r=>(!r.product||r.product===product.id)&&(!r.category||r.category===product.category)&&(+qty>=+r.minQty));
     eligible.sort((a,b)=>(!!b.product-!!a.product)|| (!!b.category-!!a.category)||(+b.minQty-+a.minQty));
     const r=eligible[0];
-    if(r){price=r.mode==='fixed'?+r.value:price*(1-(+r.value)/100);source=pl.name;}
+    if(r){price=r.mode==='fixed'?+r.value:(side==='sale'?+product.price:+product.cost||lastBuy)*(1-(+r.value)/100);source=pl.name;}
   }
   return {price:R2(price),priceSource:source};
 }
@@ -89,3 +90,19 @@ function productHistory(state,pid,side,partner='',exclude='',before='9999-12-31'
 }
 const saveMaster=(setState,key,rec)=>setState(s=>({...s,[key]:(s[key]||[]).some(x=>x.id===rec.id)?s[key].map(x=>x.id===rec.id?rec:x):[...(s[key]||[]),rec]}));
 function scrollPageTop(){document.querySelector('.page')?.scrollTo({top:0,left:0,behavior:'instant'});}
+
+/* A posted bill teaches each product its purchase price: the last price paid is remembered for the
+   next bill, and a product bought for the first time takes that price as its cost. */
+function learnPurchasePrices(state, bill) {
+  const list = state.products || [];
+  const updates = {};
+  bill.lines.forEach((l) => {
+    const p = PROD[l.product]; if (!p || p.id === 'ob_balance' || /^EX-/.test(p.code || '')) return;
+    const unit = R2((+l.price || 0) * (1 - (+l.disc || 0) / 100)); if (!(unit > 0)) return;
+    const boughtBefore = state.docs.some((d) => d.id !== bill.id && d.type === 'bill' && d.state === 'posted' && d.lines.some((x) => x.product === p.id));
+    const base = updates[p.id] || list.find((x) => x.id === p.id) || p;
+    updates[p.id] = { ...base, lastPurchase: unit, cost: !boughtBefore && !(+base.cost > 0) ? unit : base.cost };
+  });
+  if (!Object.keys(updates).length) return list;
+  return list.map((x) => updates[x.id] || x);
+}

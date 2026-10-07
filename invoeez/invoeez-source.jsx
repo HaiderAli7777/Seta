@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.4.0";
+const BUILD = "3.5.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -102,20 +102,24 @@ const A = { AR: "1200", AP: "2100", INV: "1300", VIN: "1400", VOUT: "2200", COGS
 
 /* ------------------------------------------------------------- UAE VAT -- */
 const TAXES = [
-  { id: "s5",  name: "VAT 5% (Standard)",       rate: 5, kind: "standard", scope: "both" },
-  { id: "z0",  name: "Zero-rated 0% (Export)",  rate: 0, kind: "zero",     scope: "both" },
-  { id: "ex",  name: "Exempt",                  rate: 0, kind: "exempt",   scope: "both" },
-  { id: "rc5", name: "Reverse Charge 5% (Import)", rate: 5, kind: "rcm",   scope: "purchase" },
-  { id: "nt",  name: "Out of scope",            rate: 0, kind: "none",     scope: "both" },
+  { id: "s5",  name: "VAT 5% (Standard)",       short: "5%",          rate: 5, kind: "standard", scope: "both" },
+  { id: "z0",  name: "Zero-rated 0% (Export)",  short: "0% zero",     rate: 0, kind: "zero",     scope: "both" },
+  { id: "ex",  name: "Exempt",                  short: "Exempt",      rate: 0, kind: "exempt",   scope: "both" },
+  { id: "rc5", name: "Reverse Charge 5% (Import)", short: "5% reverse", rate: 5, kind: "rcm",   scope: "purchase" },
+  { id: "nt",  name: "Out of scope",            short: "Out of scope", rate: 0, kind: "none",     scope: "both" },
 ];
 const TAX = Object.fromEntries(TAXES.map((t) => [t.id, t]));
 
+/* Addresses have two lines: `address` (line 1) and `address2` (line 2). */
+const addrLines = (x) => [x && x.address, x && x.address2].filter((v) => v && String(v).trim());
+const addrText = (x, sep = ", ") => addrLines(x).join(sep);
 const EMIRATES = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Umm Al Quwain", "Ras Al Khaimah", "Fujairah"];
 
 const COMPANY = {
   name: "My Company",
   trn: "",
   address: "",
+  address2: "",
   city: "United Arab Emirates",
   phone: "",
   email: "",
@@ -392,7 +396,7 @@ function deriveBooks(state) {
     flat.push({ ...l, entryId: e.id, date: e.date, number: e.number, ref: e.ref, journal: e.journal, docId: e.docId, key: e.id + "_" + i })));
   const totalD = R2(flat.reduce((s, l) => s + l.debit, 0));
   const totalC = R2(flat.reduce((s, l) => s + l.credit, 0));
-  return { entries, flat, stock, moves, totalD, totalC, balanced: Math.abs(totalD - totalC) < 0.01 };
+  return { entries, flat, stock, moves, totalD, totalC, method, balanced: Math.abs(totalD - totalC) < 0.01 };
 }
 
 /* ========================================================================== */
@@ -638,7 +642,7 @@ const CSS = `
 .side.mini{width:68px;flex-basis:68px}
 .side-top{padding:16px 17px 13px;display:flex;align-items:center;gap:11px}
 .logo{width:35px;height:35px;border-radius:10px;flex:0 0 35px;display:grid;place-items:center;
-  background:linear-gradient(148deg,#3B2FA6,#231B6E);box-shadow:inset 0 1px 0 rgba(255,255,255,.24)}
+  background:linear-gradient(148deg,#2A17B5,#13017E);box-shadow:inset 0 1px 0 rgba(255,255,255,.24)}
 .wordmark{min-width:0}
 .wordmark b{display:block;color:var(--nav-brand);font-size:16.5px;font-weight:600;letter-spacing:-.024em;line-height:1.1}
 .wordmark span{display:block;color:var(--nav-sub);font-size:9.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;margin-top:4px}
@@ -723,7 +727,7 @@ const CSS = `
   border:1px solid transparent;transition:background .14s,color .14s,border-color .14s}
 .icon-btn:hover{background:var(--surface-2);color:var(--ink);border-color:var(--line)}
 .me{width:33px;height:33px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:600;
-  background:linear-gradient(148deg,#3B2FA6,#231B6E);color:#fff;transition:box-shadow .14s,transform .14s}
+  background:linear-gradient(148deg,#2A17B5,#13017E);color:#fff;transition:box-shadow .14s,transform .14s}
 .me:hover{box-shadow:var(--ring);transform:translateY(-1px)}
 
 /* --------------------------------------------------------------- popover */
@@ -986,7 +990,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 /* ---------------------------------------------------------------- print */
 .sheet{background:#fff;color:#08191F;max-width:860px;margin:0 auto;border-radius:var(--r-l);
   box-shadow:var(--sh-3);overflow:hidden}
-.sheet-crest{background:linear-gradient(135deg,#231B6E 0%,#2E2690 48%,#2D47A6 100%);color:#fff;
+.sheet-crest{background:linear-gradient(135deg,#13017E 0%,#2512A8 50%,#1F45D6 100%);color:#fff;
   padding:30px 46px 26px;position:relative;overflow:hidden}
 .sheet-crest::after{content:"";position:absolute;right:-70px;top:-90px;width:280px;height:280px;border-radius:50%;
   background:radial-gradient(circle,rgba(214,171,87,.28),transparent 62%)}
@@ -1006,14 +1010,14 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .sheet-parties .lb{font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8CA0AA}
 .sheet-parties .nm{font-weight:600;margin-top:7px;font-size:14px}
 .sheet-parties .ad{font-size:12px;color:#5A737F;margin-top:4px;line-height:1.55}
-.sheet-parties .trn{font-family:var(--mono);font-size:11.5px;margin-top:7px;color:#312682}
+.sheet-parties .trn{font-family:var(--mono);font-size:11.5px;margin-top:7px;color:#13017E}
 .sheet table.tbl th{background:#F2F6F7;color:#5A737F;border-bottom:1px solid #DFE8EC}
 .sheet table.tbl td{border-bottom:1px solid #EDF2F4;color:#08191F}
 .sheet .totbox{background:#F6F6FD;border:1px solid #E0DEF5;border-radius:var(--r);padding:16px 18px}
 .sheet .totbox .sumrow .k{color:#5A737F}
 .sheet .totbox .grand{display:flex;align-items:baseline;gap:12px;margin-top:12px;padding-top:13px;border-top:1px solid #D3D0F0}
 .sheet .totbox .grand b{font-size:12px;font-weight:600;color:#312682;letter-spacing:.02em}
-.sheet .totbox .grand span{margin-left:auto;font-family:var(--mono);font-size:23px;font-weight:600;letter-spacing:-.03em;color:#231B6E}
+.sheet .totbox .grand span{margin-left:auto;font-family:var(--mono);font-size:23px;font-weight:600;letter-spacing:-.03em;color:#13017E}
 .sheet .payblk{background:#FAFBFC;border:1px solid #E7EEF0;border-radius:var(--r);padding:14px 16px;font-size:11.5px;color:#5A737F;line-height:1.7}
 .sheet .foot{margin-top:30px;padding-top:18px;border-top:1px solid #E1E9ED;display:flex;gap:26px;flex-wrap:wrap;
   font-size:10.5px;color:#8CA0AA;line-height:1.6}
@@ -1027,7 +1031,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
   .page-head{position:static;padding:0 0 14px}
   .scrim{position:static;background:none;padding:0;display:block;backdrop-filter:none}
   .sheet,.card{box-shadow:none;border:none;max-width:none;break-inside:avoid}
-  .rframe-h{border-bottom:2px solid #312682!important;padding-left:0!important;padding-right:0!important}
+  .rframe-h{border-bottom:2px solid #13017E!important;padding-left:0!important;padding-right:0!important}
   .tbl tbody tr{break-inside:avoid}
   @page{margin:14mm}
 }
@@ -1524,7 +1528,7 @@ function bucketize(from, to, gran) {
 /* Chart colours can't read CSS variables from SVG presentation attributes,
    so the active palette travels through context instead. */
 const PALETTE = {
-  light: { c1: "#3B32A8", c2: "#B0801F", c3: "#2F55B8", pos: "#0C7A56", neg: "#AE3123",
+  light: { c1: "#2A17B5", c2: "#B0801F", c3: "#2F55B8", pos: "#0C7A56", neg: "#AE3123",
     grid: "#E4E4F1", axis: "#6C6E96", ring: "#FFFFFF" },
   dark:  { c1: "#A39DFF", c2: "#D6AB57", c3: "#7FA2FF", pos: "#34B489", neg: "#E28170",
     grid: "#2A2952", axis: "#A5A3CF", ring: "#17163A" },
@@ -1570,7 +1574,7 @@ const sortRows = (rows, sort, get) => {
   });
 };
 const initials = (s) => s.replace(/[^A-Za-z ]/g, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-const AV_TONES = ["#312682", "#2D47A6", "#A9741A", "#6A4FB8", "#1F6C8A", "#A2452F"];
+const AV_TONES = ["#2A17B5", "#1F45D6", "#A9741A", "#6A4FB8", "#1F6C8A", "#A2452F"];
 const toneFor = (s) => AV_TONES[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % AV_TONES.length];
 
 const Btn = ({ kind, size, icon: Ic, children, ...p }) => (
@@ -1853,7 +1857,7 @@ function exportPdf(title, meta, CO, tables, name) {
   doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(95, 97, 135);
   doc.text(`${CO.name}   ·   TRN ${CO.trn}`, 40, y + 15);
   doc.text(meta, 40, y + 28);
-  doc.setDrawColor(49, 38, 130); doc.setLineWidth(1.4);
+  doc.setDrawColor(19, 1, 126); doc.setLineWidth(1.4);
   doc.line(40, y + 38, W - 40, y + 38);
   let startY = y + 50;
   tables.forEach((t) => {
@@ -2416,7 +2420,7 @@ function nextNumber(docs, type) {
 /* A new document starts with no counterparty, so nothing is ever posted to the wrong customer by default. */
 function blankDoc(docs, type) {
   return { id: uid("d"), type, number: nextNumber(docs, type), partner: "", salesman: "", pricelist: "", date: TODAY,
-    due: TODAY, lines: [{ id: uid("l"), product: "", desc: "", qty: 1, price: 0, disc: 0, tax: "s5", account: null }],
+    due: TODAY, lines: [{ id: uid("l"), product: "", desc: "", qty: "", price: 0, disc: 0, tax: "s5", account: null }],
     ref: "", note: "", state: "draft", seq: 0, emirate: COMPANY.emirate || "Dubai", isNew: true };
 }
 
@@ -2561,9 +2565,10 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     if(l.id!==id)return l;const next={...l,[k]:v,...(k==='price'?{manualPricing:true}:{})};
     return k==='qty'&&!next.manualPricing&&PROD[next.product]?{...next,...pricingFor(state,PROD[next.product],v,s.date,s.pricelist,meta.side)}:next;
   })}));
-  const addLine=()=>{const id=uid('l');pendingLine.current=id;setTab('items');setD(s=>({...s,lines:[...s.lines,{id,product:'',desc:'',qty:1,price:0,disc:0,tax:'s5',account:null}]}));};
+  const addLine=()=>{const id=uid('l');pendingLine.current=id;setTab('items');setD(s=>({...s,lines:[...s.lines,{id,product:'',desc:'',qty:'',price:0,disc:0,tax:'s5',account:null}]}));};
   const pickProduct=(id,pid)=>{const p=PROD[pid];if(!p)return;
     setD(s=>({...s,lines:s.lines.map(l=>l.id===id?{...l,product:pid,desc:p.name,disc:0,...pricingFor(state,p,l.qty,s.date,s.pricelist,meta.side),tax:sale&&p.tax==='rc5'?'s5':p.tax,account:null,accounts:undefined,manualPricing:false}:l)}));setHistoryProduct(pid);
+    requestAnimationFrame(()=>document.querySelector('[data-line-id="'+id+'"] .q-qty')?.focus());
   };
   const pickPartner=pid=>{const p=PMAP[pid];if(!p)return;setD(s=>reprice({...s,partner:pid,due:addDays(s.date,p.terms||0),emirate:p.emirate,salesman:p.salesman||'',pricelist:p.pricelist||''},true));};
   const validate=(posting=false)=>{
@@ -2571,19 +2576,23 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     if(!d.date||!d.due)return 'Set the document and due dates.';
     if(posting&&!d.lines.length)return 'Add at least one product line.';
     if(d.lines.some(l=>!PROD[l.product]))return 'Choose a product on every line, or remove the empty line.';
+    if(d.lines.some(l=>l.qty===''||l.qty==null))return 'Enter a quantity on every line.';
     if(d.lines.some(l=>!Number.isFinite(+l.qty)||+l.qty<=0||!Number.isFinite(+l.price)||+l.price<0||!Number.isFinite(+l.disc)||+l.disc<0||+l.disc>100))return 'Use quantities above zero, non-negative prices, and discounts between 0 and 100%.';
     if(posting&&state.stockOps.some(o=>o.date>d.date&&o.lines.some(x=>d.lines.some(l=>l.product===x.product))))return 'A later stock adjustment exists for one of these products. Use a date on or after that adjustment.';
     return '';
   };
+  const warn=(err)=>{toast(err,"warn");const bad=d.lines.find(l=>!PROD[l.product])||d.lines.find(l=>l.qty===''||l.qty==null||!(+l.qty>0));
+    if(bad&&/product|quantit/i.test(err))requestAnimationFrame(()=>document.querySelector('[data-line-id="'+bad.id+'"] '+(PROD[bad.product]?'.q-qty':'input[role=combobox]'))?.focus());return false;};
 
   const commit = (next) => setState((s) => {
     const exists = s.docs.some((x) => x.id === d.id);
     const seq = next.state === "posted" && !next.seq ? Math.max(0, ...s.docs.map((x) => x.seq||0), ...(s.stockOps||[]).map(x=>x.seq||0)) + 1 : next.seq;
     const numeric = { ...next, lines: next.lines.map((l) => ({ ...l, qty: +l.qty || 0, price: +l.price || 0, disc: +l.disc || 0 })) };
     const clean = { ...(numeric.state === "posted" ? freezeAccounts(numeric) : numeric), seq: numeric.state === "posted" ? seq : 0, isNew: undefined };
-    return { ...s, docs: exists ? s.docs.map((x) => (x.id === d.id ? clean : x)) : [...s.docs, clean] };
+    const docs = exists ? s.docs.map((x) => (x.id === d.id ? clean : x)) : [...s.docs, clean];
+    return { ...s, docs, products: clean.type === "bill" && clean.state === "posted" ? learnPurchasePrices(s, clean) : s.products };
   });
-  const save = () => { const err=validate();if(err)return toast(err,"warn");commit(d); toast(`${d.number} saved as draft`); close(); };
+  const save = () => { const err=validate();if(err)return warn(err);commit(d); toast(`${d.number} saved as draft`); close(); };
 
   const spawn = (type, lines, ref, note) => {
     const nd = { id: uid("d"), type, number: nextNumber(state.docs, type), partner: d.partner,salesman:d.salesman||"",pricelist:d.pricelist||"",
@@ -2635,7 +2644,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
       s: locked ? `Due ${dmy(d.due)}` : "" }] : []),
   ];
   const post = () => {
-    const err=validate(true);if(err)return toast(err,"warn");
+    const err=validate(true);if(err)return warn(err);
     const n = freezeAccounts({ ...d, state: "posted" }); setD(n); commit(n);
     toast(`${d.number} posted to the ledger`);
     if (!(fta && fta.autoSubmit && sale)) return;
@@ -2681,7 +2690,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
           {isQuote && !locked && <Btn kind="danger" icon={X} onClick={() => { const n = { ...d, state: "declined" }; setD(n); commit(n);
             toast(`${d.number} declined`, "warn"); }}>Declined</Btn>}
           {isQuote && <Btn kind="pri" icon={ArrowRight} disabled={!d.lines.length || locked}
-            onClick={() => { const err=validate(true);if(err)return toast(err,"warn");commit({ ...d, state: "invoiced" });
+            onClick={() => { const err=validate(true);if(err)return warn(err);commit({ ...d, state: "invoiced" });
               spawn("invoice", d.lines.map((l) => ({ ...l, id: uid("l") })), d.number,
                 `Raised from quotation ${d.number}`); }}>Convert to invoice</Btn>}
           {!d.isNew && <Btn icon={Copy} onClick={duplicate}>Duplicate</Btn>}
@@ -2719,7 +2728,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
           <div className={cx("document-fields",sale&&"sales-document-fields")}>
             <Field label={sale?'Customer':'Vendor'} span={2}><SmartPicker items={partnerOptions(meta.side)} value={d.partner} disabled={locked} autoFocus={!!d.isNew&&!d.partner} onChange={pickPartner} label={sale?'Select customer':'Select vendor'} placeholder={'Search '+(sale?'customers':'vendors')+'…'} onCreate={!locked?name=>setQuick({kind:sale?'customer':'vendor',record:{...newPartner(sale?'customer':'vendor'),name}}):undefined}/></Field>
             <Field label="Counterparty TRN"><div className="readonly">{PMAP[d.partner]?.trn||'Not registered'}</div></Field>
-            {sale&&<Field label="Salesperson"><Select value={d.salesman||''} disabled={locked} onChange={e=>set('salesman',e.target.value)}><option value="">Unassigned</option>{state.salespeople.map(p=><option key={p.id} value={p.id}>{p.name}{p.active?'':' (inactive)'}</option>)}</Select></Field>}
+            {sale&&<Field label="Salesperson"><CreatableSelect value={d.salesman} disabled={locked} onChange={v=>set('salesman',v)} options={(state.salespeople||[]).filter(p=>p.active!==false||p.id===d.salesman).map(p=>({value:p.id,label:p.name+(p.active===false?' (inactive)':'')}))} placeholder="Unassigned" createLabel="New salesperson" onCreate={addSalesperson(setState)} ariaLabel="Salesperson"/></Field>}
             <Field label="Price list"><Select value={d.pricelist||''} disabled={locked} onChange={e=>changePricing({pricelist:e.target.value},true)}><option value="">Product {sale?'sales prices':'costs'}</option>{state.priceLists.filter(x=>x.side===meta.side).map(x=><option key={x.id} value={x.id}>{x.name}{x.active?'':' (inactive)'}</option>)}</Select></Field>
             <Field label={isQuote?'Quotation date':sale?'Invoice date':'Bill date'}><Input type="date" value={d.date} disabled={locked} onChange={e=>changePricing({date:e.target.value})}/></Field>
             <Field label="Payment due"><Input type="date" value={d.due} disabled={locked} onChange={e=>set('due',e.target.value)}/></Field>
@@ -2729,9 +2738,32 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
         </Card>
         <div className="document-toolbar"><div className="doc-tabs" role="tablist" aria-label="Document views">{[['items','Line items',Layers],...(!isQuote?[['journal','Journal entry',BookOpen]]:[]),['history','Price history',Clock],['status','Activity',CircleCheck]].map(([k,label,I])=><button role="tab" aria-selected={tab===k} key={k} className={tab===k?'on':''} onClick={()=>setTab(k)}><I size={15}/>{label}{k==='items'&&<span>{d.lines.length}</span>}</button>)}</div><div className="acts">{tab==='items'&&<><div className="seg line-view-switch" aria-label="Line layout"><button className={lineView==='compact'?'on':''} onClick={()=>setLineView('compact')}>Compact</button><button className={lineView==='detail'?'on':''} onClick={()=>setLineView('detail')}>Detailed</button></div><Btn size="sm" aria-pressed={showAccounts} onClick={()=>setShowAccounts(x=>!x)}>{showAccounts?'Hide accounts':'Show accounts'}</Btn><Btn size="sm" aria-pressed={showCost} onClick={()=>setShowCost(x=>!x)}>{showCost?'Hide cost':'Show cost'}</Btn>{!locked&&<Btn size="sm" onClick={()=>changePricing({},true)}>Reapply pricing</Btn>}</>}</div></div>
         {tab==='items'&&<>
-          <div className="line-section-head"><div><h2>Products & services</h2><p>Search by name, code or barcode. Select a product to fill the line.</p></div>{!locked&&<Btn icon={Plus} kind="pri" onClick={addLine}>Add line</Btn>}</div>
-          {!d.lines.length&&<Card><EmptyState icon={Package} title="Start with your first product">Add a blank line, then search or scan a product.</EmptyState>{!locked&&<div className="center"><Btn kind="pri" icon={Plus} onClick={addLine}>Add first line</Btn></div>}</Card>}
-          <div className="document-lines">{am.lines.map((l,i)=>{const p=PROD[l.product],st=p&&books.stock[p.id]||{qty:0,value:0},cost=p?(st.qty>0?st.value/st.qty:p.cost):0;
+          {lineView!=='compact'&&<div className="line-section-head"><div><h2>Products & services</h2><p>Search by name, code or barcode. Select a product to fill the line.</p></div>{!locked&&<Btn icon={Plus} kind="pri" onClick={addLine}>Add line</Btn>}</div>}
+          {!d.lines.length&&lineView!=='compact'&&<Card><EmptyState icon={Package} title="Start with your first product">Add a blank line, then search or scan a product.</EmptyState>{!locked&&<div className="center"><Btn kind="pri" icon={Plus} onClick={addLine}>Add first line</Btn></div>}</Card>}
+          {lineView==='compact'&&<div className="line-grid-wrap"><table className="line-grid">
+            <thead><tr><th className="lg-n">#</th><th className="lg-p">Product</th><th className="lg-d">Description</th><th className="lg-q">Qty</th><th className="lg-u">Unit</th><th className="lg-pr">Unit price</th><th className="lg-di">Disc %</th><th className="lg-t">VAT</th>{showAccounts&&<th className="lg-a">Account</th>}{showCost&&<th className="lg-c">Cost / margin</th>}<th className="lg-am">Amount</th><th className="lg-x"/></tr></thead>
+            <tbody>{am.lines.map((l,i)=>{const p=PROD[l.product],st=p&&books.stock[p.id]||{qty:0,value:0},cost=p?currentCost(p,books):0;
+              const def=sale?(l.accounts?.income||p?.income):(p?.kind==='goods'?(l.accounts?.inventory||p?.inventory):(l.accounts?.expense||p?.expense));
+              const last=i===am.lines.length-1;
+              const enter=e=>{if(e.key==='Enter'&&!locked){e.preventDefault();if(last)addLine();else document.querySelector('[data-line-id="'+am.lines[i+1].id+'"] .q-qty')?.focus();}};
+              return <tr key={l.id} data-line-id={l.id} className={cx(!p&&'blank')}>
+                <td className="lg-n">{i+1}</td>
+                <td className="lg-p"><SmartPicker label={'Product on line '+(i+1)} items={productOptions(books)} value={l.product} disabled={locked} placeholder="Search product, code or barcode…" onChange={pid=>pickProduct(l.id,pid)} onCreate={!locked?name=>setQuick({kind:'product',line:l.id,record:{...newProduct(),name}}):undefined}/>
+                  {p&&<small className="lg-meta">{p.kind==='goods'?<><b className={st.qty<=0?'neg':''}>{st.qty}</b> {p.uom} in stock</>:'Service'}{p.code?' · '+p.code:''}<button className="lg-hist" title="Price history" onClick={()=>setHistoryLine(l)}><Clock size={11}/></button></small>}</td>
+                <td className="lg-d"><input className="inp" value={l.desc} disabled={locked||!p} onChange={e=>setLine(l.id,'desc',e.target.value)} aria-label={'Description on line '+(i+1)}/></td>
+                <td className="lg-q"><input className="inp n q-qty" type="number" min="0" step="any" placeholder="0" value={l.qty} disabled={locked||!p} onKeyDown={enter} onChange={e=>setLine(l.id,'qty',e.target.value)} aria-label={'Quantity on line '+(i+1)}/></td>
+                <td className="lg-u">{p?p.uom:''}</td>
+                <td className="lg-pr"><input className="inp n" type="number" min="0" step="0.01" value={l.price} disabled={locked||!p} onKeyDown={enter} onChange={e=>setLine(l.id,'price',e.target.value)} aria-label={'Unit price on line '+(i+1)} title={l.manualPricing?'Manual price':l.priceSource||'Product price'}/></td>
+                <td className="lg-di"><input className="inp n" type="number" min="0" max="100" step="0.01" value={l.disc||''} placeholder="0" disabled={locked||!p} onKeyDown={enter} onChange={e=>setLine(l.id,'disc',e.target.value)} aria-label={'Discount on line '+(i+1)}/></td>
+                <td className="lg-t"><select className="inp" value={l.tax} disabled={locked||!p} onChange={e=>setLine(l.id,'tax',e.target.value)} aria-label={'VAT on line '+(i+1)}>{taxes.map(t=><option key={t.id} value={t.id}>{t.short||t.name}</option>)}</select></td>
+                {showAccounts&&<td className="lg-a">{p?.kind==='goods'&&!sale?<span className="lg-ro">{def}</span>:<select className="inp" value={l.account||def||''} disabled={locked||!p} onChange={e=>setLine(l.id,'account',e.target.value)} aria-label={'Account on line '+(i+1)}><option value="">—</option>{accounts.map(a=><option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}</select>}</td>}
+                {showCost&&<td className="lg-c">{p?<><span>{money(cost,false)}</span>{sale&&<small className={l.price*(1-(l.disc||0)/100)-cost<0?'neg':'pos'}>{money(l.price*(1-(l.disc||0)/100)-cost,false)}</small>}</>:''}</td>}
+                <td className="lg-am"><b>{money(l.amount,false)}</b>{l.taxAmt?<small>VAT {money(l.taxAmt,false)}</small>:null}</td>
+                <td className="lg-x">{!locked&&<button className="icon-btn" title={'Remove line '+(i+1)} aria-label={'Remove line '+(i+1)} onClick={()=>setD(s=>({...s,lines:s.lines.filter(x=>x.id!==l.id)}))}><Trash2 size={14}/></button>}</td>
+              </tr>;})}
+              {!locked&&<tr className="lg-add"><td/><td colSpan={20}><button onClick={addLine}><Plus size={14}/>Add a line</button><span>Tip: press Enter in the last quantity or price to add another line.</span></td></tr>}
+            </tbody></table></div>}
+          {lineView!=='compact'&&<div className="document-lines">{am.lines.map((l,i)=>{const p=PROD[l.product],st=p&&books.stock[p.id]||{qty:0,value:0},cost=p?currentCost(p,books):0;
             const last=p?productHistory(state,p.id,meta.side,d.partner,d.id,d.date)[0]:null;
             const def=sale?(l.accounts?.income||p?.income):(p?.kind==='goods'?(l.accounts?.inventory||p?.inventory):(l.accounts?.expense||p?.expense));
             return <article key={l.id} className={cx('doc-line',!p&&'blank',lineView==='compact'&&'compact',expandedLines[l.id]&&'expanded')} data-line-id={l.id}>
@@ -2749,8 +2781,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
                 <Field label="VAT treatment"><Select value={l.tax} disabled={locked||!p} onChange={e=>setLine(l.id,'tax',e.target.value)}>{taxes.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</Select></Field>
                 <div className="line-amount"><small>Amount excl. VAT</small><b>{money(l.amount,false)}</b><span>VAT {money(l.taxAmt,false)}</span></div>
               </div>
-              {p&&<div className="line-insights"><button className="line-detail-toggle" aria-expanded={!!expandedLines[l.id]} onClick={()=>setExpandedLines(x=>({...x,[l.id]:!x[l.id]}))}><ChevronDown size={13}/>{expandedLines[l.id]?"Hide description":"Description"}</button><span className="price-source">{l.manualPricing?'Manual price':l.priceSource||'Product price'}</span><span>{last?<>Last {sale?'sold':'purchased'}: <b>AED {money(last.unitNet,false)}</b> / {p.uom.toLowerCase()} · {dmy(last.date)} · Qty {last.qty}</>:<>No previous {sale?'sale to this customer':'purchase from this vendor'}</>}</span><button onClick={()=>setHistoryLine(l)}><Clock size={13}/>View history</button>{showCost&&<div className="runtime-cost"><span>Standard cost <b>{money(p.cost,false)}</b></span><span>Current stock cost <b>{money(cost,false)}</b></span>{sale&&<span>Est. margin / unit <b className={l.price*(1-(l.disc||0)/100)-cost<0?'neg':'pos'}>{money(l.price*(1-(l.disc||0)/100)-cost,false)}</b></span>}<small>Current costs · AED · before VAT</small></div>}{showAccounts&&<div className="runtime-account"><Field label="Account">{p?.kind==='goods'&&!sale?<div className="readonly">{def} · {ACC[def]?.name}</div>:<Select aria-label={'Account on line '+(i+1)} value={l.account||def||''} disabled={locked||!p} onChange={e=>setLine(l.id,'account',e.target.value)}><option value="">Select product first</option>{accounts.map(a=><option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}</Select>}</Field><span className="account-source">{p.kind==='goods'&&!sale?'Inventory account from product category':l.account?'Line account override':'Default from product category'}</span>{!locked&&l.account&&!(p.kind==='goods'&&!sale)&&<button onClick={()=>setLine(l.id,'account',null)}><RotateCcw size={13}/>Use category default</button>}</div>}</div>}
-            </article>;})}</div>
+              {p&&<div className="line-insights"><button className="line-detail-toggle" aria-expanded={!!expandedLines[l.id]} onClick={()=>setExpandedLines(x=>({...x,[l.id]:!x[l.id]}))}><ChevronDown size={13}/>{expandedLines[l.id]?"Hide description":"Description"}</button><span className="price-source">{l.manualPricing?'Manual price':l.priceSource||'Product price'}</span><span>{last?<>Last {sale?'sold':'purchased'}: <b>AED {money(last.unitNet,false)}</b> / {p.uom.toLowerCase()} · {dmy(last.date)} · Qty {last.qty}</>:<>No previous {sale?'sale to this customer':'purchase from this vendor'}</>}</span><button onClick={()=>setHistoryLine(l)}><Clock size={13}/>View history</button>{showCost&&<div className="runtime-cost"><span>Cost price <b>{money(p.cost,false)}</b></span><span>Current unit cost ({(books.method||'avco').toUpperCase()}) <b>{money(cost,false)}</b></span>{sale&&<span>Est. margin / unit <b className={l.price*(1-(l.disc||0)/100)-cost<0?'neg':'pos'}>{money(l.price*(1-(l.disc||0)/100)-cost,false)}</b></span>}<small>Current costs · AED · before VAT</small></div>}{showAccounts&&<div className="runtime-account"><Field label="Account">{p?.kind==='goods'&&!sale?<div className="readonly">{def} · {ACC[def]?.name}</div>:<Select aria-label={'Account on line '+(i+1)} value={l.account||def||''} disabled={locked||!p} onChange={e=>setLine(l.id,'account',e.target.value)}><option value="">Select product first</option>{accounts.map(a=><option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}</Select>}</Field><span className="account-source">{p.kind==='goods'&&!sale?'Inventory account from product category':l.account?'Line account override':'Default from product category'}</span>{!locked&&l.account&&!(p.kind==='goods'&&!sale)&&<button onClick={()=>setLine(l.id,'account',null)}><RotateCcw size={13}/>Use category default</button>}</div>}</div>}
+            </article>;})}</div>}
           <Card><div className="document-bottom"><Field label="Internal note"><textarea className="inp" rows={3} value={d.note} disabled={locked} placeholder="Delivery terms, references or notes…" onChange={e=>set('note',e.target.value)}/></Field><div className="sumbox"><div className="sumrow"><span className="k">Subtotal before discount</span><span className="v">{money(d.lines.reduce((s,l)=>s+R2(l.qty*l.price),0),false)}</span></div><div className="sumrow"><span className="k">Line discounts</span><span className="v">{money(d.lines.reduce((s,l)=>s+R2(l.qty*l.price),0)-am.net,false)}</span></div><div className="sumrow"><span className="k">Subtotal excluding VAT</span><span className="v">{money(am.net,false)}</span></div><div className="sumrow"><span className="k">VAT charged</span><span className="v">{money(am.vat,false)}</span></div>{am.rcm>0&&<div className="sumrow"><span>Reverse charge</span><span>{money(am.rcm,false)}</span></div>}<div className="sumrow total"><span className="k">Total · AED</span><span className="v">{money(am.total,false)}</span></div></div></div></Card>
           {!locked&&<div className="document-dock"><Btn icon={Plus} onClick={addLine}>Add line</Btn><span>{d.lines.length} items</span><div><small>Total · AED</small><b>{money(am.total,false)}</b></div><Btn onClick={save}>Save {isQuote?'quotation':'draft'}</Btn></div>}
         </>}
@@ -2869,14 +2901,14 @@ function PrintDoc({ d, close, fta, toast }) {
     if (!JS) { window.print(); return; }
     const doc = new JS({ orientation: "portrait", unit: "pt", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
-    doc.setFillColor(35, 27, 110); doc.rect(0, 0, W, 118, "F");
-    doc.setFillColor(124, 117, 208); doc.rect(0, 116, W, 2.5, "F");
+    doc.setFillColor(19, 1, 126); doc.rect(0, 0, W, 118, "F");
+    doc.setFillColor(106, 59, 230); doc.rect(0, 116, W, 2.5, "F");
     let ty = 44;
     if (CO.logo) { try { doc.addImage(CO.logo, 40, 26, 0, 26); ty = 68; } catch (e) {} }
     doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(15);
     doc.text(CO.name, 40, ty);
     doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(204, 200, 240);
-    doc.text(`${CO.address}\n${CO.city}\n${CO.phone}  ·  ${CO.email}`, 40, ty + 14);
+    doc.text(`${addrLines(CO).join("\n")}\n${CO.city}\n${CO.phone}  ·  ${CO.email}`, 40, ty + 14);
     doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(255, 255, 255);
     doc.text(title.toUpperCase(), W - 40, 44, { align: "right" });
     doc.setFont("courier", "normal"); doc.setFontSize(11); doc.setTextColor(214, 210, 255);
@@ -2886,8 +2918,8 @@ function PrintDoc({ d, close, fta, toast }) {
     doc.setTextColor(27, 26, 61); doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
     doc.text("SUPPLIER", 40, 148); doc.text("RECIPIENT", W / 2, 148);
     doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-    doc.text(`${CO.name}\n${CO.address}\n${CO.city}\nTRN ${CO.trn}`, 40, 162);
-    doc.text(`${p.name}\n${p.address}\n${p.emirate}\nTRN ${p.trn || "not registered"}`, W / 2, 162);
+    doc.text(`${CO.name}\n${addrText(CO)}\n${CO.city}\nTRN ${CO.trn}`, 40, 162);
+    doc.text(`${p.name}\n${addrLines(p).join("\n")}\n${p.emirate}\nTRN ${p.trn || "not registered"}`, W / 2, 162);
     doc.autoTable({
       startY: 224, margin: { left: 40, right: 40 },
       head: [["#", "Description", "Qty", "Unit price", "Taxable", "VAT %", "VAT", "Total"]],
@@ -2907,7 +2939,7 @@ function PrintDoc({ d, close, fta, toast }) {
     doc.text(money(am.net, false), W - 54, fy + 2, { align: "right" });
     doc.text(money(am.vat, false), W - 54, fy + 20, { align: "right" });
     doc.setDrawColor(211, 208, 240); doc.line(W - 236, fy + 30, W - 54, fy + 30);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(49, 38, 130);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(19, 1, 126);
     doc.text("TOTAL AED", W - 236, fy + 48);
     doc.text(money(am.total, false), W - 54, fy + 48, { align: "right" });
     doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(95, 97, 135);
@@ -2991,7 +3023,7 @@ function PrintDoc({ d, close, fta, toast }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 {CO.logo && <img className="sheet-logo" src={CO.logo} alt="" />}
                 <h1>{CO.name}</h1>
-                <div className="sub">{CO.address}<br />{CO.city}<br />{CO.phone} · {CO.email}</div>
+                <div className="sub">{addrLines(CO).map((a, i) => <React.Fragment key={i}>{a}<br /></React.Fragment>)}{CO.city}<br />{CO.phone} · {CO.email}</div>
               </div>
               <div className="doc">
                 <span className="badge">{title}</span>
@@ -3002,8 +3034,8 @@ function PrintDoc({ d, close, fta, toast }) {
           </div>
           <div className="sheet-body">
             <div className="sheet-parties">
-              {[["Supplier", CO.name, `${CO.address}, ${CO.city}`, CO.trn],
-                ["Billed to", p.name, p.address, p.trn]].map(([t, n, ad, trn]) => (
+              {[["Supplier", CO.name, [addrText(CO), CO.city].filter(Boolean).join(", "), CO.trn],
+                ["Billed to", p.name, addrText(p), p.trn]].map(([t, n, ad, trn]) => (
                 <div className="blk" key={t}>
                   <div className="lb">{t}</div><div className="nm">{n}</div><div className="ad">{ad}</div>
                   <div className="trn">TRN {trn || <span style={{ color: "#98ADB7" }}>not registered</span>}</div>
@@ -3177,7 +3209,7 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed }) {
   const [ed, setEd] = useState(null);
   React.useEffect(()=>{if(param && PMAP[param]){setEd({...PMAP[param]});scrollPageTop();}},[param]);
   const custom = state.partners || [];
-  const blank = (r) => ({ id: uid("p"), name: "", role: r, trn: "", emirate: "Dubai", address: "",
+  const blank = (r) => ({ id: uid("p"), name: "", role: r, trn: "", emirate: "Dubai", address: "", address2: "",
     contact: "", phone: "", terms: 30, custom: true });
   const valid = ed && ed.name.trim().length > 1 && (!ed.trn || /^\d{15}$/.test(ed.trn.trim()));
   const isNew = ed && !PARTNERS.some((p) => p.id === ed.id);
@@ -3198,7 +3230,7 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed }) {
   const ap = useMemo(() => aging(state, "payable", TODAY), [state]);
   const balOf = (p) => { const r = (p.role === "customer" ? ar : ap).rows.find((x) => x.partner.id === p.id); return r ? r.total : 0; };
   const list = PARTNERS.filter((p) => role === "all" || p.role === role)
-    .filter((p) => hits(q, p.name, p.trn, p.contact, p.phone, p.emirate, p.address));
+    .filter((p) => hits(q, p.name, p.trn, p.contact, p.phone, p.emirate, p.address, p.address2));
   return (
     <div>
       <PageHead eyebrow={fixed === "vendor" ? "Purchases" : "Sales"} title={fixed === "vendor" ? "Vendors" : fixed === "customer" ? "Customers" : "Customers & vendors"}
@@ -3238,10 +3270,12 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed }) {
                 {[...EMIRATES, "Export", "Import"].map((x) => <option key={x}>{x}</option>)}</Select></Field>
             <Field label="Payment terms (days)">
               <Input n type="number" value={ed.terms} onChange={(e) => setEd({ ...ed, terms: e.target.value })} /></Field>
-            {ed.role === "customer" && <Field label="Salesperson"><Select value={ed.salesman||""} onChange={e=>setEd({...ed,salesman:e.target.value})}><option value="">Unassigned</option>{(state.salespeople||[]).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</Select></Field>}
+            {ed.role === "customer" && <Field label="Salesperson"><CreatableSelect value={ed.salesman} onChange={(v) => setEd((x) => ({ ...x, salesman: v }))} options={salespersonOptions(state)} placeholder="Unassigned" createLabel="New salesperson" onCreate={addSalesperson(setState)} ariaLabel="Salesperson" /></Field>}
             <Field label="Default price list"><Select value={ed.pricelist||""} onChange={e=>setEd({...ed,pricelist:e.target.value})}><option value="">Product prices</option>{(state.priceLists||[]).filter(x=>x.side===(ed.role==="customer"?"sale":"purchase")).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</Select></Field>
-            <Field label="Address" span={2}>
-              <Input value={ed.address} placeholder="Office, street, area" onChange={(e) => setEd({ ...ed, address: e.target.value })} /></Field>
+            <Field label="Address line 1">
+              <Input value={ed.address} placeholder="Office / building, street" onChange={(e) => setEd({ ...ed, address: e.target.value })} /></Field>
+            <Field label="Address line 2">
+              <Input value={ed.address2 || ""} placeholder="Area, city, P.O. Box (optional)" onChange={(e) => setEd({ ...ed, address2: e.target.value })} /></Field>
             <Field label="Email">
               <Input value={ed.contact} placeholder="accounts@company.ae" onChange={(e) => setEd({ ...ed, contact: e.target.value })} /></Field>
             <Field label="WhatsApp number">
@@ -3278,7 +3312,7 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed }) {
               {!fixed && <td><Pill tone={p.role === "customer" ? "ok" : "info"}>{p.role}</Pill></td>}
               <td className="mono nowrap" style={{ fontSize: 12.5 }}>{p.trn || <span className="muted">Not registered</span>}</td>
               <td className="addr-cell"><b>{p.emirate}</b>{p.designatedZone && <> <Pill tone="gold">Designated zone</Pill></>}
-                {p.address && <small title={p.address}>{p.address}</small>}</td>
+                {addrText(p) && <small title={addrText(p)}>{addrText(p)}</small>}</td>
               <td className="n nowrap">{p.terms ? `${p.terms} days` : "Cash"}</td>
               <td className="n" style={{ fontWeight: 600 }}>{money(balOf(p))}</td>
               <td style={{ whiteSpace: "nowrap" }}>
@@ -4618,14 +4652,14 @@ function StatementSheet({ close, party, g, buckets, due, p, msg, toast, isCust }
     if (!JS) return null;
     const doc = new JS({ orientation: "portrait", unit: "pt", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
-    doc.setFillColor(35, 27, 110); doc.rect(0, 0, W, 108, "F");
-    doc.setFillColor(124, 117, 208); doc.rect(0, 106, W, 2.5, "F");
+    doc.setFillColor(19, 1, 126); doc.rect(0, 0, W, 108, "F");
+    doc.setFillColor(106, 59, 230); doc.rect(0, 106, W, 2.5, "F");
     let ty = 42;
     if (CO.logo) { try { doc.addImage(CO.logo, 40, 24, 0, 24); ty = 64; } catch (e) {} }
     doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(14);
     doc.text(CO.name, 40, ty);
     doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(204, 200, 240);
-    doc.text(`${CO.address}\n${CO.city}\nTRN ${CO.trn}`, 40, ty + 13);
+    doc.text(`${addrText(CO)}\n${CO.city}\nTRN ${CO.trn}`, 40, ty + 13);
     doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
     doc.text("STATEMENT OF ACCOUNT", W - 40, 42, { align: "right" });
     doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(204, 200, 240);
@@ -4633,7 +4667,7 @@ function StatementSheet({ close, party, g, buckets, due, p, msg, toast, isCust }
     doc.setTextColor(27, 26, 61); doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
     doc.text("ACCOUNT", 40, 136);
     doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
-    doc.text(`${party.name}\n${party.address || ""}\nTRN ${party.trn || "not registered"}`, 40, 150);
+    doc.text(`${party.name}\n${addrLines(party).join("\n")}\nTRN ${party.trn || "not registered"}`, 40, 150);
     doc.autoTable({
       startY: 200, margin: { left: 40, right: 40 },
       head: [["Date", "Document", "Detail", "Charges", "Credits", "Balance"]],
@@ -4654,7 +4688,7 @@ function StatementSheet({ close, party, g, buckets, due, p, msg, toast, isCust }
       headStyles: { fillColor: [240, 240, 250], textColor: [69, 70, 111], fontStyle: "bold", fontSize: 7.5, halign: "right" },
     });
     y = doc.lastAutoTable.finalY + 26;
-    doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(49, 38, 130);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(19, 1, 126);
     doc.text(isCust ? "TOTAL DUE  AED" : "TOTAL OWED  AED", W - 200, y);
     doc.text(money(due, false), W - 40, y, { align: "right" });
     doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(150, 152, 184);
@@ -4703,7 +4737,7 @@ function StatementSheet({ close, party, g, buckets, due, p, msg, toast, isCust }
               <div style={{ flex: 1, minWidth: 0 }}>
                 {CO.logo && <img className="sheet-logo" src={CO.logo} alt="" />}
                 <h1>{CO.name}</h1>
-                <div className="sub">{CO.address}<br />{CO.city}<br />TRN {CO.trn}</div>
+                <div className="sub">{addrLines(CO).map((a, i) => <React.Fragment key={i}>{a}<br /></React.Fragment>)}{CO.city}<br />TRN {CO.trn}</div>
               </div>
               <div className="doc">
                 <span className="badge">Statement of account</span>
@@ -5086,10 +5120,11 @@ function buildFAF(state, books, CO, from, to) {
 /* ---- PINT AE: UBL 2.1 invoice shaped for the UAE Peppol specification ---- */
 function buildPINT(d, CO) {
   const am = amounts(d), p = PMAP[d.partner];
-  const party = (n, trn, street, city, scheme) => `    <cac:Party>
+  const party = (n, trn, street, city, scheme, street2) => `    <cac:Party>
       <cbc:EndpointID schemeID="${scheme}">${xesc(trn || "0000000000000000")}</cbc:EndpointID>
       <cac:PostalAddress>
-        <cbc:StreetName>${xesc(street)}</cbc:StreetName>
+        <cbc:StreetName>${xesc(street)}</cbc:StreetName>${street2 ? `
+        <cbc:AdditionalStreetName>${xesc(street2)}</cbc:AdditionalStreetName>` : ""}
         <cbc:CityName>${xesc(city)}</cbc:CityName>
         <cac:Country><cbc:IdentificationCode>AE</cbc:IdentificationCode></cac:Country>
       </cac:PostalAddress>
@@ -5130,10 +5165,10 @@ function buildPINT(d, CO) {
   <cbc:BuyerReference>${xesc(d.ref || d.number)}</cbc:BuyerReference>
   <cac:InvoicePeriod><cbc:StartDate>${d.date}</cbc:StartDate><cbc:EndDate>${d.date}</cbc:EndDate></cac:InvoicePeriod>
   <cac:AccountingSupplierParty>
-${party(CO.name, CO.trn, CO.address, CO.city, "AE:TRN")}
+${party(CO.name, CO.trn, CO.address, CO.city, "AE:TRN", CO.address2)}
   </cac:AccountingSupplierParty>
   <cac:AccountingCustomerParty>
-${party(p.name, p.trn, p.address, p.emirate, "AE:TRN")}
+${party(p.name, p.trn, p.address, p.emirate, "AE:TRN", p.address2)}
   </cac:AccountingCustomerParty>
   <cac:Delivery><cbc:ActualDeliveryDate>${d.date}</cbc:ActualDeliveryDate></cac:Delivery>
   <cac:PaymentMeans><cbc:PaymentMeansCode>30</cbc:PaymentMeansCode></cac:PaymentMeans>
@@ -5724,7 +5759,7 @@ function UsersScreen({ state, setState, me, setMe, toast }) {
   );
 }
 
-function SettingsScreen({ company, setCompany, theme, setTheme, density, setDensity, backup, restore, reset, startCompany, go, toast, books, state, fta, setFta, setCosting }) {
+function SettingsScreen({ company, setCompany, theme, setTheme, density, setDensity, backup, restore, reset, startCompany, go, toast, books, state, fta, setFta, setCosting, setSettings }) {
   const [d, setD] = useState(company);
   const dirty = JSON.stringify(d) !== JSON.stringify(company);
   const f = (k) => ({ value: d[k] || "", onChange: (e) => setD({ ...d, [k]: e.target.value }) });
@@ -5770,7 +5805,8 @@ function SettingsScreen({ company, setCompany, theme, setTheme, density, setDens
                 <Field label="Registered name" span={2}><Input {...f("name")} /></Field>
                 <Field label="Tax Registration Number (TRN)"><Input {...f("trn")} /></Field>
                 <Field label="Trade licence"><Input {...f("licence")} /></Field>
-                <Field label="Address" span={2}><Input {...f("address")} /></Field>
+                <Field label="Address line 1"><Input {...f("address")} placeholder="Office / building, street" /></Field>
+                <Field label="Address line 2"><Input {...f("address2")} placeholder="Area, P.O. Box (optional)" /></Field>
                 <Field label="City and country"><Input {...f("city")} /></Field>
                 <Field label="Emirate">
                   <Select {...f("emirate")}>{EMIRATES.map((e) => <option key={e}>{e}</option>)}</Select></Field>
@@ -5797,6 +5833,31 @@ function SettingsScreen({ company, setCompany, theme, setTheme, density, setDens
               <div className="setrow"><div className="st"><b>VAT period</b>
                 <span>Quarterly, filed on EmaraTax within 28 days of period end</span></div>
                 <Pill tone="info">Quarterly</Pill></div>
+              <div className="setrow"><div className="st"><b>Settlement rule</b>
+                <span>A payment settles the invoice or bill it is recorded against; unallocated money clears the oldest open document first</span></div>
+                <Pill tone="gold">Document, then oldest</Pill></div>
+            </div>
+          </Card>
+
+          <Card title="Products & stock" sub="How product codes are created and how stock is costed" pad={false}>
+            <div className="setsec">
+              <div className="setrow" style={{ display: "block" }}>
+                <div className="st"><b>Product code / SKU</b>
+                  <span>Automatic gives every new product the next code in sequence when you leave the code empty. Manual leaves the code optional.</span></div>
+                <div className="picks" style={{ marginTop: 12, marginBottom: 0, gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))" }}>
+                  {[["auto", "Automatic sequence", `Next code: ${nextProductCode(state)}`], ["manual", "Manual (optional)", "Type a code if you want one — it can stay empty"]].map(([k, l, n]) => (
+                    <button key={k} className={cx("pick", (state.settings?.productCodes || "auto") === k && "on")} onClick={() => setSettings({ productCodes: k })}>
+                      <span className="pi"><Package size={16} strokeWidth={1.8} /></span>
+                      <span className="pt"><b>{l}</b><span>{n}</span></span>
+                      <span className="chk">{(state.settings?.productCodes || "auto") === k && <Check size={11} strokeWidth={3.2} />}</span>
+                    </button>))}
+                </div>
+                {(state.settings?.productCodes || "auto") === "auto" && <div className="setgrid" style={{ marginTop: 14 }}>
+                  <Field label="Code prefix"><Input value={state.settings?.codePrefix ?? "P-"} maxLength={8} onChange={(e) => setSettings({ codePrefix: e.target.value })} /></Field>
+                  <Field label="Number of digits"><Select value={String(state.settings?.codeDigits || 5)} onChange={(e) => setSettings({ codeDigits: +e.target.value })}>
+                    {[3, 4, 5, 6].map((n) => <option key={n} value={n}>{n} digits — {(state.settings?.codePrefix ?? "P-") + "1".padStart(n, "0")}</option>)}</Select></Field>
+                </div>}
+              </div>
               <div className="setrow" style={{ display: "block" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                   <div className="st"><b>Inventory costing method</b>
@@ -5814,9 +5875,6 @@ function SettingsScreen({ company, setCompany, theme, setTheme, density, setDens
                     </button>))}
                 </div>
               </div>
-              <div className="setrow"><div className="st"><b>Settlement rule</b>
-                <span>Receipts and payments clear the oldest open document first</span></div>
-                <Pill tone="gold">FIFO</Pill></div>
             </div>
           </Card>
         </div>
@@ -6127,7 +6185,7 @@ function Invoeez() {
     { key: "setup_guide", label: "Setup guide — import products, customers, opening balances", hint: "Action", icon: ListChecks, act: () => go("setup") },
     ...state.docs.map((d) => ({ key: d.id, label: `${d.number} · ${PMAP[d.partner].name}`,
       hint: DOCMETA[d.type].short, search:d.lines.map(l=>productText(PROD[l.product])).join(" "), icon: FileText, act: () => go(LIST_OF[d.type], d.id) })),
-    ...PRODUCTS.map(p=>({key:"product_"+p.id,label:p.code+" · "+p.name,hint:[p.id,p.barcode,p.brand,p.packing].filter(Boolean).join(" · "),icon:Package,act:()=>go("products",p.id)})),
+    ...PRODUCTS.map(p=>({key:"product_"+p.id,label:prodLabel(p),hint:[p.id,p.barcode,p.brand,p.packing].filter(Boolean).join(" · "),icon:Package,act:()=>go("products",p.id)})),
     ...PARTNERS.map(p=>({key:"partner_"+p.id,label:p.name,hint:[p.role,p.phone,p.contact,p.trn].join(" · "),icon:Users,act:()=>go("partners",p.id)})),
     ...ACCOUNTS.map((a) => ({ key: a.code, label: `${a.code} — ${a.name}`, hint: "Ledger", icon: BookOpen,
       act: () => go("r_gl", a.code) })),
@@ -6173,7 +6231,7 @@ function Invoeez() {
       case "fta": return <FtaScreen state={state} setState={setState} books={books} company={company} fta={fta} setFta={setFta}
         p={period} setP={setPeriod} toast={toast} go={go} />;
       case "users": return <UsersScreen state={state} setState={setState} me={me} setMe={setMe} toast={toast} />;
-      case "settings": return <SettingsScreen setCosting={(k) => setState((x) => ({ ...x, costing: k }))} fta={fta} setFta={setFta} company={company} setCompany={setCompany} theme={theme} setTheme={setTheme}
+      case "settings": return <SettingsScreen setCosting={(k) => setState((x) => ({ ...x, costing: k }))} setSettings={(patch) => setState((x) => ({ ...x, settings: { ...(x.settings || {}), ...patch } }))} fta={fta} setFta={setFta} company={company} setCompany={setCompany} theme={theme} setTheme={setTheme}
         density={density} setDensity={setDensity} backup={backup} restore={restore} reset={reset} startCompany={startCompany} go={go}
         toast={toast} books={books} state={state} />;
       case "r_tb": return <TrialBalance books={books} p={period} setP={setPeriod} toast={toast} />;

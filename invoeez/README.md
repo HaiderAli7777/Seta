@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.4)
+# InvoEez — Invoice Made Easy (3.5)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -65,7 +65,9 @@ Company profile, theme, user selection and connection settings use their existin
 | Page navigation | Opening another section, a document or the document list starts at the top. |
 | Product history | View the last posted sale to the selected customer or purchase from the selected vendor. Open history for date, document, quantity, price, discount and net price; switch between the selected partner and all partners. **Use price** copies the historical price and discount into an editable line. |
 | Product catalog | Switch between product cards and the operational table. Search or scan identifiers; filter by category, goods/services and low stock. Open a product for its sales/purchase history. |
-| Product form | Product code/SKU, unique barcode, internal ID, brand, category, packing, unit, price, cost, tax and low-stock threshold. Product details include sales and purchase history. |
+| Product form | Optional product code/SKU (automatic P-00001 numbering or manual, chosen in Settings → Products & stock), unique barcode, internal ID, brand and category drop-downs with "＋ New…" inline creation, packing, unit, price, cost (set by the first purchase if left empty), current unit cost under the chosen costing method, last purchase price, tax and low-stock threshold. Product details include sales and purchase history. |
+| Document lines | Compact one-row-per-item grid (Odoo-style) with an optional detailed card view. Quantity starts empty and is focused after a product is picked; Enter adds the next line. |
+| Addresses | Address line 1 and Address line 2 for customers, vendors and the company, carried to imports, printouts, statements, PDFs and PINT AE. |
 | Category accounts | Configure revenue, cost/expense, inventory and adjustment/scrap accounts on each category. Products inherit them for new postings. Posted document account mappings remain unchanged. |
 | Salesperson | Manage the sales team and assign a salesperson to a customer. New customer selections copy the assignment to the invoice, where it can be changed. |
 | Physical counts | Enter actual counted quantities, a date and reason. Posting creates an auditable stock adjustment and its balanced journal. Zero is a valid physical count; blank means not counted. |
@@ -141,7 +143,7 @@ npm test
 
 ## Verification and scope
 
-`npm test` checks the sample company for three different "today" dates (balanced books, no negative stock, no dangling references, no future-dated records, unique numbers), the 3.2 → 3.3 master-data migration, the start-fresh template, plus the earlier checks: balanced journals, historical accounts, category inheritance, pricing tiers and dates, manual discounts, retired-rule migration, cash-flow transfer exclusion, counts and scrap, all three costing methods, history, validation and search.
+`npm test` checks the sample company for three different "today" dates (balanced books, no negative stock, no dangling references, no future-dated records, unique numbers), the 3.2 → 3.3 master-data migration, the start-fresh template, plus the earlier checks: balanced journals, historical accounts, category inheritance, pricing tiers and dates, manual discounts, retired-rule migration, cash-flow transfer exclusion, counts and scrap, all three costing methods, history, validation and search, plus automatic product codes and first-purchase / last-purchase pricing.
 
 Browser checks for 3.3 covered every screen in the sample and in a brand-new company, Start my company, the setup guide, importing a compressed Excel workbook and a semicolon CSV (including invalid and duplicate rows), round-tripping the app's own templates, opening balances, a first invoice with imported stock, Unpaid/Overdue filters and paging, invoice print and PDF download, account rename, reloading the sample, an in-place upgrade from the original 3.2 file, and light, dark and mobile layouts. The 3.2 checks listed in `tests/browser-checks.json` remain part of the record.
 
