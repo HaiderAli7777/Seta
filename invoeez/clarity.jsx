@@ -73,11 +73,18 @@ function ReportsHub({ state, books, go, allowed }) {
   return (
     <div>
       <PageHead eyebrow="Reports" title="All reports" sub="Pick a question — every report opens for the current year and can be exported to PDF or Excel." />
+      <div className="hub-kpis"><KpiRow>
+        {allowed("r_pnl") && <KpiTile label={P.net >= 0 ? "Profit this year" : "Loss this year"} value={P.net} icon={BarChart3} tone={P.net >= 0 ? "pos" : "neg"} sub={P.revenue ? `${P.nm.toFixed(1)}% of AED ${money(P.revenue, false)} sales` : "No sales yet"} onClick={() => go("r_pnl")} />}
+        {allowed("r_aged_ar") && <KpiTile label="Customers owe you" value={ar.grand} icon={Receipt} tone={late(ar) > 0.004 ? "warn" : undefined} sub={late(ar) > 0.004 ? `AED ${money(late(ar), false)} overdue` : "Nothing overdue"} onClick={() => go("r_aged_ar")} />}
+        {allowed("r_aged_ap") && <KpiTile label="You owe vendors" value={ap.grand} icon={Wallet} tone="t2" sub={late(ap) > 0.004 ? `AED ${money(late(ap), false)} overdue` : "Nothing overdue"} onClick={() => go("r_aged_ap")} />}
+        {allowed("r_vat") && <KpiTile label={v.due >= 0 ? "VAT payable this quarter" : "VAT refundable this quarter"} value={Math.abs(v.due)} icon={Building2} tone="t3" sub={`So far · ${dmy(soq(TODAY))} – today`} onClick={() => go("r_vat")} />}
+        {allowed("r_stock") && <KpiTile label="Stock value" value={stock} icon={Boxes} sub="At cost" onClick={() => go("r_stock")} />}
+      </KpiRow></div>
       <PlainSummary state={state} books={books} from={y0} to={TODAY} label="this year" />
-      {groups.map(([title, items]) => {
+      {groups.map(([title, items], gi) => {
         const shown = items.filter(([k]) => allowed(k));
         if (!shown.length) return null;
-        return (<section key={title} className="report-group"><h2>{title}</h2>
+        return (<section key={title} className={"report-group rg" + (gi % 5)}><h2><span className="rg-dot" />{title}</h2>
           <div className="report-grid">{shown.map(([k, I, t, s, head, tone]) => (
             <button key={k} className="report-card" onClick={() => go(k)}>
               <span className="rc-ico"><I size={19} /></span>
@@ -99,7 +106,18 @@ const CLARITY_CSS = `
 .report-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
 .report-card{display:flex;align-items:flex-start;gap:13px;text-align:left;padding:16px;border-radius:14px;border:1px solid var(--line);background:var(--surface);cursor:pointer;color:var(--ink-3);box-shadow:var(--sh-1);transition:border-color .15s,transform .15s,box-shadow .15s}
 .report-card:hover{border-color:var(--brand);box-shadow:0 8px 24px #282B2F12;transform:translateY(-1px)}
-.rc-ico{width:38px;height:38px;flex:0 0 38px;border-radius:11px;display:grid;place-items:center;background:var(--brand-50);color:var(--brand)}
+.rc-ico{width:40px;height:40px;flex:0 0 40px;border-radius:12px;display:grid;place-items:center;background:var(--rg-50,var(--brand-50));color:var(--rg,var(--brand));transition:transform .15s}
+.report-card:hover .rc-ico{transform:scale(1.06)}
+.report-group h2{display:flex;align-items:center;gap:8px}.rg-dot{width:8px;height:8px;border-radius:50%;background:var(--rg,var(--brand))}
+.report-group.rg0{--rg:var(--s1);--rg-50:color-mix(in srgb,var(--s1) 11%,var(--surface))}
+.report-group.rg1{--rg:var(--s2);--rg-50:color-mix(in srgb,var(--s2) 11%,var(--surface))}
+.report-group.rg2{--rg:var(--s3);--rg-50:color-mix(in srgb,var(--s3) 11%,var(--surface))}
+.report-group.rg3{--rg:var(--pos);--rg-50:var(--pos-50)}
+.report-group.rg4{--rg:var(--ink-2);--rg-50:var(--surface-3)}
+.report-card{position:relative;overflow:hidden}
+.report-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--rg,var(--brand));opacity:0;transition:opacity .15s}
+.report-card:hover::before{opacity:1}
+.hub-kpis{margin-bottom:18px}
 .rc-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}.rc-text b{font-size:14px;color:var(--ink);font-weight:600}
 .rc-text small{font-size:12.5px;line-height:1.45;color:var(--ink-3)}.rc-text em{font-style:normal;font-size:12.5px;font-weight:600;color:var(--ink);margin-top:6px}
 .rc-text em.pos{color:var(--pos)}.rc-text em.neg{color:var(--neg)}.rc-go{color:var(--ink-4);margin-top:10px}

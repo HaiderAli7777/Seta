@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.6.1)
+# InvoEez — Invoice Made Easy (3.7)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 

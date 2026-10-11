@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.6.1";
+const BUILD = "3.7.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -1918,17 +1918,20 @@ function ExportBar({ frameRef, title, meta, toast }) {
 }
 
 /* -------------------------------------------------------- report wrapper */
-const ReportFrame = ({ title, meta, right, children, toast }) => {
+const ReportFrame = ({ title, meta, right, children, toast, icon: Ic = BarChart3, chips }) => {
   const CO = useCo();
   const frameRef = React.useRef(null);
   return (
-  <div className="card" ref={frameRef}>
-    <div className="rframe-h" style={{ padding: "20px 22px 18px", borderBottom: "1px solid var(--line)", display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
-      <div>
-        {CO.logo && <img src={CO.logo} alt="" style={{ maxHeight: 34, maxWidth: 150, objectFit: "contain", display: "block", marginBottom: 9 }} />}
-        <div className="micro">{CO.name} · TRN {CO.trn}</div>
-        <h2 style={{ fontSize: 21, fontWeight: 600, letterSpacing: "-.025em", marginTop: 7 }}>{title}</h2>
-        <p style={{ fontSize: 12.5, color: "var(--ink-3)", marginTop: 4 }}>{meta}</p>
+  <div className="card rframe" ref={frameRef}>
+    <div className="rframe-h" style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+      <div className="rf-title">
+        <span className="rf-ic noprint"><Ic size={21} /></span>
+        <div style={{ minWidth: 0 }}>
+          {CO.logo && <img src={CO.logo} alt="" style={{ maxHeight: 34, maxWidth: 150, objectFit: "contain", display: "block", marginBottom: 9 }} />}
+          <div className="micro">{CO.name}{CO.trn ? ` · TRN ${CO.trn}` : ""}</div>
+          <h2>{title}</h2>
+          <div className="rf-chips">{(chips || [meta]).filter(Boolean).map((c, i) => <span key={i} className={i === 0 ? "acc" : ""}>{c}</span>)}</div>
+        </div>
       </div>
       <div className="acts noprint" style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
         {right}<ExportBar frameRef={frameRef} title={title} meta={meta} toast={toast} /></div>
@@ -3807,8 +3810,10 @@ function TrialBalance({ books, p, setP , toast }) {
   const tb = trialBalance(books.flat, p.from, p.to);
   let group = "";
   return (
-    <ReportFrame toast={toast} title="Trial Balance" meta={`${dmy(p.from)} to ${dmy(p.to)} · all amounts in AED`}
-      right={<PeriodBar p={p} setP={setP} />}>
+    <ReportFrame toast={toast} title="Trial Balance" meta={`${dmy(p.from)} to ${dmy(p.to)} · all amounts in AED`} icon={CircleDot}
+      chips={[`${dmy(p.from)} – ${dmy(p.to)}`, `${tb.rows.length} accounts`, "AED"]} right={<PeriodBar p={p} setP={setP} />}>
+      <TbVisuals tb={tb} />
+      <SectionTitle>Accounts</SectionTitle>
       <div className="tbl-wrap"><table className="tbl">
         <thead>
           <tr><th colSpan={2} /><th className="n" colSpan={2} style={{ textAlign: "center", borderLeft: "1px solid var(--line)" }}>Opening</th>
@@ -3841,10 +3846,13 @@ function GeneralLedger({ books, p, setP, param , toast }) {
   React.useEffect(() => { if (param) setAcc(param); }, [param]);
   const g = generalLedger(books.flat, acc, p.from, p.to);
   return (
-    <ReportFrame toast={toast} title="General Ledger" meta={`${ACC[acc].code} — ${ACC[acc].name} · ${dmy(p.from)} to ${dmy(p.to)}`}
+    <ReportFrame toast={toast} title="General Ledger" meta={`${ACC[acc].code} — ${ACC[acc].name} · ${dmy(p.from)} to ${dmy(p.to)}`} icon={BookOpen}
+      chips={[`${ACC[acc].code} · ${ACC[acc].name}`, `${dmy(p.from)} – ${dmy(p.to)}`, `${g.rows.length} postings`]}
       right={<><Field label="Account"><Select value={acc} onChange={(e) => setAcc(e.target.value)} style={{ width: 268 }}>
         {ACCOUNTS.map((a) => <option key={a.code} value={a.code}>{a.code} — {a.name}</option>)}</Select></Field>
         <PeriodBar p={p} setP={setP} /></>}>
+      <LedgerVisuals g={g} title={`${ACC[acc].code} — ${ACC[acc].name}`} />
+      <SectionTitle>Postings</SectionTitle>
       <div className="tbl-wrap"><table className="tbl">
         <thead><tr><th style={{ width: 104 }}>Date</th><th style={{ width: 148 }}>Entry</th><th>Narration</th>
           <th style={{ width: 128 }}>Journal</th><th className="n">Debit</th><th className="n">Credit</th><th className="n">Balance</th></tr></thead>
@@ -3877,11 +3885,14 @@ function PartnerLedgerBody({ books, p, setP, param , toast }) {
   React.useEffect(() => { if (param) setPid(param); }, [param]);
   const g = partnerLedger(books.flat, pid, p.from, p.to), pt = PMAP[pid];
   return (
-    <ReportFrame toast={toast} title="Partner Ledger" meta={`${pt.name} · TRN ${pt.trn || "unregistered"} · ${dmy(p.from)} to ${dmy(p.to)}`}
+    <ReportFrame toast={toast} title="Partner Ledger" meta={`${pt.name} · TRN ${pt.trn || "unregistered"} · ${dmy(p.from)} to ${dmy(p.to)}`} icon={Users}
+      chips={[pt.name, pt.role === "vendor" ? "Vendor" : "Customer", `TRN ${pt.trn || "unregistered"}`, `${dmy(p.from)} – ${dmy(p.to)}`]}
       right={<><Field label="Counterparty"><Select value={pid} onChange={(e) => setPid(e.target.value)} style={{ width: 250 }}>
         <optgroup label="Customers">{PARTNERS.filter((x) => x.role === "customer").map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</optgroup>
         <optgroup label="Vendors">{PARTNERS.filter((x) => x.role === "vendor").map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</optgroup>
       </Select></Field><PeriodBar p={p} setP={setP} /></>}>
+      <LedgerVisuals g={g} title={pt.name} />
+      <SectionTitle>Postings</SectionTitle>
       <div className="tbl-wrap"><table className="tbl">
         <thead><tr><th style={{ width: 104 }}>Date</th><th style={{ width: 156 }}>Document</th><th>Narration</th>
           <th style={{ width: 150 }}>Account</th><th className="n">Debit</th><th className="n">Credit</th><th className="n">Balance</th></tr></thead>
@@ -3908,17 +3919,16 @@ function Aged({ state, kind, p, setP , toast }) {
   const a = aging(state, kind, p.asOf), isAR = kind === "receivable";
   const [open, setOpen] = useState({});
   return (
-    <ReportFrame toast={toast} title={isAR ? "Aged Receivable" : "Aged Payable"}
+    <ReportFrame toast={toast} title={isAR ? "Aged Receivable" : "Aged Payable"} icon={Receipt}
+      chips={[`As at ${dmy(p.asOf)}`, "Aged on due date", "AED"]}
       meta={`As at ${dmy(p.asOf)} · aged on due date · AED`} right={<PeriodBar p={p} setP={setP} mode="asOf" />}>
       <Insight tone={R2(a.grand - a.tot[0]) > 0.004 ? "warn" : ""}>{a.grand > 0.004
         ? <>{isAR ? "Customers owe you" : "You owe vendors"} <b>{aed(a.grand)}</b> across {a.rows.length} {isAR ? "customer" : "vendor"}{a.rows.length === 1 ? "" : "s"}.{" "}
           {R2(a.grand - a.tot[0]) > 0.004 ? <><b className="neg">{aed(R2(a.grand - a.tot[0]))}</b> ({pct(a.grand - a.tot[0], a.grand)}%) is past its due date{R2(a.tot[3] + a.tot[4] + a.tot[5]) > 0.004 ? <>, and <b className="neg">{aed(R2(a.tot[3] + a.tot[4] + a.tot[5]))}</b> is more than 60 days late</> : ""}.</> : "Nothing is overdue."}
           {isAR ? " Click a customer to see each open invoice." : " Click a vendor to see each open bill."}</>
         : <>Nothing is outstanding on {dmy(p.asOf)} — every {isAR ? "invoice has been paid" : "bill has been paid"}.</>}</Insight>
-      <div className="card-b" style={{ borderBottom: "1px solid var(--line)" }}>
-        <BarList rows={a.tot.map((v, i) => ({ label: BUCKETS[i], value: v,
-          color: i > 2 ? "var(--neg)" : i > 0 ? "var(--warn)" : isAR ? "var(--brand)" : "var(--info)" }))} />
-      </div>
+      <AgedVisuals a={a} isAR={isAR} p={p} onPick={(r) => setOpen((o) => ({ ...o, [r.key]: true }))} />
+      <SectionTitle>{isAR ? "Customers" : "Vendors"} · click a row for each open document</SectionTitle>
       <div className="tbl-wrap"><table className="tbl">
         <thead><tr><th>{isAR ? "Customer" : "Vendor"}</th>{BUCKETS.map((b) => <th key={b} className="n">{b}</th>)}<th className="n">Total</th></tr></thead>
         <tbody>
@@ -3956,24 +3966,14 @@ function ProfitLoss({ books, p, setP , toast }) {
     <td>{a.acc.name}</td><td className="n">{money(a.amount)}</td>
     <td className="n muted" style={{ width: 92 }}>{share(a.amount)}</td></tr>);
   return (
-    <ReportFrame toast={toast} title="Statement of Profit or Loss" meta={`${dmy(p.from)} to ${dmy(p.to)} · AED`}
-      right={<PeriodBar p={p} setP={setP} />}>
+    <ReportFrame toast={toast} title="Statement of Profit or Loss" meta={`${dmy(p.from)} to ${dmy(p.to)} · AED`} icon={BarChart3}
+      chips={[`${dmy(p.from)} – ${dmy(p.to)}`, "Accrual basis", "AED"]} right={<PeriodBar p={p} setP={setP} />}>
       <Insight tone={r.net < 0 ? "warn" : ""}>{r.revenue || r.expense || r.cost
         ? <>From {dmy(p.from)} to {dmy(p.to)} you sold <b>{aed(r.revenue)}</b>. The goods and services you sold cost <b>{aed(r.cost)}</b>, leaving a gross profit of <b>{aed(r.gross)}</b> ({r.gm.toFixed(1)}%).
           After <b>{aed(r.expense)}</b> of running costs, the business made a <b className={r.net >= 0 ? "pos" : "neg"}>{r.net >= 0 ? "profit" : "loss"} of {aed(Math.abs(r.net))}</b>.</>
         : <>No sales or costs were recorded between {dmy(p.from)} and {dmy(p.to)}. Pick another period above.</>}</Insight>
-      <div className="card-b" style={{ borderBottom: "1px solid var(--line)" }}>
-        <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
-          {[["Revenue", r.revenue, ""], ["Gross profit", r.gross, `${r.gm.toFixed(1)}% margin`],
-            ["Operating expenses", r.expense, ""], [r.net >= 0 ? "Profit for the period" : "Loss for the period", r.net, `${r.nm.toFixed(1)}% margin`]].map(([k, v, s], i) => (
-            <div key={k} style={{ padding: "2px 0" }}>
-              <div className="micro">{k}</div>
-              <div className="num" style={{ fontSize: 21, fontWeight: 500, letterSpacing: "-.025em", marginTop: 7,
-                color: i === 3 ? (r.net >= 0 ? "var(--pos)" : "var(--neg)") : undefined }}>{money(v, false)}</div>
-              {s && <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>{s}</div>}
-            </div>))}
-        </div>
-      </div>
+      <PnlVisuals books={books} r={r} p={p} />
+      <SectionTitle>Statement detail</SectionTitle>
       <div className="tbl-wrap"><table className="tbl">
         <thead><tr><th style={{ width: 80 }}>Code</th><th>Account</th><th className="n">Amount</th><th className="n" style={{ width: 92 }}>% revenue</th></tr></thead>
         <tbody>
@@ -4015,10 +4015,12 @@ function BalanceSheetRep({ books, p, setP , toast }) {
   );
   const balanced = Math.abs(b.diff) < 0.01;
   return (
-    <ReportFrame toast={toast} title="Statement of Financial Position" meta={`As at ${dmy(p.asOf)} · AED`}
-      right={<PeriodBar p={p} setP={setP} mode="asOf" />}>
+    <ReportFrame toast={toast} title="Statement of Financial Position" meta={`As at ${dmy(p.asOf)} · AED`} icon={Scale}
+      chips={[`As at ${dmy(p.asOf)}`, balanced ? "Balanced" : "Out of balance", "AED"]} right={<PeriodBar p={p} setP={setP} mode="asOf" />}>
       <Insight>On {dmy(p.asOf)} the business owns <b>{aed(b.totA)}</b> (cash, stock, money due from customers and equipment) and owes <b>{aed(b.totL)}</b> (vendors, VAT, loans and other liabilities),
         so it is worth <b className={b.totE >= 0 ? "pos" : "neg"}>{aed(b.totE)}</b> to its owners.{Math.abs(b.diff) < 0.01 ? " Both sides agree." : ""}</Insight>
+      <BsVisuals b={b} books={books} p={p} />
+      <SectionTitle>Statement detail</SectionTitle>
       <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 0 }}>
         <div style={{ borderRight: "1px solid var(--line)" }}>
           <Block title="Assets" groups={b.assets} total={b.totA} label="Total assets" /></div>
@@ -4047,18 +4049,13 @@ function VatReturn({ state, p, setP , toast }) {
       <td className="n">{net === null ? "" : money(net)}</td>
       <td className="n" style={{ color: tone }}>{vat === null ? "" : money(vat)}</td></tr>);
   return (
-    <ReportFrame toast={toast} title="VAT Return — FTA Form 201"
+    <ReportFrame toast={toast} title="VAT Return — FTA Form 201" icon={Building2}
+      chips={[`${dmy(p.from)} – ${dmy(p.to)}`, CO.trn ? `TRN ${CO.trn}` : "TRN not set", "EmaraTax"]}
       meta={`Tax period ${dmy(p.from)} to ${dmy(p.to)} · TRN ${CO.trn} · AED`} right={<PeriodBar p={p} setP={setP} />}>
       <Insight>You charged customers <b>{aed(v.out.vat)}</b> VAT and paid <b>{aed(v.inp.vat)}</b> VAT you can recover in this period, so{" "}
         {v.due >= 0 ? <>you <b className="neg">pay the FTA {aed(v.due)}</b></> : <>the FTA <b className="pos">owes you {aed(-v.due)}</b></>}. Choose the tax period above that matches your VAT return.</Insight>
-      <div className="card-b" style={{ borderBottom: "1px solid var(--line)" }}>
-        <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))" }}>
-          {[["Output tax due · Box 12", v.out.vat, "neg"], ["Recoverable input tax · Box 13", v.inp.vat, "pos"],
-            [v.due >= 0 ? "Payable to FTA · Box 14" : "Refundable by FTA · Box 14", Math.abs(v.due), v.due >= 0 ? "neg" : "pos"]].map(([k, val, tone]) => (
-            <div key={k}><div className="micro">{k}</div>
-              <div className="num" style={{ fontSize: 21, fontWeight: 500, letterSpacing: "-.025em", marginTop: 7, color: `var(--${tone})` }}>{money(val, false)}</div></div>))}
-        </div>
-      </div>
+      <VatVisuals state={state} v={v} p={p} />
+      <SectionTitle>Form 201 · box by box</SectionTitle>
       <div className="tbl-wrap"><table className="tbl">
         <thead><tr><th style={{ width: 52 }}>Box</th><th>Description</th>
           <th className="n" style={{ width: 160 }}>Amount (AED)</th><th className="n" style={{ width: 160 }}>VAT (AED)</th></tr></thead>
@@ -4104,29 +4101,24 @@ function StockReport({ books, p, setP , toast }) {
   const moves = books.moves.filter((m) => inRange(m.date, p.from, p.to)).slice().reverse();
   return (
     <div className="grid">
-      <ReportFrame toast={toast} title="Inventory Valuation" meta={`As at ${dmy(TODAY)} · inventory carrying value · AED`}
-        right={<PeriodBar p={p} setP={setP} />}>
+      <ReportFrame toast={toast} title="Inventory Valuation" meta={`As at ${dmy(TODAY)} · inventory carrying value · AED`} icon={Package}
+        chips={[`As at ${dmy(TODAY)}`, `${COSTING[books.method || "avco"]?.label || "Weighted average"}`, "AED"]} right={<PeriodBar p={p} setP={setP} />}>
         <Insight>{rows.length ? <>You hold <b>{rows.filter((r) => r.qty > 0).length}</b> of {rows.length} stocked products, valued at <b>{aed(total)}</b> at cost.
           {rows.filter((r) => r.qty <= (r.pr.reorder ?? 5)).length ? <> <b className="neg">{rows.filter((r) => r.qty <= (r.pr.reorder ?? 5)).length}</b> are at or below their low-stock level.</> : " Nothing is running low."}</>
           : <>No stocked products yet. Add products with the type "Storable goods" to track stock here.</>}</Insight>
-        <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 0 }}>
-          <div style={{ borderRight: "1px solid var(--line)" }}>
-            <div className="tbl-wrap"><table className="tbl">
-              <thead><tr><th>Code</th><th>Product</th><th className="n">On hand</th><th className="n">Avg cost</th><th className="n">Value</th></tr></thead>
-              <tbody>{rows.map((r) => (<tr key={r.pr.id}>
-                <td className="mono" style={{ fontSize: 12.5 }}>{r.pr.code}</td>
-                <td>{r.pr.name}</td>
-                <td className="n" style={{ color: r.qty <= 0 ? "var(--neg)" : undefined }}>{r.qty}</td>
-                <td className="n">{money(r.avg)}</td>
-                <td className="n" style={{ fontWeight: 600 }}>{money(r.value)}</td></tr>))}</tbody>
-              <tfoot><tr><td colSpan={4}>Total inventory carrying value</td><td className="n">{money(total)}</td></tr></tfoot>
-            </table></div>
-          </div>
-          <div className="card-b">
-            <div className="micro" style={{ marginBottom: 14 }}>Value by product</div>
-            <BarList rows={rows.filter((r) => r.value > 0).map((r) => ({ label: r.pr.code, value: r.value }))} />
-          </div>
-        </div>
+        <StockVisuals rows={rows} total={total} />
+        <SectionTitle>Products</SectionTitle>
+        <div className="tbl-wrap"><table className="tbl">
+          <thead><tr><th>Code</th><th>Product</th><th>Status</th><th className="n">On hand</th><th className="n">Avg cost</th><th className="n">Value</th></tr></thead>
+          <tbody>{rows.slice().sort((x, y) => y.value - x.value).map((r) => { const low = r.qty <= (r.pr.reorder ?? 5); return (<tr key={r.pr.id}>
+            <td className="mono" style={{ fontSize: 12.5 }}>{r.pr.code}</td>
+            <td>{r.pr.name}</td>
+            <td>{r.qty <= 0 ? <Pill tone="bad" dot>Out of stock</Pill> : low ? <Pill tone="warn" dot>Low</Pill> : <Pill tone="ok" dot>In stock</Pill>}</td>
+            <td className="n" style={{ color: r.qty <= 0 ? "var(--neg)" : undefined }}>{r.qty} {r.pr.uom}</td>
+            <td className="n">{money(r.avg)}</td>
+            <td className="n" style={{ fontWeight: 600 }}>{money(r.value)}</td></tr>); })}</tbody>
+          <tfoot><tr><td colSpan={5}>Total inventory carrying value</td><td className="n">{money(total)}</td></tr></tfoot>
+        </table></div>
       </ReportFrame>
       <Card title="Stock movements" pad={false}
         sub={`${moves.length} movements in the period — posted sales, purchases, returns, physical counts and scrap`}>
@@ -4922,21 +4914,22 @@ function MethodReport({ state, books, p, setP, toast }) {
 
   return (
     <div className="grid">
-      <ReportFrame toast={toast} title="Receipts &amp; Payments by Method"
+      <ReportFrame toast={toast} title="Receipts &amp; Payments by Method" icon={CreditCard} chips={[`${dmy(p.from)} – ${dmy(p.to)}`, `${inRangePays.length} transactions`, "AED"]}
         meta={`${dmy(p.from)} to ${dmy(p.to)} · ${inRangePays.length} transactions · AED`}
         right={<PeriodBar p={p} setP={setP} />}>
-        <div className="card-b" style={{ borderBottom: "1px solid var(--line)" }}>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
-            {[["Received", t.rec, "pos", `${t.inN} receipts`], ["Paid out", t.paid, "neg", `${t.outN} payments`],
-              ["Net movement", t.net, t.net >= 0 ? "pos" : "neg", "across all methods"],
-              ["Methods in use", null, "", `${rows.length} of ${METHODS.length} configured`]].map(([k, v, tone, note], i) => (
-              <div key={k}><div className="micro">{k}</div>
-                <div className="num" style={{ fontSize: 21, fontWeight: 600, letterSpacing: "-.03em", marginTop: 7,
-                  color: tone ? `var(--${tone})` : undefined }}>
-                  {i === 3 ? rows.length : money(v, false)}</div>
-                <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>{note}</div></div>))}
+        <div className="rpt-viz">
+          <KpiRow>
+            <KpiTile label="Received" value={t.rec} icon={ArrowDownLeft} tone="pos" sub={`${t.inN} receipts`} />
+            <KpiTile label="Paid out" value={t.paid} icon={ArrowUpRight} tone="neg" sub={`${t.outN} payments`} />
+            <KpiTile label="Net movement" value={t.net} icon={Scale} tone={t.net >= 0 ? "pos" : "neg"} sub="Across all methods" />
+            <KpiTile label="Methods in use" text={String(rows.length)} icon={CreditCard} tone="t3" sub={`of ${METHODS.length} configured`} />
+          </KpiRow>
+          <div className="rpt-grid even">
+            <VizCard title="Money in by method" sub="Share of receipts · AED"><ShareBar parts={rows.filter((r) => r.rec > 0).sort((a, b) => b.rec - a.rec).map((r, i) => ({ label: r.m.name, value: r.rec, color: PARTS[i % PARTS.length] }))} /></VizCard>
+            <VizCard title="Money out by method" sub="Share of payments · AED"><ShareBar parts={rows.filter((r) => r.paid > 0).sort((a, b) => b.paid - a.paid).map((r, i) => ({ label: r.m.name, value: r.paid, color: PARTS[i % PARTS.length] }))} /></VizCard>
           </div>
         </div>
+        <SectionTitle>Methods</SectionTitle>
         <div className="tbl-wrap"><table className="tbl">
           <thead><tr><th>Method</th><th>Type</th><th>Posts to</th>
             <th className="n">Receipts</th><th className="n">Received</th>
@@ -5009,20 +5002,12 @@ function ProfitReport({ state, books, p, setP, by, toast }) {
   const top = r.rows.filter((x) => x.profit > 0).slice(0, 6);
   return (
     <div className="grid">
-      <ReportFrame toast={toast} title={isProd ? "Profitability by Product" : "Profitability by Customer"}
+      <ReportFrame toast={toast} title={isProd ? "Profitability by Product" : "Profitability by Customer"} icon={isProd ? Package : Users}
+        chips={[`${dmy(p.from)} – ${dmy(p.to)}`, `Costed on ${COSTING[state.costing || "avco"].label}`, "AED"]}
         meta={`${dmy(p.from)} to ${dmy(p.to)} · costed on ${COSTING[state.costing || "avco"].label} · AED`}
         right={<PeriodBar p={p} setP={setP} />}>
-        <div className="card-b" style={{ borderBottom: "1px solid var(--line)" }}>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
-            {[["Revenue", r.t.revenue, ""], ["Cost of sales", r.t.cost, ""],
-              ["Gross profit", r.t.profit, r.t.profit >= 0 ? "pos" : "neg"],
-              ["Blended margin", null, ""]].map(([k, v, tone], i) => (
-              <div key={k}><div className="micro">{k}</div>
-                <div className="num" style={{ fontSize: 21, fontWeight: 600, letterSpacing: "-.03em", marginTop: 7,
-                  color: tone ? `var(--${tone})` : undefined }}>
-                  {i === 3 ? `${r.margin.toFixed(1)}%` : money(v, false)}</div></div>))}
-          </div>
-        </div>
+        <ProfitVisuals r={r} isProd={isProd} />
+        <SectionTitle>{isProd ? "Every product" : "Every customer"}</SectionTitle>
         <div className="tbl-wrap"><table className="tbl">
           <thead><tr>
             <th>{isProd ? "Product" : "Customer"}</th>
@@ -6393,7 +6378,7 @@ function Invoeez() {
     <ThemeCtx.Provider value={palette}>
     <CompanyCtx.Provider value={company}>
     <div className="mz" data-theme={theme} data-accent={accent} data-density={density} style={{ height: "100vh" }}>
-      <style>{CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS}</style>
+      <style>{CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS}</style>
       {starting && <StartCompanyDialog state={state} company={company} backup={backup} close={() => setStarting(false)} onDone={companyStarted} />}
       {cmdk && <CommandPalette items={cmdItems} close={() => setCmdk(false)} run={(i) => i.act()} />}
       <Toasts items={toasts} />

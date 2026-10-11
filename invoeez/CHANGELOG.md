@@ -1,3 +1,18 @@
+# 3.7.0 — Reports and dashboard redesign
+
+- Every report now opens with a coloured header (icon, period and basis chips), KPI tiles with comparisons to the previous period, and charts before the detail table:
+  - Profit & loss: revenue, costs and net profit by day/week/month with tooltips; gross and net margin meters; "Where the money goes" ranking of cost accounts.
+  - Balance sheet: assets, liabilities, net worth, current ratio and cash tiles; what the business owns and how it is funded.
+  - Aged receivable / payable: outstanding, not yet due, overdue, 60+ days late and average days late; balance by age and the largest balances (click to open their documents).
+  - Profit by product / customer: top 10 by gross profit with margin, and the thinnest margins to review.
+  - VAT return: output and input VAT tiles, payable/refundable, filing deadline countdown and VAT by month.
+  - Inventory valuation: stock value, in stock, running low, out of stock; highest-value products, stock by category and a status column.
+  - Trial balance, general ledger and partner ledger: totals tiles, and a running-balance line for the ledgers.
+  - Payments by method: received/paid/net tiles and money in and out by method.
+- All reports hub: headline tiles for profit, receivables, payables, VAT and stock, and colour-coded report groups.
+- Dashboard: the revenue chart becomes columns for revenue and costs with a net-profit line and full tooltips; new Business health card (margins, receivables on time, days to get paid, current ratio, cash runway), Coming up (money in and out over the next 14 days, cheques, VAT deadline, overdue invoices) and Sales by category.
+- Charts follow the colour theme in light and dark mode with colour sets checked for colour-blind separation; each chart has a "View as table" option and keyboard focus shows the same values as hover. PDF and Excel exports still contain the report tables only.
+
 # 3.6.1 — Colour themes, folded lines, customer price history
 
 - Colour returns: four themes in Settings › Appearance › Colour theme — Ocean blue (default: midnight-navy sidebar, azure actions), Teal, Royal violet and Graphite (the 3.6 chrome monochrome). The sidebar, buttons, highlights, charts, cash card, invoice letterhead and PDF follow the chosen theme in light and dark mode. Button text meets WCAG AA contrast in every theme.
