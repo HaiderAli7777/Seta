@@ -36,13 +36,13 @@ function KpiTile({ label, value, prefix = "AED", text, delta, goodUp = true, sub
   const Tag = onClick ? "button" : "div";
   return <Tag className={cx("kpi-tile", tone, onClick && "click")} onClick={onClick}>
     <div className="kt-top"><span className="kt-label">{label}</span>{I && <span className="kt-ic"><I size={16} /></span>}</div>
-    <div className="kt-value">{text != null ? text : <>{prefix && <small>{prefix}</small>}{money(value, false)}</>}</div>
+    <div className="kt-value">{text != null ? text : <>{prefix && <small>{prefix}</small>}<CountUp value={value} /></>}</div>
     <div className="kt-foot">
       {delta != null && <span className={cx("kt-delta", good === true && "up", good === false && "down")} title="Compared with the previous period of the same length">
         {dir > 0 ? "▲" : dir < 0 ? "▼" : "•"} {Math.abs(delta) >= 1000 ? ">999" : Math.abs(delta).toFixed(1)}%</span>}
       {sub && <span className="kt-sub">{sub}</span>}
     </div>
-    {spark && spark.length > 1 && <MiniSpark data={spark} />}
+    {spark && spark.length > 1 && <MiniSpark data={spark} color={{ t2: "var(--s2)", t3: "var(--s3)", pos: "var(--pos)", neg: "var(--neg)", warn: "var(--warn)" }[tone] || "var(--s1)"} />}
     {foot}
   </Tag>;
 }
@@ -89,10 +89,10 @@ function ColumnChart({ data, series, line, height = 240, format = (v) => money(v
         <text x={pad.l - 8} y={Y(t) + 3.5} textAnchor="end" className="viz-tick">{short(t)}</text></g>)}
       {data.map((d, i) => <g key={i}>
         {hi === i && <rect x={pad.l + bw * i + 1} y={pad.t} width={bw - 2} height={ih} rx="6" className="viz-hover" />}
-        {series.map((s, j) => <path key={s.key} d={bar(cx0(i) - groupW / 2 + j * (barW + 2), +d[s.key] || 0)} style={{ fill: s.color }} className={cx("viz-bar", hi != null && hi !== i && "dim")} />)}
+        {series.map((s, j) => <path key={s.key} d={bar(cx0(i) - groupW / 2 + j * (barW + 2), +d[s.key] || 0)} style={{ fill: s.color, "--d": i }} className={cx("viz-bar", (+d[s.key] || 0) < 0 && "neg", hi != null && hi !== i && "dim")} />)}
         {(i % every === 0 || i === n - 1) && <text x={cx0(i)} y={H - 10} textAnchor="middle" className="viz-tick">{d.label}</text>}
       </g>)}
-      {line && linePts.length > 1 && <path d={linePts.map((p, i) => (i ? "L" : "M") + p[0] + " " + p[1]).join(" ")} style={{ fill: "none", stroke: line.color, strokeWidth: 2, strokeLinejoin: "round", strokeLinecap: "round" }} />}
+      {line && linePts.length > 1 && <path className="viz-line" pathLength="1" d={linePts.map((p, i) => (i ? "L" : "M") + p[0] + " " + p[1]).join(" ")} style={{ fill: "none", stroke: line.color, strokeWidth: 2, strokeLinejoin: "round", strokeLinecap: "round" }} />}
       {line && linePts.map((p, i) => (n <= 16 || hi === i || i === n - 1) && <circle key={i} cx={p[0]} cy={p[1]} r={hi === i ? 5 : 4} style={{ fill: line.color, stroke: "var(--surface)", strokeWidth: 2 }} />)}
       {data.map((d, i) => <rect key={"h" + i} x={pad.l + bw * i} y={0} width={bw} height={H} fill="transparent" tabIndex={0} role="button"
         aria-label={`${d.full || d.label}: ${[...series, ...(line ? [line] : [])].map((s) => s.name + " " + format(+d[s.key] || 0)).join(", ")}`}

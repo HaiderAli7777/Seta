@@ -1,3 +1,13 @@
+# 3.8.0 — Animated dashboard: fast and slow movers, top customers
+
+- New dashboard banner in the colour theme with a slow-moving gradient and glow: live date, greeting, net profit that counts up with its change against the previous period, invoices issued, gross and net margin, quick actions (new invoice, new bill, receive payment, stock count), draft and low-stock reminders, and a glass "Cash & bank" card with its balance trend and money in and out. Period shortcuts, the date range and Overview / Financial detail sit in the banner.
+- Five KPI tiles — Sales, Costs & expenses, Gross profit (each with a trend line and change vs the previous period), To collect (overdue share) and Stock value (share of products not running low). Click any tile to open its report.
+- **Fast-moving items**: the six products with the most units sold in the period, with sales value, a bar, and how many days the current stock will last at that rate (red under 14 days or out of stock, amber under 30).
+- **Slow-moving items**: stock value split into Fast, Steady, Slow and Not moving, the AED tied up in slow stock, and the five slowest items with quantity on hand, days since the last sale and days of stock. Fast = under 30 days of stock at the period's sales rate; Slow = over 90 days; Not moving = in stock with no sales in the period.
+- **Top customers**: the top six by net sales with gold, silver and bronze ranks, number of invoices, last invoice, share of sales and whether they are paid up, have open invoices or are overdue. Click to open their ledger.
+- Motion: figures count up, cards rise in turn, columns grow from the baseline, lines draw in and bars fill. It runs once when the dashboard opens (and on report tiles), never loops over data, and switches off completely when the device asks for reduced motion. Printing shows the finished state.
+- The dashboard keeps Business health, Revenue & costs, Money to collect / pay (now five items), Coming up, Sales by category, Recent transactions and Cash movement in a tidier grid; phones get two-column tiles and stacked cards.
+
 # 3.7.0 — Reports and dashboard redesign
 
 - Every report now opens with a coloured header (icon, period and basis chips), KPI tiles with comparisons to the previous period, and charts before the detail table:

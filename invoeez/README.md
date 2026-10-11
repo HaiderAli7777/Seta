@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.7)
+# InvoEez — Invoice Made Easy (3.8)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -74,6 +74,10 @@ Company profile, theme, user selection and connection settings use their existin
 | Scrap | Record damaged quantities with a reason. Scrap reduces stock at carrying cost and charges the category adjustment account. Quantities cannot exceed on-hand stock. |
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
+
+## Dashboard (3.8)
+
+The overview opens with a themed banner (net profit counting up, margins, quick actions, cash & bank with its trend), five KPI tiles, then Revenue & costs with Business health, and a row of **Fast-moving items · Slow-moving items · Top customers**. Movement uses the selected period: units sold ÷ days in the period gives a daily rate, and stock on hand ÷ that rate gives days of stock. Under 30 days is fast, over 90 days is slow, and stock with no sales in the period is "not moving". Animations play once and are switched off when the operating system asks for reduced motion.
 
 ## Colour themes (3.6.1)
 
@@ -156,11 +160,14 @@ npm test
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
 | `dashboard.jsx` | New overview dashboard. |
+| `dash.jsx` | 3.8 animated dashboard: banner, count-up figures, fast/slow-moving items, top customers and motion styles. |
+| `reports.jsx` | 3.7 report design system: KPI tiles, column/line charts, bars, meters and report visuals. |
 | `design.jsx` | New responsive visual system. |
 | `runtime-prefix.js` | Original inline icon and export helpers. |
 | `shell.html` | Original standalone shell and bundled libraries/fonts. |
 | `build.mjs` | Reproducible JSX compilation and standalone packaging. |
 | `tests/engine.cjs` | Executable accounting, pricing, migration and inventory regression checks. |
+| `tests/browser-dashboard.cjs` | 3.8 dashboard checks: cards, rankings, count-up, motion, reduced motion, drill-downs. |
 | `templates/` | Excel import templates for products and for customers & vendors (also downloadable inside the app). |
 | `previews/` | Screenshots of the upgraded application. |
 
