@@ -1,3 +1,15 @@
+# 3.6.0 — Chrome brand, master-style menu, PDC and smarter prices
+
+- New silver chrome InvoEez logo on the startup screen, browser tab and sidebar. The whole app moves to the logo's graphite and silver with one steel-blue accent, in light and dark mode.
+- Redesigned sidebar in the style of desktop accounting packages: Dashboard, Master (Accounts, Inventory, Rate and Other master, Opening balances), Sale, Purchase, Banking, Accounting trans., Stock management, Reports, VAT & e-invoicing, Utilities & tools. Tree lines, a "+" beside each transaction and master item to start a new record, menu search (press /), and a collapsible rail with fly-out sections. Phones get the same menu as a drawer.
+- Every drop-down redrawn: a proper list with a check on the current choice, group headings, a filter box on long lists, type-ahead and keyboard control, "＋ New…" as a clear action, and a bottom sheet on phones.
+- Unit price is empty unless a price applies — it never defaults to 0. Payment, transfer and expense amounts start empty too. Posting asks for any missing price and jumps to it.
+- Lines pick the customer's last selling price (or the vendor's last price). Changing an offered price asks once: Don't store (this document only) or Party special (always this price for this party). Party specials can be managed on the customer/vendor form.
+- Company name and address in Arabic; customer and product names in Arabic (optional).
+- Settings › Invoice language: English only (default) or English + Arabic. Bilingual tax invoices and PDFs, with invoice, PDF and statement colours taken from the logo.
+- Post-dated cheques: received and issued registers with in hand, deposited, cleared, bounced (with bank charges and reason) and returned/cancelled, full double-entry through 1210/2110, settlement of the chosen invoice or bill, maturity calendar, Excel export, replacement cheques, dashboard reminders and a "Post-dated cheque" button on invoices and bills.
+- New Opening balances page under Master.
+
 # 3.5.0 — Faster data entry
 
 - New InvoEez logo (framed "ine" mark) on the startup screen, browser tab, sidebar and printouts, with the colour theme retuned to its deep indigo, royal blue and violet.

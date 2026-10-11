@@ -1,94 +1,90 @@
 /* ============================================================================
-   INVOEEZ BRAND LAYER — loads last. Colours come from the logo:
-   wordmark indigo #13017E, mark blues #0F32AB / #303FDC,
-   violet highlight #6A3BE6. Green and red stay reserved for
-   money meaning (paid / received, overdue / owed).
+   INVOEEZ BRAND LAYER — loads after the base and design layers.
+   The logo is polished chrome, so the product is graphite and silver:
+   graphite surfaces and primary actions, brushed-silver highlights, and one
+   steel-blue accent for links, focus and selection. Green and red stay
+   reserved for money meaning (paid / received, overdue / owed).
    ========================================================================== */
 const BRAND_CSS = `
 .mz{
-  --brand:#2A17B5;--brand-600:#1E0D93;--brand-50:#EEEBFF;--brand-100:#DAD4FF;
-  --royal:#1F45D6;--violet:#6A3BE6;--violet-50:#F2EDFF;
-  --ink:#1B1A3D;--ink-2:#45466F;--ink-3:#666891;--ink-4:#9A9CBE;
-  --bg:#F4F4FB;--app-bg:#F4F4FB;--surface:#FFFFFF;--surface-2:#F8F8FD;--surface-3:#EEEEF8;
-  --line:#E3E3F1;--line-2:#EEEEF7;
-  --c1:#2A17B5;--c2:#B7AEF0;--c3:#1F45D6;
-  --ring:0 0 0 3px #2A17B52E;
-  --sh-1:0 1px 2px #1B1A3D0A,0 2px 6px #1B1A3D06;
-  --nav-bg:linear-gradient(180deg,#17088F 0%,#13017E 50%,#0E0262 100%);
-  --nav-edge:#FFFFFF14;--nav-txt:#CBC5FF;--nav-hi:#FFFFFF;--nav-hover:#FFFFFF12;--nav-active:#FFFFFF;
-  --nav-group:#A39BF2;--nav-brand:#FFFFFF;--nav-sub:#B5AEF5;--nav-mark:#FFFFFF;--nav-chip:#FFFFFF14;--nav-chipt:#D3D0F6;
-  --nav-card:#FFFFFF0D;--nav-cardline:#FFFFFF1C;--nav-scroll:#3B2DB8;
-  --post-bg:#13017E;
+  --brand:#2F62C4;--brand-600:#244FA3;--brand-50:#EDF2FB;--brand-100:#D7E3F7;
+  --royal:#2F62C4;--violet:#4C6A92;--violet-50:#EEF2F7;
+  --graphite:#1B1F25;--graphite-2:#2A3038;--silver:#C9CED4;--silver-2:#E6E9ED;
+  --metal:linear-gradient(135deg,#FFFFFF 0%,#E4E7EB 38%,#C2C8CF 52%,#EEF0F2 70%,#D3D8DE 100%);
+  --ink:#16191D;--ink-2:#3E444C;--ink-3:#626973;--ink-4:#9AA0A8;
+  --bg:#F2F3F5;--surface:#FFFFFF;--surface-2:#F8F9FA;--surface-3:#EEF0F2;
+  --line:#E2E5E9;--line-2:#ECEEF1;
+  --app-bg:radial-gradient(1100px 560px at 82% -12%,rgba(47,98,196,.055),transparent 62%),
+           radial-gradient(900px 480px at 0% 0%,rgba(120,130,145,.08),transparent 60%),#F2F3F5;
+  --c1:#2F62C4;--c2:#AEB6C1;--c3:#4A5562;
+  --ring:0 0 0 3px rgba(47,98,196,.20);
+  --sh-1:0 1px 2px rgba(16,18,22,.05),0 1px 3px rgba(16,18,22,.04);
+  --sh-2:0 2px 6px rgba(16,18,22,.06),0 10px 26px rgba(16,18,22,.08);
+  --sh-3:0 24px 64px rgba(16,18,22,.20),0 6px 18px rgba(16,18,22,.10);
+  --post-bg:#16191E;
 }
 .mz[data-theme="dark"]{
-  --brand:#ABA2FF;--brand-600:#C6C0FF;--brand-50:#241C66;--brand-100:#33298A;
-  --royal:#86A0FF;--violet:#B79CFF;--violet-50:#24214F;
-  --ink:#ECEBFF;--ink-2:#C6C4EA;--ink-3:#9C9AC9;--ink-4:#6F6DA0;
-  --bg:#0E0D26;--app-bg:#0E0D26;--surface:#17163A;--surface-2:#1C1B45;--surface-3:#272656;
-  --line:#B4B0FF21;--line-2:#B4B0FF12;
-  --c1:#A39DFF;--c2:#6E6BA6;--c3:#7FA2FF;
-  --ring:0 0 0 3px #A9A3FF40;
-  --nav-bg:linear-gradient(180deg,#120C46 0%,#0B0830 100%);
-  --nav-active:#2B2870;--nav-hi:#FFFFFF;--nav-txt:#B6B3E6;--nav-group:#8682C8;
-  --post-bg:#0F0D2D;
+  --brand:#8DB3F5;--brand-600:#A9C6F8;--brand-50:#242B37;--brand-100:#303B4D;
+  --royal:#8DB3F5;--violet:#A9B8CC;--violet-50:rgba(169,184,204,.12);
+  --metal:linear-gradient(135deg,#3A4049 0%,#262B32 45%,#1C2026 100%);
+  --ink:#ECEEF1;--ink-2:#C3C8CF;--ink-3:#959CA6;--ink-4:#6B727C;
+  --bg:#0E1013;--surface:#16191D;--surface-2:#1B1F24;--surface-3:#242930;
+  --line:rgba(255,255,255,.09);--line-2:rgba(255,255,255,.05);
+  --app-bg:radial-gradient(1100px 560px at 82% -12%,rgba(141,179,245,.07),transparent 62%),#0E1013;
+  --c1:#8DB3F5;--c2:#6B737E;--c3:#C9CED4;
+  --ring:0 0 0 3px rgba(141,179,245,.28);
+  --post-bg:#0B0D10;
 }
+.mz[data-theme="dark"] ::-webkit-scrollbar-thumb{background:#2E343C;background-clip:content-box}
+.mz[data-theme="dark"] ::-webkit-scrollbar-thumb:hover{background:#3C434D;background-clip:content-box}
 
-/* Sidebar: the full logo on a white tile, the mark alone when the rail is collapsed */
-.mz .side-top{padding:18px 16px 16px}
-.brand-tile{display:flex;align-items:center;justify-content:center;width:100%;background:#FFFFFF;border-radius:14px;
-  padding:10px 12px;box-shadow:0 6px 18px #0B08300F,inset 0 0 0 1px #FFFFFF;}
-.brand-lockup{display:block;width:100%;max-width:196px;height:auto}
-.brand-mark{display:none;width:34px;height:auto}
-.side.mini .brand-tile{width:46px;height:46px;padding:6px;border-radius:12px}
-.side.mini .brand-lockup{display:none}.side.mini .brand-mark{display:block}
-@media (max-width:1024px) and (min-width:901px){
-  .side .brand-tile{width:46px;height:46px;padding:6px;border-radius:12px}
-  .side .brand-lockup{display:none}.side .brand-mark{display:block}}
-.mz .side .nav-item{color:var(--nav-txt)}
-.mz .side .nav-item:hover{background:var(--nav-hover);color:#fff}
-.mz .side .nav-item.on{background:var(--nav-active);color:#13017E!important;box-shadow:0 4px 14px #0B083033;font-weight:600}
-.mz .side .nav-item.on svg{color:#2A17B5!important}
-.mz .side .nav-item.on .ct{background:#2A17B5;color:#fff}
-.mz .side .nav-item .ct{background:#FFFFFF1A;color:#E2E0FB}
-.mz[data-theme="dark"] .side .nav-item.on{color:#FFFFFF!important;box-shadow:none}
-.mz[data-theme="dark"] .side .nav-item.on svg{color:#C4C0FF!important}
-.mz .side .nav-group{color:var(--nav-group)}
-.mz .co-card{background:#FFFFFF0F;border:1px solid #FFFFFF1F}
-.mz .co-card b{color:#fff}.mz .co-card .t span{color:var(--nav-sub)}
-.mz .co-card .av,.mz .side-foot .av{background:linear-gradient(140deg,#6A3BE6,#1F45D6);color:#fff}
-.mz .nav-search{border-color:#FFFFFF24;color:var(--nav-sub);background:#FFFFFF0A}
-.mz .nav-search input{color:#fff}.mz .nav-search input::placeholder{color:var(--nav-sub)}
-.mz .sysline{color:var(--nav-sub)}
-.mz .side-foot .who b{color:#fff}.mz .side-foot .who span{color:var(--nav-sub)}
-
-/* Buttons and focus */
-.mz .btn.pri{background:linear-gradient(180deg,#3220C8,#2512A8);border-color:#2512A8;color:#fff}
-.mz .btn.pri:hover{background:linear-gradient(180deg,#2A17B5,#1C0C8C)}
-.mz[data-theme="dark"] .btn.pri{background:#A9A3FF;border-color:#A9A3FF;color:#15123F}
-.mz[data-theme="dark"] .btn.pri:hover{background:#C4C0FF}
+/* Buttons: graphite metal for the primary action, silver in dark mode */
+.mz .btn.pri{background:linear-gradient(180deg,#323840 0%,#1C2026 100%);border-color:#15181C;color:#fff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 1px 2px rgba(16,18,22,.25),0 4px 12px rgba(16,18,22,.12)}
+.mz .btn.pri:hover{background:linear-gradient(180deg,#3B424B 0%,#22272E 100%);border-color:#15181C}
+.mz .btn.pri:active{background:#1A1D22}
+.mz .btn.pri svg{color:#E6E9ED}
+.mz[data-theme="dark"] .btn.pri{background:linear-gradient(180deg,#F5F6F8 0%,#CBD0D6 100%);border-color:#B9BFC6;color:#14171B;
+  box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(0,0,0,.4)}
+.mz[data-theme="dark"] .btn.pri:hover{background:linear-gradient(180deg,#FFFFFF 0%,#D9DDE2 100%)}
+.mz[data-theme="dark"] .btn.pri svg{color:#2A3038}
 .mz .inp:focus,.mz .smart-picker input:focus{border-color:var(--brand);box-shadow:var(--ring)}
-.mz .userchip .me,.mz .me{background:linear-gradient(140deg,#2A17B5,#1F45D6);color:#fff}
+.mz .userchip .me,.mz .me{background:linear-gradient(140deg,#4A5562,#1B1F25);color:#fff}
+.mz a{color:var(--brand)}
 
-/* Cash card follows the logo ribbon */
-.mz .cash-hero{background:linear-gradient(125deg,#13017E 0%,#2512A8 45%,#1F45D6 100%);border-color:#2A17B5;color:#DCD8FF}
-.mz .cash-hero p,.mz .cash-foot>span{color:#B9B6EC}.mz .cash-value{color:#fff}.mz .cash-foot button{color:#fff}
-.mz .cash-bars>i{background:#B79CFF}
-.mz[data-theme="dark"] .cash-hero{background:linear-gradient(125deg,#1B1760 0%,#24206E 50%,#223A86 100%);border-color:#2E2A78}
+/* Cash card: brushed graphite with silver type */
+.mz .cash-hero{background:linear-gradient(125deg,#16191E 0%,#262B33 50%,#38404A 100%);border-color:#2A3038;color:#D9DDE2;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 14px 34px rgba(16,18,22,.18)}
+.mz .cash-hero p,.mz .cash-foot>span{color:#AEB4BC}.mz .cash-value{color:#fff}.mz .cash-foot button{color:#fff}
+.mz .cash-bars>i{background:linear-gradient(180deg,#F1F3F5,#9AA2AC)}
+.mz[data-theme="dark"] .cash-hero{background:linear-gradient(125deg,#1C2026 0%,#262B33 55%,#323943 100%);border-color:#2E343C}
 
-/* Category tints keep their meaning: brand, blue, violet, warm */
-.mz .mint{--accent:#2A17B5;--tint:#EEEBFF}.mz .blue{--accent:#1F45D6;--tint:#E9EFFF}.mz .lilac{--accent:#6A3BE6;--tint:#F2EDFF}
-.mz[data-theme="dark"] .mint{--accent:#B7B2FF;--tint:#2A2766}.mz[data-theme="dark"] .blue{--accent:#9DB4FF;--tint:#1E2A5E}
-.mz[data-theme="dark"] .lilac{--accent:#C9BEFF;--tint:#2C2465}
+/* Category tints: steel, slate, silver, warm */
+.mz .mint{--accent:#2F62C4;--tint:#EDF2FB}.mz .blue{--accent:#4A5562;--tint:#EEF0F3}.mz .lilac{--accent:#6A7480;--tint:#F1F3F5}
+.mz[data-theme="dark"] .mint{--accent:#8DB3F5;--tint:#1C2738}.mz[data-theme="dark"] .blue{--accent:#C3C8CF;--tint:#22272E}
+.mz[data-theme="dark"] .lilac{--accent:#AEB4BC;--tint:#21252B}
 
 /* Money meaning: green in, red out */
 .mz .flow-in{background:var(--pos)}.mz .flow-out{background:#E58A9C}
 .mz .collection-bar{background:var(--pos-50)}.mz .collection-bar i{background:var(--neg)}
 
-/* Page headings with a quiet brand accent */
-.mz .page-head .micro,.mz .eyebrow{color:var(--royal)}
-.mz .dashboard-head h1>span{color:var(--violet)}
+/* Initials avatars in lists */
+.mz .av{display:inline-grid;place-items:center;flex:0 0 auto;border-radius:8px;font-size:10.5px;font-weight:700;letter-spacing:.02em;line-height:1}
+
+/* Headings, tables and cards with a quiet metallic edge */
+.mz .page-head{background:transparent}
+.mz .page-head .micro,.mz .eyebrow{color:var(--brand)}
+.mz .dashboard-head h1>span{color:var(--ink-3)}
 .mz .tbl th{color:var(--ink-3)}
 .mz .pill.ok{background:var(--pos-50);color:var(--pos)}
-.mz ::selection{background:#DAD4FF}
-.mz .side ::-webkit-scrollbar-thumb{background:#3B2DB8}
+.mz ::selection{background:#D7E3F7}
+.mz .card{box-shadow:var(--sh-1)}
+.mz[data-theme="light"] .card,.mz:not([data-theme]) .card{border-color:var(--line)}
+
+/* Top bar: frosted white over the canvas */
+.mz .topbar{background:rgba(255,255,255,.86);backdrop-filter:blur(14px) saturate(1.2);border-bottom-color:var(--line)}
+.mz[data-theme="dark"] .topbar{background:rgba(22,25,29,.86)}
+.mz .omni{background:var(--surface-2);border-color:var(--line)}
+.mz .omni .oi{background:var(--graphite);color:#fff}
+.mz[data-theme="dark"] .omni .oi{background:#E6E9ED;color:#15181C}
 `;

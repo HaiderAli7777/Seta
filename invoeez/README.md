@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.5)
+# InvoEez — Invoice Made Easy (3.6)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -14,7 +14,7 @@ The file opens as a **clean company** ("My Company") with everything set up but 
 - **Product categories:** 27, each with revenue, cost, inventory and adjustment accounts.
 - **Expense items** (rent, utilities, telecom, freight, insurance, …) and payment methods.
 
-Then the **Setup guide** (Workspace › Setup guide) walks through company details, products, customers, vendors, opening balances, the first invoice and a backup, with Excel/CSV import and an opening-balances screen. Books left in the browser by the old built-in demo or an earlier sample build are replaced by a clean company automatically; real company books are kept.
+Then the **Setup guide** (Utilities & tools › Setup guide) walks through company details, products, customers, vendors, opening balances, the first invoice and a backup, with Excel/CSV import and an opening-balances screen. Books left in the browser by the old built-in demo or an earlier sample build are replaced by a clean company automatically; real company books are kept.
 
 ## Upgrade existing data
 
@@ -75,8 +75,27 @@ Company profile, theme, user selection and connection settings use their existin
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
 
+## Menu (3.6)
+
+The graphite sidebar follows the familiar accounting-package layout: **Dashboard · Master** (Accounts master: chart of accounts, customers, vendors · Inventory master: products, categories · Rate master: price lists · Other master: sales team, payment methods · Opening balances) **· Sale · Purchase · Banking** (receipts & payments, post-dated cheques, bank & cash) **· Accounting trans. · Stock management · Reports · VAT & e-invoicing · Utilities & tools**. Items with a **+** open their "new" form directly. Type in the search box (or press **/**) to filter the menu. Collapse the sidebar to a rail; hovering a section shows its items.
+
+## Post-dated cheques (3.6)
+
+| Step | Ledger |
+| --- | --- |
+| Cheque received (Receive cheque, or *Post-dated cheque* on an invoice) | Dr 1210 Post-dated Cheques Received · Cr 1200 Accounts Receivable — the customer's balance is settled now |
+| Deposited | Register only (date and bank) |
+| Cleared | Dr bank · Cr 1210 |
+| Bounced | Dr 1200 · Cr 1210 — the invoice is open again; optional bank charges Dr 6450 · Cr bank |
+| Returned to customer | Dr 1200 · Cr 1210 |
+| Cheque issued to a vendor | Dr 2100 Accounts Payable · Cr 2110 Post-dated Cheques Issued; cleared Dr 2110 · Cr bank; bounced/cancelled Dr 2110 · Cr 2100 |
+
+A cheque can't be deposited or cleared before its cheque date. The screen shows cheques in hand, those maturing in 7 days, those past their date, bounced cheques this year and an eight-week maturity calendar; the register exports to Excel, and a bounced cheque can be replaced by a new one linked to it. The dashboard reminds you of cheques to deposit or that will be presented this week.
+
 ## Pricing behavior
 
+- **Unit price order (3.6):** a party special price for this customer or vendor, then an active price-list rule, then the last price this party paid or charged, then the product's sales price (or last purchase price / cost for purchases). If none exists the price stays **empty** — never a silent 0 — and posting asks for it.
+- **Changing an offered price** shows a one-line choice: **Don't store** (this document only; it is skipped the next time the last price is looked up) or **Party special** (this customer or vendor gets the price every time). Party specials are listed, added and removed on the customer or vendor form.
 - Price lists use the document date and each line's quantity.
 - A product-specific rule takes precedence over a category rule; a category rule takes precedence over an all-products rule.
 - Within the same scope, the highest eligible minimum quantity wins.
@@ -140,6 +159,10 @@ npm test
 | `tests/engine.cjs` | Executable accounting, pricing, migration and inventory regression checks. |
 | `templates/` | Excel import templates for products and for customers & vendors (also downloadable inside the app). |
 | `previews/` | Screenshots of the upgraded application. |
+
+## Dual-language invoices (3.6)
+
+Settings › Invoice language: **English only** (default) or **English + Arabic**. Bilingual mode prints Arabic labels under the English ones on the tax invoice and its PDF, plus the company's Arabic name and address (Settings › Company profile), the customer's Arabic name and each product's Arabic name where entered. Arabic in PDFs is drawn by the browser, so it shapes correctly with the fonts on Windows, macOS, Android and iOS. Invoices, PDFs and statements use the graphite and silver colours of the logo.
 
 ## Verification and scope
 

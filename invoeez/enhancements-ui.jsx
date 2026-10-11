@@ -51,6 +51,7 @@ function MasterModal({kind,initial,state,setState,books,close,onSaved,toast}){
  return <StudioModal wide title={(product?!!PROD[r.id]:!!PMAP[r.id])?`Edit ${product?'product':r.role}`:`New ${product?'product':r.role}`}  sub={product?'A complete product record, ready for your next transaction.':'Create and select without leaving your document.'} close={close}>
    <div className="studio-form">
    <Field label={product?'Product name':'Customer / vendor name'} span={2}><Input value={r.name} onChange={e=>f('name',e.target.value)} placeholder="Enter name"/></Field>
+   <Field label="Name in Arabic (optional)" span={2}><Input dir="rtl" lang="ar" value={r.nameAr||''} onChange={e=>f('nameAr',e.target.value)} placeholder={product?'اسم المنتج بالعربية':'الاسم بالعربية'}/></Field>
    {product?<>
      <Field label={autoCodes(state)?'Product code / SKU · automatic':'Product code / SKU · optional'}><Input value={r.code} onChange={e=>f('code',e.target.value)} placeholder={autoCodes(state)?(PROD[r.id]?'Leave empty for '+nextProductCode(state):'Leave empty for '+nextProductCode(state)):'Optional'}/></Field>
      <Field label="Barcode"><Input value={r.barcode||''} onChange={e=>f('barcode',e.target.value)} placeholder="Scan or enter barcode"/></Field>
@@ -60,7 +61,7 @@ function MasterModal({kind,initial,state,setState,books,close,onSaved,toast}){
      <Field label="Unit of measure"><Input value={r.uom} onChange={e=>f('uom',e.target.value)}/></Field>
      <Field label="Item type"><Select value={r.kind} onChange={e=>setR(x=>({...x,kind:e.target.value,category:e.target.value==='goods'?'cat_goods':'cat_services'}))}><option value="goods">Storable goods</option><option value="service">Service / expense</option></Select></Field>
      <Field label="Default VAT"><Select value={r.tax} onChange={e=>f('tax',e.target.value)}>{TAXES.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</Select></Field>
-     <Field label="Sales price · AED"><Input type="number" min="0" step="0.01" value={r.price} onChange={e=>f('price',e.target.value)}/></Field>
+     <Field label="Sales price · AED"><Input type="number" min="0" step="0.01" value={r.price===0||r.price==="0"?"":r.price} placeholder="Leave empty to price on each invoice" onChange={e=>f('price',e.target.value)}/></Field>
      <Field label="Cost price · AED"><Input type="number" min="0" step="0.01" value={r.cost===0||r.cost==="0"?"":r.cost} placeholder="Filled by the first purchase" onChange={e=>f('cost',e.target.value)}/></Field>
      {r.kind==='goods'&&<Field label={'Current unit cost · '+(COSTING[books.method]||COSTING.avco).label}><div className="readonly mono">{PROD[r.id]?'AED '+money(currentCost(PROD[r.id],books),false):'Set by the first purchase'}{r.lastPurchase?<small className="subtext">Last purchase AED {money(r.lastPurchase,false)}</small>:null}</div></Field>}
      <Field label="Low stock threshold"><Input type="number" min="0" value={r.reorder??5} onChange={e=>f('reorder',e.target.value)}/></Field>
@@ -85,7 +86,8 @@ function HistoryTable({state,product,side,partner='',exclude='',date,apply}){
  return <div className="history-block"><div className="history-head"><div><h3>{side==='sale'?'Sales history':'Purchase history'}</h3><p>Posted {side==='sale'?'invoices':'bills'} · prices exclude VAT{date?' · through '+dmy(date):''}</p></div>{partner&&<div className="seg"><button className={!all?'on':''} onClick={()=>setAll(false)}>This {side==='sale'?'customer':'vendor'}</button><button className={all?'on':''} onClick={()=>setAll(true)}>All</button></div>}</div>
  <div className="tbl-wrap"><table className="tbl"><thead><tr><th>Date / document</th><th>{side==='sale'?'Customer':'Vendor'}</th><th className="n">Qty</th><th className="n">Unit price</th><th className="n">Disc %</th><th className="n">Net / unit</th>{apply&&<th/>}</tr></thead><tbody>{!rows.length&&<tr><td colSpan="7"><EmptyState icon={FileText} title="No posted history yet">Completed transactions will appear here.</EmptyState></td></tr>}{rows.slice(0,100).map((l,i)=><tr key={l.docId+l.id+i}><td><b>{dmy(l.date)}</b><small className="subtext">{l.number}</small></td><td>{PMAP[l.partner]?.name}</td><td className="n">{l.qty}</td><td className="n">{money(l.price,false)}</td><td className="n">{l.disc||0}%</td><td className="n"><b>{money(l.unitNet,false)}</b></td>{apply&&<td><Btn size="sm" onClick={()=>apply(l)}>Use price</Btn></td>}</tr>)}</tbody></table></div>{rows.length>100&&<p className="muted">Showing the latest 100 transactions.</p>}</div>;
 }
-function ProductsScreen({books,state,setState,toast,param}){
+function ProductsScreen({books,state,setState,toast,param,create}){
+  useCreate(create, () => { setEd(newProduct()); });
  const [q,setQ]=useState(''),[kind,setKind]=useState('all'),[category,setCategory]=useState(''),[ed,setEd]=useState(null),[detail,setDetail]=useState(null),[ht,setHt]=useState('sale'),[imp,setImp]=useState(false);
  const [catalogView,setCatalogView]=useState(()=>{try{return localStorage.getItem('mizan.catalogView')||'cards';}catch{return 'cards';}}),[stockFilter,setStockFilter]=useState('all');
  React.useEffect(()=>{try{localStorage.setItem('mizan.catalogView',catalogView);}catch{}},[catalogView]);
@@ -104,7 +106,8 @@ function ProductsScreen({books,state,setState,toast,param}){
  {detail&&<StudioModal wide title={detail.name} sub={detail.code+' · '+detail.id} close={()=>setDetail(null)}><div className="detail-tags"><Pill>{detail.brand||'No brand'}</Pill><Pill>{categoryOf(detail)?.name}</Pill><Pill>{detail.packing||detail.uom}</Pill><Pill>Barcode: {detail.barcode||'Not set'}</Pill>{detail.kind==='goods'&&<Pill tone="info">Unit cost AED {money(currentCost(detail,books),false)} · {(books.method||'avco').toUpperCase()}</Pill>}{detail.lastPurchase?<Pill>Last purchase AED {money(detail.lastPurchase,false)}</Pill>:null}</div><div className="doc-tabs"><button className={ht==='sale'?'on':''} onClick={()=>setHt('sale')}>Sales history</button><button className={ht==='purchase'?'on':''} onClick={()=>setHt('purchase')}>Purchase history</button></div><HistoryTable state={state} product={detail.id} side={ht}/><footer className="modal-actions"><Btn onClick={()=>{setEd(detail);setDetail(null);}}>Edit product</Btn><Btn kind="pri" onClick={()=>setDetail(null)}>Done</Btn></footer></StudioModal>}
  </div>;
 }
-function CategoriesScreen({state,setState,books,toast}){
+function CategoriesScreen({state,setState,books,toast,create}){
+  useCreate(create, () => { setError('');setEd({id:uid('cat'),name:'',income:'4100',expense:'5100',inventory:'1300',adjustment:'6900'}); });
  const [ed,setEd]=useState(null),[error,setError]=useState('');const save=()=>{
    if(!ed.name.trim())return setError('Enter a category name.');
    if(CATEGORIES.some(c=>c.id!==ed.id&&normSearch(c.name)===normSearch(ed.name)))return setError('This category name already exists.');
@@ -114,11 +117,13 @@ function CategoriesScreen({state,setState,books,toast}){
  };
  return <div><PageHead eyebrow="Products & stock" title="Product categories" sub="Set accounts once. Every product in the category inherits them."><Btn kind="pri" icon={Plus} onClick={()=>{setError('');setEd({id:uid('cat'),name:'',income:'4100',expense:'5100',inventory:'1300',adjustment:'6900'});}}>New category</Btn></PageHead><div className="category-grid">{CATEGORIES.map(c=><Card key={c.id}><div className="category-top"><span className="product-icon"><Layers size={22}/></span><Pill>{PRODUCTS.filter(p=>p.category===c.id).length} items</Pill></div><h2>{c.name}</h2>{[['Revenue',c.income],['Cost / expense',c.expense],['Inventory',c.inventory],['Adjustment / scrap',c.adjustment]].map(([l,v])=><div className="sumrow" key={l}><span className="k">{l}</span><span className="v acct-ref" title={ACC[v]?.name}><b>{v}</b>{ACC[v]?.name||'Missing account'}</span></div>)}<Btn icon={Pencil} onClick={()=>{setError('');setEd({...c});}}>Edit accounts</Btn></Card>)}</div>{ed&&<StudioModal title="Category accounts" sub="Posted transactions retain their original account mapping." close={()=>setEd(null)}><div className="studio-form"><Field label="Category name" span={2}><Input value={ed.name} onChange={e=>setEd({...ed,name:e.target.value})}/></Field>{[['income','Revenue account',['income']],['expense','Cost / expense account',['cogs','expense']],['inventory','Inventory asset account',['inventory']],['adjustment','Adjustment / scrap account',['expense','cogs']]].map(([k,l,types])=><Field label={l} key={k}><Select value={ed[k]} onChange={e=>setEd({...ed,[k]:e.target.value})}>{ACCOUNTS.filter(a=>types.includes(a.type)).map(a=><option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}</Select></Field>)}</div>{error&&<div className="form-error" role="alert">{error}</div>}<footer className="modal-actions"><Btn onClick={()=>setEd(null)}>Cancel</Btn><Btn kind="pri" onClick={save}>Save category</Btn></footer></StudioModal>}</div>;
 }
-function SalespeopleScreen({state,setState,toast}){
+function SalespeopleScreen({state,setState,toast,create}){
+  useCreate(create, () => { setEd({id:uid('sales'),name:'',active:true}); });
  const [ed,setEd]=useState(null);
  return <div><PageHead eyebrow="Sales" title="Sales team" sub="Assign a salesperson to each customer. Invoices inherit the assignment and allow changes."><Btn kind="pri" icon={Plus} onClick={()=>setEd({id:uid('sales'),name:'',active:true})}>New salesperson</Btn></PageHead><div className="category-grid">{state.salespeople.map(p=><Card key={p.id}><div className="category-top"><Avatar name={p.name} size={44}/><Pill tone={p.active?'ok':''}>{p.active?'Active':'Inactive'}</Pill></div><h2>{p.name}</h2><p className="subtext">{PARTNERS.filter(x=>x.salesman===p.id).length} assigned customers</p><Btn icon={Pencil} onClick={()=>setEd({...p})}>Edit</Btn></Card>)}</div>{ed&&<StudioModal title="Salesperson" close={()=>setEd(null)}><Field label="Name"><Input value={ed.name} onChange={e=>setEd({...ed,name:e.target.value})}/></Field><label className="check-label"><input type="checkbox" checked={ed.active} onChange={e=>setEd({...ed,active:e.target.checked})}/>Active</label><footer className="modal-actions"><Btn onClick={()=>setEd(null)}>Cancel</Btn><Btn kind="pri" disabled={!ed.name.trim()} onClick={()=>{saveMaster(setState,'salespeople',{...ed,name:ed.name.trim()});setEd(null);toast('Salesperson saved');}}>Save salesperson</Btn></footer></StudioModal>}</div>;
 }
-function PricingScreen({state,setState,toast}){
+function PricingScreen({state,setState,toast,create}){
+  useCreate(create, () => { edit(blank()); });
  const [ed,setEd]=useState(null),[error,setError]=useState(''),[q,setQ]=useState(''),[side,setSide]=useState('all');
  const [probe,setProbe]=useState({product:'',qty:1,date:TODAY});
  const rule=()=>({id:uid('rule'),product:'',category:'',minQty:1,mode:'fixed',value:0});
@@ -164,7 +169,8 @@ function validateStockOperation(ed,state,books){
  }
  return '';
 }
-function StockOpsScreen({state,setState,books,toast,kind}){
+function StockOpsScreen({state,setState,books,toast,kind,create}){
+  useCreate(create, () => { start(); });
  const [ed,setEd]=useState(null),[error,setError]=useState(''),[detail,setDetail]=useState(null);const scrap=kind==='scrap';
  const blankLine=()=>({id:uid('countline'),product:'',counted:''});
  const start=()=>{setError('');setEd({id:uid('stockop'),kind,date:TODAY,reason:'',lines:[blankLine()]});};

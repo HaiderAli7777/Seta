@@ -494,8 +494,8 @@ function OpeningBalancesDialog({ state, setState, books, close, toast }) {
 }
 
 /* ------------------------------------------------------------ setup page -- */
-function SetupScreen({ state, setState, books, company, go, newDoc, toast, backup, startCompany, loadSample }) {
-  const [dlg, setDlg] = useState(null);
+function SetupScreen({ state, setState, books, company, go, newDoc, toast, backup, startCompany, loadSample, focus }) {
+  const [dlg, setDlg] = useState(focus || null);
   const steps = setupSteps(state, company), done = steps.filter((x) => x.done).length;
   const mark = (k, v = TODAY) => setState((s) => ({ ...s, setup: { ...(s.setup || {}), [k]: v } }));
   const act = {
@@ -510,7 +510,7 @@ function SetupScreen({ state, setState, books, company, go, newDoc, toast, backu
     backup: [["Download backup", () => backup(), true]],
   };
   return <div className="setup-page">
-    <PageHead eyebrow="Home" title="Setup guide" sub="Nine short steps from an empty company to your first invoice. Do them in any order.">
+    <PageHead eyebrow="Utilities & tools" title="Setup guide" sub="Nine short steps from an empty company to your first invoice. Do them in any order.">
       <Btn icon={RotateCcw} onClick={startCompany}>Start a new company</Btn></PageHead>
     <div className="setup-grid">
       <Card className="setup-steps" title={`${done} of ${steps.length} done`} sub={done === steps.length ? "Your company is set up. Well done." : "Tick them off at your own pace."}

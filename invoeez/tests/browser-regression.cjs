@@ -15,8 +15,8 @@ async function open(b, { w = 1440, h = 900, theme = 'light', books = null, compa
     if (bk) localStorage.setItem('mizan.books.v2', bk); if (co) localStorage.setItem('mizan.company', co); if (ex) Object.entries(ex).forEach(([k, v]) => localStorage.setItem(k, v)); sessionStorage.setItem('x', '1'); } } catch (e) {} }, [theme, books, company, extra]);
   await p.goto(HTML); await p.waitForTimeout(1300); return p;
 }
-const navTitles = (p) => p.locator('.nav-item').evaluateAll((els) => els.map((e) => e.getAttribute('title')));
-async function nav(p, t, mobile) { if (mobile) { await p.locator('.burger').click(); await p.waitForTimeout(250); } await p.locator(`.nav-item[title="${t}"]`).first().click({ timeout: 4000 }); await p.waitForTimeout(350); }
+const navTitles = (p) => p.locator('.sbar [data-k]').evaluateAll((els) => els.map((e) => e.getAttribute('title')));
+async function nav(p, t, mobile) { if (mobile) { await p.locator('.burger').click(); await p.waitForTimeout(250); } await p.locator(`.sbar [data-k][title="${t}"]`).first().click({ timeout: 4000 }); await p.waitForTimeout(350); }
 const books = (p) => p.evaluate(() => JSON.parse(localStorage.getItem('mizan.books.v2')));
 
 (async () => {
@@ -29,7 +29,7 @@ const books = (p) => p.evaluate(() => JSON.parse(localStorage.getItem('mizan.boo
   ok('splash shows the logo image', /id="boot"[\s\S]{0,400}<img src="data:image\/webp;base64,/.test(raw));
   ok('favicon is the InvoEez mark (PNG)', /<link rel="icon" type="image\/png" href="data:image\/png;base64,/.test(raw));
   let p = await open(b);
-  ok('sidebar shows the logo', await p.locator('.side .brand-lockup').isVisible());
+  ok('sidebar shows the logo', await p.locator('.sbar .sb-lockup').isVisible());
   ok('page text never says Mizan', !(await p.evaluate(() => document.body.innerText)).includes('Mizan'));
   let s = await books(p);
   ok('opens as a clean company', s.docs.length + s.payments.length + s.manual.length === 0 && s.accounts.length > 30 && s.categories.length > 20, `${s.accounts.length} accounts, ${s.categories.length} categories`);
@@ -42,7 +42,8 @@ const books = (p) => p.evaluate(() => JSON.parse(localStorage.getItem('mizan.boo
     ['Customers', 'New customer'], ['Vendors', 'New vendor'], ['Products & services', 'New product'], ['Product categories', 'New category'], ['Price lists', 'New price list'],
     ['Sales team', 'New salesperson'], ['Stock counts & adjustments', 'New stock count'], ['Damage & scrap', 'Record scrap'], ['Receipts & payments', 'Record receipt'],
     ['Receipts & payments', 'Record payment'], ['Bank & cash', 'Transfer money'], ['Expenses', 'Record expense'], ['Chart of accounts', 'New account'],
-    ['Journal entries', 'New journal entry'], ['Fixed assets', 'Add asset'], ['Payment methods', 'New method'], ['Users & access', 'New user']];
+    ['Journal entries', 'New journal entry'], ['Fixed assets', 'Add asset'], ['Payment methods', 'New method'], ['Users & access', 'New user'],
+    ['Post-dated cheques', 'Receive cheque'], ['Post-dated cheques', 'Issue cheque'], ['Opening balances', 'Enter opening balances']];
   const failed = [];
   for (const [t, btn] of forms) { const before = p.errs.length; try { await nav(p, t); await p.getByRole('button', { name: btn }).first().click({ timeout: 3000 }); await p.waitForTimeout(300); await p.keyboard.press('Escape'); } catch (e) { failed.push(btn + ': ' + e.message.split('\n')[0]); } if (p.errs.length > before) failed.push(btn + ': ' + p.errs.slice(before).join(';')); }
   ok(`all ${forms.length} create forms open in an empty company`, !failed.length, failed.join(' | '));
@@ -129,7 +130,7 @@ const books = (p) => p.evaluate(() => JSON.parse(localStorage.getItem('mizan.boo
     manual: [{ id: 'm', number: 'OPEN/2026/0001', date: '2026-01-01', ref: 'Opening balances — 01 Jan 2026', lines: [] }] });
   p = await open(b, { books: legacy, company: JSON.stringify({ name: 'Zenith General Trading L.L.C.' }) });
   s = await books(p);
-  ok('old demo books are replaced by a clean company', s.docs.length === 0 && (await p.locator('.co-card b').innerText()) === 'My Company');
+  ok('old demo books are replaced by a clean company', s.docs.length === 0 && (await p.locator('.sb-co b').innerText()) === 'My Company');
   await p.context().close();
   p = await open(b, { books: FIX, company });
   s = await books(p);
@@ -157,8 +158,8 @@ const books = (p) => p.evaluate(() => JSON.parse(localStorage.getItem('mizan.boo
         ['brand on surface', 'var(--brand)', 'var(--surface)'], ['pos on surface', 'var(--pos)', 'var(--surface)'], ['neg on surface', 'var(--neg)', 'var(--surface)'], ['brand on brand-50', 'var(--brand)', 'var(--brand-50)']]) {
         const [f, bgc] = probe(fg, bg); out[theme + ': ' + n] = Math.round(ratio(f, bgc) * 10) / 10; }
     }
-    const nav = getComputedStyle(document.querySelector('.side .nav-item:not(.on)')).color; out['nav text on sidebar'] = Math.round(ratio(nav, 'rgb(28,23,96)') * 10) / 10;
-    const btn = document.querySelector('.btn.pri'); document.querySelector('.mz').setAttribute('data-theme', 'light'); out['button text on button'] = Math.round(ratio(getComputedStyle(btn).color, 'rgb(61,49,173)') * 10) / 10;
+    const nav = getComputedStyle(document.querySelector('.sbar .sb-link')).color; out['nav text on sidebar'] = Math.round(ratio(nav, 'rgb(29,33,39)') * 10) / 10;
+    const btn = document.querySelector('.btn.pri'); document.querySelector('.mz').setAttribute('data-theme', 'light'); out['button text on button'] = Math.round(ratio(getComputedStyle(btn).color, 'rgb(50,56,64)') * 10) / 10;
     return out;
   });
   const low = Object.entries(contrast).filter(([, v]) => v < 4.5);

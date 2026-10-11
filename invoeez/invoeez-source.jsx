@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.5.0";
+const BUILD = "3.6.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -126,6 +126,9 @@ const COMPANY = {
   licence: "",
   emirate: "Dubai",
   currency: "AED",
+  nameAr: "",
+  addressAr: "",
+  invoiceLang: "en",
 };
 
 /* ----------------------------------------------------------- master data -- */
@@ -390,6 +393,8 @@ function deriveBooks(state) {
     });
   });
 
+  entries.push(...pdcEntries(state));
+
   entries.sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number));
   const flat = [];
   entries.forEach((e) => e.lines.forEach((l, i) =>
@@ -475,6 +480,8 @@ function aging(state, kind, asOf) {
       .forEach((d) => (credit = R2(credit + settle(byId[d.against] || byNo[d.ref], amounts(d).total))));
     state.payments.filter((x) => x.partner === p.id && x.kind === payK && x.date <= asOf)
       .forEach((x) => (credit = R2(credit + settle(byId[x.doc], x.amount))));
+    (state.pdcs || []).filter((x) => x.partner === p.id && x.kind === payK && pdcSettles(x, asOf))
+      .forEach((x) => (credit = R2(credit + settle(byId[x.doc], +x.amount))));
     charges.forEach((c) => { const ap = Math.min(credit, c.open); credit = R2(credit - ap); c.open = R2(c.open - ap); });
     const items = charges.filter((c) => c.open > 0.004).map((c) => ({ ...c, b: bucketOf(c.due, asOf) }));
     if (!items.length && credit < 0.005) return;
@@ -565,27 +572,27 @@ function vat201(state, from, to) {
 
 const CSS = `
 .mz{
-  --nav-900:#071417; --nav-800:#0D2229; --nav-700:#153039; --nav-600:#1F4450;
-  --ink:#141B36; --ink-2:#41507C; --ink-3:#636F99; --ink-4:#9AA5C6;
-  --bg:#F3F5FC; --surface:#FFFFFF; --surface-2:#F7F9FE; --surface-3:#EEF2FC;
-  --line:#E2E7F5; --line-2:#EDF1FA;
-  --brand:#3A63E0; --brand-600:#2D51C6; --brand-50:#EAEFFE; --brand-100:#D3DEFC;
+  --nav-900:#0E0F10; --nav-800:#191B1D; --nav-700:#23272B; --nav-600:#33373C;
+  --ink:#222528; --ink-2:#585E65; --ink-3:#787D84; --ink-4:#ABAFB5;
+  --bg:#F7F7F8; --surface:#FFFFFF; --surface-2:#FAFAFB; --surface-3:#F4F5F6;
+  --line:#E2E9F5; --line-2:#F2F3F5;
+  --brand:#4678D4; --brand-600:#2E63C5; --brand-50:#F3F4F5; --brand-100:#D9E3F6;
   --gold:#96620B; --gold-50:#FDF3E0;
   --pos:#0B7B55; --pos-50:#E3F7EF; --neg:#CC3355; --neg-50:#FDEBEF;
-  --warn:#96620B; --warn-50:#FDF3E0; --info:#2B6FD6; --info-50:#E9F1FD;
-  --c1:#4F7CFF; --c2:#DB2777; --c3:#0891B2;
-  --sh-1:0 1px 2px rgba(24,35,80,.05), 0 1px 3px rgba(24,35,80,.04);
-  --sh-2:0 2px 6px rgba(24,35,80,.06), 0 10px 26px rgba(24,35,80,.08);
-  --sh-3:0 22px 60px rgba(24,35,80,.2), 0 5px 16px rgba(24,35,80,.1);
-  --ring:0 0 0 3px rgba(58,99,224,.22);
-  --post-bg:#071417; --post-line:rgba(255,255,255,.07);
-  --nav-bg:#FFFFFF; --nav-edge:#E2E7F5; --nav-txt:#41507C; --nav-hi:#141B36;
-  --nav-hover:#F1F4FD; --nav-active:#EAEFFE; --nav-group:#697699; --nav-brand:#141B36;
-  --nav-sub:#697699; --nav-mark:#3A63E0; --nav-chip:#EEF2FC; --nav-chipt:#697699;
-  --nav-card:#F7F9FE; --nav-cardline:#E6EBF8; --nav-scroll:#C3CCE6;
-  --violet:#7C3AED; --pink:#DB2777; --cyan:#0891B2;
-  --app-bg:radial-gradient(1100px 560px at 78% -10%, rgba(124,58,237,.09), transparent 62%),
-           radial-gradient(900px 480px at 4% 2%, rgba(58,99,224,.09), transparent 60%), #F3F5FC;
+  --warn:#96620B; --warn-50:#FDF3E0; --info:#3269CF; --info-50:#F2F3F4;
+  --c1:#7097DE; --c2:#DB2777; --c3:#0891B2;
+  --sh-1:0 1px 2px rgba(24,44,80,.05), 0 1px 3px rgba(24,44,80,.04);
+  --sh-2:0 2px 6px rgba(24,44,80,.06), 0 10px 26px rgba(24,44,80,.08);
+  --sh-3:0 22px 60px rgba(24,44,80,.2), 0 5px 16px rgba(24,44,80,.1);
+  --ring:0 0 0 3px rgba(70,120,212,.22);
+  --post-bg:#0E0F10; --post-line:rgba(255,255,255,.07);
+  --nav-bg:#FFFFFF; --nav-edge:#E2E9F5; --nav-txt:#585E65; --nav-hi:#222528;
+  --nav-hover:#F6F7F8; --nav-active:#F3F4F5; --nav-group:#7C8086; --nav-brand:#222528;
+  --nav-sub:#7C8086; --nav-mark:#4678D4; --nav-chip:#F4F5F6; --nav-chipt:#7C8086;
+  --nav-card:#FAFAFB; --nav-cardline:#EEEFF0; --nav-scroll:#D1D4D8;
+  --violet:#5180D6; --pink:#DB2777; --cyan:#0891B2;
+  --app-bg:radial-gradient(1100px 560px at 78% -10%, rgba(81,128,214,.09), transparent 62%),
+           radial-gradient(900px 480px at 4% 2%, rgba(70,120,212,.09), transparent 60%), #F7F7F8;
   --r-xs:5px; --r-s:8px; --r:11px; --r-l:15px;
   --sans:'Geist Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
   --mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,monospace;
@@ -595,27 +602,27 @@ const CSS = `
   height:100%; display:flex; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
 }
 .mz[data-theme="dark"]{
-  --ink:#EDF1FF; --ink-2:#A9B5DE; --ink-3:#7C89BC; --ink-4:#5B679B;
-  --bg:#080C22; --surface:#121938; --surface-2:#182046; --surface-3:#1E2755;
+  --ink:#F5F6F7; --ink-2:#BEC3C9; --ink-3:#959BA3; --ink-4:#747A82;
+  --bg:#131517; --surface:#222528; --surface-2:#182846; --surface-3:#1E3155;
   --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.055);
-  --brand:#4F7CFF; --brand-600:#6E92FF; --brand-50:rgba(79,124,255,.16); --brand-100:rgba(79,124,255,.28);
+  --brand:#7097DE; --brand-600:#8AA9E3; --brand-50:rgba(112,151,222,.16); --brand-100:rgba(112,151,222,.28);
   --gold:#F5B544; --gold-50:rgba(245,181,68,.16);
   --pos:#22C58B; --pos-50:rgba(34,197,139,.15); --neg:#F65F7B; --neg-50:rgba(246,95,123,.15);
   --warn:#F5B544; --warn-50:rgba(245,181,68,.15); --info:#38BDF8; --info-50:rgba(56,189,248,.15);
-  --violet:#9061F9; --pink:#EC4899; --cyan:#22D3EE;
-  --c1:#4F7CFF; --c2:#EC4899; --c3:#22D3EE;
+  --violet:#7A9EE0; --pink:#EC4899; --cyan:#22D3EE;
+  --c1:#7097DE; --c2:#EC4899; --c3:#22D3EE;
   --sh-1:0 1px 2px rgba(0,0,0,.5);
   --sh-2:0 4px 10px rgba(0,0,0,.45), 0 14px 34px rgba(0,0,0,.4);
   --sh-3:0 26px 70px rgba(0,0,0,.7), 0 8px 22px rgba(0,0,0,.5);
-  --ring:0 0 0 3px rgba(79,124,255,.3);
-  --post-bg:#0B1130; --post-line:rgba(255,255,255,.09);
-  --nav-bg:#0B1030; --nav-edge:rgba(255,255,255,.07); --nav-txt:#98A5D4; --nav-hi:#FFFFFF;
-  --nav-hover:rgba(255,255,255,.06); --nav-active:rgba(255,255,255,.08); --nav-group:#7E8ABC;
-  --nav-brand:#FFFFFF; --nav-sub:#8B97C9; --nav-mark:#4F7CFF; --nav-chip:rgba(255,255,255,.08);
-  --nav-chipt:#98A5D4; --nav-card:rgba(255,255,255,.05); --nav-cardline:rgba(255,255,255,.08);
-  --nav-scroll:#2A3466;
-  --app-bg:radial-gradient(1200px 620px at 76% -8%, rgba(144,97,249,.22), transparent 62%),
-           radial-gradient(940px 520px at 6% 4%, rgba(79,124,255,.16), transparent 60%), #080C22;
+  --ring:0 0 0 3px rgba(112,151,222,.3);
+  --post-bg:#1B1D20; --post-line:rgba(255,255,255,.09);
+  --nav-bg:#1B1D20; --nav-edge:rgba(255,255,255,.07); --nav-txt:#AFB5BD; --nav-hi:#FFFFFF;
+  --nav-hover:rgba(255,255,255,.06); --nav-active:rgba(255,255,255,.08); --nav-group:#969CA4;
+  --nav-brand:#FFFFFF; --nav-sub:#A3A9B1; --nav-mark:#7097DE; --nav-chip:rgba(255,255,255,.08);
+  --nav-chipt:#AFB5BD; --nav-card:rgba(255,255,255,.05); --nav-cardline:rgba(255,255,255,.08);
+  --nav-scroll:#42474E;
+  --app-bg:radial-gradient(1200px 620px at 76% -8%, rgba(122,158,224,.22), transparent 62%),
+           radial-gradient(940px 520px at 6% 4%, rgba(112,151,222,.16), transparent 60%), #131517;
   color-scheme:dark;
 }
 .mz *,.mz *::before,.mz *::after{box-sizing:border-box}
@@ -625,8 +632,8 @@ const CSS = `
 .mz :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:var(--r-xs)}
 .mz ::-webkit-scrollbar{width:11px;height:11px}
 .mz ::-webkit-scrollbar-thumb{background:var(--ink-4);border-radius:9px;border:3px solid transparent;background-clip:content-box}
-.mz[data-theme="dark"] ::-webkit-scrollbar-thumb{background:#2E3A70;background-clip:content-box}
-.mz[data-theme="dark"] ::-webkit-scrollbar-thumb:hover{background:#3C4A88;background-clip:content-box}
+.mz[data-theme="dark"] ::-webkit-scrollbar-thumb{background:#484E56;background-clip:content-box}
+.mz[data-theme="dark"] ::-webkit-scrollbar-thumb:hover{background:#5A616A;background-clip:content-box}
 .mz ::-webkit-scrollbar-thumb:hover{background:var(--ink-3);background-clip:content-box}
 .mz ::-webkit-scrollbar-track{background:transparent}
 
@@ -642,7 +649,7 @@ const CSS = `
 .side.mini{width:68px;flex-basis:68px}
 .side-top{padding:16px 17px 13px;display:flex;align-items:center;gap:11px}
 .logo{width:35px;height:35px;border-radius:10px;flex:0 0 35px;display:grid;place-items:center;
-  background:linear-gradient(148deg,#2A17B5,#13017E);box-shadow:inset 0 1px 0 rgba(255,255,255,.24)}
+  background:linear-gradient(148deg,#2753A5,#183467);box-shadow:inset 0 1px 0 rgba(255,255,255,.24)}
 .wordmark{min-width:0}
 .wordmark b{display:block;color:var(--nav-brand);font-size:16.5px;font-weight:600;letter-spacing:-.024em;line-height:1.1}
 .wordmark span{display:block;color:var(--nav-sub);font-size:9.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;margin-top:4px}
@@ -697,7 +704,7 @@ const CSS = `
 .topbar{height:70px;flex:0 0 70px;background:var(--surface);border-bottom:1px solid var(--line);
   display:grid;grid-template-columns:minmax(180px,1fr) minmax(280px,540px) minmax(180px,1fr);
   align-items:center;gap:28px;padding:0 24px;position:relative;z-index:20}
-.mz[data-theme="dark"] .topbar{background:rgba(18,25,56,.82);backdrop-filter:blur(14px) saturate(1.3)}
+.mz[data-theme="dark"] .topbar{background:rgba(34,37,40,.82);backdrop-filter:blur(14px) saturate(1.3)}
 .tb-l{display:flex;align-items:center;gap:12px;min-width:0}
 .tb-r{display:flex;align-items:center;gap:8px;justify-content:flex-end;min-width:0}
 .tb-div{width:1px;height:26px;background:var(--line);flex:0 0 1px;margin:0 6px}
@@ -727,7 +734,7 @@ const CSS = `
   border:1px solid transparent;transition:background .14s,color .14s,border-color .14s}
 .icon-btn:hover{background:var(--surface-2);color:var(--ink);border-color:var(--line)}
 .me{width:33px;height:33px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:600;
-  background:linear-gradient(148deg,#2A17B5,#13017E);color:#fff;transition:box-shadow .14s,transform .14s}
+  background:linear-gradient(148deg,#2753A5,#183467);color:#fff;transition:box-shadow .14s,transform .14s}
 .me:hover{box-shadow:var(--ring);transform:translateY(-1px)}
 
 /* --------------------------------------------------------------- popover */
@@ -781,7 +788,7 @@ const CSS = `
 /* ---------------------------------------------------------------- surfaces */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-l);box-shadow:var(--sh-1);
   transition:box-shadow .2s var(--ease),border-color .2s}
-.mz[data-theme="dark"] .card{background:rgba(18,25,56,.72);backdrop-filter:blur(12px) saturate(1.25);
+.mz[data-theme="dark"] .card{background:rgba(34,37,40,.72);backdrop-filter:blur(12px) saturate(1.25);
   box-shadow:0 1px 0 rgba(255,255,255,.05) inset, var(--sh-1)}
 .mz[data-theme="dark"] .hero,.mz[data-theme="dark"] .banner{backdrop-filter:blur(12px) saturate(1.25)}
 .card-h{display:flex;align-items:center;gap:12px;padding:16px 19px;border-bottom:1px solid var(--line-2)}
@@ -797,15 +804,15 @@ const CSS = `
 .stat{padding:17px 19px 15px;position:relative;overflow:hidden}
 .stat:hover,.kpi:hover{box-shadow:var(--sh-2);transform:translateY(-2px)}
 .kpi{transition:box-shadow .2s var(--ease),transform .18s var(--ease),border-color .2s}
-.kpi.t1{background:linear-gradient(145deg,rgba(79,124,255,.13),transparent 60%),var(--surface);border-color:rgba(79,124,255,.26)}
+.kpi.t1{background:linear-gradient(145deg,rgba(112,151,222,.13),transparent 60%),var(--surface);border-color:rgba(112,151,222,.26)}
 .kpi.t2{background:linear-gradient(145deg,rgba(236,72,153,.13),transparent 60%),var(--surface);border-color:rgba(236,72,153,.26)}
 .kpi.t3{background:linear-gradient(145deg,rgba(18,185,129,.13),transparent 60%),var(--surface);border-color:rgba(18,185,129,.26)}
 .kpi.t4{background:linear-gradient(145deg,rgba(34,211,238,.13),transparent 60%),var(--surface);border-color:rgba(34,211,238,.26)}
 .kpi.t5{background:linear-gradient(145deg,rgba(245,181,68,.13),transparent 60%),var(--surface);border-color:rgba(245,181,68,.26)}
-.kpi.t6{background:linear-gradient(145deg,rgba(144,97,249,.13),transparent 60%),var(--surface);border-color:rgba(144,97,249,.26)}
+.kpi.t6{background:linear-gradient(145deg,rgba(122,158,224,.13),transparent 60%),var(--surface);border-color:rgba(122,158,224,.26)}
 .kpi.t7{background:linear-gradient(145deg,rgba(246,95,123,.13),transparent 60%),var(--surface);border-color:rgba(246,95,123,.26)}
-.kpi.t1:hover{border-color:#4F7CFF} .kpi.t2:hover{border-color:#EC4899} .kpi.t3:hover{border-color:#12B981}
-.kpi.t4:hover{border-color:#22D3EE} .kpi.t5:hover{border-color:#F5B544} .kpi.t6:hover{border-color:#9061F9}
+.kpi.t1:hover{border-color:#7097DE} .kpi.t2:hover{border-color:#EC4899} .kpi.t3:hover{border-color:#12B981}
+.kpi.t4:hover{border-color:#22D3EE} .kpi.t5:hover{border-color:#F5B544} .kpi.t6:hover{border-color:#7A9EE0}
 .kpi.t7:hover{border-color:#F65F7B}
 .stat .top{display:flex;align-items:center;gap:9px}
 .stat .ico{width:29px;height:29px;border-radius:9px;display:grid;place-items:center;
@@ -917,18 +924,18 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .post{background:var(--post-bg);border:1px solid var(--post-line);border-radius:var(--r-l);
   overflow:hidden;box-shadow:var(--sh-2)}
 .post-h{display:flex;align-items:center;gap:9px;padding:14px 17px;border-bottom:1px solid var(--post-line);
-  color:#8CA7B1;font-size:10.5px;font-weight:600;letter-spacing:.095em;text-transform:uppercase}
+  color:#9A9EA3;font-size:10.5px;font-weight:600;letter-spacing:.095em;text-transform:uppercase}
 .post-h .st{margin-left:auto;font-size:10px;letter-spacing:.03em;padding:2px 8px;border-radius:20px;
-  background:rgba(169,163,255,.18);color:#C3BEFF;text-transform:none;font-weight:500}
+  background:rgba(180,200,238,.18);color:#CAD8F3;text-transform:none;font-weight:500}
 .post-h .st.bad{background:rgba(226,129,112,.17);color:#F0A18C}
 .post table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px;
   font-variant-numeric:tabular-nums;letter-spacing:-.012em}
-.post thead th{padding:8px 17px;color:#547079;font-size:9.5px;letter-spacing:.095em;text-transform:uppercase;
+.post thead th{padding:8px 17px;color:#62666B;font-size:9.5px;letter-spacing:.095em;text-transform:uppercase;
   font-weight:500;text-align:right;border-bottom:1px solid var(--post-line)}
 .post thead th:first-child{text-align:left}
-.post td{padding:8px 17px;color:#C3D6DD;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top}
-.post td .ac{color:#7A959F;font-size:10px;display:block;margin-top:3px;font-family:var(--sans);letter-spacing:0}
-.post td.d{text-align:right;color:#C3BEFF;white-space:nowrap}
+.post td{padding:8px 17px;color:#CDD0D3;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top}
+.post td .ac{color:#888C91;font-size:10px;display:block;margin-top:3px;font-family:var(--sans);letter-spacing:0}
+.post td.d{text-align:right;color:#CAD8F3;white-space:nowrap}
 .post td.c{text-align:right;color:#F0A18C;white-space:nowrap}
 .post .gut{box-shadow:inset 1px 0 0 rgba(214,171,87,.45)}
 .post tfoot td{border-top:1px solid rgba(214,171,87,.45);border-bottom:none;color:#fff;padding-top:11px}
@@ -943,7 +950,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .tip{position:absolute;pointer-events:none;background:var(--nav-900);color:#fff;border-radius:var(--r-s);
   padding:10px 12px;font-size:12px;box-shadow:var(--sh-3);z-index:5;white-space:nowrap;
   transform:translate(-50%,-118%);border:1px solid rgba(255,255,255,.09)}
-.tip .tk{color:#8CA7B1;font-size:10.5px;letter-spacing:.055em;text-transform:uppercase;margin-bottom:6px}
+.tip .tk{color:#9A9EA3;font-size:10.5px;letter-spacing:.055em;text-transform:uppercase;margin-bottom:6px}
 .tip .tr{display:flex;align-items:center;gap:9px;margin-top:4px}
 .tip .tr i{width:7px;height:7px;border-radius:2px}
 .tip .tr b{margin-left:auto;font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500;padding-left:16px}
@@ -960,7 +967,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .bar-row .bv{width:98px;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;flex:0 0 98px}
 
 /* ---------------------------------------------------------------- overlays */
-.scrim{position:fixed;inset:0;background:rgba(6,15,18,.56);backdrop-filter:blur(3px);z-index:60;
+.scrim{position:fixed;inset:0;background:rgba(11,12,13,.56);backdrop-filter:blur(3px);z-index:60;
   display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;
   animation:fade .16s ease-out}
 @keyframes fade{from{opacity:0}to{opacity:1}}
@@ -979,18 +986,18 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
   border-radius:4px;padding:0 4px;background:var(--surface)}
 
 .toasts{position:fixed;right:22px;bottom:22px;z-index:80;display:flex;flex-direction:column;gap:10px}
-.toast{display:flex;align-items:center;gap:12px;background:var(--nav-900);color:#E7EFF2;padding:13px 16px;
+.toast{display:flex;align-items:center;gap:12px;background:var(--nav-900);color:#EBECEE;padding:13px 16px;
   border-radius:var(--r);box-shadow:var(--sh-3);font-size:13px;min-width:258px;
   border:1px solid rgba(255,255,255,.09);animation:slide .22s var(--ease)}
 @keyframes slide{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
 .toast .tico{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;flex:0 0 22px;
-  background:rgba(169,163,255,.2);color:#C3BEFF}
+  background:rgba(180,200,238,.2);color:#CAD8F3}
 .toast.warn .tico{background:rgba(240,161,140,.19);color:#F0A18C}
 
 /* ---------------------------------------------------------------- print */
-.sheet{background:#fff;color:#08191F;max-width:860px;margin:0 auto;border-radius:var(--r-l);
+.sheet{background:#fff;color:#121315;max-width:860px;margin:0 auto;border-radius:var(--r-l);
   box-shadow:var(--sh-3);overflow:hidden}
-.sheet-crest{background:linear-gradient(135deg,#13017E 0%,#2512A8 50%,#1F45D6 100%);color:#fff;
+.sheet-crest{background:linear-gradient(135deg,#183467 0%,#234C97 50%,#2F64C6 100%);color:#fff;
   padding:30px 46px 26px;position:relative;overflow:hidden}
 .sheet-crest::after{content:"";position:absolute;right:-70px;top:-90px;width:280px;height:280px;border-radius:50%;
   background:radial-gradient(circle,rgba(214,171,87,.28),transparent 62%)}
@@ -998,29 +1005,29 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .sheet-crest h1{font-size:25px;font-weight:600;letter-spacing:-.03em;color:#fff}
 .sheet-crest .sub{font-size:12px;color:rgba(255,255,255,.72);margin-top:6px;line-height:1.6}
 .sheet-crest .doc{margin-left:auto;text-align:right}
-.sheet-crest .doc .no{font-family:var(--mono);font-size:17px;letter-spacing:-.02em;color:#D9D5FF}
+.sheet-crest .doc .no{font-family:var(--mono);font-size:17px;letter-spacing:-.02em;color:#DDE6F7}
 .sheet-crest .doc .dt{font-size:11.5px;color:rgba(255,255,255,.72);margin-top:6px;line-height:1.75}
 .sheet-crest .badge{display:inline-block;font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
   background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);padding:4px 10px;border-radius:20px;margin-bottom:12px}
 .sheet-logo{max-height:46px;max-width:180px;object-fit:contain;display:block;margin-bottom:13px;
   background:#fff;border-radius:6px;padding:5px}
 .sheet-body{padding:30px 46px 44px}
-.sheet-parties{display:flex;gap:30px;flex-wrap:wrap;padding-bottom:24px;border-bottom:1px solid #E1E9ED}
+.sheet-parties{display:flex;gap:30px;flex-wrap:wrap;padding-bottom:24px;border-bottom:1px solid #E6E7E8}
 .sheet-parties .blk{flex:1 1 190px;min-width:0}
-.sheet-parties .lb{font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#8CA0AA}
+.sheet-parties .lb{font-size:9.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#989B9E}
 .sheet-parties .nm{font-weight:600;margin-top:7px;font-size:14px}
-.sheet-parties .ad{font-size:12px;color:#5A737F;margin-top:4px;line-height:1.55}
-.sheet-parties .trn{font-family:var(--mono);font-size:11.5px;margin-top:7px;color:#13017E}
-.sheet table.tbl th{background:#F2F6F7;color:#5A737F;border-bottom:1px solid #DFE8EC}
-.sheet table.tbl td{border-bottom:1px solid #EDF2F4;color:#08191F}
-.sheet .totbox{background:#F6F6FD;border:1px solid #E0DEF5;border-radius:var(--r);padding:16px 18px}
-.sheet .totbox .sumrow .k{color:#5A737F}
-.sheet .totbox .grand{display:flex;align-items:baseline;gap:12px;margin-top:12px;padding-top:13px;border-top:1px solid #D3D0F0}
-.sheet .totbox .grand b{font-size:12px;font-weight:600;color:#312682;letter-spacing:.02em}
-.sheet .totbox .grand span{margin-left:auto;font-family:var(--mono);font-size:23px;font-weight:600;letter-spacing:-.03em;color:#13017E}
-.sheet .payblk{background:#FAFBFC;border:1px solid #E7EEF0;border-radius:var(--r);padding:14px 16px;font-size:11.5px;color:#5A737F;line-height:1.7}
-.sheet .foot{margin-top:30px;padding-top:18px;border-top:1px solid #E1E9ED;display:flex;gap:26px;flex-wrap:wrap;
-  font-size:10.5px;color:#8CA0AA;line-height:1.6}
+.sheet-parties .ad{font-size:12px;color:#686C71;margin-top:4px;line-height:1.55}
+.sheet-parties .trn{font-family:var(--mono);font-size:11.5px;margin-top:7px;color:#183467}
+.sheet table.tbl th{background:#F4F4F5;color:#686C71;border-bottom:1px solid #E4E5E7}
+.sheet table.tbl td{border-bottom:1px solid #F0F0F1;color:#121315}
+.sheet .totbox{background:#F9F9FA;border:1px solid #DEE6F5;border-radius:var(--r);padding:16px 18px}
+.sheet .totbox .sumrow .k{color:#686C71}
+.sheet .totbox .grand{display:flex;align-items:baseline;gap:12px;margin-top:12px;padding-top:13px;border-top:1px solid #D0DBF0}
+.sheet .totbox .grand b{font-size:12px;font-weight:600;color:#264682;letter-spacing:.02em}
+.sheet .totbox .grand span{margin-left:auto;font-family:var(--mono);font-size:23px;font-weight:600;letter-spacing:-.03em;color:#183467}
+.sheet .payblk{background:#FBFBFB;border:1px solid #EBEBEC;border-radius:var(--r);padding:14px 16px;font-size:11.5px;color:#686C71;line-height:1.7}
+.sheet .foot{margin-top:30px;padding-top:18px;border-top:1px solid #E6E7E8;display:flex;gap:26px;flex-wrap:wrap;
+  font-size:10.5px;color:#989B9E;line-height:1.6}
 .sendbar{display:flex;gap:8px;justify-content:flex-end;margin-bottom:14px;flex-wrap:wrap}
 .wa{background:#1FA855;border-color:#1FA855;color:#fff}
 .wa:hover{background:#18904699;background:#189046;border-color:#189046;color:#fff}
@@ -1031,7 +1038,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
   .page-head{position:static;padding:0 0 14px}
   .scrim{position:static;background:none;padding:0;display:block;backdrop-filter:none}
   .sheet,.card{box-shadow:none;border:none;max-width:none;break-inside:avoid}
-  .rframe-h{border-bottom:2px solid #13017E!important;padding-left:0!important;padding-right:0!important}
+  .rframe-h{border-bottom:2px solid #183467!important;padding-left:0!important;padding-right:0!important}
   .tbl tbody tr{break-inside:avoid}
   @page{margin:14mm}
 }
@@ -1061,20 +1068,20 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .gt{width:40px;height:40px;border-radius:12px;flex:0 0 40px;display:grid;place-items:center;color:#fff;
   box-shadow:0 6px 16px rgba(0,0,0,.22)}
 .gt.sm{width:34px;height:34px;flex-basis:34px;border-radius:10px}
-.gt.g1{background:linear-gradient(135deg,#4F7CFF,#3358E8)}
-.gt.g2{background:linear-gradient(135deg,#B14BE8,#EC4899)}
+.gt.g1{background:linear-gradient(135deg,#7097DE,#4778D4)}
+.gt.g2{background:linear-gradient(135deg,#5B87D8,#EC4899)}
 .gt.g3{background:linear-gradient(135deg,#12B981,#0E9F72)}
-.gt.g4{background:linear-gradient(135deg,#22D3EE,#2B9BF0)}
+.gt.g4{background:linear-gradient(135deg,#22D3EE,#4778D4)}
 .gt.g5{background:linear-gradient(135deg,#F5B544,#F0832A)}
-.gt.g6{background:linear-gradient(135deg,#9061F9,#6D46E0)}
+.gt.g6{background:linear-gradient(135deg,#7A9EE0,#507FD6)}
 .gt.g7{background:linear-gradient(135deg,#F65F7B,#D93A5C)}
 
 /* ---------------------------------------------------------------- greeting */
 .hero{position:relative;overflow:hidden;border-radius:var(--r-l);border:1px solid var(--line);
   background:var(--surface);padding:22px 26px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:16px}
-.mz[data-theme="dark"] .hero{background:linear-gradient(120deg,rgba(79,124,255,.2),rgba(144,97,249,.16) 45%,rgba(236,72,153,.1));border-color:rgba(255,255,255,.1)}
+.mz[data-theme="dark"] .hero{background:linear-gradient(120deg,rgba(112,151,222,.2),rgba(122,158,224,.16) 45%,rgba(236,72,153,.1));border-color:rgba(255,255,255,.1)}
 .hero::after{content:"";position:absolute;right:-90px;top:-120px;width:340px;height:340px;border-radius:50%;
-  background:radial-gradient(circle,rgba(144,97,249,.26),transparent 65%);pointer-events:none}
+  background:radial-gradient(circle,rgba(122,158,224,.26),transparent 65%);pointer-events:none}
 .hero-wave{position:absolute;right:0;top:0;height:100%;width:min(62%,660px);pointer-events:none;
   opacity:.95;mask-image:linear-gradient(90deg,transparent,#000 22%)}
 @media (max-width:900px){.hero-wave{display:none}}
@@ -1125,7 +1132,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 /* ---------------------------------------------------------------- banner */
 .banner{margin-top:16px;border-radius:var(--r-l);border:1px solid var(--line);background:var(--surface);
   padding:18px 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;position:relative;overflow:hidden}
-.mz[data-theme="dark"] .banner{background:linear-gradient(110deg,rgba(79,124,255,.22),rgba(144,97,249,.16) 55%,rgba(34,211,238,.1));border-color:rgba(255,255,255,.1)}
+.mz[data-theme="dark"] .banner{background:linear-gradient(110deg,rgba(112,151,222,.22),rgba(122,158,224,.16) 55%,rgba(34,211,238,.1));border-color:rgba(255,255,255,.1)}
 .banner b{display:block;font-size:15px;font-weight:600;letter-spacing:-.02em}
 .banner p{color:var(--ink-3);font-size:12.5px;margin-top:4px}
 
@@ -1148,14 +1155,14 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
 .userchip .ux span{display:block;font-size:10.5px;color:var(--ink-3)}
 
 /* ---------------------------------------------------------------- sidebar dark polish */
-.nav-item.on{background:linear-gradient(120deg,#4F7CFF,#6D46E0)!important;color:#fff!important;
-  box-shadow:0 8px 20px rgba(79,124,255,.3)}
+.nav-item.on{background:linear-gradient(120deg,#7097DE,#507FD6)!important;color:#fff!important;
+  box-shadow:0 8px 20px rgba(112,151,222,.3)}
 .nav-item.on::before{display:none}
 .nav-item.on svg{color:#fff!important}
 .nav-item.on .ct{background:rgba(255,255,255,.22);color:#fff}
-.logo{background:linear-gradient(135deg,#4F7CFF,#9061F9)}
-.me{background:linear-gradient(135deg,#4F7CFF,#9061F9)}
-.co-card .av{background:linear-gradient(148deg,#4F7CFF,#9061F9);color:#fff}
+.logo{background:linear-gradient(135deg,#7097DE,#7A9EE0)}
+.me{background:linear-gradient(135deg,#7097DE,#7A9EE0)}
+.co-card .av{background:linear-gradient(148deg,#7097DE,#7A9EE0);color:#fff}
 .sysline{display:flex;align-items:center;gap:8px;padding:11px 17px;font-size:11px;color:var(--nav-sub);
   border-top:1px solid var(--nav-edge)}
 .sysline i{width:7px;height:7px;border-radius:50%;background:#22C58B;box-shadow:0 0 8px rgba(34,197,139,.8)}
@@ -1285,7 +1292,7 @@ select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns
   .side .nav-group{display:flex}
   .side .side-foot{display:flex;padding:13px 15px;justify-content:flex-start}
   .side .sysline{display:flex;padding:11px 17px}
-  .side-scrim{position:fixed;inset:0;background:rgba(4,8,26,.62);backdrop-filter:blur(2px);z-index:940;
+  .side-scrim{position:fixed;inset:0;background:rgba(14,15,16,.62);backdrop-filter:blur(2px);z-index:940;
     animation:fade .18s ease-out}
   .burger{display:grid!important}
 
@@ -1528,10 +1535,10 @@ function bucketize(from, to, gran) {
 /* Chart colours can't read CSS variables from SVG presentation attributes,
    so the active palette travels through context instead. */
 const PALETTE = {
-  light: { c1: "#2A17B5", c2: "#B0801F", c3: "#2F55B8", pos: "#0C7A56", neg: "#AE3123",
-    grid: "#E4E4F1", axis: "#6C6E96", ring: "#FFFFFF" },
-  dark:  { c1: "#A39DFF", c2: "#D6AB57", c3: "#7FA2FF", pos: "#34B489", neg: "#E28170",
-    grid: "#2A2952", axis: "#A5A3CF", ring: "#17163A" },
+  light: { c1: "#2F62C4", c2: "#A47A22", c3: "#4A5562", pos: "#0C7A56", neg: "#AE3123",
+    grid: "#E4E7EB", axis: "#6A717B", ring: "#FFFFFF" },
+  dark:  { c1: "#8DB3F5", c2: "#D6AB57", c3: "#AEB6C1", pos: "#34B489", neg: "#E28170",
+    grid: "#262B32", axis: "#9AA1AB", ring: "#16191D" },
 };
 const ThemeCtx = React.createContext(PALETTE.light);
 const useC = () => React.useContext(ThemeCtx);
@@ -1574,7 +1581,7 @@ const sortRows = (rows, sort, get) => {
   });
 };
 const initials = (s) => s.replace(/[^A-Za-z ]/g, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-const AV_TONES = ["#2A17B5", "#1F45D6", "#A9741A", "#6A4FB8", "#1F6C8A", "#A2452F"];
+const AV_TONES = ["#2F62C4", "#4A5562", "#A9741A", "#6A7480", "#1F6C8A", "#A2452F"];
 const toneFor = (s) => AV_TONES[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % AV_TONES.length];
 
 const Btn = ({ kind, size, icon: Ic, children, ...p }) => (
@@ -1602,8 +1609,7 @@ const Field = ({ label, children, span }) => {
   const id=React.useId();
   return <div className="fld" style={span ? {gridColumn:`span ${span}`} : undefined}><label className="lb" htmlFor={id}>{label}</label>{React.Children.map(children,child=>React.isValidElement(child)&&[Input,Select,'input','select','textarea'].includes(child.type)?React.cloneElement(child,{id:child.props.id||id,'aria-label':child.props['aria-label']||label}):child)}</div>;
 };
-const Input = ({ n, ...p }) => <input className={cx("inp", n && "n")} {...p} />;
-const Select = ({ children, ...p }) => <select className="inp" {...p}>{children}</select>;
+const Input = ({ n, className, ...p }) => <input className={cx("inp", n && "n", className)} {...p} />;
 const Money = ({ v, dash = true, tone, bold }) => (
   <span className="num" style={{ color: tone ? `var(--${tone})` : undefined, fontWeight: bold ? 600 : undefined }}>{money(v, dash)}</span>
 );
@@ -1852,21 +1858,21 @@ function exportPdf(title, meta, CO, tables, name) {
   const W = doc.internal.pageSize.getWidth();
   let y = 44;
   if (CO.logo) { try { doc.addImage(CO.logo, 40, 26, 0, 30); y = 74; } catch (e) { /* unsupported image */ } }
-  doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.setTextColor(27, 26, 61);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.setTextColor(22, 25, 29);
   doc.text(title, 40, y);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(95, 97, 135);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(98, 105, 115);
   doc.text(`${CO.name}   ·   TRN ${CO.trn}`, 40, y + 15);
   doc.text(meta, 40, y + 28);
-  doc.setDrawColor(19, 1, 126); doc.setLineWidth(1.4);
+  doc.setDrawColor(27, 31, 37); doc.setLineWidth(1.4);
   doc.line(40, y + 38, W - 40, y + 38);
   let startY = y + 50;
   tables.forEach((t) => {
     doc.autoTable({
       head: t.head.length ? t.head : undefined, body: t.body, startY,
       margin: { left: 40, right: 40, bottom: 46 },
-      styles: { font: "helvetica", fontSize: 8, cellPadding: 4.5, textColor: [27, 26, 61], lineColor: [226, 226, 240], lineWidth: 0.4 },
-      headStyles: { fillColor: [240, 240, 250], textColor: [69, 70, 111], fontStyle: "bold", fontSize: 7.5 },
-      alternateRowStyles: { fillColor: [251, 251, 254] },
+      styles: { font: "helvetica", fontSize: 8, cellPadding: 4.5, textColor: [22, 25, 29], lineColor: [226, 229, 233], lineWidth: 0.4 },
+      headStyles: { fillColor: [238, 240, 242], textColor: [62, 68, 76], fontStyle: "bold", fontSize: 7.5 },
+      alternateRowStyles: { fillColor: [249, 250, 251] },
       didParseCell: (h) => {
         if (h.section === "body" && t.bold.indexOf(h.row.index) >= 0) {
           h.cell.styles.fontStyle = "bold"; h.cell.styles.fillColor = [243, 247, 248];
@@ -1879,7 +1885,7 @@ function exportPdf(title, meta, CO, tables, name) {
   });
   const pages = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pages; i++) {
-    doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(150, 152, 184);
+    doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(140, 147, 156);
     doc.text(`${CO.name} · generated by InvoEez on ${dmy(TODAY)}`, 40, doc.internal.pageSize.getHeight() - 22);
     doc.text(`Page ${i} of ${pages}`, W - 40, doc.internal.pageSize.getHeight() - 22, { align: "right" });
   }
@@ -2420,7 +2426,7 @@ function nextNumber(docs, type) {
 /* A new document starts with no counterparty, so nothing is ever posted to the wrong customer by default. */
 function blankDoc(docs, type) {
   return { id: uid("d"), type, number: nextNumber(docs, type), partner: "", salesman: "", pricelist: "", date: TODAY,
-    due: TODAY, lines: [{ id: uid("l"), product: "", desc: "", qty: "", price: 0, disc: 0, tax: "s5", account: null }],
+    due: TODAY, lines: [{ id: uid("l"), product: "", desc: "", qty: "", price: "", disc: "", tax: "s5", account: null }],
     ref: "", note: "", state: "draft", seq: 0, emirate: COMPANY.emirate || "Dubai", isNew: true };
 }
 
@@ -2559,15 +2565,15 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   }, [d, state, books, locked]);
 
   const set = (k, v) => setD((p) => ({ ...p, [k]: v }));
-  const reprice=(s,force=false)=>({...s,lines:s.lines.map(l=>PROD[l.product]&&(force||!l.manualPricing)?{...l,...pricingFor(state,PROD[l.product],l.qty,s.date,s.pricelist,meta.side),manualPricing:false}:l)});
+  const reprice=(s,force=false)=>({...s,lines:s.lines.map(l=>PROD[l.product]&&(force||!l.manualPricing)?{...l,...pricingFor(state,PROD[l.product],l.qty,s.date,s.pricelist,meta.side,s.partner,s.id),manualPricing:false,priceChoice:undefined,oneOff:false}:l)});
   const changePricing=(patch,force=false)=>setD(s=>reprice({...s,...patch},force));
   const setLine=(id,k,v)=>setD(s=>({...s,lines:s.lines.map(l=>{
-    if(l.id!==id)return l;const next={...l,[k]:v,...(k==='price'?{manualPricing:true}:{})};
-    return k==='qty'&&!next.manualPricing&&PROD[next.product]?{...next,...pricingFor(state,PROD[next.product],v,s.date,s.pricelist,meta.side)}:next;
+    if(l.id!==id)return l;const next={...l,[k]:v,...(k==='price'?{manualPricing:true,priceChoice:undefined,oneOff:false}:{})};
+    return k==='qty'&&!next.manualPricing&&PROD[next.product]?{...next,...pricingFor(state,PROD[next.product],v,s.date,s.pricelist,meta.side,s.partner,s.id)}:next;
   })}));
-  const addLine=()=>{const id=uid('l');pendingLine.current=id;setTab('items');setD(s=>({...s,lines:[...s.lines,{id,product:'',desc:'',qty:'',price:0,disc:0,tax:'s5',account:null}]}));};
+  const addLine=()=>{const id=uid('l');pendingLine.current=id;setTab('items');setD(s=>({...s,lines:[...s.lines,{id,product:'',desc:'',qty:'',price:'',disc:'',tax:'s5',account:null}]}));};
   const pickProduct=(id,pid)=>{const p=PROD[pid];if(!p)return;
-    setD(s=>({...s,lines:s.lines.map(l=>l.id===id?{...l,product:pid,desc:p.name,disc:0,...pricingFor(state,p,l.qty,s.date,s.pricelist,meta.side),tax:sale&&p.tax==='rc5'?'s5':p.tax,account:null,accounts:undefined,manualPricing:false}:l)}));setHistoryProduct(pid);
+    setD(s=>({...s,lines:s.lines.map(l=>l.id===id?{...l,product:pid,desc:p.name,disc:0,...pricingFor(state,p,l.qty,s.date,s.pricelist,meta.side,s.partner,s.id),tax:sale&&p.tax==='rc5'?'s5':p.tax,account:null,accounts:undefined,manualPricing:false,priceChoice:undefined,oneOff:false}:l)}));setHistoryProduct(pid);
     requestAnimationFrame(()=>document.querySelector('[data-line-id="'+id+'"] .q-qty')?.focus());
   };
   const pickPartner=pid=>{const p=PMAP[pid];if(!p)return;setD(s=>reprice({...s,partner:pid,due:addDays(s.date,p.terms||0),emirate:p.emirate,salesman:p.salesman||'',pricelist:p.pricelist||''},true));};
@@ -2577,12 +2583,27 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     if(posting&&!d.lines.length)return 'Add at least one product line.';
     if(d.lines.some(l=>!PROD[l.product]))return 'Choose a product on every line, or remove the empty line.';
     if(d.lines.some(l=>l.qty===''||l.qty==null))return 'Enter a quantity on every line.';
+    if(d.lines.some(l=>l.price===''||l.price==null))return 'Enter a unit price on every line.';
     if(d.lines.some(l=>!Number.isFinite(+l.qty)||+l.qty<=0||!Number.isFinite(+l.price)||+l.price<0||!Number.isFinite(+l.disc)||+l.disc<0||+l.disc>100))return 'Use quantities above zero, non-negative prices, and discounts between 0 and 100%.';
     if(posting&&state.stockOps.some(o=>o.date>d.date&&o.lines.some(x=>d.lines.some(l=>l.product===x.product))))return 'A later stock adjustment exists for one of these products. Use a date on or after that adjustment.';
     return '';
   };
-  const warn=(err)=>{toast(err,"warn");const bad=d.lines.find(l=>!PROD[l.product])||d.lines.find(l=>l.qty===''||l.qty==null||!(+l.qty>0));
-    if(bad&&/product|quantit/i.test(err))requestAnimationFrame(()=>document.querySelector('[data-line-id="'+bad.id+'"] '+(PROD[bad.product]?'.q-qty':'input[role=combobox]'))?.focus());return false;};
+  const warn=(err)=>{toast(err,"warn");
+    const bad=d.lines.find(l=>!PROD[l.product])||d.lines.find(l=>l.qty===''||l.qty==null||!(+l.qty>0))||d.lines.find(l=>l.price===''||l.price==null);
+    const sel=!bad?null:!PROD[bad.product]?'input[role=combobox]':(bad.qty===''||bad.qty==null||!(+bad.qty>0))?'.q-qty':'.q-price';
+    if(bad&&/product|quantit|price/i.test(err))requestAnimationFrame(()=>document.querySelector('[data-line-id="'+bad.id+'"] '+sel)?.focus());return false;};
+  /* A changed price asks once: keep it for this document only, or make it this party's special price. */
+  const askPrice=(l)=>!locked&&l.manualPricing&&!l.priceChoice&&d.partner&&PROD[l.product]&&l.price!==''&&l.price!=null&&l.basePrice!==''&&l.basePrice!=null&&R2(+l.price)!==R2(+l.basePrice);
+  const keepOnce=(l)=>setD(s=>({...s,lines:s.lines.map(x=>x.id===l.id?{...x,priceChoice:'once',oneOff:true}:x)}));
+  const makeSpecial=(l)=>{const price=R2(+l.price);
+    setState(s=>({...s,partySpecials:[...(s.partySpecials||[]).filter(x=>!(x.partner===d.partner&&x.product===l.product&&(x.side||'sale')===meta.side)),
+      {id:uid('ps'),partner:d.partner,product:l.product,side:meta.side,price,date:d.date,doc:d.number}]}));
+    setD(s=>({...s,lines:s.lines.map(x=>x.id===l.id?{...x,priceChoice:'special',oneOff:false,priceSource:'Party special',basePrice:price,manualPricing:false}:x)}));
+    toast(`Party special saved — ${PMAP[d.partner]?.name} gets ${PROD[l.product]?.name} at AED ${money(price,false)} from now on`);};
+  const priceAskRow=(l,cols)=>askPrice(l)&&<tr className="lg-ask" key={l.id+'-ask'}><td/><td colSpan={cols}><div className="price-ask"><Star size={13}/>
+    <span>Price changed to <b>AED {money(+l.price,false)}</b>{l.basePrice!==''&&l.basePrice!=null?<> (was {money(+l.basePrice,false)} · {l.priceSource||'product price'})</>:null} for <b>{PMAP[d.partner]?.name}</b>.</span>
+    <button className="pa-once" onClick={()=>keepOnce(l)}>Don't store</button><button className="pa-special" onClick={()=>makeSpecial(l)}><Star size={12}/>Party special</button>
+    <small>Don't store: this {meta.short.toLowerCase()} only. Party special: {sale?'this customer':'this vendor'} gets this price every time.</small></div></td></tr>;
 
   const commit = (next) => setState((s) => {
     const exists = s.docs.some((x) => x.id === d.id);
@@ -2616,6 +2637,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     return it ? it.open : 0;
   }, [state, d, locked]);
   const [payOpen, setPayOpen] = useState(false);
+  const [pdcOpen, setPdcOpen] = useState(false);
   const [payAmt, setPayAmt] = useState(0);
   const [payMethod, setPayMethod] = useState("m1");
   const [payRef, setPayRef] = useState("");
@@ -2698,6 +2720,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
             <Btn icon={FileMinus} onClick={reverseDoc}>{d.type === "invoice" ? "Credit note" : "Debit note"}</Btn>}
           {locked && outstanding > 0.004 &&
             <Btn icon={Wallet} onClick={() => setPayOpen((v) => !v)}>Record payment</Btn>}
+          {locked && outstanding > 0.004 && (d.type === "invoice" || d.type === "bill") &&
+            <Btn icon={CalendarClock} onClick={() => setPdcOpen(true)}>Post-dated cheque</Btn>}
           {sale && <Btn icon={Send} onClick={() => setPrint(true)}>Print / send</Btn>}
           {!locked && !d.isNew && <Btn kind="danger" icon={Trash2} onClick={remove}>Delete</Btn>}
           {locked && !isQuote && <Btn icon={RotateCcw} onClick={unpost}>Reset to draft</Btn>}
@@ -2746,21 +2770,21 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
               const def=sale?(l.accounts?.income||p?.income):(p?.kind==='goods'?(l.accounts?.inventory||p?.inventory):(l.accounts?.expense||p?.expense));
               const last=i===am.lines.length-1;
               const enter=e=>{if(e.key==='Enter'&&!locked){e.preventDefault();if(last)addLine();else document.querySelector('[data-line-id="'+am.lines[i+1].id+'"] .q-qty')?.focus();}};
-              return <tr key={l.id} data-line-id={l.id} className={cx(!p&&'blank')}>
+              return <React.Fragment key={l.id}><tr data-line-id={l.id} className={cx(!p&&'blank',askPrice(l)&&'asking')}>
                 <td className="lg-n">{i+1}</td>
                 <td className="lg-p"><SmartPicker label={'Product on line '+(i+1)} items={productOptions(books)} value={l.product} disabled={locked} placeholder="Search product, code or barcode…" onChange={pid=>pickProduct(l.id,pid)} onCreate={!locked?name=>setQuick({kind:'product',line:l.id,record:{...newProduct(),name}}):undefined}/>
                   {p&&<small className="lg-meta">{p.kind==='goods'?<><b className={st.qty<=0?'neg':''}>{st.qty}</b> {p.uom} in stock</>:'Service'}{p.code?' · '+p.code:''}<button className="lg-hist" title="Price history" onClick={()=>setHistoryLine(l)}><Clock size={11}/></button></small>}</td>
                 <td className="lg-d"><input className="inp" value={l.desc} disabled={locked||!p} onChange={e=>setLine(l.id,'desc',e.target.value)} aria-label={'Description on line '+(i+1)}/></td>
                 <td className="lg-q"><input className="inp n q-qty" type="number" min="0" step="any" placeholder="0" value={l.qty} disabled={locked||!p} onKeyDown={enter} onChange={e=>setLine(l.id,'qty',e.target.value)} aria-label={'Quantity on line '+(i+1)}/></td>
                 <td className="lg-u">{p?p.uom:''}</td>
-                <td className="lg-pr"><input className="inp n" type="number" min="0" step="0.01" value={l.price} disabled={locked||!p} onKeyDown={enter} onChange={e=>setLine(l.id,'price',e.target.value)} aria-label={'Unit price on line '+(i+1)} title={l.manualPricing?'Manual price':l.priceSource||'Product price'}/></td>
+                <td className={cx("lg-pr",l.priceSource==='Party special'&&'special')}>{l.priceSource==='Party special'&&<Star size={10} className="lg-star" aria-label="Party special price"/>}<input className="inp n q-price" type="number" min="0" step="0.01" value={l.price} placeholder={p?'Price':''} disabled={locked||!p} onKeyDown={enter} onChange={e=>setLine(l.id,'price',e.target.value)} aria-label={'Unit price on line '+(i+1)} title={l.priceChoice==='once'?"Changed for this document only (Don't store)":l.manualPricing?'Manual price':l.priceSource||'Product price'}/></td>
                 <td className="lg-di"><input className="inp n" type="number" min="0" max="100" step="0.01" value={l.disc||''} placeholder="0" disabled={locked||!p} onKeyDown={enter} onChange={e=>setLine(l.id,'disc',e.target.value)} aria-label={'Discount on line '+(i+1)}/></td>
-                <td className="lg-t"><select className="inp" value={l.tax} disabled={locked||!p} onChange={e=>setLine(l.id,'tax',e.target.value)} aria-label={'VAT on line '+(i+1)}>{taxes.map(t=><option key={t.id} value={t.id}>{t.short||t.name}</option>)}</select></td>
-                {showAccounts&&<td className="lg-a">{p?.kind==='goods'&&!sale?<span className="lg-ro">{def}</span>:<select className="inp" value={l.account||def||''} disabled={locked||!p} onChange={e=>setLine(l.id,'account',e.target.value)} aria-label={'Account on line '+(i+1)}><option value="">—</option>{accounts.map(a=><option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}</select>}</td>}
+                <td className="lg-t"><Select compact value={l.tax} disabled={locked||!p} onChange={e=>setLine(l.id,'tax',e.target.value)} aria-label={'VAT on line '+(i+1)}>{taxes.map(t=><option key={t.id} value={t.id}>{t.short||t.name}</option>)}</Select></td>
+                {showAccounts&&<td className="lg-a">{p?.kind==='goods'&&!sale?<span className="lg-ro">{def}</span>:<Select compact value={l.account||def||''} disabled={locked||!p} onChange={e=>setLine(l.id,'account',e.target.value)} aria-label={'Account on line '+(i+1)}><option value="">—</option>{accounts.map(a=><option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}</Select>}</td>}
                 {showCost&&<td className="lg-c">{p?<><span>{money(cost,false)}</span>{sale&&<small className={l.price*(1-(l.disc||0)/100)-cost<0?'neg':'pos'}>{money(l.price*(1-(l.disc||0)/100)-cost,false)}</small>}</>:''}</td>}
                 <td className="lg-am"><b>{money(l.amount,false)}</b>{l.taxAmt?<small>VAT {money(l.taxAmt,false)}</small>:null}</td>
                 <td className="lg-x">{!locked&&<button className="icon-btn" title={'Remove line '+(i+1)} aria-label={'Remove line '+(i+1)} onClick={()=>setD(s=>({...s,lines:s.lines.filter(x=>x.id!==l.id)}))}><Trash2 size={14}/></button>}</td>
-              </tr>;})}
+              </tr>{priceAskRow(l,20)}</React.Fragment>;})}
               {!locked&&<tr className="lg-add"><td/><td colSpan={20}><button onClick={addLine}><Plus size={14}/>Add a line</button><span>Tip: press Enter in the last quantity or price to add another line.</span></td></tr>}
             </tbody></table></div>}
           {lineView!=='compact'&&<div className="document-lines">{am.lines.map((l,i)=>{const p=PROD[l.product],st=p&&books.stock[p.id]||{qty:0,value:0},cost=p?currentCost(p,books):0;
@@ -2776,11 +2800,12 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
               </div>
               <div className="line-values">
                 <Field label={'Quantity'+(p?' · '+p.uom:'')}><Input n type="number" min="0" step="0.01" value={l.qty} disabled={locked||!p} onChange={e=>setLine(l.id,'qty',e.target.value)}/></Field>
-                <Field label="Unit price · AED"><Input n type="number" min="0" step="0.01" value={l.price} disabled={locked||!p} onChange={e=>setLine(l.id,'price',e.target.value)}/></Field>
-                <Field label="Discount %"><Input n type="number" min="0" max="100" step="0.01" value={l.disc||0} disabled={locked||!p} onChange={e=>setLine(l.id,'disc',e.target.value)}/></Field>
+                <Field label="Unit price · AED"><Input n className="q-price" type="number" min="0" step="0.01" value={l.price} placeholder={p?'Price':''} disabled={locked||!p} onChange={e=>setLine(l.id,'price',e.target.value)}/></Field>
+                <Field label="Discount %"><Input n type="number" min="0" max="100" step="0.01" value={l.disc||''} placeholder="0" disabled={locked||!p} onChange={e=>setLine(l.id,'disc',e.target.value)}/></Field>
                 <Field label="VAT treatment"><Select value={l.tax} disabled={locked||!p} onChange={e=>setLine(l.id,'tax',e.target.value)}>{taxes.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</Select></Field>
                 <div className="line-amount"><small>Amount excl. VAT</small><b>{money(l.amount,false)}</b><span>VAT {money(l.taxAmt,false)}</span></div>
               </div>
+              {askPrice(l)&&<table className="price-ask-card"><tbody>{priceAskRow(l,1)}</tbody></table>}
               {p&&<div className="line-insights"><button className="line-detail-toggle" aria-expanded={!!expandedLines[l.id]} onClick={()=>setExpandedLines(x=>({...x,[l.id]:!x[l.id]}))}><ChevronDown size={13}/>{expandedLines[l.id]?"Hide description":"Description"}</button><span className="price-source">{l.manualPricing?'Manual price':l.priceSource||'Product price'}</span><span>{last?<>Last {sale?'sold':'purchased'}: <b>AED {money(last.unitNet,false)}</b> / {p.uom.toLowerCase()} · {dmy(last.date)} · Qty {last.qty}</>:<>No previous {sale?'sale to this customer':'purchase from this vendor'}</>}</span><button onClick={()=>setHistoryLine(l)}><Clock size={13}/>View history</button>{showCost&&<div className="runtime-cost"><span>Cost price <b>{money(p.cost,false)}</b></span><span>Current unit cost ({(books.method||'avco').toUpperCase()}) <b>{money(cost,false)}</b></span>{sale&&<span>Est. margin / unit <b className={l.price*(1-(l.disc||0)/100)-cost<0?'neg':'pos'}>{money(l.price*(1-(l.disc||0)/100)-cost,false)}</b></span>}<small>Current costs · AED · before VAT</small></div>}{showAccounts&&<div className="runtime-account"><Field label="Account">{p?.kind==='goods'&&!sale?<div className="readonly">{def} · {ACC[def]?.name}</div>:<Select aria-label={'Account on line '+(i+1)} value={l.account||def||''} disabled={locked||!p} onChange={e=>setLine(l.id,'account',e.target.value)}><option value="">Select product first</option>{accounts.map(a=><option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}</Select>}</Field><span className="account-source">{p.kind==='goods'&&!sale?'Inventory account from product category':l.account?'Line account override':'Default from product category'}</span>{!locked&&l.account&&!(p.kind==='goods'&&!sale)&&<button onClick={()=>setLine(l.id,'account',null)}><RotateCcw size={13}/>Use category default</button>}</div>}</div>}
             </article>;})}</div>}
           <Card><div className="document-bottom"><Field label="Internal note"><textarea className="inp" rows={3} value={d.note} disabled={locked} placeholder="Delivery terms, references or notes…" onChange={e=>set('note',e.target.value)}/></Field><div className="sumbox"><div className="sumrow"><span className="k">Subtotal before discount</span><span className="v">{money(d.lines.reduce((s,l)=>s+R2(l.qty*l.price),0),false)}</span></div><div className="sumrow"><span className="k">Line discounts</span><span className="v">{money(d.lines.reduce((s,l)=>s+R2(l.qty*l.price),0)-am.net,false)}</span></div><div className="sumrow"><span className="k">Subtotal excluding VAT</span><span className="v">{money(am.net,false)}</span></div><div className="sumrow"><span className="k">VAT charged</span><span className="v">{money(am.vat,false)}</span></div>{am.rcm>0&&<div className="sumrow"><span>Reverse charge</span><span>{money(am.rcm,false)}</span></div>}<div className="sumrow total"><span className="k">Total · AED</span><span className="v">{money(am.total,false)}</span></div></div></div></Card>
@@ -2790,6 +2815,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
         {tab==='history'&&<Card title={sale?'Customer purchase history':'Vendor purchase history'} sub="Select a product to compare posted prices."><SmartPicker items={productOptions(books)} value={historyProduct} label="History product" onChange={setHistoryProduct}/>{historyProduct?<HistoryTable key={historyProduct+d.partner} state={state} product={historyProduct} side={meta.side} partner={d.partner} exclude={d.id} date={d.date}/>:<EmptyState icon={Clock} title="Choose a product">See transaction date, quantity, price, discount and net unit price.</EmptyState>}</Card>}
         {tab==='status'&&<Card title={isQuote?'Quotation progress':'Document activity'}><div className="tl">{(isQuote?['draft','sent','accepted','invoiced'].map(k=>({t:QUOTE_STATES[k].label,done:['draft','sent','accepted','invoiced'].indexOf(d.state)>=['draft','sent','accepted','invoiced'].indexOf(k)})):timeline).map((t,i)=><div key={i} className={cx('tl-row',t.done?'done':'pending')}><span className="dot"><i/></span><span className="tt"><b>{t.t}</b>{t.s&&<span>{t.s}</span>}</span></div>)}</div></Card>}
       </div>
+      {pdcOpen&&<PdcDialog state={state} setState={setState} toast={toast} init={{kind:sale?'in':'out',partner:d.partner,doc:d.id,amount:R2(outstanding)}} close={()=>setPdcOpen(false)}/>}
       {quick&&<MasterModal kind={quick.kind} initial={quick.record} state={state} setState={setState} books={books} toast={toast} close={()=>setQuick(null)} onSaved={rec=>{if(quick.kind==='product')pickProduct(quick.line,rec.id);else pickPartner(rec.id);}}/>}
       {historyLine&&<StudioModal wide title={PROD[historyLine.product]?.name||'Product history'} sub={sale?'Previous prices charged to your customer':'Previous prices charged by your vendor'} close={()=>setHistoryLine(null)}><HistoryTable state={state} product={historyLine.product} side={meta.side} partner={d.partner} exclude={d.id} date={d.date} apply={!locked?l=>{setD(s=>({...s,lines:s.lines.map(x=>x.id===historyLine.id?{...x,price:l.price,disc:l.disc||0,manualPricing:true}:x)}));setHistoryLine(null);toast('Historical price and discount applied');}:undefined}/></StudioModal>}
     </div>
@@ -2891,6 +2917,7 @@ function PrintDoc({ d, close, fta, toast }) {
     return `${w(whole) || "Zero"} Dirhams${fils ? ` and ${w(fils)} Fils` : ""} only`;
   };
   const title = isCN ? "Tax Credit Note" : "Tax Invoice";
+  const bi = isBilingual(CO), T = (en, ar) => biLabel(bi, en, ar);
   const msg = (fta.waTemplate || DEFAULT_WA)
     .replace(/{customer}/g, p.name).replace(/{document}/g, d.number).replace(/{title}/g, title)
     .replace(/{amount}/g, `AED ${money(am.total, false)}`).replace(/{due}/g, dmy(d.due))
@@ -2900,53 +2927,93 @@ function PrintDoc({ d, close, fta, toast }) {
     const JS = window.jspdf && window.jspdf.jsPDF;
     if (!JS) { window.print(); return; }
     const doc = new JS({ orientation: "portrait", unit: "pt", format: "a4" });
-    const W = doc.internal.pageSize.getWidth();
-    doc.setFillColor(19, 1, 126); doc.rect(0, 0, W, 118, "F");
-    doc.setFillColor(106, 59, 230); doc.rect(0, 116, W, 2.5, "F");
+    const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+    const INK = [22, 25, 29], MUTE = [98, 105, 115], SILVER = [201, 206, 212];
+    const head = bi ? 136 : 118;
+    /* Graphite letterhead with a brushed-silver rule, after the InvoEez chrome palette */
+    doc.setFillColor(27, 31, 37); doc.rect(0, 0, W, head, "F");
+    doc.setFillColor(42, 48, 56); doc.rect(W * 0.55, 0, W * 0.45, head, "F");
+    const stops = [[143, 152, 163], [242, 244, 246], [195, 201, 208], [247, 248, 249], [167, 175, 185]];
+    for (let k = 0; k < 80; k++) { const t = (k / 79) * (stops.length - 1), a = Math.floor(t), b2 = Math.min(a + 1, stops.length - 1), f = t - a;
+      doc.setFillColor(...stops[a].map((v, n) => Math.round(v + (stops[b2][n] - v) * f))); doc.rect((W * k) / 80, head - 3, W / 80 + 0.6, 3, "F"); }
     let ty = 44;
-    if (CO.logo) { try { doc.addImage(CO.logo, 40, 26, 0, 26); ty = 68; } catch (e) {} }
+    if (CO.logo) { try { doc.addImage(CO.logo, 40, 24, 0, 26); ty = 66; } catch (e) {} }
     doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(15);
     doc.text(CO.name, 40, ty);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(204, 200, 240);
-    doc.text(`${addrLines(CO).join("\n")}\n${CO.city}\n${CO.phone}  ·  ${CO.email}`, 40, ty + 14);
+    if (bi && CO.nameAr) ty += pdfAr(doc, CO.nameAr, 40, ty + 15, 11, "#DCE0E5") - 2;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...SILVER);
+    doc.text(`${addrLines(CO).join("\n")}\n${CO.city}\n${[CO.phone, CO.email].filter(Boolean).join("  ·  ")}`, 40, ty + 14);
     doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(255, 255, 255);
     doc.text(title.toUpperCase(), W - 40, 44, { align: "right" });
-    doc.setFont("courier", "normal"); doc.setFontSize(11); doc.setTextColor(214, 210, 255);
-    doc.text(d.number, W - 40, 62, { align: "right" });
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(204, 200, 240);
-    doc.text(`Issued ${dmy(d.date)}\nDue ${dmy(d.due)}\nPlace of supply: ${d.emirate}`, W - 40, 78, { align: "right" });
-    doc.setTextColor(27, 26, 61); doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
-    doc.text("SUPPLIER", 40, 148); doc.text("RECIPIENT", W / 2, 148);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-    doc.text(`${CO.name}\n${addrText(CO)}\n${CO.city}\nTRN ${CO.trn}`, 40, 162);
-    doc.text(`${p.name}\n${addrLines(p).join("\n")}\n${p.emirate}\nTRN ${p.trn || "not registered"}`, W / 2, 162);
+    let ry = 62;
+    if (bi) ry += pdfAr(doc, AR[title], W - 40, 61, 12, "#E6E9ED", "right") - 4;
+    doc.setFont("courier", "normal"); doc.setFontSize(11); doc.setTextColor(226, 229, 233);
+    doc.text(d.number, W - 40, ry, { align: "right" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...SILVER);
+    [["Issued", dmy(d.date)], ["Due", dmy(d.due)], ["Place of supply", d.emirate]].forEach(([k, v], n) => {
+      const y = ry + 16 + n * 12; doc.text(`${k}: ${v}`, W - 40, y, { align: "right" });
+      if (bi) pdfAr(doc, AR[k], W - 46 - doc.getTextWidth(`${k}: ${v}`), y, 7.5, "#AEB4BC", "right");
+    });
+    let py = head + 30;
+    doc.setTextColor(...MUTE); doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
+    doc.text("SUPPLIER", 40, py); doc.text("RECIPIENT", W / 2, py);
+    if (bi) { pdfAr(doc, AR.Supplier, 40 + doc.getTextWidth("SUPPLIER") + 6, py, 7.5, "#626973"); pdfAr(doc, AR.Recipient, W / 2 + doc.getTextWidth("RECIPIENT") + 6, py, 7.5, "#626973"); }
+    const party = (x, name, nameAr, lines) => {
+      let y = py + 15; doc.setTextColor(...INK); doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.text(name, x, y);
+      if (bi && nameAr) { y += pdfAr(doc, nameAr, x, y + 13, 9.5, "#16191D") - 3; }
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8.8); doc.setTextColor(...MUTE);
+      doc.text(lines.filter(Boolean).join("\n"), x, y + 13); return y + 13 + lines.filter(Boolean).length * 10.5;
+    };
+    const e1 = party(40, CO.name, CO.nameAr, [addrText(CO), CO.city, `TRN ${CO.trn || "not registered"}`]);
+    const e2 = party(W / 2, p.name, p.nameAr, [...addrLines(p), p.emirate, `TRN ${p.trn || "not registered"}`]);
+    const heads = ["#", "Description", "Qty", "Unit price", "Taxable", "VAT %", "VAT", "Total"];
+    const arLines = am.lines.map((l) => (bi && PROD[l.product] && PROD[l.product].nameAr) || "");
     doc.autoTable({
-      startY: 224, margin: { left: 40, right: 40 },
-      head: [["#", "Description", "Qty", "Unit price", "Taxable", "VAT %", "VAT", "Total"]],
-      body: am.lines.map((l, i) => [i + 1, l.desc, `${l.qty}`, money(l.price, false), money(l.amount, false),
+      startY: Math.max(e1, e2) + 18, margin: { left: 40, right: 40 },
+      head: [heads],
+      body: am.lines.map((l, i) => [i + 1, arLines[i] ? { content: l.desc + "\n ", styles: { minCellHeight: 34 } } : l.desc, `${l.qty}`, money(l.price, false), money(l.amount, false),
         `${l.rate}%`, money(l.taxAmt, false), money(l.amount + l.taxAmt, false)]),
-      styles: { font: "helvetica", fontSize: 8.5, cellPadding: 6, lineColor: [226, 226, 240], lineWidth: 0.4 },
-      headStyles: { fillColor: [240, 240, 250], textColor: [69, 70, 111], fontStyle: "bold", fontSize: 7.5 },
+      styles: { font: "helvetica", fontSize: 8.5, cellPadding: 6, lineColor: [226, 229, 233], lineWidth: 0.4, textColor: INK },
+      headStyles: { fillColor: [27, 31, 37], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7.5, valign: "top", minCellHeight: bi ? 30 : 0 },
+      alternateRowStyles: { fillColor: [248, 249, 250] },
       columnStyles: { 0: { cellWidth: 22 }, 2: { halign: "right" }, 3: { halign: "right" },
         4: { halign: "right" }, 5: { halign: "right" }, 6: { halign: "right" }, 7: { halign: "right", fontStyle: "bold" } },
+      didDrawCell: (h) => {
+        if (!bi) return;
+        const right = h.column.index >= 2;
+        if (h.section === "head") pdfAr(doc, AR[heads[h.column.index]], right ? h.cell.x + h.cell.width - 6 : h.cell.x + 6, h.cell.y + 23, 7, "#C9CED4", right ? "right" : "left", h.cell.width - 10);
+        if (h.section === "body" && h.column.index === 1 && arLines[h.row.index]) pdfAr(doc, arLines[h.row.index], h.cell.x + 6, h.cell.y + 27, 8.5, "#3E444C", "left", h.cell.width - 12);
+      },
     });
-    let fy = doc.lastAutoTable.finalY + 22;
-    doc.setFillColor(246, 246, 253); doc.setDrawColor(224, 222, 245);
-    doc.roundedRect(W - 250, fy - 14, 210, 78, 5, 5, "FD");
-    doc.setFontSize(9); doc.setTextColor(95, 97, 135);
-    doc.text("Taxable amount", W - 236, fy + 2); doc.text("VAT", W - 236, fy + 20);
-    doc.setTextColor(27, 26, 61);
-    doc.text(money(am.net, false), W - 54, fy + 2, { align: "right" });
-    doc.text(money(am.vat, false), W - 54, fy + 20, { align: "right" });
-    doc.setDrawColor(211, 208, 240); doc.line(W - 236, fy + 30, W - 54, fy + 30);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(19, 1, 126);
-    doc.text("TOTAL AED", W - 236, fy + 48);
-    doc.text(money(am.total, false), W - 54, fy + 48, { align: "right" });
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(95, 97, 135);
-    doc.text(doc.splitTextToSize(words(am.total), W / 2 - 30), 40, fy + 2);
-    doc.setFontSize(7); doc.setTextColor(150, 152, 184);
-    doc.text(doc.splitTextToSize(`Issued under Federal Decree-Law No. 8 of 2017 on Value Added Tax and its Executive Regulations. All amounts in ${CO.currency}. Trade licence ${CO.licence}.`, W - 80),
-      40, doc.internal.pageSize.getHeight() - 54);
+    let fy = doc.lastAutoTable.finalY + 24;
+    const rows = [["Taxable amount", money(am.net, false)], ["VAT", money(am.vat, false)], ...(am.rcm > 0 ? [["Reverse charge", money(am.rcm, false)]] : [])];
+    const step = bi ? 26 : 18, boxH = rows.length * step + (bi ? 50 : 40);
+    doc.setFillColor(246, 247, 248); doc.setDrawColor(222, 226, 230);
+    doc.roundedRect(W - 250, fy - 14, 210, boxH, 5, 5, "FD");
+    doc.setFontSize(9);
+    rows.forEach(([k, v], n) => { const y = fy + 2 + n * step; doc.setTextColor(...MUTE); doc.text(k, W - 236, y);
+      if (bi) pdfAr(doc, AR[k === "VAT" ? "VAT amount" : k], W - 236, y + 11, 7, "#8A9099"); doc.setTextColor(...INK); doc.text(v, W - 54, y, { align: "right" }); });
+    const ly = fy + rows.length * step - 4;
+    doc.setDrawColor(201, 206, 212); doc.line(W - 236, ly, W - 54, ly);
+    doc.setFillColor(27, 31, 37); doc.roundedRect(W - 244, ly + 6, 198, bi ? 32 : 26, 4, 4, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(255, 255, 255);
+    const tl = isCN ? "TOTAL CREDITED" : "TOTAL PAYABLE";
+    doc.text(`${tl} AED`, W - 236, ly + 23);
+    if (bi) pdfAr(doc, AR[tl], W - 236, ly + 33, 6.5, "#C9CED4");
+    doc.text(money(am.total, false), W - 54, ly + 23, { align: "right" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
+    doc.text("AMOUNT IN WORDS", 40, fy + 2);
+    if (bi) pdfAr(doc, AR["Amount in words"], 40 + doc.getTextWidth("AMOUNT IN WORDS") + 6, fy + 2, 7.5, "#626973");
+    doc.setFontSize(8.5); doc.setTextColor(...INK);
+    doc.text(doc.splitTextToSize(words(am.total), W / 2 - 40), 40, fy + 16);
+    const sy = Math.max(ly + 80, fy + 90);
+    if (sy < H - 90) { doc.setDrawColor(201, 206, 212); doc.line(W - 220, sy, W - 54, sy); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
+      doc.text("Authorised signatory", W - 54, sy + 11, { align: "right" }); if (bi) pdfAr(doc, AR["Authorised signatory"], W - 54, sy + 23, 7, "#8A9099", "right"); }
+    doc.setFillColor(201, 206, 212); doc.rect(40, H - 70, W - 80, 0.8, "F");
+    doc.setFontSize(7); doc.setTextColor(140, 147, 156);
+    doc.text(doc.splitTextToSize(`Issued under Federal Decree-Law No. 8 of 2017 on Value Added Tax and its Executive Regulations. All amounts in ${CO.currency}.${CO.licence ? ` Trade licence ${CO.licence}.` : ""}`, W - 80),
+      40, H - 56);
+    if (bi) pdfAr(doc, AR.legal, W - 40, H - 40, 7, "#8C939C", "right");
     return doc;
   };
   const fileName = `${d.number.replace(/\//g, "-")}.pdf`;
@@ -3017,45 +3084,51 @@ function PrintDoc({ d, close, fta, toast }) {
           <Btn kind="wa" icon={MessageCircle} onClick={() => setSendTo("wa")}>WhatsApp</Btn>
           <Btn icon={X} onClick={close}>Close</Btn>
         </div>
-        <div className="sheet">
+        <div className={cx("sheet", "sheet-chrome", bi && "bi")}>
           <div className="sheet-crest">
             <div className="rowtop">
               <div style={{ flex: 1, minWidth: 0 }}>
                 {CO.logo && <img className="sheet-logo" src={CO.logo} alt="" />}
                 <h1>{CO.name}</h1>
-                <div className="sub">{addrLines(CO).map((a, i) => <React.Fragment key={i}>{a}<br /></React.Fragment>)}{CO.city}<br />{CO.phone} · {CO.email}</div>
+                {bi && CO.nameAr && <div className="h1-ar" lang="ar" dir="rtl">{CO.nameAr}</div>}
+                <div className="sub">{addrLines(CO).map((a, i) => <React.Fragment key={i}>{a}<br /></React.Fragment>)}{CO.city}<br />{[CO.phone, CO.email].filter(Boolean).join(" · ")}
+                  {bi && CO.addressAr && <div className="sub-ar" lang="ar" dir="rtl">{CO.addressAr}</div>}</div>
               </div>
               <div className="doc">
-                <span className="badge">{title}</span>
+                <span className="badge">{title}{bi && <span className="ar" lang="ar" dir="rtl">{AR[title]}</span>}</span>
                 <div className="no">{d.number}</div>
-                <div className="dt">Issued {dmy(d.date)}<br />Due {dmy(d.due)}<br />Place of supply: {d.emirate}</div>
+                <div className="dt">{[["Issued", dmy(d.date)], ["Due", dmy(d.due)], ["Place of supply", d.emirate]].map(([k, v]) =>
+                  <div key={k} className="kv">{bi && <span className="ar" lang="ar" dir="rtl">{AR[k]}</span>}<span>{k}: <b>{v}</b></span></div>)}</div>
               </div>
             </div>
           </div>
           <div className="sheet-body">
             <div className="sheet-parties">
-              {[["Supplier", CO.name, [addrText(CO), CO.city].filter(Boolean).join(", "), CO.trn],
-                ["Billed to", p.name, addrText(p), p.trn]].map(([t, n, ad, trn]) => (
+              {[["Supplier", CO.name, CO.nameAr, [addrText(CO), CO.city].filter(Boolean).join(", "), CO.trn],
+                ["Billed to", p.name, p.nameAr, addrText(p), p.trn]].map(([t, n, nAr, ad, trn]) => (
                 <div className="blk" key={t}>
-                  <div className="lb">{t}</div><div className="nm">{n}</div><div className="ad">{ad}</div>
-                  <div className="trn">TRN {trn || <span style={{ color: "#98ADB7" }}>not registered</span>}</div>
+                  <div className="lb">{T(t)}</div><div className="nm">{n}</div>
+                  {bi && nAr && <div className="nm-ar" lang="ar" dir="rtl">{nAr}</div>}
+                  <div className="ad">{ad}</div>
+                  <div className="trn">{T("TRN")} {trn || <span style={{ color: "#9AA0A8" }}>not registered</span>}</div>
                 </div>))}
               <div className="blk" style={{ flex: "0 0 168px" }}>
-                <div className="lb">Payment terms</div>
+                <div className="lb">{T("Payment terms")}</div>
                 <div className="ad" style={{ marginTop: 7 }}>
                   Net {daysBetween(d.date, d.due)} days<br />Due {dmy(d.due)}
                   {d.ref && <><br />Your ref: {d.ref}</>}</div>
               </div>
             </div>
-            <div className="tbl-wrap" style={{ marginTop: 22 }}><table className="tbl" style={{ fontSize: 12.5 }}>
-              <thead><tr><th style={{ width: 32 }}>#</th><th>Description</th><th className="n">Qty</th>
-                <th className="n">Unit price</th><th className="n">Taxable</th><th className="n">VAT %</th>
-                <th className="n">VAT</th><th className="n">Total</th></tr></thead>
+            <div className="tbl-wrap" style={{ marginTop: 22 }}><table className="tbl sheet-lines" style={{ fontSize: 12.5 }}>
+              <thead><tr><th style={{ width: 32 }}>{T("#")}</th><th>{T("Description")}</th><th className="n">{T("Qty")}</th>
+                <th className="n">{T("Unit price")}</th><th className="n">{T("Taxable")}</th><th className="n">{T("VAT %")}</th>
+                <th className="n">{T("VAT")}</th><th className="n">{T("Total")}</th></tr></thead>
               <tbody>{am.lines.map((l, i) => (
                 <tr key={l.id}>
-                  <td className="mono" style={{ fontSize: 11.5, color: "#98ADB7" }}>{i + 1}</td>
+                  <td className="mono" style={{ fontSize: 11.5, color: "#9AA0A8" }}>{i + 1}</td>
                   <td><b style={{ fontWeight: 500 }}>{l.desc}</b>
-                    <div style={{ fontSize: 11, color: "#98ADB7", marginTop: 2 }}>{PROD[l.product].code}</div></td>
+                    {bi && PROD[l.product].nameAr && <div className="desc-ar" lang="ar" dir="rtl">{PROD[l.product].nameAr}</div>}
+                    <div style={{ fontSize: 11, color: "#9AA0A8", marginTop: 2 }}>{PROD[l.product].code}</div></td>
                   <td className="n">{l.qty} {PROD[l.product].uom}</td>
                   <td className="n">{money(l.price, false)}</td><td className="n">{money(l.amount, false)}</td>
                   <td className="n">{l.rate}%</td><td className="n">{money(l.taxAmt, false)}</td>
@@ -3065,30 +3138,30 @@ function PrintDoc({ d, close, fta, toast }) {
             <div style={{ display: "flex", gap: 28, marginTop: 26, flexWrap: "wrap" }}>
               <div style={{ flex: "1 1 290px", minWidth: 0 }}>
                 <div className="sheet-parties" style={{ border: "none", padding: 0 }}>
-                  <div className="blk"><div className="lb">Amount in words</div>
+                  <div className="blk"><div className="lb">{T("Amount in words")}</div>
                     <div style={{ fontSize: 12.5, marginTop: 7, lineHeight: 1.6 }}>{words(am.total)}</div></div>
                 </div>
                 {d.note && <div className="payblk" style={{ marginTop: 16 }}>{d.note}</div>}
                 <div className="payblk" style={{ marginTop: 16 }}>
-                  <b style={{ color: "#08191F" }}>Payment</b><br />
+                  <b style={{ color: "#16191D" }}>{T("Payment")}</b><br />
                   Bank transfer to {CO.name}<br />Quote {d.number} as the payment reference.
                 </div>
               </div>
               <div style={{ flex: "0 0 288px" }}>
                 <div className="totbox">
-                  <div className="sumrow"><span className="k">Taxable amount</span><span className="v">{money(am.net, false)}</span></div>
-                  <div className="sumrow"><span className="k">VAT</span><span className="v">{money(am.vat, false)}</span></div>
-                  {am.rcm > 0 && <div className="sumrow"><span className="k">Reverse charge</span><span className="v">{money(am.rcm, false)}</span></div>}
-                  <div className="grand"><b>{isCN ? "TOTAL CREDITED" : "TOTAL PAYABLE"} · AED</b><span>{money(am.total, false)}</span></div>
+                  <div className="sumrow"><span className="k">{T("Taxable amount")}</span><span className="v">{money(am.net, false)}</span></div>
+                  <div className="sumrow"><span className="k">{T("VAT")}</span><span className="v">{money(am.vat, false)}</span></div>
+                  {am.rcm > 0 && <div className="sumrow"><span className="k">{T("Reverse charge")}</span><span className="v">{money(am.rcm, false)}</span></div>}
+                  <div className="grand"><b>{T(isCN ? "TOTAL CREDITED" : "TOTAL PAYABLE")} <small>AED</small></b><span>{money(am.total, false)}</span></div>
                 </div>
-                <div style={{ marginTop: 40, paddingTop: 10, borderTop: "1px solid #DFE8EC", fontSize: 10.5, color: "#8CA0AA" }}>
-                  Authorised signatory</div>
+                <div className="sign">{T("Authorised signatory")}</div>
               </div>
             </div>
             <div className="foot">
               <span style={{ flex: "1 1 340px" }}>Issued under Federal Decree-Law No. 8 of 2017 on Value Added Tax
-                and its Executive Regulations. All amounts in {CO.currency}. Trade licence {CO.licence}.</span>
-              <span>{CO.name} · TRN {CO.trn}</span>
+                and its Executive Regulations. All amounts in {CO.currency}.{CO.licence ? ` Trade licence ${CO.licence}.` : ""}
+                {bi && <span className="foot-ar" lang="ar" dir="rtl">{AR.legal}</span>}</span>
+              <span>{CO.name}{CO.trn ? ` · TRN ${CO.trn}` : ""}</span>
             </div>
           </div>
         </div>
@@ -3102,7 +3175,8 @@ function nextPay(list, kind) {
   return `${kind === "in" ? "RCPT" : "PAYM"}/${TODAY.slice(0, 4)}/${String(n + 1).padStart(4, "0")}`;
 }
 
-function PaymentsScreen({ state, setState, toast }) {
+function PaymentsScreen({ state, setState, toast, create }) {
+  useCreate(create, () => { setNw(blank("in")); });
   const [nw, setNw] = useState(null);
   const [q, setQ] = useState("");
   const [limit, setLimit] = useState(100);
@@ -3110,7 +3184,7 @@ function PaymentsScreen({ state, setState, toast }) {
     const m = methodsFor(kind === "in" ? "in" : "out")[0] || METHODS[0];
     return { id: uid("pm"), kind, number: nextPay(state.payments, kind),
       partner: "",
-      date: TODAY, amount: 0, method: m.id, account: m.account, memo: "" };
+      date: TODAY, amount: "", method: m.id, account: m.account, memo: "" };
   };
   const pickMethod = (id) => setNw((p) => ({ ...p, method: id, account: MET[id] ? MET[id].account : p.account }));
   const list = state.payments.slice().sort((a, b) => b.date.localeCompare(a.date))
@@ -3118,7 +3192,7 @@ function PaymentsScreen({ state, setState, toast }) {
       methodName(p.method), ACC[p.account] ? ACC[p.account].name : "", String(p.amount)));
   const rec = R2(list.filter((p) => p.kind === "in").reduce((s, p) => s + p.amount, 0));
   const paid = R2(list.filter((p) => p.kind === "out").reduce((s, p) => s + p.amount, 0));
-  const add = () => { const rec = { ...nw }; if (!rec.doc) delete rec.doc; setState((s) => ({ ...s, payments: [...s.payments, rec] }));
+  const add = () => { const rec = { ...nw, amount: R2(+nw.amount || 0) }; if (!rec.doc) delete rec.doc; setState((s) => ({ ...s, payments: [...s.payments, rec] }));
     toast(`${nw.number} recorded`); setNw(null); };
 
   return (
@@ -3138,7 +3212,7 @@ function PaymentsScreen({ state, setState, toast }) {
       {nw && (
         <Card title={nw.kind === "in" ? "New customer receipt" : "New vendor payment"}
           right={<><Btn onClick={() => setNw(null)}>Cancel</Btn>
-            <Btn kind="pri" icon={Check} onClick={add} disabled={!nw.amount || !PMAP[nw.partner]}>Record</Btn></>}
+            <Btn kind="pri" icon={Check} onClick={add} disabled={!(+nw.amount > 0) || !PMAP[nw.partner]}>Record</Btn></>}
           style={{ marginBottom: 16 }}>
           <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14 }}>
             <Field label="Number"><Input value={nw.number} onChange={(e) => setNw({ ...nw, number: e.target.value })} /></Field>
@@ -3155,7 +3229,7 @@ function PaymentsScreen({ state, setState, toast }) {
                   {open.map((it) => <option key={it.id} value={it.id}>{it.number} · {money(it.open, false)} open · due {dmy(it.due)}</option>)}
                 </Select></Field>; })()}
             <Field label="Date"><Input type="date" value={nw.date} onChange={(e) => setNw({ ...nw, date: e.target.value })} /></Field>
-            <Field label="Amount · AED"><Input n type="number" step="0.01" value={nw.amount} onChange={(e) => setNw({ ...nw, amount: +e.target.value || 0 })} /></Field>
+            <Field label="Amount · AED"><Input n type="number" step="0.01" min="0" placeholder="Enter amount" value={nw.amount} onChange={(e) => setNw({ ...nw, amount: e.target.value })} /></Field>
             <MethodPicker dir={nw.kind === "in" ? "in" : "out"} value={nw.method} onChange={pickMethod}
               refValue={nw.memo} onRef={(v) => setNw({ ...nw, memo: v })} />
             <Field label="Notes"><Input value={nw.memo} placeholder="Anything worth recording"
@@ -3201,7 +3275,8 @@ function PaymentsScreen({ state, setState, toast }) {
   );
 }
 
-function PartnersScreen({ state, setState, go, toast, books, param, fixed }) {
+function PartnersScreen({ state, setState, go, toast, books, param, fixed, create }) {
+  useCreate(create, () => { setEd(blank(fixed || "customer")); });
   const [role, setRole] = useState(fixed || "all");
   const noun = fixed === "vendor" ? "vendor" : fixed === "customer" ? "customer" : "customer or vendor";
   const [imp, setImp] = useState(false);
@@ -3280,7 +3355,10 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed }) {
               <Input value={ed.contact} placeholder="accounts@company.ae" onChange={(e) => setEd({ ...ed, contact: e.target.value })} /></Field>
             <Field label="WhatsApp number">
               <Input value={ed.phone} placeholder="+971 50 123 4567" onChange={(e) => setEd({ ...ed, phone: e.target.value })} /></Field>
+            <Field label="Name in Arabic (optional)">
+              <Input dir="rtl" lang="ar" value={ed.nameAr || ""} placeholder="الاسم بالعربية" onChange={(e) => setEd({ ...ed, nameAr: e.target.value })} /></Field>
           </div>
+          {!isNew && <PartySpecials state={state} setState={setState} books={books} partner={ed.id} role={ed.role} toast={toast} />}
           <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--ink-3)" }}>
             {ed.role === "customer"
               ? ed.emirate === "Export" ? "Exports are zero-rated — invoices will default to 0% VAT."
@@ -3458,7 +3536,8 @@ function LegacyProductsScreen({ books, state, setState, toast }) {
   );
 }
 
-function AccountsScreen({ books, go, state, setState, toast }) {
+function AccountsScreen({ books, go, state, setState, toast, create }) {
+  useCreate(create, () => { setNw(blank()); });
   const [nw, setNw] = useState(null);
   const [q, setQ] = useState("");
   const bal = {};
@@ -3549,7 +3628,8 @@ function AccountsScreen({ books, go, state, setState, toast }) {
   );
 }
 
-function JournalScreen({ books, state, setState, toast }) {
+function JournalScreen({ books, state, setState, toast, create }) {
+  useCreate(create, () => { setNw(blankJE()); });
   const [j, setJ] = useState("All");
   const [q, setQ] = useState("");
   const [nw, setNw] = useState(null);
@@ -4050,7 +4130,8 @@ function StockReport({ books, p, setP , toast }) {
   );
 }
 
-function AssetsScreen({ state, setState, books, toast }) {
+function AssetsScreen({ state, setState, books, toast, create }) {
+  useCreate(create, () => { setEd(blank()); });
   const [ed, setEd] = useState(null);
   const [q, setQ] = useState("");
   const all = state.assets || [];
@@ -4175,7 +4256,8 @@ function AssetsScreen({ state, setState, books, toast }) {
   );
 }
 
-function MethodsScreen({ state, setState, books, toast }) {
+function MethodsScreen({ state, setState, books, toast, create }) {
+  useCreate(create, () => { setEd(blank()); });
   const [ed, setEd] = useState(null);
   const [q, setQ] = useState("");
   const list = METHODS.filter((m) => hits(q, m.name, METHOD_KINDS[m.kind].label, ACC[m.account] ? ACC[m.account].name : ""));
@@ -4309,12 +4391,13 @@ function MethodPicker({ dir, value, onChange, refValue, onRef }) {
   </>);
 }
 
-function BankingScreen({ state, setState, books, toast, go }) {
+function BankingScreen({ state, setState, books, toast, go, create }) {
+  useCreate(create, () => { setTf(blank()); });
   const [tf, setTf] = useState(null);
   const accts = ACCOUNTS.filter((a) => a.type === "bank");
   const bal = (code) => R2(books.flat.filter((l) => l.acc === code).reduce((s, l) => s + l.debit - l.credit, 0));
   const total = R2(accts.reduce((s, a) => s + bal(a.code), 0));
-  const blank = () => ({ from: A.BANK, to: A.CASH, amount: 0, date: TODAY, memo: "" });
+  const blank = () => ({ from: A.BANK, to: A.CASH, amount: "", date: TODAY, memo: "" });
   const ok = tf && +tf.amount > 0 && tf.from !== tf.to;
   const post = () => {
     const n = (state.manual || []).filter((e) => e.number.indexOf("TRF/") === 0)
@@ -4402,11 +4485,12 @@ function BankingScreen({ state, setState, books, toast, go }) {
   );
 }
 
-function ExpensesScreen({ state, setState, books, toast }) {
+function ExpensesScreen({ state, setState, books, toast, create }) {
+  useCreate(create, () => { setEx(blank()); });
   const [ex, setEx] = useState(null);
   const cats = ACCOUNTS.filter((a) => a.type === "expense");
   const firstVendor = (PARTNERS.find((p) => p.role === "vendor") || {}).id || "";
-  const blank = () => ({ acc: "6900", amount: 0, vat: "s5", date: TODAY, memo: "",
+  const blank = () => ({ acc: "6900", amount: "", vat: "s5", date: TODAY, memo: "",
     method: (methodsFor("out")[0] || METHODS[0]).id, payFrom: A.BANK, vendor: firstVendor, paid: true, ref: "" });
   const ok = ex && +ex.amount > 0 && ex.vendor;
   const vatOf = (e) => (TAX[e.vat] && TAX[e.vat].kind === "rcm" ? 0
@@ -4652,19 +4736,19 @@ function StatementSheet({ close, party, g, buckets, due, p, msg, toast, isCust }
     if (!JS) return null;
     const doc = new JS({ orientation: "portrait", unit: "pt", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
-    doc.setFillColor(19, 1, 126); doc.rect(0, 0, W, 108, "F");
-    doc.setFillColor(106, 59, 230); doc.rect(0, 106, W, 2.5, "F");
+    doc.setFillColor(27, 31, 37); doc.rect(0, 0, W, 108, "F");
+    doc.setFillColor(201, 206, 212); doc.rect(0, 106, W, 2.5, "F");
     let ty = 42;
     if (CO.logo) { try { doc.addImage(CO.logo, 40, 24, 0, 24); ty = 64; } catch (e) {} }
     doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(14);
     doc.text(CO.name, 40, ty);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(204, 200, 240);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(201, 206, 212);
     doc.text(`${addrText(CO)}\n${CO.city}\nTRN ${CO.trn}`, 40, ty + 13);
     doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(255, 255, 255);
     doc.text("STATEMENT OF ACCOUNT", W - 40, 42, { align: "right" });
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(204, 200, 240);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(201, 206, 212);
     doc.text(`${dmy(p.from)} to ${dmy(p.to)}`, W - 40, 60, { align: "right" });
-    doc.setTextColor(27, 26, 61); doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
+    doc.setTextColor(22, 25, 29); doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
     doc.text("ACCOUNT", 40, 136);
     doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
     doc.text(`${party.name}\n${addrLines(party).join("\n")}\nTRN ${party.trn || "not registered"}`, 40, 150);
@@ -4675,9 +4759,9 @@ function StatementSheet({ close, party, g, buckets, due, p, msg, toast, isCust }
         g.rows.map((l) => [dmy(l.date), l.number, l.label, l.debit ? money(l.debit, false) : "",
           l.credit ? money(l.credit, false) : "", money(l.run, false)])),
       foot: [["", "", "Closing balance", money(g.d, false), money(g.c, false), money(g.close, false)]],
-      styles: { font: "helvetica", fontSize: 8.5, cellPadding: 5, lineColor: [226, 226, 240], lineWidth: 0.4 },
-      headStyles: { fillColor: [240, 240, 250], textColor: [69, 70, 111], fontStyle: "bold", fontSize: 7.5 },
-      footStyles: { fillColor: [240, 240, 250], textColor: [27, 26, 61], fontStyle: "bold" },
+      styles: { font: "helvetica", fontSize: 8.5, cellPadding: 5, lineColor: [226, 229, 233], lineWidth: 0.4 },
+      headStyles: { fillColor: [238, 240, 242], textColor: [62, 68, 76], fontStyle: "bold", fontSize: 7.5 },
+      footStyles: { fillColor: [238, 240, 242], textColor: [22, 25, 29], fontStyle: "bold" },
       columnStyles: { 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right" } },
     });
     let y = doc.lastAutoTable.finalY + 24;
@@ -4685,13 +4769,13 @@ function StatementSheet({ close, party, g, buckets, due, p, msg, toast, isCust }
       startY: y, margin: { left: 40, right: 40 },
       head: [BUCKETS], body: [buckets.map((v) => money(v, false))],
       styles: { font: "helvetica", fontSize: 8.5, cellPadding: 5, halign: "right" },
-      headStyles: { fillColor: [240, 240, 250], textColor: [69, 70, 111], fontStyle: "bold", fontSize: 7.5, halign: "right" },
+      headStyles: { fillColor: [238, 240, 242], textColor: [62, 68, 76], fontStyle: "bold", fontSize: 7.5, halign: "right" },
     });
     y = doc.lastAutoTable.finalY + 26;
-    doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(19, 1, 126);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(27, 31, 37);
     doc.text(isCust ? "TOTAL DUE  AED" : "TOTAL OWED  AED", W - 200, y);
     doc.text(money(due, false), W - 40, y, { align: "right" });
-    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(150, 152, 184);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(140, 147, 156);
     doc.text(`${CO.name} · TRN ${CO.trn} · generated by InvoEez on ${dmy(TODAY)}`,
       40, doc.internal.pageSize.getHeight() - 34);
     return doc;
@@ -5633,10 +5717,11 @@ const SCREEN_PERM = {
   accounts: "master", journal: "journal", r_stock: "reports", r_pnl: "reports", r_bs: "reports",
   r_tb: "reports", r_gl: "reports", r_partner: "reports", r_aged_ar: "reports", r_aged_ap: "reports",
   r_prod: "reports", r_cust: "reports", r_vat: "tax", fta: "tax", settings: "settings", users: "settings", setup: "master",
-  customers: "master", vendors: "master", reports: "reports",
+  customers: "master", vendors: "master", reports: "reports", opening: "master", pdc: "bank",
 };
 
-function UsersScreen({ state, setState, me, setMe, toast }) {
+function UsersScreen({ state, setState, me, setMe, toast, create }) {
+  useCreate(create, () => { setEd(blank()); });
   const [ed, setEd] = useState(null);
   const [q, setQ] = useState("");
   const users = state.users || SEED_USERS;
@@ -5802,12 +5887,14 @@ function SettingsScreen({ company, setCompany, theme, setTheme, density, setDens
                 </div>
               </div>
               <div className="setgrid">
-                <Field label="Registered name" span={2}><Input {...f("name")} /></Field>
+                <Field label="Registered name"><Input {...f("name")} /></Field>
+                <Field label="Company name in Arabic"><Input {...f("nameAr")} dir="rtl" lang="ar" placeholder="اسم الشركة بالعربية" /></Field>
                 <Field label="Tax Registration Number (TRN)"><Input {...f("trn")} /></Field>
                 <Field label="Trade licence"><Input {...f("licence")} /></Field>
                 <Field label="Address line 1"><Input {...f("address")} placeholder="Office / building, street" /></Field>
                 <Field label="Address line 2"><Input {...f("address2")} placeholder="Area, P.O. Box (optional)" /></Field>
                 <Field label="City and country"><Input {...f("city")} /></Field>
+                <Field label="Address in Arabic (optional)"><Input {...f("addressAr")} dir="rtl" lang="ar" placeholder="العنوان بالعربية" /></Field>
                 <Field label="Emirate">
                   <Select {...f("emirate")}>{EMIRATES.map((e) => <option key={e}>{e}</option>)}</Select></Field>
                 <Field label="Telephone"><Input {...f("phone")} /></Field>
@@ -5836,6 +5923,20 @@ function SettingsScreen({ company, setCompany, theme, setTheme, density, setDens
               <div className="setrow"><div className="st"><b>Settlement rule</b>
                 <span>A payment settles the invoice or bill it is recorded against; unallocated money clears the oldest open document first</span></div>
                 <Pill tone="gold">Document, then oldest</Pill></div>
+            </div>
+          </Card>
+
+          <Card title="Invoice language" sub="Language of printed and PDF tax invoices, credit notes and statements" pad={false}>
+            <div className="setsec">
+              <div className="picks" style={{ marginBottom: 0, gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))" }}>
+                {[["en", "English only", "Default. Every label in English."], ["en_ar", "English + Arabic", "Bilingual labels, plus Arabic names for your company, customers and products where you have entered them."]].map(([k, l, n]) => (
+                  <button key={k} className={cx("pick", (company.invoiceLang || "en") === k && "on")} onClick={() => { setCompany({ ...company, invoiceLang: k }); setD((x) => ({ ...x, invoiceLang: k })); toast(k === "en" ? "Invoices print in English" : "Invoices print in English and Arabic"); }}>
+                    <span className="pi"><Languages size={16} strokeWidth={1.8} /></span>
+                    <span className="pt"><b>{l}</b><span>{n}</span></span>
+                    <span className="chk">{(company.invoiceLang || "en") === k && <Check size={11} strokeWidth={3.2} />}</span>
+                  </button>))}
+              </div>
+              {(company.invoiceLang === "en_ar") && !company.nameAr && <p className="hint-line">Add your company name in Arabic in the Company profile above so it appears on bilingual invoices.</p>}
             </div>
           </Card>
 
@@ -5982,13 +6083,19 @@ function SettingsScreen({ company, setCompany, theme, setTheme, density, setDens
 /* ========================================================================== */
 
 const NAV = [
- {g:"Home",items:[{k:"dash",l:"Dashboard",i:LayoutDashboard},{k:"setup",l:"Setup guide",i:ListChecks}]},
- {g:"Sales",items:[{k:"customers",l:"Customers",i:Users},{k:"quotes",l:"Quotations",i:FileText},{k:"invoices",l:"Invoices",i:Receipt},{k:"credit_notes",l:"Credit notes",i:FileMinus},{k:"salespeople",l:"Sales team",i:Users}]},
- {g:"Purchases",items:[{k:"vendors",l:"Vendors",i:Truck},{k:"bills",l:"Vendor bills",i:ShoppingCart},{k:"debit_notes",l:"Debit notes",i:FilePlus},{k:"expenses",l:"Expenses",i:Wallet}]},
- {g:"Products & stock",items:[{k:"products",l:"Products & services",i:Package},{k:"categories",l:"Product categories",i:Layers},{k:"pricelists",l:"Price lists",i:Banknote},{k:"stock_count",l:"Stock counts & adjustments",i:Boxes},{k:"scrap",l:"Damage & scrap",i:Trash2},{k:"r_stock",l:"Inventory valuation",i:Package}]},
- {g:"Money",items:[{k:"payments",l:"Receipts & payments",i:Receipt},{k:"banking",l:"Bank & cash",i:Landmark},{k:"methods",l:"Payment methods",i:Banknote}]},
- {g:"Accounting",items:[{k:"accounts",l:"Chart of accounts",i:BookOpen},{k:"journal",l:"Journal entries",i:BookOpen},{k:"assets",l:"Fixed assets",i:Layers}]},
- { g: "Reports", items: [
+ { g: "Dashboard", i: LayoutDashboard, k: "dash" },
+ { g: "Master", i: Database, items: [
+   { s: "Accounts master", items: [{ k: "accounts", l: "Chart of accounts", i: BookOpen, add: 1 }, { k: "customers", l: "Customers", i: Users, add: 1 }, { k: "vendors", l: "Vendors", i: Truck, add: 1 }] },
+   { s: "Inventory master", items: [{ k: "products", l: "Products & services", i: Package, add: 1 }, { k: "categories", l: "Product categories", i: Layers, add: 1 }] },
+   { s: "Rate master", items: [{ k: "pricelists", l: "Price lists", i: Tag, add: 1 }] },
+   { s: "Other master", items: [{ k: "salespeople", l: "Sales team", i: Users, add: 1 }, { k: "methods", l: "Payment methods", i: CreditCard, add: 1 }] },
+   { k: "opening", l: "Opening balances", i: Scale }] },
+ { g: "Sale", i: ShoppingBag, items: [{ k: "quotes", l: "Quotations", i: FileText, add: 1 }, { k: "invoices", l: "Invoices", i: Receipt, add: 1 }, { k: "credit_notes", l: "Credit notes", i: FileMinus, add: 1 }] },
+ { g: "Purchase", i: ShoppingCart, items: [{ k: "bills", l: "Vendor bills", i: ShoppingCart, add: 1 }, { k: "debit_notes", l: "Debit notes", i: FilePlus, add: 1 }, { k: "expenses", l: "Expenses", i: Wallet, add: 1 }] },
+ { g: "Banking", i: Landmark, items: [{ k: "payments", l: "Receipts & payments", i: ArrowDownLeft, add: 1 }, { k: "pdc", l: "Post-dated cheques", i: CalendarClock, add: 1 }, { k: "banking", l: "Bank & cash", i: Landmark, add: 1 }] },
+ { g: "Accounting trans.", i: Calculator, items: [{ k: "journal", l: "Journal entries", i: BookOpen, add: 1 }, { k: "assets", l: "Fixed assets", i: Layers, add: 1 }] },
+ { g: "Stock management", i: Warehouse, items: [{ k: "stock_count", l: "Stock counts & adjustments", i: Boxes, add: 1 }, { k: "scrap", l: "Damage & scrap", i: Trash2, add: 1 }, { k: "r_stock", l: "Inventory valuation", i: Package }] },
+ { g: "Reports", i: PieChart, items: [
     { k: "reports", l: "All reports", i: PieChart },
     { k: "r_pnl", l: "Profit & loss", i: BarChart3 },
     { k: "r_bs", l: "Balance sheet", i: Scale },
@@ -6001,9 +6108,11 @@ const NAV = [
     { k: "r_tb", l: "Trial balance", i: CircleDot },
     { k: "r_gl", l: "General ledger", i: BookOpen },
     { k: "r_partner", l: "Partner ledger", i: Users }] },
- {g:"VAT & e-invoicing",items:[{k:"r_vat",l:"VAT return — FTA 201",i:Building2},{k:"fta",l:"FTA & e-invoicing",i:ShieldCheck}]},
- {g:"Settings",items:[{k:"users",l:"Users & access",i:Users},{k:"settings",l:"Settings & backup",i:Settings}]},
+ { g: "VAT & e-invoicing", i: ShieldCheck, items: [{ k: "r_vat", l: "VAT return — FTA 201", i: Building2 }, { k: "fta", l: "FTA & e-invoicing", i: ShieldCheck }] },
+ { g: "Utilities & tools", i: Wrench, items: [{ k: "setup", l: "Setup guide", i: ListChecks }, { k: "users", l: "Users & access", i: Users, add: 1 }, { k: "settings", l: "Settings & backup", i: Settings }] },
 ];
+const NAV_FLAT = navFlat();
+
 const DOC_VIEWS = { quotes: "quote", invoices: "invoice", credit_notes: "credit_note", bills: "bill", debit_notes: "debit_note" };
 const STORE_KEY = "mizan.books.v2";
 const THEME_KEY = "mizan.theme";
@@ -6039,7 +6148,7 @@ function Invoeez() {
   const [range, setRange] = useState({ preset: "ytd", from: TODAY.slice(0,4)+"-01-01", to: TODAY });
   const [toasts, setToasts] = useState([]);
   const [cmdk, setCmdk] = useState(false);
-  const [navSearch,setNavSearch]=useState("");
+  const [create, setCreate] = useState(null);
   const [mini, setMini] = useState(false);
   const [menu, setMenu] = useState(false);
   const [newMenu, setNewMenu] = useState(false);
@@ -6053,7 +6162,8 @@ function Invoeez() {
   });
   const [closed, setClosed] = useState(() => {
     try { const c = window.localStorage.getItem(NAVGRP_KEY); if (c) return JSON.parse(c); } catch (e) {}
-    return {"Products & stock":true,"Money":true,"Accounting":true,"Reports":true,"VAT & e-invoicing":true,"Settings":true};
+    return { "Master": true, "Inventory master": true, "Rate master": true, "Other master": true, "Banking": true, "Accounting trans.": true,
+      "Stock management": true, "Reports": true, "VAT & e-invoicing": true, "Utilities & tools": true };
   });
   React.useEffect(() => {
     try { window.localStorage.setItem(NAVGRP_KEY, JSON.stringify(closed)); } catch (e) {}
@@ -6117,13 +6227,16 @@ function Invoeez() {
   };
   const go = (k, p) => {
     if (k === "partners") k = p && PMAP[p] && PMAP[p].role === "vendor" ? "vendors" : "customers";
-    scrollPageTop(); setNavSearch("");
-    const group=NAV.find(g=>g.items.some(i=>i.k===k));if(group)setClosed(c=>({...c,[group.g]:false}));
-    setDrawer(false);
+    scrollPageTop();
+    const f = NAV_FLAT.find((i) => i.k === k); if (f && f.g !== f.l) setClosed((c) => ({ ...c, [f.g]: false, ...(f.sg ? { [f.sg]: false } : {}) }));
+    setDrawer(false); setCreate(null);
     if (p == null && k === view) { setParam("__list__"); setView(k); return; }
     setView(k); setParam(p != null ? p : null);
   };
   const newDoc = (type) => go(LIST_OF[type], "__new__");
+  /* The sidebar "+" opens the screen with its "new" form already showing. */
+  const quickAdd = (k) => { if (DOC_VIEWS[k]) return newDoc(DOC_VIEWS[k]); go(k); setCreate({ k, n: Date.now() }); };
+  const cr = (k) => (create && create.k === k ? create : null);
 
   const backup = () => {
     saveText(JSON.stringify(state, null, 2), `invoeez-books-${TODAY}.json`, "application/json");
@@ -6158,16 +6271,15 @@ function Invoeez() {
     credit_notes: state.docs.filter((d) => d.type === "credit_note").length,
     debit_notes: state.docs.filter((d) => d.type === "debit_note").length,
     payments: state.payments.length,
+    pdc: (state.pdcs || []).filter(pdcOpen).length,
   };
   const users = state.users || SEED_USERS;
   const meUser = users.find((u) => u.id === me) || users[0] || SEED_USERS[0];
   const role = ROLES[meUser.role] || ROLES.admin;
   const can = (p) => role.perms.indexOf(p) >= 0;
   const allowed = (k) => !SCREEN_PERM[k] || can(SCREEN_PERM[k]);
-  const NAV_VISIBLE = NAV.map((g) => ({ ...g, items: g.items.filter((i) => allowed(i.k) && hits(navSearch,g.g,i.l)) }))
-    .filter((g) => g.items.length);
   React.useEffect(() => { if (!allowed(view)) setView("dash"); }, [me, view]);
-  const here = NAV.flatMap((g) => g.items.map((i) => ({ ...i, g: g.g }))).find((i) => i.k === view) || { l: "Dashboard", g: "Overview" };
+  const here = NAV_FLAT.find((i) => i.k === view) || { l: "Dashboard", g: "Dashboard" };
   const alerts = useMemo(() => {
     let n = state.docs.filter((d) => d.state === "draft").length ? 1 : 0;
     const a = aging(state, "receivable", TODAY);
@@ -6177,7 +6289,7 @@ function Invoeez() {
   }, [state, books]);
 
   const cmdItems = useMemo(() => [
-    ...NAV.flatMap((g) => g.items.map((i) => ({ key: i.k, label: i.l, hint: g.g, icon: i.i, act: () => go(i.k) }))),
+    ...NAV_FLAT.map((i) => ({ key: i.k, label: i.l, hint: i.sg ? i.g + " · " + i.sg : i.g, icon: i.i, act: () => go(i.k) })),
     { key: "new_inv", label: "Create a new invoice", hint: "Action", icon: Plus, act: () => newDoc("invoice") },
     { key: "new_bill", label: "Create a new vendor bill", hint: "Action", icon: Plus, act: () => newDoc("bill") },
     { key: "backup", label: "Back up the books to JSON", hint: "Action", icon: Download, act: backup },
@@ -6207,30 +6319,32 @@ function Invoeez() {
     switch (view) {
       case "dash": return <Dashboard state={state} books={books} go={go} newDoc={newDoc} range={range} setRange={setRange} user={meUser}
         setup={!state.sample && !(state.setup && state.setup.hidden) && <SetupProgress state={state} company={company} go={go} />} />;
+      case "opening": return <OpeningScreen state={state} setState={setState} books={books} toast={toast} go={go} />;
       case "setup": return <SetupScreen state={state} setState={setState} books={books} company={company} go={go} newDoc={newDoc} toast={toast}
         backup={backup} startCompany={startCompany} loadSample={reset} />;
-      case "methods": return <MethodsScreen state={state} setState={setState} books={books} toast={toast} />;
+      case "methods": return <MethodsScreen create={cr("methods")} state={state} setState={setState} books={books} toast={toast} />;
       case "r_stmt": return <StatementScreen state={state} books={books} p={period} setP={setPeriod}
         toast={toast} fta={fta} param={param} />;
       case "r_method": return <MethodReport state={state} books={books} p={period} setP={setPeriod} toast={toast} />;
-      case "banking": return <BankingScreen state={state} setState={setState} books={books} toast={toast} go={go} />;
-      case "expenses": return <ExpensesScreen state={state} setState={setState} books={books} toast={toast} />;
-      case "assets": return <AssetsScreen state={state} setState={setState} books={books} toast={toast} />;
-      case "payments": return <PaymentsScreen state={state} setState={setState} toast={toast} />;
-      case "partners": case "customers": return <PartnersScreen key="customers" fixed="customer" state={state} setState={setState} go={go} toast={toast} books={books} param={param} />;
-      case "vendors": return <PartnersScreen key="vendors" fixed="vendor" state={state} setState={setState} go={go} toast={toast} books={books} param={param} />;
+      case "pdc": return <PdcScreen state={state} setState={setState} books={books} toast={toast} go={go} create={cr("pdc")} />;
+      case "banking": return <BankingScreen create={cr("banking")} state={state} setState={setState} books={books} toast={toast} go={go} />;
+      case "expenses": return <ExpensesScreen create={cr("expenses")} state={state} setState={setState} books={books} toast={toast} />;
+      case "assets": return <AssetsScreen create={cr("assets")} state={state} setState={setState} books={books} toast={toast} />;
+      case "payments": return <PaymentsScreen create={cr("payments")} state={state} setState={setState} toast={toast} />;
+      case "partners": case "customers": return <PartnersScreen key="customers" create={cr("customers")} fixed="customer" state={state} setState={setState} go={go} toast={toast} books={books} param={param} />;
+      case "vendors": return <PartnersScreen key="vendors" create={cr("vendors")} fixed="vendor" state={state} setState={setState} go={go} toast={toast} books={books} param={param} />;
       case "reports": return <ReportsHub state={state} books={books} go={go} allowed={allowed} />;
-      case "products": return <ProductsScreen books={books} state={state} setState={setState} toast={toast} param={param} />;
-      case "categories": return <CategoriesScreen state={state} setState={setState} books={books} toast={toast}/>;
-      case "pricelists": return <PricingScreen state={state} setState={setState} toast={toast}/>;
-      case "salespeople": return <SalespeopleScreen state={state} setState={setState} toast={toast}/>;
-      case "stock_count": return <StockOpsScreen state={state} setState={setState} books={books} toast={toast} kind="count"/>;
-      case "scrap": return <StockOpsScreen state={state} setState={setState} books={books} toast={toast} kind="scrap"/>;
-      case "accounts": return <AccountsScreen books={books} go={go} state={state} setState={setState} toast={toast} />;
-      case "journal": return <JournalScreen books={books} state={state} setState={setState} toast={toast} />;
+      case "products": return <ProductsScreen create={cr("products")} books={books} state={state} setState={setState} toast={toast} param={param} />;
+      case "categories": return <CategoriesScreen create={cr("categories")} state={state} setState={setState} books={books} toast={toast}/>;
+      case "pricelists": return <PricingScreen create={cr("pricelists")} state={state} setState={setState} toast={toast}/>;
+      case "salespeople": return <SalespeopleScreen create={cr("salespeople")} state={state} setState={setState} toast={toast}/>;
+      case "stock_count": return <StockOpsScreen create={cr("stock_count")} state={state} setState={setState} books={books} toast={toast} kind="count"/>;
+      case "scrap": return <StockOpsScreen create={cr("scrap")} state={state} setState={setState} books={books} toast={toast} kind="scrap"/>;
+      case "accounts": return <AccountsScreen create={cr("accounts")} books={books} go={go} state={state} setState={setState} toast={toast} />;
+      case "journal": return <JournalScreen create={cr("journal")} books={books} state={state} setState={setState} toast={toast} />;
       case "fta": return <FtaScreen state={state} setState={setState} books={books} company={company} fta={fta} setFta={setFta}
         p={period} setP={setPeriod} toast={toast} go={go} />;
-      case "users": return <UsersScreen state={state} setState={setState} me={me} setMe={setMe} toast={toast} />;
+      case "users": return <UsersScreen create={cr("users")} state={state} setState={setState} me={me} setMe={setMe} toast={toast} />;
       case "settings": return <SettingsScreen setCosting={(k) => setState((x) => ({ ...x, costing: k }))} setSettings={(patch) => setState((x) => ({ ...x, settings: { ...(x.settings || {}), ...patch } }))} fta={fta} setFta={setFta} company={company} setCompany={setCompany} theme={theme} setTheme={setTheme}
         density={density} setDensity={setDensity} backup={backup} restore={restore} reset={reset} startCompany={startCompany} go={go}
         toast={toast} books={books} state={state} />;
@@ -6253,49 +6367,16 @@ function Invoeez() {
     <ThemeCtx.Provider value={palette}>
     <CompanyCtx.Provider value={company}>
     <div className="mz" data-theme={theme} data-density={density} style={{ height: "100vh" }}>
-      <style>{CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS}</style>
+      <style>{CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS}</style>
       {starting && <StartCompanyDialog state={state} company={company} backup={backup} close={() => setStarting(false)} onDone={companyStarted} />}
       {cmdk && <CommandPalette items={cmdItems} close={() => setCmdk(false)} run={(i) => i.act()} />}
       <Toasts items={toasts} />
 
       {drawer && <div className="side-scrim" onMouseDown={() => setDrawer(false)}
         onClick={() => setDrawer(false)} role="presentation" />}
-      <nav className={cx("side", mini && "mini", drawer && "open")}>
-        <div className="side-top">
-          <span className="brand-tile" title="InvoEez — Invoice Made Easy">
-            <img className="brand-lockup" src={BRAND_LOCKUP} alt="InvoEez — Invoice Made Easy" />
-            <img className="brand-mark" src={BRAND_MARK} alt="InvoEez" /></span>
-        </div>
-        <button className="co-card" onClick={() => go("settings")} title="Company profile">
-          {company.logo ? <img className="logoimg" src={company.logo} alt="" />
-            : <span className="av">{initials(company.name)}</span>}
-          <span className="t"><b>{company.name}</b><span>{company.trn ? `TRN ${company.trn}` : "Add company details"}</span></span>
-        </button>
-        <div className="nav-search"><Search size={14}/><input aria-label="Search navigation" placeholder="Find a section…" value={navSearch} onChange={e=>setNavSearch(e.target.value)}/></div>
-        <div className="nav-scroll">
-          {NAV_VISIBLE.map((g) => {
-            const shut = closed[g.g] && !mini && !navSearch;
-            return (
-            <div key={g.g}>
-              <button className={cx("nav-group", shut && "shut")} onClick={() => setClosed((c) => ({ ...c, [g.g]: !c[g.g] }))}>
-                {g.g}<ChevronDown size={13} strokeWidth={2.4} className="cv" /></button>
-              {!shut && <div className="nav-grp-items">{g.items.map((it) => (
-                <button key={it.k} className={cx("nav-item", view === it.k && "on")} onClick={() => go(it.k)} title={it.l}>
-                  <it.i size={16} strokeWidth={1.8} />
-                  <span className="lbl">{it.l}</span>
-                  {counts[it.k] != null && <span className="ct">{counts[it.k]}</span>}
-                </button>))}</div>}
-            </div>); })}
-        </div>
-        <div className="sysline"><i /><span className="txt">Local workspace</span>
-          <span className="v">{BUILD}</span></div>
-        <div className="side-foot">
-          <span className="av">{initials(meUser.name)}</span>
-          <span className="who"><b>{meUser.name}</b><span>{role.label}</span></span>
-          <button className="collapse" onClick={() => setMini((v) => !v)} title={mini ? "Expand sidebar" : "Collapse sidebar"}>
-            {mini ? <ChevronsRight size={15} /> : <ChevronsLeft size={15} />}</button>
-        </div>
-      </nav>
+      <Sidebar view={view} go={go} quickAdd={quickAdd} allowed={allowed} counts={counts} closed={closed} setClosed={setClosed}
+        mini={mini} setMini={setMini} drawer={drawer} company={company} meUser={meUser} role={role}
+        canAdd={(k) => allowed(k)} />
 
       <div className="main">
         <div className="topbar">
@@ -6303,7 +6384,7 @@ function Invoeez() {
             <button className="icon-btn burger" onClick={() => setDrawer(true)} aria-label="Open navigation">
               <Menu size={20} strokeWidth={1.9} /></button>
             <div className="tb-title">{here.l}</div>
-            <div className="crumb">{here.g}<ChevronRight size={13} /><b>{here.l}</b></div>
+            <div className="crumb">{here.g !== here.l && <>{here.g}{here.sg && <><ChevronRight size={13} />{here.sg}</>}<ChevronRight size={13} /></>}<b>{here.l}</b></div>
             <span className={cx("chip", books.balanced ? "ok" : "bad")}
               title="Total debits versus total credits across every posted entry">
               <Scale size={13} strokeWidth={1.9} />

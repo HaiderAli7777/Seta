@@ -38,7 +38,7 @@ function freezeAccounts(d) {return {...d,lines:d.lines.map(l=>({...l,accounts:l.
 function migrateBooks(raw) {
   const s={docs:[],payments:[],manual:[],accounts:[],partners:[],products:[],assets:[],methods:[],users:SEED_USERS,einv:{},costing:'avco',...raw};
   s.categories=raw.categories||DEFAULT_CATEGORIES.map(c=>({...c}));
-  s.priceLists=raw.priceLists||[];s.stockOps=raw.stockOps||[];s.brands=raw.brands||[];s.settings={productCodes:'auto',codePrefix:'P-',codeDigits:5,...(raw.settings||{})};
+  s.priceLists=raw.priceLists||[];s.stockOps=raw.stockOps||[];s.brands=raw.brands||[];s.partySpecials=raw.partySpecials||[];s.pdcs=raw.pdcs||[];s.settings={productCodes:'auto',codePrefix:'P-',codeDigits:5,...(raw.settings||{})};
   s.salespeople=raw.salespeople||SEED_USERS.filter(u=>['admin','sales'].includes(u.role)).map(u=>({id:u.id,name:u.name,active:true}));
   // Capture the original accounts before category inheritance is applied.
   if((raw.schemaVersion||0)<3){
@@ -67,24 +67,39 @@ function migrateBooks(raw) {
     s.partners=[...LEGACY_PARTNERS.filter(p=>!have(s.partners,p.id)).map(p=>({...p})),...s.partners];
     s.products=[...LEGACY_PRODUCTS.filter(p=>!have(s.products,p.id)).map(p=>({...p})),...s.products];
   }
+  /* Post-dated cheques need their two control accounts, even in books that predate them. */
+  if(s.accounts.length&&typeof TEMPLATE_ACCOUNTS!=='undefined')['1210','2110'].forEach(code=>{if(!s.accounts.some(x=>x.code===code)){const t=TEMPLATE_ACCOUNTS.find(x=>x.code===code);if(t)s.accounts=[...s.accounts,{...t}];}});
   s.schemaVersion=5;return s;
 }
-function pricingFor(state, product, qty, date, listId, side='sale') {
+/* Unit price for a line, best source first:
+   1. a party special agreed with this customer or vendor,
+   2. an active price list rule,
+   3. the last price this party paid or charged (lines marked "Don't store" are skipped),
+   4. the product's own sales price, or for purchases its last purchase price, then its cost.
+   When nothing applies the price stays empty — never a silent 0. */
+const partySpecial = (state, partner, product, side) => partner ? (state.partySpecials || []).find((x) => x.partner === partner && x.product === product && (x.side || 'sale') === side) : null;
+function pricingFor(state, product, qty, date, listId, side='sale', partner='', exclude='') {
+  const sp=partySpecial(state,partner,product.id,side);
+  if(sp)return {price:R2(+sp.price),priceSource:'Party special',basePrice:R2(+sp.price)};
   const lastBuy=+product.lastPurchase||0;
-  let price=side==='sale'?+product.price:(lastBuy||+product.cost),source=side==='sale'?'Product price':lastBuy?'Last purchase price':'Product cost';
   const valid=r=>r.active!==false&&(!r.from||r.from<=date)&&(!r.to||r.to>=date);
   const pl=(state.priceLists||[]).find(x=>x.id===listId&&valid(x)&&x.side===side);
   if(pl){
     const eligible=(pl.rules||[]).filter(r=>(!r.product||r.product===product.id)&&(!r.category||r.category===product.category)&&(+qty>=+r.minQty));
     eligible.sort((a,b)=>(!!b.product-!!a.product)|| (!!b.category-!!a.category)||(+b.minQty-+a.minQty));
     const r=eligible[0];
-    if(r){price=r.mode==='fixed'?+r.value:(side==='sale'?+product.price:+product.cost||lastBuy)*(1-(+r.value)/100);source=pl.name;}
+    if(r){const base=side==='sale'?+product.price:(+product.cost||lastBuy);const price=r.mode==='fixed'?+r.value:base*(1-(+r.value)/100);
+      if(price>0||r.mode==='fixed')return {price:R2(price),priceSource:pl.name,basePrice:R2(price)};}
   }
-  return {price:R2(price),priceSource:source};
+  if(partner&&state.docs){const last=productHistory(state,product.id,side,partner,exclude,date||'9999-12-31').find(l=>!l.oneOff);
+    if(last)return {price:last.unitNet,priceSource:side==='sale'?'Last price to this customer':'Last price from this vendor',basePrice:last.unitNet};}
+  const price=side==='sale'?+product.price:(lastBuy||+product.cost);
+  if(!(price>0))return {price:'',priceSource:side==='sale'?'No sales price on the product':'No purchase price yet',basePrice:''};
+  return {price:R2(price),priceSource:side==='sale'?'Product price':lastBuy?'Last purchase price':'Product cost',basePrice:R2(price)};
 }
 function productHistory(state,pid,side,partner='',exclude='',before='9999-12-31') {
   const type=side==='sale'?'invoice':'bill';
-  return state.docs.filter(d=>d.type===type&&d.state==='posted'&&d.id!==exclude&&d.date<=before&&(!partner||d.partner===partner))
+  return (state.docs||[]).filter(d=>d.type===type&&d.state==='posted'&&d.id!==exclude&&d.date<=before&&(!partner||d.partner===partner))
     .flatMap(d=>amounts(d).lines.filter(l=>l.product===pid).map(l=>({...l,date:d.date,number:d.number,docId:d.id,partner:d.partner,unitNet:R2(l.price*(1-(l.disc||0)/100))})))
     .sort((a,b)=>b.date.localeCompare(a.date)||b.number.localeCompare(a.number));
 }

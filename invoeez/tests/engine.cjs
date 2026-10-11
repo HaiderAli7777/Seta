@@ -1,9 +1,9 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{transformSync}=require('esbuild'),path=require('node:path');
 const root=path.join(__dirname,'..');
-const source=['invoeez-source.jsx','enhancements-data.jsx','company-template.jsx','enhancements-ui.jsx','dashboard.jsx','design.jsx','onboarding.jsx','brand-assets.jsx','brand.jsx','clarity.jsx'].concat(['tests/sample-fixture.jsx']).map(f=>fs.readFileSync(path.join(root,f),'utf8')).join('\n');
+const source=['invoeez-source.jsx','enhancements-data.jsx','company-template.jsx','enhancements-ui.jsx','dashboard.jsx','design.jsx','onboarding.jsx','brand-assets.jsx','brand.jsx','clarity.jsx','sidebar.jsx','select.jsx','features.jsx','pdc.jsx'].concat(['tests/sample-fixture.jsx']).map(f=>fs.readFileSync(path.join(root,f),'utf8')).join('\n');
 const icons=[...fs.readFileSync(path.join(root,'runtime-prefix.js'),'utf8').matchAll(/var ([A-Z]\w+) = __mk/g)].map(m=>m[1]);
 const ctx={console,Intl,Date,Math,Number,crypto:require('node:crypto').webcrypto,React:{createContext:v=>v},window:{},setTimeout};icons.forEach(n=>ctx[n]=()=>null);vm.createContext(ctx);
-vm.runInContext(transformSync(source,{loader:'jsx',target:'es2020'}).code+`\n globalThis.api={aging,buildSampleBooks,freshBooks,LEGACY_PARTNERS,LEGACY_PRODUCTS,TEMPLATE_ACCOUNTS,TEMPLATE_CATEGORIES,TEMPLATE_EXPENSE_ITEMS,DEMO,migrateBooks,deriveBooks,syncProducts,syncPartners,syncAccounts,syncMethods,pricingFor,productHistory,freezeAccounts,amounts,searchScore,cashMovement,validateStockOperation,PRODUCTS_SEED,DEFAULT_CATEGORIES,TODAY,learnPurchasePrices,nextProductCode,autoCodes,currentCost,PRODUCTS,syncProducts};`,ctx);
+vm.runInContext(transformSync(source,{loader:'jsx',target:'es2020'}).code+`\n globalThis.api={aging,buildSampleBooks,freshBooks,LEGACY_PARTNERS,LEGACY_PRODUCTS,TEMPLATE_ACCOUNTS,TEMPLATE_CATEGORIES,TEMPLATE_EXPENSE_ITEMS,DEMO,migrateBooks,deriveBooks,syncProducts,syncPartners,syncAccounts,syncMethods,pricingFor,productHistory,freezeAccounts,amounts,searchScore,cashMovement,validateStockOperation,PRODUCTS_SEED,DEFAULT_CATEGORIES,TODAY,learnPurchasePrices,nextProductCode,autoCodes,currentCost,PRODUCTS,syncProducts,pdcStatus,pdcEntries,partySpecial};`,ctx);
 const a=ctx.api;const clean=a.migrateBooks(a.DEMO());assert.equal(clean.docs.length+clean.payments.length+clean.manual.length+clean.stockOps.length,0);assert(!clean.sample&&clean.partners.length===0&&clean.accounts.length>=30&&clean.categories.length>=20);assert.equal(clean.users.length,1);
 let s=a.migrateBooks(a.buildSampleBooks(a.TODAY));a.syncAccounts(s.accounts);a.syncProducts(s.products,s.categories);a.syncPartners(s.partners);a.syncMethods(s.methods);
 const base=a.deriveBooks(s);assert(base.balanced);for(const e of base.entries)assert(Math.abs(e.lines.reduce((n,l)=>n+l.debit-l.credit,0))<.011,e.number);
@@ -71,4 +71,31 @@ assert.equal(learned[0].id,'np1');assert.equal(learned[0].cost,6.5);assert.equal
 const st2={...st,products:learned,docs:[bill]};a.syncProducts(st2.products,st2.categories);const again=a.learnPurchasePrices(st2,{...bill,id:'b2',lines:[{product:'np1',qty:1,price:8,disc:0}]});
 assert.equal(again[0].cost,6.5);assert.equal(again[0].lastPurchase,8);
 a.syncProducts(again,st.categories);assert.equal(a.pricingFor(st2,again[0],1,a.TODAY,'','purchase').price,8);}
-console.log('PASS: product codes, first-purchase cost, last purchase price, clean new company, document-specific settlement, sample fixture, legacy master-data migration, start-fresh template, ledger balance, historical account preservation, inherited accounts, pricing tiers, date validity, manual discounts, retired-rule migration, cash movement, stock counts, scrap, costing methods, validation, search and history.');
+{/* Post-dated cheques: received, cleared, bounced with charges, returned; issued and cleared */
+a.syncAccounts(s.accounts);a.syncProducts(s.products,s.categories);a.syncPartners(s.partners);a.syncMethods(s.methods);
+const bal=(b,acc)=>b.flat.filter(l=>l.acc===acc).reduce((n,l)=>n+l.debit-l.credit,0);
+const ar=a.aging(s,'receivable',a.TODAY);const row=ar.rows.find(r=>r.items.length);assert(row,'an open invoice exists');const it=row.items[0];
+const base=a.deriveBooks(s);const b1210=bal(base,'1210'),bBank=bal(base,'1120'),b6450=bal(base,'6450');
+const pdc={id:'pdc1',kind:'in',number:'PDCR/2026/9001',partner:row.partner.id,doc:it.id,chequeNo:'000245',bank:'ENBD',chequeDate:a.TODAY,date:a.TODAY,amount:it.open,events:[]};
+const withPdc={...s,pdcs:[pdc]};let b=a.deriveBooks(withPdc);assert(b.balanced);
+assert.equal(Math.round((bal(b,'1210')-b1210)*100)/100,it.open);
+let row2=a.aging(withPdc,'receivable',a.TODAY).rows.find(r=>r.partner.id===row.partner.id);assert(!row2||!row2.items.some(x=>x.id===it.id),'pdc settles the invoice');
+assert.equal(a.pdcStatus(pdc),'hand');
+const cleared={...withPdc,pdcs:[{...pdc,events:[{type:'deposited',date:a.TODAY,account:'1120'},{type:'cleared',date:a.TODAY,account:'1120'}]}]};b=a.deriveBooks(cleared);assert(b.balanced);
+assert.equal(Math.round((bal(b,'1210')-b1210)*100)/100,0);assert.equal(Math.round((bal(b,'1120')-bBank)*100)/100,it.open);assert.equal(a.pdcStatus(cleared.pdcs[0]),'cleared');
+const bounced={...withPdc,pdcs:[{...pdc,events:[{type:'bounced',date:a.TODAY,account:'1120',reason:'Insufficient funds',charges:50}]}]};b=a.deriveBooks(bounced);assert(b.balanced);
+assert.equal(Math.round((bal(b,'1210')-b1210)*100)/100,0);assert.equal(Math.round((bal(b,'6450')-b6450)*100)/100,50);assert.equal(Math.round((bal(b,'1120')-bBank)*100)/100,-50);
+row2=a.aging(bounced,'receivable',a.TODAY).rows.find(r=>r.partner.id===row.partner.id);assert(row2.items.some(x=>x.id===it.id&&Math.abs(x.open-it.open)<0.01),'bounce reopens the invoice');
+const ap=a.aging(s,'payable',a.TODAY).rows.find(r=>r.items.length);if(ap){const bi=ap.items[0];const iss={id:'pdc2',kind:'out',number:'PDCI/2026/9001',partner:ap.partner.id,doc:bi.id,chequeNo:'778',account:'1120',chequeDate:a.TODAY,date:a.TODAY,amount:bi.open,events:[]};
+ const s2={...s,pdcs:[iss]};b=a.deriveBooks(s2);assert(b.balanced);assert(!(a.aging(s2,'payable',a.TODAY).rows.find(r=>r.partner.id===ap.partner.id)||{items:[]}).items.some(x=>x.id===bi.id));
+ const s3={...s,pdcs:[{...iss,events:[{type:'cleared',date:a.TODAY,account:'1120'}]}]};b=a.deriveBooks(s3);assert(b.balanced);assert.equal(Math.round((bal(b,'1120')-bBank)*100)/100,-bi.open);}
+/* Party special beats price list and history; Don't-store lines are skipped by last-price lookup */
+const pr=s.products.find(x=>x.kind==='goods'&&x.price>0);const cust=row.partner.id;
+const ps={...s,partySpecials:[{id:'ps1',partner:cust,product:pr.id,side:'sale',price:12.34}]};assert.equal(a.pricingFor(ps,pr,1,a.TODAY,'','sale',cust).price,12.34);
+assert.equal(a.pricingFor(ps,pr,1,a.TODAY,'','sale',cust).priceSource,'Party special');
+const inv1={id:'lp1',number:'INV/LP/1',type:'invoice',partner:cust,date:a.TODAY,due:a.TODAY,state:'posted',seq:99001,lines:[{id:'x1',product:pr.id,qty:1,price:77,disc:0,tax:'s5'}]};
+const inv2={...inv1,id:'lp2',number:'INV/LP/2',seq:99002,lines:[{id:'x2',product:pr.id,qty:1,price:55,disc:0,tax:'s5',oneOff:true}]};
+const lp={...s,docs:[...s.docs.filter(d=>!(d.type==='invoice'&&d.partner===cust&&d.lines.some(l=>l.product===pr.id))),inv1,inv2]};
+assert.equal(a.pricingFor(lp,pr,1,a.TODAY,'','sale',cust).price,77,"don't-store price is skipped");
+assert.equal(a.pricingFor({...s,docs:[]},{...pr,price:0},1,a.TODAY,'','sale',cust).price,'','no price stays empty');}
+console.log('PASS: post-dated cheques (received, cleared, bounced with charges, issued), party specials, last price, empty price, product codes, first-purchase cost, last purchase price, clean new company, document-specific settlement, sample fixture, legacy master-data migration, start-fresh template, ledger balance, historical account preservation, inherited accounts, pricing tiers, date validity, manual discounts, retired-rule migration, cash movement, stock counts, scrap, costing methods, validation, search and history.');
