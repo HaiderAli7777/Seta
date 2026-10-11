@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.6)
+# InvoEez — Invoice Made Easy (3.6.1)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -74,6 +74,10 @@ Company profile, theme, user selection and connection settings use their existin
 | Scrap | Record damaged quantities with a reason. Scrap reduces stock at carrying cost and charges the category adjustment account. Quantities cannot exceed on-hand stock. |
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
+
+## Colour themes (3.6.1)
+
+Settings › Appearance › Colour theme: **Ocean blue** (default), **Teal**, **Royal violet** or **Graphite**. The choice is remembered in the browser (`mizan.accent`) and applies to the sidebar, buttons, charts, the dashboard cash card and the invoice letterhead and PDF, in light and dark mode.
 
 ## Menu (3.6)
 

@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.6.0";
+const BUILD = "3.6.1";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -2543,6 +2543,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
 function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go }) {
   const [d, setD] = useState(initial);
   const [print, setPrint] = useState(false);
+  const [activeLine,setActiveLine]=useState(null);
   const [tab,setTab]=useState('items'),[quick,setQuick]=useState(null),[showCost,setShowCost]=useState(false),[showAccounts,setShowAccounts]=useState(false),[historyLine,setHistoryLine]=useState(null),[historyProduct,setHistoryProduct]=useState('');
   const [lineView,setLineView]=useState(()=>{try{return localStorage.getItem('mizan.lineView')||'compact';}catch{return 'compact';}});
   const [expandedLines,setExpandedLines]=useState({});
@@ -2571,9 +2572,9 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     if(l.id!==id)return l;const next={...l,[k]:v,...(k==='price'?{manualPricing:true,priceChoice:undefined,oneOff:false}:{})};
     return k==='qty'&&!next.manualPricing&&PROD[next.product]?{...next,...pricingFor(state,PROD[next.product],v,s.date,s.pricelist,meta.side,s.partner,s.id)}:next;
   })}));
-  const addLine=()=>{const id=uid('l');pendingLine.current=id;setTab('items');setD(s=>({...s,lines:[...s.lines,{id,product:'',desc:'',qty:'',price:'',disc:'',tax:'s5',account:null}]}));};
-  const pickProduct=(id,pid)=>{const p=PROD[pid];if(!p)return;
-    setD(s=>({...s,lines:s.lines.map(l=>l.id===id?{...l,product:pid,desc:p.name,disc:0,...pricingFor(state,p,l.qty,s.date,s.pricelist,meta.side,s.partner,s.id),tax:sale&&p.tax==='rc5'?'s5':p.tax,account:null,accounts:undefined,manualPricing:false,priceChoice:undefined,oneOff:false}:l)}));setHistoryProduct(pid);
+  const addLine=()=>{const id=uid('l');pendingLine.current=id;setTab('items');setActiveLine(id);setD(s=>({...s,lines:[...s.lines,{id,product:'',desc:'',qty:'',price:'',disc:'',tax:'s5',account:null}]}));};
+  const pickProduct=(id,pid)=>{const p=PROD[pid];if(!p)return;setActiveLine(id);
+    setD(s=>({...s,lines:s.lines.map(l=>l.id===id?{...l,product:pid,desc:p.name,disc:0,...pricingFor(state,p,l.qty,s.date,s.pricelist,meta.side,s.partner,s.id),tax:sale&&p.tax==='rc5'?'s5':p.tax,account:null,accounts:undefined,manualPricing:false,priceChoice:undefined,oneOff:false}:l)}));
     requestAnimationFrame(()=>document.querySelector('[data-line-id="'+id+'"] .q-qty')?.focus());
   };
   const pickPartner=pid=>{const p=PMAP[pid];if(!p)return;setD(s=>reprice({...s,partner:pid,due:addDays(s.date,p.terms||0),emirate:p.emirate,salesman:p.salesman||'',pricelist:p.pricelist||''},true));};
@@ -2600,6 +2601,22 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
       {id:uid('ps'),partner:d.partner,product:l.product,side:meta.side,price,date:d.date,doc:d.number}]}));
     setD(s=>({...s,lines:s.lines.map(x=>x.id===l.id?{...x,priceChoice:'special',oneOff:false,priceSource:'Party special',basePrice:price,manualPricing:false}:x)}));
     toast(`Party special saved — ${PMAP[d.partner]?.name} gets ${PROD[l.product]?.name} at AED ${money(price,false)} from now on`);};
+  /* The line being worked on shows stock and this party's price history; the others stay folded. */
+  const lineInfo=(l,p,st)=>{
+    const mine=d.partner?productHistory(state,p.id,meta.side,d.partner,d.id,d.date):[];
+    const last=mine.find(x=>!x.oneOff)||mine[0];
+    const any=!last?productHistory(state,p.id,meta.side,'',d.id,d.date)[0]:null;
+    const who=PMAP[d.partner]?.name;
+    return <tr className="lg-info" key={l.id+'-info'}><td/><td colSpan={20}><div className="line-info">
+      <span className={cx('li-chip',p.kind==='goods'&&(st.qty<=0?'bad':st.qty<=(+p.reorder||0)?'warn':'ok'))}>{p.kind==='goods'?<><b>{st.qty}</b> {p.uom} in stock</>:'Service'}</span>
+      {p.code&&<span className="li-chip code">{p.code}</span>}
+      <span className="li-hist"><Clock size={13}/>{!d.partner?<>Choose the {sale?'customer':'vendor'} to see their price history.</>
+        :last?<>Last {sale?'sold to':'bought from'} <b>{who}</b>: <b className="li-price">AED {money(last.unitNet,false)}</b> / {p.uom.toLowerCase()} · {dmy(last.date)} · qty {last.qty}{mine.length>1?<span className="li-more"> · {mine.length} {sale?'sales':'purchases'}</span>:null}</>
+        :<>First time {sale?'selling this to':'buying this from'} <b>{who}</b>{any?<span className="li-more"> · last to anyone AED {money(any.unitNet,false)} ({PMAP[any.partner]?.name}, {dmy(any.date)})</span>:null}</>}</span>
+      {last&&R2(+l.price||0)!==R2(last.unitNet)&&<button className="li-btn" onClick={()=>setD(s=>({...s,lines:s.lines.map(x=>x.id===l.id?{...x,price:last.price,disc:last.disc||'',manualPricing:true,basePrice:last.price,priceSource:sale?'Earlier price to this customer':'Earlier price from this vendor',priceChoice:undefined}:x)}))}>Use {money(last.unitNet,false)}</button>}
+      <button className="li-btn" onClick={()=>setHistoryLine(l)}><Clock size={12}/>History</button>
+    </div></td></tr>;
+  };
   const priceAskRow=(l,cols)=>askPrice(l)&&<tr className="lg-ask" key={l.id+'-ask'}><td/><td colSpan={cols}><div className="price-ask"><Star size={13}/>
     <span>Price changed to <b>AED {money(+l.price,false)}</b>{l.basePrice!==''&&l.basePrice!=null?<> (was {money(+l.basePrice,false)} · {l.priceSource||'product price'})</>:null} for <b>{PMAP[d.partner]?.name}</b>.</span>
     <button className="pa-once" onClick={()=>keepOnce(l)}>Don't store</button><button className="pa-special" onClick={()=>makeSpecial(l)}><Star size={12}/>Party special</button>
@@ -2770,10 +2787,11 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
               const def=sale?(l.accounts?.income||p?.income):(p?.kind==='goods'?(l.accounts?.inventory||p?.inventory):(l.accounts?.expense||p?.expense));
               const last=i===am.lines.length-1;
               const enter=e=>{if(e.key==='Enter'&&!locked){e.preventDefault();if(last)addLine();else document.querySelector('[data-line-id="'+am.lines[i+1].id+'"] .q-qty')?.focus();}};
-              return <React.Fragment key={l.id}><tr data-line-id={l.id} className={cx(!p&&'blank',askPrice(l)&&'asking')}>
+              const open=!locked&&p&&l.id===activeLine;
+              return <React.Fragment key={l.id}><tr data-line-id={l.id} className={cx(!p&&'blank',askPrice(l)&&'asking',open&&'active')} onFocusCapture={()=>setActiveLine(l.id)}>
                 <td className="lg-n">{i+1}</td>
                 <td className="lg-p"><SmartPicker label={'Product on line '+(i+1)} items={productOptions(books)} value={l.product} disabled={locked} placeholder="Search product, code or barcode…" onChange={pid=>pickProduct(l.id,pid)} onCreate={!locked?name=>setQuick({kind:'product',line:l.id,record:{...newProduct(),name}}):undefined}/>
-                  {p&&<small className="lg-meta">{p.kind==='goods'?<><b className={st.qty<=0?'neg':''}>{st.qty}</b> {p.uom} in stock</>:'Service'}{p.code?' · '+p.code:''}<button className="lg-hist" title="Price history" onClick={()=>setHistoryLine(l)}><Clock size={11}/></button></small>}</td>
+</td>
                 <td className="lg-d"><input className="inp" value={l.desc} disabled={locked||!p} onChange={e=>setLine(l.id,'desc',e.target.value)} aria-label={'Description on line '+(i+1)}/></td>
                 <td className="lg-q"><input className="inp n q-qty" type="number" min="0" step="any" placeholder="0" value={l.qty} disabled={locked||!p} onKeyDown={enter} onChange={e=>setLine(l.id,'qty',e.target.value)} aria-label={'Quantity on line '+(i+1)}/></td>
                 <td className="lg-u">{p?p.uom:''}</td>
@@ -2784,7 +2802,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
                 {showCost&&<td className="lg-c">{p?<><span>{money(cost,false)}</span>{sale&&<small className={l.price*(1-(l.disc||0)/100)-cost<0?'neg':'pos'}>{money(l.price*(1-(l.disc||0)/100)-cost,false)}</small>}</>:''}</td>}
                 <td className="lg-am"><b>{money(l.amount,false)}</b>{l.taxAmt?<small>VAT {money(l.taxAmt,false)}</small>:null}</td>
                 <td className="lg-x">{!locked&&<button className="icon-btn" title={'Remove line '+(i+1)} aria-label={'Remove line '+(i+1)} onClick={()=>setD(s=>({...s,lines:s.lines.filter(x=>x.id!==l.id)}))}><Trash2 size={14}/></button>}</td>
-              </tr>{priceAskRow(l,20)}</React.Fragment>;})}
+              </tr>{open&&lineInfo(l,p,st)}{priceAskRow(l,20)}</React.Fragment>;})}
               {!locked&&<tr className="lg-add"><td/><td colSpan={20}><button onClick={addLine}><Plus size={14}/>Add a line</button><span>Tip: press Enter in the last quantity or price to add another line.</span></td></tr>}
             </tbody></table></div>}
           {lineView!=='compact'&&<div className="document-lines">{am.lines.map((l,i)=>{const p=PROD[l.product],st=p&&books.stock[p.id]||{qty:0,value:0},cost=p?currentCost(p,books):0;
@@ -2812,7 +2830,9 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
           {!locked&&<div className="document-dock"><Btn icon={Plus} onClick={addLine}>Add line</Btn><span>{d.lines.length} items</span><div><small>Total · AED</small><b>{money(am.total,false)}</b></div><Btn onClick={save}>Save {isQuote?'quotation':'draft'}</Btn></div>}
         </>}
         {tab==='journal'&&<div className="journal-tab"><div className="info-strip"><BookOpen size={20}/><span><b>{locked?'Posted journal entry':'Journal preview'}</b><br/>{locked?'The ledger entry for this document.':'This preview updates as you edit. Posting creates the ledger entry.'}</span></div><PostingPreview lines={preview} title={locked?'Posted journal entry':'Journal preview · AED'}/></div>}
-        {tab==='history'&&<Card title={sale?'Customer purchase history':'Vendor purchase history'} sub="Select a product to compare posted prices."><SmartPicker items={productOptions(books)} value={historyProduct} label="History product" onChange={setHistoryProduct}/>{historyProduct?<HistoryTable key={historyProduct+d.partner} state={state} product={historyProduct} side={meta.side} partner={d.partner} exclude={d.id} date={d.date}/>:<EmptyState icon={Clock} title="Choose a product">See transaction date, quantity, price, discount and net unit price.</EmptyState>}</Card>}
+        {tab==='history'&&<Card title={sale?'Price history for this customer':'Price history for this vendor'} sub={`Every product on this document${d.partner?' for '+(PMAP[d.partner]?.name||''):''} — or search any other product.`}><div className="history-pick"><SmartPicker items={productOptions(books)} value={historyProduct} label="History product" placeholder="Search any product…" onChange={setHistoryProduct}/>{historyProduct&&<Btn size="sm" onClick={()=>setHistoryProduct('')}>Products on this document</Btn>}</div>{historyProduct?<HistoryTable key={historyProduct+d.partner} title={PROD[historyProduct]?.name} state={state} product={historyProduct} side={meta.side} partner={d.partner} exclude={d.id} date={d.date}/>
+          :[...new Set(d.lines.map(l=>l.product).filter(pid=>PROD[pid]))].length?[...new Set(d.lines.map(l=>l.product).filter(pid=>PROD[pid]))].map(pid=><HistoryTable key={pid+d.partner} title={PROD[pid].name} state={state} product={pid} side={meta.side} partner={d.partner} exclude={d.id} date={d.date}/>)
+          :<EmptyState icon={Clock} title="Add a product or choose one above">Every product on this document shows its posted prices to this {sale?'customer':'vendor'} here.</EmptyState>}</Card>}
         {tab==='status'&&<Card title={isQuote?'Quotation progress':'Document activity'}><div className="tl">{(isQuote?['draft','sent','accepted','invoiced'].map(k=>({t:QUOTE_STATES[k].label,done:['draft','sent','accepted','invoiced'].indexOf(d.state)>=['draft','sent','accepted','invoiced'].indexOf(k)})):timeline).map((t,i)=><div key={i} className={cx('tl-row',t.done?'done':'pending')}><span className="dot"><i/></span><span className="tt"><b>{t.t}</b>{t.s&&<span>{t.s}</span>}</span></div>)}</div></Card>}
       </div>
       {pdcOpen&&<PdcDialog state={state} setState={setState} toast={toast} init={{kind:sale?'in':'out',partner:d.partner,doc:d.id,amount:R2(outstanding)}} close={()=>setPdcOpen(false)}/>}
@@ -2931,8 +2951,8 @@ function PrintDoc({ d, close, fta, toast }) {
     const INK = [22, 25, 29], MUTE = [98, 105, 115], SILVER = [201, 206, 212];
     const head = bi ? 136 : 118;
     /* Graphite letterhead with a brushed-silver rule, after the InvoEez chrome palette */
-    doc.setFillColor(27, 31, 37); doc.rect(0, 0, W, head, "F");
-    doc.setFillColor(42, 48, 56); doc.rect(W * 0.55, 0, W * 0.45, head, "F");
+    const AC = ACCENTS[accentOf()], S1 = hexRgb(AC.sheet[0]), S2 = hexRgb(AC.sheet[1]);
+    for (let k = 0; k < 60; k++) { const f = k / 59; doc.setFillColor(...S1.map((v, n) => Math.round(v + (S2[n] - v) * f))); doc.rect((W * k) / 60, 0, W / 60 + 0.6, head, "F"); }
     const stops = [[143, 152, 163], [242, 244, 246], [195, 201, 208], [247, 248, 249], [167, 175, 185]];
     for (let k = 0; k < 80; k++) { const t = (k / 79) * (stops.length - 1), a = Math.floor(t), b2 = Math.min(a + 1, stops.length - 1), f = t - a;
       doc.setFillColor(...stops[a].map((v, n) => Math.round(v + (stops[b2][n] - v) * f))); doc.rect((W * k) / 80, head - 3, W / 80 + 0.6, 3, "F"); }
@@ -2974,7 +2994,7 @@ function PrintDoc({ d, close, fta, toast }) {
       body: am.lines.map((l, i) => [i + 1, arLines[i] ? { content: l.desc + "\n ", styles: { minCellHeight: 34 } } : l.desc, `${l.qty}`, money(l.price, false), money(l.amount, false),
         `${l.rate}%`, money(l.taxAmt, false), money(l.amount + l.taxAmt, false)]),
       styles: { font: "helvetica", fontSize: 8.5, cellPadding: 6, lineColor: [226, 229, 233], lineWidth: 0.4, textColor: INK },
-      headStyles: { fillColor: [27, 31, 37], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7.5, valign: "top", minCellHeight: bi ? 30 : 0 },
+      headStyles: { fillColor: S1, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7.5, valign: "top", minCellHeight: bi ? 30 : 0 },
       alternateRowStyles: { fillColor: [248, 249, 250] },
       columnStyles: { 0: { cellWidth: 22 }, 2: { halign: "right" }, 3: { halign: "right" },
         4: { halign: "right" }, 5: { halign: "right" }, 6: { halign: "right" }, 7: { halign: "right", fontStyle: "bold" } },
@@ -2995,7 +3015,7 @@ function PrintDoc({ d, close, fta, toast }) {
       if (bi) pdfAr(doc, AR[k === "VAT" ? "VAT amount" : k], W - 236, y + 11, 7, "#8A9099"); doc.setTextColor(...INK); doc.text(v, W - 54, y, { align: "right" }); });
     const ly = fy + rows.length * step - 4;
     doc.setDrawColor(201, 206, 212); doc.line(W - 236, ly, W - 54, ly);
-    doc.setFillColor(27, 31, 37); doc.roundedRect(W - 244, ly + 6, 198, bi ? 32 : 26, 4, 4, "F");
+    doc.setFillColor(...S1); doc.roundedRect(W - 244, ly + 6, 198, bi ? 32 : 26, 4, 4, "F");
     doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(255, 255, 255);
     const tl = isCN ? "TOTAL CREDITED" : "TOTAL PAYABLE";
     doc.text(`${tl} AED`, W - 236, ly + 23);
@@ -5844,7 +5864,7 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
   );
 }
 
-function SettingsScreen({ company, setCompany, theme, setTheme, density, setDensity, backup, restore, reset, startCompany, go, toast, books, state, fta, setFta, setCosting, setSettings }) {
+function SettingsScreen({ accent, setAccent, company, setCompany, theme, setTheme, density, setDensity, backup, restore, reset, startCompany, go, toast, books, state, fta, setFta, setCosting, setSettings }) {
   const [d, setD] = useState(company);
   const dirty = JSON.stringify(d) !== JSON.stringify(company);
   const f = (k) => ({ value: d[k] || "", onChange: (e) => setD({ ...d, [k]: e.target.value }) });
@@ -6031,6 +6051,10 @@ function SettingsScreen({ company, setCompany, theme, setTheme, density, setDens
 
           <Card title="Appearance" pad={false}>
             <div className="setsec">
+              <div className="setrow" style={{ display: "block" }}><div className="st"><b>Colour theme</b><span>Sidebar, buttons, highlights and the invoice letterhead follow it</span></div>
+                <div className="accent-picks" style={{ marginTop: 10 }}>{Object.entries(ACCENTS).map(([k, a]) => (
+                  <button key={k} className={cx("accent-pick", accent === k && "on")} onClick={() => { setAccent(k); toast(`${a.name} colour theme`); }} aria-pressed={accent === k}>
+                    <span className="sw">{a.sw.map((c) => <i key={c} style={{ background: c }} />)}</span><b>{a.name}</b><span>{a.note}</span></button>))}</div></div>
               <div className="setrow"><div className="st"><b>Theme</b><span>Follows your system on first run</span></div>
                 <div className="seg">{[["light", "Light"], ["dark", "Dark"]].map(([k, l]) => (
                   <button key={k} className={cx(theme === k && "on")} onClick={() => setTheme(k)}>{l}</button>))}</div></div>
@@ -6181,6 +6205,8 @@ function Invoeez() {
   const [density, setDensity] = useState(() => {
     try { return window.localStorage.getItem(DENSITY_KEY) === "compact" ? "compact" : "comfortable"; } catch (e) { return "comfortable"; }
   });
+  const [accent, setAccent] = useState(() => { try { const a = window.localStorage.getItem(ACCENT_KEY); return ACCENTS[a] ? a : "ocean"; } catch (e) { return "ocean"; } });
+  React.useEffect(() => { try { window.localStorage.setItem(ACCENT_KEY, accent); document.documentElement.setAttribute("data-mz-accent", accent); } catch (e) {} }, [accent]);
   const [theme, setTheme] = useState(() => {
     try {
       const t = window.localStorage.getItem(THEME_KEY);
@@ -6193,7 +6219,7 @@ function Invoeez() {
   useMemo(() => syncProducts(state.products || [], state.categories || DEFAULT_CATEGORIES), [state.products, state.categories]);
   useMemo(() => syncMethods(state.methods || []), [state.methods]);
   const books = useMemo(() => deriveBooks(state), [state]);
-  const palette = PALETTE[theme];
+  const palette = { ...PALETTE[theme], c1: ACCENTS[accent][theme === "dark" ? "c1d" : "c1"], c2: ACCENTS[accent][theme === "dark" ? "c2d" : "c2"] };
 
   React.useEffect(() => {
     try { window.localStorage.setItem(THEME_KEY, theme); } catch (e) {}
@@ -6345,7 +6371,7 @@ function Invoeez() {
       case "fta": return <FtaScreen state={state} setState={setState} books={books} company={company} fta={fta} setFta={setFta}
         p={period} setP={setPeriod} toast={toast} go={go} />;
       case "users": return <UsersScreen create={cr("users")} state={state} setState={setState} me={me} setMe={setMe} toast={toast} />;
-      case "settings": return <SettingsScreen setCosting={(k) => setState((x) => ({ ...x, costing: k }))} setSettings={(patch) => setState((x) => ({ ...x, settings: { ...(x.settings || {}), ...patch } }))} fta={fta} setFta={setFta} company={company} setCompany={setCompany} theme={theme} setTheme={setTheme}
+      case "settings": return <SettingsScreen accent={accent} setAccent={setAccent} setCosting={(k) => setState((x) => ({ ...x, costing: k }))} setSettings={(patch) => setState((x) => ({ ...x, settings: { ...(x.settings || {}), ...patch } }))} fta={fta} setFta={setFta} company={company} setCompany={setCompany} theme={theme} setTheme={setTheme}
         density={density} setDensity={setDensity} backup={backup} restore={restore} reset={reset} startCompany={startCompany} go={go}
         toast={toast} books={books} state={state} />;
       case "r_tb": return <TrialBalance books={books} p={period} setP={setPeriod} toast={toast} />;
@@ -6366,7 +6392,7 @@ function Invoeez() {
   return (
     <ThemeCtx.Provider value={palette}>
     <CompanyCtx.Provider value={company}>
-    <div className="mz" data-theme={theme} data-density={density} style={{ height: "100vh" }}>
+    <div className="mz" data-theme={theme} data-accent={accent} data-density={density} style={{ height: "100vh" }}>
       <style>{CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS}</style>
       {starting && <StartCompanyDialog state={state} company={company} backup={backup} close={() => setStarting(false)} onDone={companyStarted} />}
       {cmdk && <CommandPalette items={cmdItems} close={() => setCmdk(false)} run={(i) => i.act()} />}

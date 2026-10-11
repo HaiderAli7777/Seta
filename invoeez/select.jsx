@@ -24,6 +24,7 @@ function Select({ children, value, onChange, disabled, className, style, id, tit
   const opts = selectOptions(children);
   const [open, setOpen] = useState(false), [q, setQ] = useState(""), [act, setAct] = useState(0), [pos, setPos] = useState(null);
   const btn = React.useRef(null), pop = React.useRef(null), list = React.useRef(null), typed = React.useRef({ s: "", t: 0 });
+  const moved = React.useRef(null);
   const cur = String(value == null ? "" : value);
   const selected = opts.find((o) => o.value === cur);
   const shown = selected || (cur === "" ? opts.find((o) => o.value === "") : null) || (cur === "" ? null : opts[0]);
@@ -53,7 +54,8 @@ function Select({ children, value, onChange, disabled, className, style, id, tit
     return () => { document.removeEventListener("pointerdown", away); window.removeEventListener("resize", place); document.removeEventListener("scroll", move, true); };
   }, [open]);
   React.useEffect(() => { if (open) list.current?.querySelector('[data-act="1"]')?.scrollIntoView({ block: "nearest" }); }, [act, open]);
-  React.useEffect(() => { setAct(0); }, [q]);
+  React.useEffect(() => { setAct(0); moved.current = null; }, [q]);
+  React.useEffect(() => { if (!open) moved.current = null; }, [open]);
   const step = (d) => { if (!found.length) return; let i = act; for (let n = 0; n < found.length; n++) { i = (i + d + found.length) % found.length; if (!found[i].disabled) break; } setAct(i); };
   const ahead = (k) => {
     const now = Date.now(); typed.current = { s: (now - typed.current.t < 700 ? typed.current.s : "") + k.toLowerCase(), t: now };
@@ -71,7 +73,7 @@ function Select({ children, value, onChange, disabled, className, style, id, tit
     else if (e.key === "ArrowUp") { e.preventDefault(); step(-1); }
     else if (e.key === "Home") { e.preventDefault(); setAct(0); }
     else if (e.key === "End") { e.preventDefault(); setAct(found.length - 1); }
-    else if (e.key === "Enter") { e.preventDefault(); choose(found[act]); }
+    else if (e.key === "Enter") { e.preventDefault(); choose(found[act] || found[0]); }
     else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setOpen(false); setQ(""); btn.current && btn.current.focus(); }
     else if (e.key === "Tab") { setOpen(false); setQ(""); }
     else if (!searchable && e.key.length === 1 && /\S/.test(e.key)) { const o = ahead(e.key); if (o) setAct(found.indexOf(o)); }
@@ -99,7 +101,7 @@ function Select({ children, value, onChange, disabled, className, style, id, tit
             return <React.Fragment key={o.value + "|" + i}>{head}
               <div id={rid + "-" + i} role="option" aria-selected={on} aria-disabled={o.disabled || undefined} data-act={i === act ? "1" : undefined}
                 className={cx("sel-o", on && "on", i === act && "act", o.disabled && "dis", isNew && "new", o.value === "" && "none")}
-                onPointerEnter={() => setAct(i)} onPointerDown={(e) => e.preventDefault()} onClick={() => choose(o)}>
+                onPointerMove={(e) => { const at = e.clientX + "," + e.clientY; if (moved.current !== null && moved.current !== at) setAct(i); moved.current = at; }} onPointerDown={(e) => e.preventDefault()} onClick={() => choose(o)}>
                 {isNew ? <Plus size={14} strokeWidth={2.4} /> : <span className="sel-ck">{on && <Check size={14} strokeWidth={2.6} />}</span>}
                 <span className="sel-l">{isNew ? o.label.replace(/^[＋+]\s*/, "") : o.label || <i>None</i>}</span>
               </div></React.Fragment>;

@@ -49,7 +49,7 @@ const FEATURES_CSS = `
 
 /* Tax invoice, credit note and statement sheets — graphite letterhead, brushed-silver rule */
 .sheet{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.mz .sheet-crest{background:linear-gradient(118deg,#15181D 0%,#22272E 52%,#353C46 100%);color:#fff;position:relative;overflow:hidden}
+.mz .sheet-crest{background:linear-gradient(118deg,var(--sheet-1) 0%,var(--sheet-2) 100%);color:#fff;position:relative;overflow:hidden}
 .mz .sheet-crest::before{content:"";position:absolute;inset:-40% -10% auto auto;width:60%;height:180%;transform:rotate(18deg);pointer-events:none;
   background:linear-gradient(90deg,transparent,rgba(255,255,255,.06) 45%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.04) 56%,transparent)}
 .mz .sheet-crest::after{content:"";position:absolute;left:0;right:0;top:auto;bottom:0;width:auto;height:4px;border-radius:0;
@@ -72,7 +72,7 @@ const FEATURES_CSS = `
 .bi-l .ar{text-transform:none;letter-spacing:0;font-weight:500;font-size:1.08em;font-family:"Segoe UI","Geeza Pro",Tahoma,"Noto Naskh Arabic","Noto Sans Arabic",var(--sans)}
 .sheet .ar,.sheet [lang="ar"]{font-family:"Segoe UI","Geeza Pro",Tahoma,"Noto Naskh Arabic","Noto Sans Arabic",var(--sans)}
 th.n .bi-l{align-items:flex-end}
-.mz .sheet table.tbl th{background:#1B1F25;color:#fff;border-bottom:0;vertical-align:top}
+.mz .sheet table.tbl th{background:var(--sheet-1);color:#fff;border-bottom:0;vertical-align:top}
 .mz .sheet table.tbl th .ar{color:#B9BFC7}
 .mz .sheet table.tbl thead th:first-child{border-radius:8px 0 0 8px}.mz .sheet table.tbl thead th:last-child{border-radius:0 8px 8px 0}
 .mz .sheet table.tbl tbody tr:nth-child(even) td{background:#F8F9FA}
@@ -81,7 +81,7 @@ th.n .bi-l{align-items:flex-end}
 .mz .sheet-parties .nm-ar{font-size:14px;font-weight:600;color:#16191D;margin-top:2px}
 .mz .sheet .desc-ar{font-size:12.5px;color:#3E444C;margin-top:2px}
 .mz .sheet .totbox{background:#F6F7F8;border:1px solid #E2E5E9}
-.mz .sheet .totbox .grand{align-items:center;background:linear-gradient(118deg,#15181D,#2A3038);border:0;border-radius:10px;padding:12px 14px;margin:14px -8px -6px}
+.mz .sheet .totbox .grand{align-items:center;background:linear-gradient(118deg,var(--sheet-1),var(--sheet-2));border:0;border-radius:10px;padding:12px 14px;margin:14px -8px -6px}
 .mz .sheet .totbox .grand b{color:#fff}.mz .sheet .totbox .grand b small{color:#B9BFC7;font-weight:500}
 .mz .sheet .totbox .grand b span{font-family:inherit;font-size:inherit;margin-left:0;color:inherit;letter-spacing:inherit;font-weight:inherit}
 .mz .sheet .totbox .grand b .ar{color:#C9CED4;font-size:12px;font-weight:600}

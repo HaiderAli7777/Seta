@@ -1,3 +1,11 @@
+# 3.6.1 — Colour themes, folded lines, customer price history
+
+- Colour returns: four themes in Settings › Appearance › Colour theme — Ocean blue (default: midnight-navy sidebar, azure actions), Teal, Royal violet and Graphite (the 3.6 chrome monochrome). The sidebar, buttons, highlights, charts, cash card, invoice letterhead and PDF follow the chosen theme in light and dark mode. Button text meets WCAG AA contrast in every theme.
+- Invoice and bill lines: the stock and code note under each product now folds away. Only the line you are working on opens, showing stock, code and this customer's (or vendor's) price history: last price, date and quantity, how many earlier sales, a "Use" button to apply it and "History" for the full list. Posted documents stay fully folded.
+- The history window shows last, lowest, highest and average price and how much was sold, switches between this customer and all customers, and explains when only other customers have bought the product.
+- The Price history tab lists every product on the document for the selected customer straight away — no need to pick a product first.
+- Fixed: when the mouse pointer happened to rest where the customer, vendor or product list opens, pressing Enter could pick the row under the pointer instead of the one you typed. Lists now follow the mouse only when it actually moves; the same applies to every drop-down.
+
 # 3.6.0 — Chrome brand, master-style menu, PDC and smarter prices
 
 - New silver chrome InvoEez logo on the startup screen, browser tab and sidebar. The whole app moves to the logo's graphite and silver with one steel-blue accent, in light and dark mode.

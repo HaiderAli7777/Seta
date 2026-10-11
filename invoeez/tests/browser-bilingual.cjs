@@ -1,4 +1,4 @@
-/* 3.6 dual-language invoice: English + Arabic sheet and PDF (set LANG2=en for English only). Writes the PDF and a sheet screenshot to the temp folder. Run: node tests/browser-bilingual.cjs */
+/* 3.6 dual-language invoice: English + Arabic sheet and PDF (set LANG2=en for English only). Run: node tests/browser-bilingual.cjs */
 const { chromium } = require('/opt/node-tools/node_modules/playwright');const path=require('path'),fs=require('fs');
 (async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const ctx=await b.newContext({viewport:{width:1440,height:1000},acceptDownloads:true});const p=await ctx.newPage();
 const errs=[];p.on('pageerror',e=>errs.push('PAGE '+e.message));p.on('dialog',d=>d.accept());

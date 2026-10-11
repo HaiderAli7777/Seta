@@ -133,9 +133,8 @@ const CLARITY_CSS = `
 .price-ask small{flex-basis:100%;color:var(--ink-3);font-size:11.5px;padding-left:23px}
 .price-ask button{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border-radius:7px;font-size:12px;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
 .price-ask button:hover{border-color:var(--ink-4)}
-.price-ask .pa-special{background:linear-gradient(180deg,#323840,#1C2026);border-color:#15181C;color:#fff}
+.price-ask .pa-special{background:linear-gradient(180deg,var(--pri-a),var(--pri-b));border-color:var(--pri-b);color:var(--pri-txt)}
 .price-ask .pa-special svg{color:#F2C14E}
-.mz[data-theme="dark"] .price-ask .pa-special{background:linear-gradient(180deg,#F5F6F8,#CBD0D6);color:#14171B;border-color:#B9BFC6}
 .price-ask-card{width:100%;border-collapse:collapse;margin:4px 0 8px}.price-ask-card td{padding:0}
 .line-grid td.lg-pr{position:relative}
 .line-grid td.lg-pr .lg-star{position:absolute;left:3px;top:50%;transform:translateY(-50%);color:#C99A2E;fill:#F2C14E;z-index:1}
@@ -161,6 +160,30 @@ const CLARITY_CSS = `
 .lg-c{padding-top:11px!important;font-family:var(--mono);font-size:12px}
 .lg-meta{display:flex;align-items:center;gap:4px;font-size:10.5px;line-height:1.2;color:var(--ink-3);margin:1px 0 1px 4px}.lg-meta b{color:var(--pos);font-weight:600}.lg-meta b.neg{color:var(--neg)}
 .lg-hist{border:0;background:none;color:var(--ink-4);cursor:pointer;padding:0 2px;display:inline-grid}.lg-hist:hover{color:var(--brand)}
+/* Active line: folded-out stock and price history strip */
+.line-grid tr.active>td{background:var(--brand-50)}
+.line-grid tr.active>td:first-child{box-shadow:inset 3px 0 0 var(--brand)}
+.line-grid tr.active+tr.lg-info>td{background:var(--brand-50)}
+.line-grid tr.active+tr.lg-info>td:first-child{box-shadow:inset 3px 0 0 var(--brand)}
+.line-grid tr.active>td,.line-grid tr.lg-info>td{border-bottom-color:transparent}
+.line-grid tr.lg-info>td{padding:0 8px 9px!important;border-bottom:1px solid var(--line-2)}
+.line-info{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:12px;color:var(--ink-2);animation:lineinfo .16s var(--ease)}
+@keyframes lineinfo{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+.li-chip{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border-radius:20px;background:var(--surface);border:1px solid var(--line);font-size:11.5px;color:var(--ink-2)}
+.li-chip.code{font-family:var(--mono);font-size:11px}
+.li-chip.ok b{color:var(--pos)}.li-chip.warn b{color:var(--warn)}.li-chip.bad{border-color:color-mix(in srgb,var(--neg) 35%,var(--line))}.li-chip.bad b{color:var(--neg)}
+.li-hist{display:inline-flex;align-items:center;gap:6px;flex:1 1 280px;min-width:0;color:var(--ink-2)}
+.li-hist>svg{flex:0 0 auto;color:var(--brand)}
+.li-price{color:var(--brand-600)}
+.li-more{color:var(--ink-3)}
+.li-btn{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:7px;border:1px solid var(--brand-100);background:var(--surface);color:var(--brand);font-size:11.5px;font-weight:600;cursor:pointer}
+.li-btn:hover{background:var(--brand);border-color:var(--brand);color:#fff}
+.history-stats{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 12px}
+.history-stats span{padding:6px 10px;border-radius:9px;background:var(--surface-2);border:1px solid var(--line-2);font-size:12px;color:var(--ink-3)}
+.history-stats b{color:var(--ink);font-family:var(--mono);margin-left:3px}
+.history-pick{display:flex;gap:10px;align-items:center;margin-bottom:6px}.history-pick .smart-picker{flex:1}
+.history-block+.history-block{margin-top:22px;padding-top:18px;border-top:1px solid var(--line-2)}
+.link-btn{border:0;background:none;padding:0;color:var(--brand);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .lg-ro{display:block;padding-top:7px;font-family:var(--mono);font-size:12px;color:var(--ink-3)}
 .lg-x .icon-btn{width:28px;height:28px;margin-top:2px}
 .lg-add td{border-bottom:0!important;padding:8px 6px!important}.lg-add button{display:inline-flex;align-items:center;gap:6px;border:0;background:none;color:var(--brand);font-weight:600;font-size:13px;cursor:pointer;padding:4px 2px}

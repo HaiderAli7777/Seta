@@ -130,12 +130,10 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
 }
 
 const SIDEBAR_CSS = `
-.sbar{--sb-w:272px;--sb-txt:#C3C9D1;--sb-dim:#8C949E;--sb-hi:#FFFFFF;--sb-line:rgba(255,255,255,.08);--sb-hover:rgba(255,255,255,.06);
-  --sb-on:rgba(141,179,245,.14);--sb-acc:#8DB3F5;--sb-tree:rgba(255,255,255,.12);
+.sbar{--sb-w:272px;--sb-hi:#FFFFFF;
   width:var(--sb-w);flex:0 0 var(--sb-w);display:flex;flex-direction:column;position:relative;z-index:30;
-  background:linear-gradient(180deg,#1D2127 0%,#16191E 46%,#121418 100%);color:var(--sb-txt);
+  background:linear-gradient(180deg,var(--sb-1) 0%,var(--sb-2) 46%,var(--sb-3) 100%);color:var(--sb-txt);
   box-shadow:inset -1px 0 0 rgba(255,255,255,.06),1px 0 0 rgba(0,0,0,.25);transition:width .22s var(--ease),flex-basis .22s var(--ease)}
-.mz[data-theme="dark"] .sbar{background:linear-gradient(180deg,#15181C 0%,#101215 50%,#0C0E10 100%)}
 .sbar::before{content:"";position:absolute;inset:0 0 auto 0;height:180px;pointer-events:none;
   background:radial-gradient(260px 120px at 30% 0%,rgba(255,255,255,.07),transparent 70%)}
 .sb-brand{position:relative;padding:20px 20px 14px;display:flex;align-items:center}
@@ -154,7 +152,7 @@ const SIDEBAR_CSS = `
 .sb-co .t span.ar{font-family:var(--sans);font-size:12px}
 .sb-search{margin:0 14px 4px;display:flex;align-items:center;gap:8px;height:38px;padding:0 10px 0 12px;border-radius:10px;
   background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.10);color:var(--sb-dim);transition:border-color .15s,box-shadow .15s}
-.sb-search:focus-within{border-color:rgba(141,179,245,.6);box-shadow:0 0 0 3px rgba(141,179,245,.16)}
+.sb-search:focus-within{border-color:var(--sb-acc);box-shadow:0 0 0 3px var(--sb-on)}
 .sb-search input{flex:1;min-width:0;background:none;border:0;outline:0;color:#fff;font-size:13px}
 .sb-search input::placeholder{color:#7D858F}
 .sb-search .x{display:grid;place-items:center;width:20px;height:20px;border-radius:6px;color:var(--sb-dim)}
@@ -175,13 +173,13 @@ const SIDEBAR_CSS = `
 .sb-sec.has-on>.sb-head .ic{color:var(--sb-acc)}
 .sb-sec.has-on>.sb-head::before,.sb-head.on::before{content:"";position:absolute;left:-10px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;
   background:linear-gradient(180deg,#F1F3F5,var(--sb-acc))}
-.sb-head.on{background:linear-gradient(90deg,rgba(141,179,245,.20),rgba(141,179,245,.06));color:#fff}
+.sb-head.on{background:linear-gradient(90deg,var(--sb-on),transparent);color:#fff}
 .sb-head.on .ic{color:var(--sb-acc)}
 .sb-tree{position:relative;margin:0 0 6px 21px;padding-left:12px;border-left:1px solid var(--sb-tree)}
 .sb-tree.inner{margin:0 0 4px 9px}
 .sb-row,.sb-fly-row{position:relative;display:flex;align-items:center;gap:4px;border-radius:8px;transition:background .14s}
 .sb-row:hover,.sb-fly-row:hover{background:var(--sb-hover)}
-.sb-link{flex:1;min-width:0;display:flex;align-items:center;gap:9px;height:32px;padding:0 6px 0 4px;color:#AEB5BE;font-size:13px;text-align:left;
+.sb-link{flex:1;min-width:0;display:flex;align-items:center;gap:9px;height:32px;padding:0 6px 0 4px;color:var(--sb-txt);font-size:13px;text-align:left;
   border-radius:8px;transition:color .14s}
 .sb-row:hover .sb-link,.sb-fly-row:hover .sb-link{color:#fff}
 .sb-link .lbl{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -189,10 +187,11 @@ const SIDEBAR_CSS = `
 .sb-tick::after{content:"";position:absolute;right:-3px;top:-2px;width:5px;height:5px;border-radius:50%;background:#565E68;transition:background .14s,box-shadow .14s}
 .sb-row.on{background:var(--sb-on)}
 .sb-row.on .sb-link{color:#fff;font-weight:600}
+.sb-row.on{box-shadow:inset 2px 0 0 var(--sb-acc)}
 .sb-row.on .sb-tick{background:var(--sb-acc)}
-.sb-row.on .sb-tick::after{background:var(--sb-acc);box-shadow:0 0 0 3px rgba(141,179,245,.22)}
+.sb-row.on .sb-tick::after{background:var(--sb-acc);box-shadow:0 0 0 3px var(--sb-on)}
 .sb-link .ct{font-family:var(--mono);font-size:10.5px;color:#C3C9D1;background:rgba(255,255,255,.08);padding:1px 7px;border-radius:20px}
-.sb-row.on .ct{background:rgba(141,179,245,.25);color:#fff}
+.sb-row.on .ct{background:var(--sb-acc);color:var(--sb-3)}
 .sb-add{flex:0 0 24px;width:24px;height:24px;margin-right:4px;display:grid;place-items:center;border-radius:7px;color:#9AA2AC;
   border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.03);transition:background .14s,color .14s,border-color .14s,transform .14s}
 .sb-add:hover{background:linear-gradient(180deg,#F4F6F8,#C3C9D1);border-color:#fff;color:#16191D;transform:scale(1.05)}
@@ -223,10 +222,10 @@ const SIDEBAR_CSS = `
 .sbar.rail .sb-scroll{padding:10px 10px}
 .sbar.rail .sb-head{justify-content:center;padding:0;height:44px}
 .sbar.rail .sb-head .ic{width:auto}
-.sbar.rail .sb-sec.has-on>.sb-head{background:rgba(141,179,245,.14)}
+.sbar.rail .sb-sec.has-on>.sb-head{background:var(--sb-on)}
 .sbar.rail .sb-foot{flex-direction:column;padding:12px 0}
 .sb-fly{position:fixed;z-index:1200;min-width:248px;max-width:300px;max-height:calc(100vh - 24px);overflow:auto;padding:8px;border-radius:14px;
-  background:linear-gradient(180deg,#22262C,#191C21);border:1px solid rgba(255,255,255,.10);
+  background:linear-gradient(180deg,var(--sb-1),var(--sb-2));border:1px solid rgba(255,255,255,.12);
   box-shadow:0 22px 50px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06);color:#C3C9D1;animation:sbfly .14s var(--ease)}
 @keyframes sbfly{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:none}}
 .sb-fly-h{display:flex;align-items:center;gap:8px;padding:6px 8px 9px;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,.08);color:#fff;font-size:12.5px;font-weight:600}

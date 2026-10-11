@@ -158,8 +158,8 @@ const books = (p) => p.evaluate(() => JSON.parse(localStorage.getItem('mizan.boo
         ['brand on surface', 'var(--brand)', 'var(--surface)'], ['pos on surface', 'var(--pos)', 'var(--surface)'], ['neg on surface', 'var(--neg)', 'var(--surface)'], ['brand on brand-50', 'var(--brand)', 'var(--brand-50)']]) {
         const [f, bgc] = probe(fg, bg); out[theme + ': ' + n] = Math.round(ratio(f, bgc) * 10) / 10; }
     }
-    const nav = getComputedStyle(document.querySelector('.sbar .sb-link')).color; out['nav text on sidebar'] = Math.round(ratio(nav, 'rgb(29,33,39)') * 10) / 10;
-    const btn = document.querySelector('.btn.pri'); document.querySelector('.mz').setAttribute('data-theme', 'light'); out['button text on button'] = Math.round(ratio(getComputedStyle(btn).color, 'rgb(50,56,64)') * 10) / 10;
+    const nav = getComputedStyle(document.querySelector('.sbar .sb-link')).color; out['nav text on sidebar'] = Math.round(ratio(nav, 'rgb(21,35,63)') * 10) / 10;
+    const btn = document.querySelector('.btn.pri'); document.querySelector('.mz').setAttribute('data-theme', 'light'); out['button text on button'] = Math.round(ratio(getComputedStyle(btn).color, 'rgb(35,112,240)') * 10) / 10;
     return out;
   });
   const low = Object.entries(contrast).filter(([, v]) => v < 4.5);
