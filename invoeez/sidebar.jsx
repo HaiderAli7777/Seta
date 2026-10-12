@@ -29,7 +29,7 @@ function navFlat() {
   return out;
 }
 
-function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini, setMini, drawer, company, meUser, role, canAdd }) {
+function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini, setMini, drawer, company, meUser, role, canAdd, onSwitchUser, onSignOut }) {
   const tablet = useMedia("(min-width:901px) and (max-width:1024px)");
   const rail = (mini || tablet) && !drawer;
   const [q, setQ] = useState("");
@@ -114,8 +114,10 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
           {g.items.map((x) => x.s ? <div key={x.s} className="sb-fly-grp"><div className="sb-fly-s">{x.s}</div>{x.items.map(flyItem)}</div> : flyItem(x))}
         </div>; })(), document.querySelector(".mz") || document.body)}
       <div className="sb-foot">
-        <span className="av">{initials(meUser.name)}</span>
-        <span className="who"><b>{meUser.name}</b><span>{role.label} · v{BUILD}</span></span>
+        <button className="who-btn" onClick={onSwitchUser} title="Switch user" aria-label={`Signed in as ${meUser.name}. Switch user`}>
+          <span className="av">{initials(meUser.name)}</span>
+          <span className="who"><b>{meUser.name}</b><span>{role.label} · v{BUILD}</span></span></button>
+        {!mini && <button className="signout" onClick={onSignOut} title="Sign out" aria-label="Sign out"><LogOut size={15} /></button>}
         <button className="collapse" onClick={() => setMini((v) => !v)} title={mini ? "Expand sidebar" : "Collapse sidebar"} aria-label={mini ? "Expand sidebar" : "Collapse sidebar"}>
           {mini ? <ChevronsRight size={15} /> : <ChevronsLeft size={15} />}</button>
       </div>

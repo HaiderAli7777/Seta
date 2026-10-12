@@ -1,3 +1,13 @@
+# 3.8.2 — Sign in, sign out, switch user and PINs
+
+- **Sign-in screen**: when a company has more than one user (or its only user has a PIN), InvoEez opens on a sign-in screen listing the active users with their roles. A company with a single user and no PIN still opens straight away.
+- **Sign out** from the account menu (top right), the Switch user window or the icon at the foot of the sidebar.
+- **Switch user** for every role from the account menu or by clicking your name at the foot of the sidebar. Previously, after "Sign in as" a Sales or Viewer user there was no way back to the administrator.
+- **Optional 4–6 digit PIN** per user (Users & access › edit user). It is asked when someone signs in or switches to that user; it is stored only as a hash. Setting a PIN for the Administrator keeps administrator access to yourself on a shared computer.
+- **Several tabs at once**: each browser tab keeps its own signed-in user, and a change saved in one tab now appears in the other tabs straight away ("Updated with changes made in another window"). Before, two open tabs could overwrite each other's work.
+- A user who is suspended or removed is signed out instead of silently becoming the administrator.
+- The Administrator can be edited without an email address (email is optional, still checked when entered).
+
 # 3.8.1 — Compare with an earlier period in financial reports
 
 - New **Compare** button beside the date range on the Profit & loss, Balance sheet and Profit by product / customer reports. Choices: Previous period, Same period last year, Custom period (any dates) or Don't compare. Each choice shows the exact dates before you pick it, and the choice is remembered.

@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.8.1";
+const BUILD = "3.8.2";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -5753,9 +5753,14 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
   const list = users.filter((u) => hits(q, u.name, u.email, ROLES[u.role].label));
   const blank = () => ({ id: uid("u"), name: "", email: "", role: "sales", active: true });
   const isNew = ed && !users.some((u) => u.id === ed.id);
-  const valid = ed && ed.name.trim().length > 1 && /.+@.+\..+/.test(ed.email.trim());
-  const save = () => {
+  const valid = ed && ed.name.trim().length > 1 && (!ed.email.trim() || /.+@.+\..+/.test(ed.email.trim()));
+  const pinBad = ed && ed.newPin && !pinOk(ed.newPin);
+  const save = async () => {
+    if (pinBad) return;
     const rec = { ...ed, name: ed.name.trim(), email: ed.email.trim() };
+    if (ed.newPin) rec.pinHash = await pinHash(rec.id, ed.newPin);
+    if (ed.clearPin) delete rec.pinHash;
+    delete rec.newPin; delete rec.clearPin;
     setState((x) => { const l = x.users || SEED_USERS;
       return { ...x, users: l.some((u) => u.id === rec.id) ? l.map((u) => (u.id === rec.id ? rec : u)) : [...l, rec] }; });
     toast(`${rec.name} saved as ${ROLES[rec.role].label}`); setEd(null);
@@ -5774,7 +5779,7 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
   return (
     <div>
       <PageHead eyebrow="Configuration" title="Users &amp; access rights"
-        sub="Roles decide what each person can reach. Sign in as any of them to see the effect immediately.">
+        sub="Roles decide what each person can reach. Sign in as any of them to see the effect; anyone can switch back from the account menu › Switch user.">
         <Btn kind="pri" icon={Plus} onClick={() => setEd(blank())}>New user</Btn>
       </PageHead>
 
@@ -5783,17 +5788,23 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
           sub="Pick the role that matches what this person actually does day to day"
           style={{ marginBottom: 16 }}
           right={<><Btn onClick={() => setEd(null)}>Cancel</Btn>
-            <Btn kind="pri" icon={Check} disabled={!valid} onClick={save}>{isNew ? "Create user" : "Save changes"}</Btn></>}>
+            <Btn kind="pri" icon={Check} disabled={!valid || pinBad} onClick={save}>{isNew ? "Create user" : "Save changes"}</Btn></>}>
           <div className="setgrid" style={{ marginBottom: 18 }}>
             <Field label="Full name"><Input value={ed.name} placeholder="Aisha Khan"
               onChange={(e) => setEd({ ...ed, name: e.target.value })} /></Field>
-            <Field label="Work email"><Input value={ed.email} placeholder="aisha@company.ae"
+            <Field label="Work email (optional)"><Input value={ed.email} placeholder="aisha@company.ae"
               onChange={(e) => setEd({ ...ed, email: e.target.value })} />
               {ed.email && !/.+@.+\..+/.test(ed.email) &&
                 <div style={{ fontSize: 11.5, color: "var(--neg)", marginTop: 5 }}>That is not a valid email</div>}</Field>
             <Field label="Status">
               <Select value={ed.active ? "y" : "n"} onChange={(e) => setEd({ ...ed, active: e.target.value === "y" })}>
                 <option value="y">Active</option><option value="n">Suspended</option></Select></Field>
+            <Field label={ed.pinHash && !ed.clearPin ? "Sign-in PIN · set (type to change)" : "Sign-in PIN (optional)"}>
+              <Input type="password" inputMode="numeric" autoComplete="new-password" maxLength={6} value={ed.newPin || ""} placeholder="4–6 digits"
+                onChange={(e) => setEd({ ...ed, newPin: e.target.value.replace(/\D/g, ""), clearPin: false })} />
+              {pinBad ? <div style={{ fontSize: 11.5, color: "var(--neg)", marginTop: 5 }}>Use 4 to 6 digits</div>
+                : ed.pinHash && !ed.clearPin ? <button className="linkish" style={{ fontSize: 11.5, marginTop: 5 }} onClick={() => setEd({ ...ed, clearPin: true, newPin: "" })}>Remove PIN</button>
+                : <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 5 }}>Asked when someone switches to this user</div>}</Field>
           </div>
           <div className="micro" style={{ marginBottom: 11 }}>Role</div>
           <div className="picks" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", marginBottom: 16 }}>
@@ -5823,7 +5834,7 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
                 <tr key={u.id} style={u.active ? undefined : { opacity: .55 }}>
                   <td><Party name={u.name} meta={u.id === me ? "Signed in as this user" : ""} /></td>
                   <td className="muted">{u.email}</td>
-                  <td><Pill tone={u.role === "admin" ? "gold" : u.role === "viewer" ? "" : "info"}>{ROLES[u.role].label}</Pill></td>
+                  <td><Pill tone={u.role === "admin" ? "gold" : u.role === "viewer" ? "" : "info"}>{ROLES[u.role].label}</Pill>{u.pinHash && <span className="su-lock" style={{ marginLeft: 6 }} title="Switching to this user asks for a PIN"><Lock size={12} />PIN</span>}</td>
                   <td><Pill tone={u.active ? "ok" : "bad"} dot>{u.active ? "Active" : "Suspended"}</Pill></td>
                   <td className="n">{ROLES[u.role].perms.length} of {PERMS.length}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
@@ -6186,9 +6197,8 @@ function Invoeez() {
   const [starting, setStarting] = useState(false);
   const [bannerHidden, setBannerHidden] = useState(false);
   const newRef = React.useRef(null);
-  const [me, setMe] = useState(() => {
-    try { return window.localStorage.getItem(ME_KEY) || "u1"; } catch (e) { return "u1"; }
-  });
+  const [me, setMe] = useState(() => initialMe(state.users || SEED_USERS));
+  const [switching, setSwitching] = useState(false);
   const [closed, setClosed] = useState(() => {
     try { const c = window.localStorage.getItem(NAVGRP_KEY); if (c) return JSON.parse(c); } catch (e) {}
     return { "Master": true, "Inventory master": true, "Rate master": true, "Other master": true, "Banking": true, "Accounting trans.": true,
@@ -6197,7 +6207,7 @@ function Invoeez() {
   React.useEffect(() => {
     try { window.localStorage.setItem(NAVGRP_KEY, JSON.stringify(closed)); } catch (e) {}
   }, [closed]);
-  React.useEffect(() => { try { window.localStorage.setItem(ME_KEY, me); } catch (e) {} }, [me]);
+  React.useEffect(() => { writeMe(me); }, [me]);
   const [company, setCompany] = useState(() => {
     try { const c = window.localStorage.getItem(CO_KEY); if (c) { const v = JSON.parse(c);
       if (v && v.name !== "Zenith General Trading L.L.C.") return { ...COMPANY, ...v }; } } catch (e) {}
@@ -6240,9 +6250,23 @@ function Invoeez() {
     try { window.localStorage.setItem(FTA_KEY, JSON.stringify(fta)); } catch (e) {}
   }, [fta]);
 
+  /* Save the books, and keep every open tab in step: a change saved in one tab is loaded by the others. */
+  const lastSaved = React.useRef(null);
   React.useEffect(() => {
-    try { window.localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
+    const j = JSON.stringify(state); if (j === lastSaved.current) return; lastSaved.current = j;
+    try { window.localStorage.setItem(STORE_KEY, j); } catch (e) {}
   }, [state]);
+  React.useEffect(() => {
+    const h = (e) => {
+      if (e.key === STORE_KEY && e.newValue && e.newValue !== lastSaved.current) {
+        try { const p = JSON.parse(e.newValue); if (p && Array.isArray(p.docs) && Array.isArray(p.payments)) { lastSaved.current = e.newValue; setState(p); toast("Updated with changes made in another window"); } } catch (x) {}
+      } else if (e.key === CO_KEY && e.newValue) {
+        try { const v = JSON.parse(e.newValue); if (v && v.name) setCompany((c) => (JSON.stringify(c) === e.newValue ? c : { ...COMPANY, ...v })); } catch (x) {}
+      }
+    };
+    window.addEventListener("storage", h);
+    return () => window.removeEventListener("storage", h);
+  }, []);
   React.useEffect(() => {
     const h = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setCmdk((v) => !v); }
@@ -6305,8 +6329,10 @@ function Invoeez() {
     pdc: (state.pdcs || []).filter(pdcOpen).length,
   };
   const users = state.users || SEED_USERS;
-  const meUser = users.find((u) => u.id === me) || users[0] || SEED_USERS[0];
-  const role = ROLES[meUser.role] || ROLES.admin;
+  const meFound = users.find((u) => u.id === me && u.active);
+  const meUser = meFound || { id: null, name: "", role: "viewer" };
+  const role = ROLES[meUser.role] || ROLES.viewer;
+  const signOut = () => { setSwitching(false); setMenu(false); setMe(null); setView("dash"); };
   const can = (p) => role.perms.indexOf(p) >= 0;
   const allowed = (k) => !SCREEN_PERM[k] || can(SCREEN_PERM[k]);
   React.useEffect(() => { if (!allowed(view)) setView("dash"); }, [me, view]);
@@ -6394,11 +6420,24 @@ function Invoeez() {
     }
   };
 
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS;
+  /* Nobody signed in in this tab: show the sign-in screen. */
+  if (!meFound) return (
+    <ThemeCtx.Provider value={palette}>
+    <CompanyCtx.Provider value={company}>
+    <div className="mz" data-theme={theme} data-accent={accent} data-density={density}>
+      <style>{ALL_CSS}</style>
+      <Toasts items={toasts} />
+      <SignInScreen users={users} company={company} theme={theme} toggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
+        onSignIn={(id) => { setMe(id); setView("dash"); const u = users.find((x) => x.id === id); toast(`Welcome, ${u ? u.name.split(" ")[0] : ""}`); }} />
+    </div>
+    </CompanyCtx.Provider>
+    </ThemeCtx.Provider>);
   return (
     <ThemeCtx.Provider value={palette}>
     <CompanyCtx.Provider value={company}>
     <div className="mz" data-theme={theme} data-accent={accent} data-density={density} style={{ height: "100vh" }}>
-      <style>{CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS}</style>
+      <style>{ALL_CSS}</style>
       {starting && <StartCompanyDialog state={state} company={company} backup={backup} close={() => setStarting(false)} onDone={companyStarted} />}
       {cmdk && <CommandPalette items={cmdItems} close={() => setCmdk(false)} run={(i) => i.act()} />}
       <Toasts items={toasts} />
@@ -6407,7 +6446,9 @@ function Invoeez() {
         onClick={() => setDrawer(false)} role="presentation" />}
       <Sidebar view={view} go={go} quickAdd={quickAdd} allowed={allowed} counts={counts} closed={closed} setClosed={setClosed}
         mini={mini} setMini={setMini} drawer={drawer} company={company} meUser={meUser} role={role}
-        canAdd={(k) => allowed(k)} />
+        canAdd={(k) => allowed(k)} onSwitchUser={() => setSwitching(true)} onSignOut={signOut} />
+      {switching && <SwitchUserDialog users={users} me={me} isAdmin={can("settings")} go={go} close={() => setSwitching(false)} onSignOut={signOut}
+        onSwitch={(id) => { setMe(id); setSwitching(false); const u = users.find((x) => x.id === id); toast(`Signed in as ${u ? u.name : "user"}`); }} />}
 
       <div className="main">
         <div className="topbar">
@@ -6489,6 +6530,10 @@ function Invoeez() {
             <div className="pop">
               <div className="pop-head"><b>{meUser.name}</b>
                 <span>{role.label} · build {BUILD}</span></div>
+              <button className="pop-item" onClick={() => { setMenu(false); setSwitching(true); }}>
+                <ArrowLeftRight size={15} strokeWidth={1.8} />Switch user</button>
+              <button className="pop-item" onClick={signOut}>
+                <LogOut size={15} strokeWidth={1.8} />Sign out</button>
               {can("settings") && <button className="pop-item" onClick={() => { setMenu(false); go("users"); }}>
                 <Users size={15} strokeWidth={1.8} />Users &amp; access</button>}
               <button className="pop-item" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>

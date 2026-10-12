@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.8.1)
+# InvoEez — Invoice Made Easy (3.8.2)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -74,6 +74,10 @@ Company profile, theme, user selection and connection settings use their existin
 | Scrap | Record damaged quantities with a reason. Scrap reduces stock at carrying cost and charges the category adjustment account. Quantities cannot exceed on-hand stock. |
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
+
+## Users, sign-in and testing several users (3.8.2)
+
+Add people in **Users & access** with a role (Administrator, Accountant, Sales, Purchase clerk, Viewer) and, optionally, a 4–6 digit PIN. With more than one user the app opens on a sign-in screen; **Sign out** and **Switch user** are in the account menu and at the foot of the sidebar. Each browser tab keeps its own user and the tabs stay in step, so two roles can be tested side by side in two tabs of the same browser. Different browsers, Chrome profiles, Incognito windows and other computers each keep their own separate books — sharing one set of books between computers needs the server database. The PIN keeps colleagues in their own role on a shared computer; it is not protection against someone who can read the browser's stored data.
 
 ## Comparing periods (3.8.1)
 
@@ -164,6 +168,7 @@ npm test
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
 | `dashboard.jsx` | New overview dashboard. |
+| `users.jsx` | 3.8.2 sign-in screen, sign out, switch user, PINs and the signed-in user per tab. |
 | `compare.jsx` | 3.8.1 report comparison: Compare control, period rules, comparative P&L / balance sheet tables and change charts. |
 | `dash.jsx` | 3.8 animated dashboard: banner, count-up figures, fast/slow-moving items, top customers and motion styles. |
 | `reports.jsx` | 3.7 report design system: KPI tiles, column/line charts, bars, meters and report visuals. |
@@ -172,6 +177,7 @@ npm test
 | `shell.html` | Original standalone shell and bundled libraries/fonts. |
 | `build.mjs` | Reproducible JSX compilation and standalone packaging. |
 | `tests/engine.cjs` | Executable accounting, pricing, migration and inventory regression checks. |
+| `tests/browser-users.cjs` | 3.8.2 checks: roles, PINs, sign out / sign in, switch user, two tabs in step. |
 | `tests/browser-compare.cjs` | 3.8.1 comparison checks: period rules, comparative tables add up, notes, custom dates, balance sheet, exports. |
 | `tests/browser-dashboard.cjs` | 3.8 dashboard checks: cards, rankings, count-up, motion, reduced motion, drill-downs. |
 | `templates/` | Excel import templates for products and for customers & vendors (also downloadable inside the app). |
