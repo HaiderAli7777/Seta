@@ -1,9 +1,9 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{transformSync}=require('esbuild'),path=require('node:path');
 const root=path.join(__dirname,'..');
-const source=['invoeez-source.jsx','enhancements-data.jsx','company-template.jsx','enhancements-ui.jsx','dashboard.jsx','design.jsx','onboarding.jsx','brand-assets.jsx','brand.jsx','clarity.jsx','sidebar.jsx','select.jsx','features.jsx','pdc.jsx','reports.jsx','dash.jsx'].concat(['tests/sample-fixture.jsx']).map(f=>fs.readFileSync(path.join(root,f),'utf8')).join('\n');
+const source=['invoeez-source.jsx','enhancements-data.jsx','company-template.jsx','enhancements-ui.jsx','dashboard.jsx','design.jsx','onboarding.jsx','brand-assets.jsx','brand.jsx','clarity.jsx','sidebar.jsx','select.jsx','features.jsx','pdc.jsx','reports.jsx','dash.jsx','compare.jsx'].concat(['tests/sample-fixture.jsx']).map(f=>fs.readFileSync(path.join(root,f),'utf8')).join('\n');
 const icons=[...fs.readFileSync(path.join(root,'runtime-prefix.js'),'utf8').matchAll(/var ([A-Z]\w+) = __mk/g)].map(m=>m[1]);
 const ctx={console,Intl,Date,Math,Number,crypto:require('node:crypto').webcrypto,React:{createContext:v=>v},window:{},setTimeout};icons.forEach(n=>ctx[n]=()=>null);vm.createContext(ctx);
-vm.runInContext(transformSync(source,{loader:'jsx',target:'es2020'}).code+`\n globalThis.api={aging,buildSampleBooks,freshBooks,LEGACY_PARTNERS,LEGACY_PRODUCTS,TEMPLATE_ACCOUNTS,TEMPLATE_CATEGORIES,TEMPLATE_EXPENSE_ITEMS,DEMO,migrateBooks,deriveBooks,syncProducts,syncPartners,syncAccounts,syncMethods,pricingFor,productHistory,freezeAccounts,amounts,searchScore,cashMovement,validateStockOperation,PRODUCTS_SEED,DEFAULT_CATEGORIES,TODAY,learnPurchasePrices,nextProductCode,autoCodes,currentCost,PRODUCTS,syncProducts,pdcStatus,pdcEntries,partySpecial,stockMovement,inRange};`,ctx);
+vm.runInContext(transformSync(source,{loader:'jsx',target:'es2020'}).code+`\n globalThis.api={aging,buildSampleBooks,freshBooks,LEGACY_PARTNERS,LEGACY_PRODUCTS,TEMPLATE_ACCOUNTS,TEMPLATE_CATEGORIES,TEMPLATE_EXPENSE_ITEMS,DEMO,migrateBooks,deriveBooks,syncProducts,syncPartners,syncAccounts,syncMethods,pricingFor,productHistory,freezeAccounts,amounts,searchScore,cashMovement,validateStockOperation,PRODUCTS_SEED,DEFAULT_CATEGORIES,TODAY,learnPurchasePrices,nextProductCode,autoCodes,currentCost,PRODUCTS,syncProducts,pdcStatus,pdcEntries,partySpecial,stockMovement,inRange,cmpRange,cmpAsOf,cmpCoverage,mergeRows,chg,pnl,balanceSheet};`,ctx);
 const a=ctx.api;const clean=a.migrateBooks(a.DEMO());assert.equal(clean.docs.length+clean.payments.length+clean.manual.length+clean.stockOps.length,0);assert(!clean.sample&&clean.partners.length===0&&clean.accounts.length>=30&&clean.categories.length>=20);assert.equal(clean.users.length,1);
 let s=a.migrateBooks(a.buildSampleBooks(a.TODAY));a.syncAccounts(s.accounts);a.syncProducts(s.products,s.categories);a.syncPartners(s.partners);a.syncMethods(s.methods);
 const base=a.deriveBooks(s);assert(base.balanced);for(const e of base.entries)assert(Math.abs(e.lines.reduce((n,l)=>n+l.debit-l.credit,0))<.011,e.number);
@@ -109,4 +109,38 @@ assert.equal(a.pricingFor({...s,docs:[]},{...pr,price:0},1,a.TODAY,'','sale',cus
   if(r.qty>0)assert(Math.abs(r.cover-r.stockQty/(r.qty/days))<.01,'cover '+r.p.id);}
  assert(rows.some(r=>r.qty>0)&&rows.some(r=>r.cls==='slow'||r.cls==='dead'),'sample has fast and slow stock');
  const idle=a.stockMovement(sm,bk,bk.stock,'2000-01-01','2000-01-31');assert(idle.every(r=>r.qty===0&&r.cls===(r.stockQty>0?'dead':'none')),'no sales in period → not moving');}
-console.log('PASS: dashboard fast/slow movers, post-dated cheques (received, cleared, bounced with charges, issued), party specials, last price, empty price, product codes, first-purchase cost, last purchase price, clean new company, document-specific settlement, sample fixture, legacy master-data migration, start-fresh template, ledger balance, historical account preservation, inherited accounts, pricing tiers, date validity, manual discounts, retired-rule migration, cash movement, stock counts, scrap, costing methods, validation, search and history.');
+// Compare with: previous period follows the calendar, last year handles leap days, as-at dates, coverage.
+{const R=(preset,from,to,mode)=>{const c=a.cmpRange({preset,from,to},mode);return c.from+'..'+c.to;};
+ assert.equal(R('mtd','2026-10-01','2026-10-11','prev'),'2026-09-01..2026-09-11');
+ assert.equal(R('mtd','2026-03-01','2026-03-31','prev'),'2026-02-01..2026-02-28');
+ assert.equal(R('lastm','2026-09-01','2026-09-30','prev'),'2026-08-01..2026-08-31');
+ assert.equal(R('qtd','2026-10-01','2026-10-11','prev'),'2026-07-01..2026-07-11');
+ assert.equal(R('lastq','2026-07-01','2026-09-30','prev'),'2026-04-01..2026-06-30');
+ assert.equal(R('ytd','2026-01-01','2026-10-11','prev'),'2025-01-01..2025-10-11');
+ assert.equal(R('fy','2026-01-01','2026-12-31','prev'),'2025-01-01..2025-12-31');
+ assert.equal(R('d365','2025-11-01','2026-10-11','prev'),'2024-11-01..2025-10-11');
+ assert.equal(R('d30','2026-09-12','2026-10-11','prev'),'2026-08-13..2026-09-11');
+ assert.equal(R('d7','2026-10-05','2026-10-11','prev'),'2026-09-28..2026-10-04');
+ assert.equal(R('custom','2026-03-01','2026-04-30','prev'),'2026-01-01..2026-02-28');
+ assert.equal(R('custom','2026-03-10','2026-03-19','prev'),'2026-02-28..2026-03-09');
+ assert.equal(R('custom','2024-02-01','2024-02-29','yoy'),'2023-02-01..2023-02-28');
+ assert.equal(R('qtd','2026-10-01','2026-10-11','yoy'),'2025-10-01..2025-10-11');
+ assert.equal(a.cmpRange({preset:'ytd',from:'2026-01-01',to:'2026-10-11'},'off'),null);
+ const cu=a.cmpRange({preset:'ytd',from:'2026-01-01',to:'2026-10-11',cmpFrom:'2025-12-31',cmpTo:'2025-11-01'},'custom');assert.equal(cu.from+'..'+cu.to,'2025-11-01..2025-12-31');
+ const A=(asOf,mode)=>a.cmpAsOf({asOf},mode).asOf;
+ assert.equal(A('2026-10-11','pm'),'2026-09-30');assert.equal(A('2026-10-31','pm'),'2026-09-30');assert.equal(A('2026-10-11','ye'),'2025-12-31');assert.equal(A('2024-02-29','yoy'),'2023-02-28');
+ const bk={flat:[{date:'2025-11-01'},{date:'2026-05-01'}]};
+ assert.equal(a.cmpCoverage(bk,a.cmpRange({preset:'ytd',from:'2026-01-01',to:'2026-10-11'},'prev')).status,'none');
+ assert.equal(a.cmpCoverage(bk,a.cmpRange({preset:'qtd',from:'2026-10-01',to:'2026-10-11'},'prev')).status,'full');
+ assert.equal(a.cmpCoverage(bk,{from:'2025-10-01',to:'2025-12-31'}).status,'partial');
+ assert.equal(a.cmpCoverage(bk,a.cmpAsOf({asOf:'2026-10-11'},'ye')).status,'full');
+ assert.equal(a.cmpCoverage({flat:[]},a.cmpAsOf({asOf:'2026-10-11'},'ye')).status,'none');
+ const c1=a.chg(150,100),c2=a.chg(80,100,false),c3=a.chg(50,0);assert(c1.pct===50&&c1.good===true);assert(c2.pct===-20&&c2.good===true);assert(c3.pct===null&&c3.dir===1);
+ // comparative statement: union of accounts, the earlier column equals the statement for those dates, both sides still balance.
+ const sm=a.migrateBooks(a.buildSampleBooks(a.TODAY));a.syncAccounts(sm.accounts);a.syncProducts(sm.products,sm.categories);a.syncPartners(sm.partners);a.syncMethods(sm.methods);const bb=a.deriveBooks(sm);
+ const cur=a.pnl(bb.flat,'2026-07-01','2026-09-30'),prev=a.pnl(bb.flat,'2026-04-01','2026-06-30');
+ const merged=a.mergeRows([...cur.rev,...cur.cos,...cur.exp],[...prev.rev,...prev.cos,...prev.exp]);
+ assert.equal(merged.length,new Set([...cur.rev,...cur.cos,...cur.exp,...prev.rev,...prev.cos,...prev.exp].map(x=>x.acc.code)).size);
+ assert(Math.abs(merged.reduce((s,x)=>s+(x.acc.type==='income'?x.prev:-x.prev),0)-prev.net)<.01,'comparison column adds up to the earlier profit');
+ const b1=a.balanceSheet(bb.flat,'2026-09-30','2026-01-01'),b0=a.balanceSheet(bb.flat,'2025-12-31','2025-01-01');assert(Math.abs(b1.diff)<.01&&Math.abs(b0.diff)<.01,'both balance sheets balance');}
+console.log('PASS: report comparison periods and comparative statements, dashboard fast/slow movers, post-dated cheques (received, cleared, bounced with charges, issued), party specials, last price, empty price, product codes, first-purchase cost, last purchase price, clean new company, document-specific settlement, sample fixture, legacy master-data migration, start-fresh template, ledger balance, historical account preservation, inherited accounts, pricing tiers, date validity, manual discounts, retired-rule migration, cash movement, stock counts, scrap, costing methods, validation, search and history.');

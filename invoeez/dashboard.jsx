@@ -2,7 +2,7 @@ function Dashboard({state,books,go,newDoc,range,setRange,user,setup}){
  const [mode,setMode]=useState('overview'),[gran,setGran]=useState('month'),[tx,setTx]=useState('all'),[settlement,setSettlement]=useState('collect');
  const C=useC(),company=useCo(),from=range.from,to=range.to;
  const P=useMemo(()=>pnl(books.flat,from,to),[books,from,to]);
- const pastEnd=addDays(from,-1),pastStart=addDays(from,-rangeDays(range));
+ const cr=cmpRange(range,'prev'),pastEnd=cr.to,pastStart=cr.from;
  const prior=useMemo(()=>pnl(books.flat,pastStart,pastEnd),[books,pastStart,pastEnd]);
  const periodBooks=useMemo(()=>deriveBooks({...state,docs:state.docs.filter(d=>d.date<=to),payments:state.payments.filter(d=>d.date<=to),manual:state.manual.filter(d=>d.date<=to),stockOps:state.stockOps.filter(d=>d.date<=to)}),[state,to]);
  const ar=useMemo(()=>aging(state,'receivable',to),[state,to]),ap=useMemo(()=>aging(state,'payable',to),[state,to]);

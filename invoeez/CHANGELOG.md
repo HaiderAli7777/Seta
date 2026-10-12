@@ -1,3 +1,15 @@
+# 3.8.1 — Compare with an earlier period in financial reports
+
+- New **Compare** button beside the date range on the Profit & loss, Balance sheet and Profit by product / customer reports. Choices: Previous period, Same period last year, Custom period (any dates) or Don't compare. Each choice shows the exact dates before you pick it, and the choice is remembered.
+- "Previous period" follows the calendar: this month → last month to the same day, this quarter → last quarter, year to date → last year to date, last 12 months → the 12 before; other ranges compare with the same number of days just before. Leap years are handled.
+- Balance sheet compares as-at dates: Last year-end (default), Previous month-end, Same date last year or another date.
+- Comparative statements: P&L gains Comparison, Change (AED) and Change % columns for every account and subtotal, plus margins then and now; the balance sheet becomes a full-width comparative statement (assets, liabilities, equity) with both dates; customer and product reports show revenue then and now, and customers or products with sales only in the earlier period.
+- KPI tiles show the change and the earlier figure ("was …"); new "This period vs comparison" paired bars, "Biggest changes" (green for good news, red for bad — falling costs count as good), "Then and now" for the balance sheet, and "Growing / Declining customers (products)".
+- The written summary adds the comparison ("Compared with 01 Jul – 12 Jul 2026, sales are down 81.0% …").
+- When the comparison period is before your books start, the report now says so (instead of silently hiding the comparison) and offers one-click periods your books do cover, such as "This quarter vs last quarter". A comparison that is only partly covered is flagged.
+- PDF and Excel exports include the comparison columns and both periods in the headings.
+- Dashboard: the period comparison uses the same calendar rules (year to date vs last year to date).
+
 # 3.8.0 — Animated dashboard: fast and slow movers, top customers
 
 - New dashboard banner in the colour theme with a slow-moving gradient and glow: live date, greeting, net profit that counts up with its change against the previous period, invoices issued, gross and net margin, quick actions (new invoice, new bill, receive payment, stock count), draft and low-stock reminders, and a glass "Cash & bank" card with its balance trend and money in and out. Period shortcuts, the date range and Overview / Financial detail sit in the banner.

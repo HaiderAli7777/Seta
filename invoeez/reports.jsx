@@ -30,7 +30,7 @@ function topN(rows, n, label = "Other") {
 }
 
 /* ---------------------------------------------------------------- tiles -- */
-function KpiTile({ label, value, prefix = "AED", text, delta, goodUp = true, sub, icon: I, tone, spark, onClick, foot }) {
+function KpiTile({ label, value, prefix = "AED", text, delta, goodUp = true, sub, icon: I, tone, spark, onClick, foot, deltaTitle = "Compared with the previous period" }) {
   const dir = delta == null ? 0 : delta > 0.05 ? 1 : delta < -0.05 ? -1 : 0;
   const good = dir === 0 ? null : (dir > 0) === goodUp;
   const Tag = onClick ? "button" : "div";
@@ -38,7 +38,7 @@ function KpiTile({ label, value, prefix = "AED", text, delta, goodUp = true, sub
     <div className="kt-top"><span className="kt-label">{label}</span>{I && <span className="kt-ic"><I size={16} /></span>}</div>
     <div className="kt-value">{text != null ? text : <>{prefix && <small>{prefix}</small>}<CountUp value={value} /></>}</div>
     <div className="kt-foot">
-      {delta != null && <span className={cx("kt-delta", good === true && "up", good === false && "down")} title="Compared with the previous period of the same length">
+      {delta != null && <span className={cx("kt-delta", good === true && "up", good === false && "down")} title={deltaTitle}>
         {dir > 0 ? "▲" : dir < 0 ? "▼" : "•"} {Math.abs(delta) >= 1000 ? ">999" : Math.abs(delta).toFixed(1)}%</span>}
       {sub && <span className="kt-sub">{sub}</span>}
     </div>
@@ -296,8 +296,8 @@ const REPORTS_CSS = `
 `;
 
 /* ===================================================== report visuals ==== */
-function PnlVisuals({ books, r, p }) {
-  const [pf, pt] = priorRange(p.from, p.to), prev = pnl(books.flat, pf, pt), cmp = comparable(books, p.from, p.to);
+function PnlVisuals({ books, r, p, c, q }) {
+  const prev = q || {}, cmp = !!q, vs = cmp ? `vs ${c.dates}` : null, dt = cmp ? `Compared with ${c.dates}` : undefined;
   const dl = (v, w) => (cmp ? deltaPct(v, w) : null);
   const ser = useMemo(() => periodSeries(books.flat, p.from, p.to), [books, p.from, p.to]);
   const costs = [...r.cos, ...r.exp].map((x) => ({ key: x.acc.code, label: x.acc.name, sub: x.acc.code, value: x.amount, extra: r.revenue ? ((x.amount / r.revenue) * 100).toFixed(1) + "% of sales" : null }))
@@ -305,11 +305,12 @@ function PnlVisuals({ books, r, p }) {
   const unit = { day: "day", week: "week", month: "month" }[ser.g];
   return <div className="rpt-viz">
     <KpiRow>
-      <KpiTile label="Revenue" value={r.revenue} icon={TrendingUp} delta={dl(r.revenue, prev.revenue)} sub={cmp ? "vs previous period" : "this period"} spark={ser.rows.map((x) => x.revenue)} />
-      <KpiTile label="Gross profit" value={r.gross} icon={Layers} tone="t3" delta={dl(r.gross, prev.gross)} sub={`${r.gm.toFixed(1)}% gross margin`} />
-      <KpiTile label="Operating expenses" value={r.expense} icon={Wallet} tone="t2" goodUp={false} delta={dl(r.expense, prev.expense)} sub={r.revenue ? `${((r.expense / r.revenue) * 100).toFixed(1)}% of revenue` : "running costs"} />
-      <KpiTile label={r.net >= 0 ? "Net profit" : "Net loss"} value={r.net} icon={r.net >= 0 ? TrendingUp : TrendingDown} tone={r.net >= 0 ? "pos" : "neg"} delta={dl(r.net, prev.net)} sub={`${r.nm.toFixed(1)}% net margin`} spark={ser.rows.map((x) => x.profit)} />
+      <KpiTile label="Revenue" value={r.revenue} icon={TrendingUp} delta={dl(r.revenue, prev.revenue)} deltaTitle={dt} sub={cmp ? `was ${money(prev.revenue, false)}` : "this period"} spark={ser.rows.map((x) => x.revenue)} />
+      <KpiTile label="Gross profit" value={r.gross} icon={Layers} tone="t3" delta={dl(r.gross, prev.gross)} deltaTitle={dt} sub={cmp ? `${r.gm.toFixed(1)}% margin · was ${prev.gm.toFixed(1)}%` : `${r.gm.toFixed(1)}% gross margin`} />
+      <KpiTile label="Operating expenses" value={r.expense} icon={Wallet} tone="t2" goodUp={false} delta={dl(r.expense, prev.expense)} deltaTitle={dt} sub={cmp ? `was ${money(prev.expense, false)}` : r.revenue ? `${((r.expense / r.revenue) * 100).toFixed(1)}% of revenue` : "running costs"} />
+      <KpiTile label={r.net >= 0 ? "Net profit" : "Net loss"} value={r.net} icon={r.net >= 0 ? TrendingUp : TrendingDown} tone={r.net >= 0 ? "pos" : "neg"} delta={dl(r.net, prev.net)} deltaTitle={dt} sub={cmp ? `was ${money(prev.net, false)}` : `${r.nm.toFixed(1)}% net margin`} spark={ser.rows.map((x) => x.profit)} />
     </KpiRow>
+    {cmp && <PnlCompareViz r={r} q={q} c={c} />}
     <div className="rpt-grid">
       <VizCard title={`Revenue, costs and profit by ${unit}`} sub={`${dmy(p.from)} – ${dmy(p.to)} · AED · hover a ${unit} for the figures`}
         legend={[{ name: "Revenue", color: "var(--s1)" }, { name: "Costs & expenses", color: "var(--s2)" }, { name: "Net profit", color: "var(--s3)", line: true }]}>
@@ -360,22 +361,33 @@ function LineChart({ data, color = "var(--s1)", height = 200, name = "Balance", 
   </div>;
 }
 
-function BsVisuals({ b, books, p }) {
+function BsVisuals({ b, books, p, q, c }) {
+  const dl = (v, w) => (q ? deltaPct(v, w) : null), dt = q ? `Compared with ${c.dates}` : undefined, was = (v) => (q ? `was ${money(v, false)} on ${c.dates}` : null);
   const isCur = (g) => /current/i.test(g.name) && !/non/i.test(g.name);
   const ca = R2(b.assets.filter(isCur).reduce((s, g) => s + g.total, 0)), cl = R2(b.liab.filter(isCur).reduce((s, g) => s + g.total, 0));
-  const cash = R2(b.assets.flatMap((g) => g.rows).filter((x) => ACC[x.acc.code] && ACC[x.acc.code].type === "bank").reduce((s, x) => s + x.amount, 0));
+  const cashOf = (bs) => R2(bs.assets.flatMap((g) => g.rows).filter((x) => ACC[x.acc.code] && ACC[x.acc.code].type === "bank").reduce((s, x) => s + x.amount, 0));
+  const cash = cashOf(b), qCash = q ? cashOf(q) : 0;
   const assetRows = b.assets.flatMap((g) => g.rows).filter((x) => x.amount > 0.004).map((x) => ({ label: x.acc.name, value: x.amount })).sort((x, y) => y.value - x.value);
   const fund = [...b.liab.flatMap((g) => g.rows).filter((x) => x.amount > 0.004).map((x) => ({ label: x.acc.name, value: x.amount })).sort((x, y) => y.value - x.value)];
   const fold = (rows, n) => { const t = topN(rows, n, "Other"); return t.map((x, i) => ({ ...x, color: x.other ? OTHER : PARTS[i % PARTS.length] })); };
   const ratio = cl > 0.004 ? ca / cl : null;
   return <div className="rpt-viz">
     <KpiRow>
-      <KpiTile label="Total assets" value={b.totA} icon={Layers} sub="What the business owns" />
-      <KpiTile label="Total liabilities" value={b.totL} icon={Receipt} tone="t2" sub="What it owes" />
-      <KpiTile label="Net worth (equity)" value={b.totE} icon={Scale} tone={b.totE >= 0 ? "pos" : "neg"} sub={b.totA ? `${((b.totE / b.totA) * 100).toFixed(0)}% of assets` : "Owners' share"} />
+      <KpiTile label="Total assets" value={b.totA} icon={Layers} delta={dl(b.totA, q && q.totA)} deltaTitle={dt} sub={was(q && q.totA) || "What the business owns"} />
+      <KpiTile label="Total liabilities" value={b.totL} icon={Receipt} tone="t2" goodUp={false} delta={dl(b.totL, q && q.totL)} deltaTitle={dt} sub={was(q && q.totL) || "What it owes"} />
+      <KpiTile label="Net worth (equity)" value={b.totE} icon={Scale} tone={b.totE >= 0 ? "pos" : "neg"} delta={dl(b.totE, q && q.totE)} deltaTitle={dt} sub={was(q && q.totE) || (b.totA ? `${((b.totE / b.totA) * 100).toFixed(0)}% of assets` : "Owners' share")} />
       <KpiTile label="Current ratio" text={ratio == null ? "—" : ratio.toFixed(2) + "×"} icon={CircleCheck} tone={ratio == null ? "t3" : ratio >= 1.5 ? "pos" : ratio >= 1 ? "warn" : "neg"} sub={ratio == null ? "No current liabilities" : ratio >= 1.5 ? "Comfortable cover" : ratio >= 1 ? "Just covered" : "Short-term debts exceed assets"} />
-      <KpiTile label="Cash & bank" value={cash} icon={Landmark} tone="t3" sub={`As at ${dmy(p.asOf)}`} />
+      <KpiTile label="Cash & bank" value={cash} icon={Landmark} tone="t3" delta={q ? dl(cash, qCash) : null} deltaTitle={dt} sub={q ? `was ${money(qCash, false)}` : `As at ${dmy(p.asOf)}`} />
     </KpiRow>
+    {q && <div className="rpt-grid even">
+      <VizCard title="Then and now" sub={`AED · as at ${dmy(p.asOf)} and ${c.dates} (grey)`} legend={[{ name: `As at ${dmy(p.asOf)}`, color: "var(--s1)" }, { name: `As at ${c.dates}`, color: "var(--k0)" }]}>
+        <PairBars rows={[["Total assets", b.totA, q.totA, true], ["Total liabilities", b.totL, q.totL, false], ["Net worth (equity)", b.totE, q.totE, true], ["Cash & bank", cash, qCash, true]].map(([label, cur, prev, goodUp]) => ({ label, cur, prev, goodUp }))}
+          curName={`As at ${dmy(p.asOf)}`} prevName={`As at ${c.dates}`} />
+      </VizCard>
+      <VizCard title="Biggest changes" sub="Balances that moved most · green is good news, red is not">
+        <ChangeList rows={biggest([...mergeGroups(b.assets, q.assets).flatMap((g) => g.rows).map((x) => ({ ...x, goodUp: true })), ...mergeGroups(b.liab, q.liab).flatMap((g) => g.rows).map((x) => ({ ...x, goodUp: false })), ...mergeRows(b.eqRows, q.eqRows).map((x) => ({ ...x, goodUp: true }))]
+          .map((x) => ({ key: x.acc.code + x.acc.name, label: x.acc.name, cur: x.cur, prev: x.prev, goodUp: x.goodUp })))} /></VizCard>
+    </div>}
     <div className="rpt-grid even">
       <VizCard title="What the business owns" sub={`Assets by account · AED ${money(b.totA, false)}`}><ShareBar parts={fold(assetRows, 6)} /></VizCard>
       <VizCard title="How it is funded" sub="Liabilities and owners' equity">
@@ -413,16 +425,24 @@ function AgedVisuals({ a, isAR, p, onPick }) {
   </div>;
 }
 
-function ProfitVisuals({ r, isProd }) {
+function ProfitVisuals({ r, isProd, q, c }) {
+  const dl = (v, w) => (q ? deltaPct(v, w) : null), dt = q ? `Compared with ${c.dates}` : undefined;
   const best = r.rows.filter((x) => x.profit > 0).slice().sort((a, b) => b.profit - a.profit).map((x) => ({ key: x.key, label: x.name, sub: x.code, value: x.profit, extra: `${x.margin.toFixed(1)}% margin`, extraTone: x.margin < 0 ? "neg" : "" }));
   const thin = r.rows.filter((x) => x.revenue > 0.004).slice().sort((a, b) => a.margin - b.margin).slice(0, 6).map((x) => ({ key: x.key, label: x.name, sub: `AED ${money(x.revenue, false)} sold`, value: x.margin, color: x.margin < 0 ? "var(--neg)" : x.margin < 10 ? "var(--warn)" : "var(--s3)" }));
   return <div className="rpt-viz">
     <KpiRow>
-      <KpiTile label="Revenue" value={r.t.revenue} icon={TrendingUp} sub={`${r.rows.length} ${isProd ? "products" : "customers"}`} />
-      <KpiTile label="Cost of sales" value={r.t.cost} icon={Wallet} tone="t2" sub="Goods at cost" />
-      <KpiTile label="Gross profit" value={r.t.profit} icon={BarChart3} tone={r.t.profit >= 0 ? "pos" : "neg"} sub="Revenue minus cost of sales" />
-      <KpiTile label="Blended margin" text={`${r.margin.toFixed(1)}%`} icon={Percent} tone="t3" sub={best[0] ? `Best: ${best[0].label}` : ""} />
+      <KpiTile label="Revenue" value={r.t.revenue} icon={TrendingUp} delta={dl(r.t.revenue, q && q.t.revenue)} deltaTitle={dt} sub={`${r.rows.length} ${isProd ? "products" : "customers"}${q ? ` · was ${q.rows.length}` : ""}`} />
+      <KpiTile label="Cost of sales" value={r.t.cost} icon={Wallet} tone="t2" goodUp={false} delta={dl(r.t.cost, q && q.t.cost)} deltaTitle={dt} sub={q ? `was ${money(q.t.cost, false)}` : "Goods at cost"} />
+      <KpiTile label="Gross profit" value={r.t.profit} icon={BarChart3} tone={r.t.profit >= 0 ? "pos" : "neg"} delta={dl(r.t.profit, q && q.t.profit)} deltaTitle={dt} sub={q ? `was ${money(q.t.profit, false)}` : "Revenue minus cost of sales"} />
+      <KpiTile label="Blended margin" text={`${r.margin.toFixed(1)}%`} icon={Percent} tone="t3" sub={q ? `was ${q.margin.toFixed(1)}% · ${ptsText(r.margin - q.margin)}` : best[0] ? `Best: ${best[0].label}` : ""} />
     </KpiRow>
+    {q && (() => { const qk = {}; q.rows.forEach((z) => (qk[z.key] = z)); const all = [...r.rows, ...q.rows.filter((z) => !r.rows.some((y) => y.key === z.key)).map((z) => ({ ...z, revenue: 0 }))];
+      const moves = all.map((x) => ({ key: x.key, label: x.name, cur: x.revenue, prev: qk[x.key] ? qk[x.key].revenue : 0 }));
+      const up = biggest(moves.filter((x) => x.cur > x.prev), 6), down = biggest(moves.filter((x) => x.cur < x.prev), 6);
+      return <div className="rpt-grid even">
+        <VizCard title={`Growing ${isProd ? "products" : "customers"}`} sub={`Revenue change vs ${c.dates}`}><ChangeList rows={up} empty="Nothing grew compared with the earlier period." /></VizCard>
+        <VizCard title={`Declining ${isProd ? "products" : "customers"}`} sub={`Revenue change vs ${c.dates}`}><ChangeList rows={down} empty="Nothing declined compared with the earlier period." /></VizCard>
+      </div>; })()}
     <div className="rpt-grid">
       <VizCard title={`Top ${isProd ? "products" : "customers"} by gross profit`} sub="Profit in AED · margin underneath"><HBars rows={topN(best, 10, "Others")} empty="No profitable sales in this period." /></VizCard>
       <VizCard title="Thinnest margins" sub="Lowest gross margin first — review prices or costs"><HBars rows={thin} format={(v) => v.toFixed(1) + "%"} max={Math.max(100, ...thin.map((x) => Math.abs(x.value)))} empty="No sales in this period." /></VizCard>

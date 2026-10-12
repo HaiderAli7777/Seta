@@ -935,6 +935,7 @@ var Tag = __mk('<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a
 var Star = __mk('<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>');
 var History = __mk('<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>');
 var Ban = __mk('<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>');
+var ArrowLeftRight = __mk('<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>');
 var ChevronLeft = __mk('<path d="m15 18-6-6 6-6"/>');
 var Ticket = __mk('<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>');
 var Store = __mk('<path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/>');
@@ -1106,7 +1107,7 @@ const addDays = (iso, n) => {
   return d.toISOString().slice(0, 10);
 };
 const daysBetween = (a, b) => Math.round((/* @__PURE__ */ new Date(b + "T00:00:00Z") - /* @__PURE__ */ new Date(a + "T00:00:00Z")) / 864e5);
-const BUILD = "3.8.0";
+const BUILD = "3.8.1";
 const TODAY = (() => {
   const d = /* @__PURE__ */ new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -2763,9 +2764,9 @@ const Card = ({ title, sub, right, children, pad = true, style, className }) => 
 const Pill = ({ tone, dot, children }) => /* @__PURE__ */ React.createElement("span", { className: cx("pill", tone) }, dot && /* @__PURE__ */ React.createElement("i", null), children);
 const Avatar = ({ name, size = 28 }) => /* @__PURE__ */ React.createElement("span", { className: "av av-t" + AV_TONES.indexOf(toneFor(name)), style: { width: size, height: size, flexBasis: size } }, initials(name));
 const Party = ({ name, meta }) => /* @__PURE__ */ React.createElement("div", { className: "who-cell" }, /* @__PURE__ */ React.createElement(Avatar, { name }), /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("b", null, name), meta && /* @__PURE__ */ React.createElement("span", null, meta)));
-const Field = ({ label, children, span }) => {
+const Field = ({ label, children, span: span2 }) => {
   const id = React.useId();
-  return /* @__PURE__ */ React.createElement("div", { className: "fld", style: span ? { gridColumn: `span ${span}` } : void 0 }, /* @__PURE__ */ React.createElement("label", { className: "lb", htmlFor: id }, label), React.Children.map(children, (child) => React.isValidElement(child) && [Input, Select, "input", "select", "textarea"].includes(child.type) ? React.cloneElement(child, { id: child.props.id || id, "aria-label": child.props["aria-label"] || label }) : child));
+  return /* @__PURE__ */ React.createElement("div", { className: "fld", style: span2 ? { gridColumn: `span ${span2}` } : void 0 }, /* @__PURE__ */ React.createElement("label", { className: "lb", htmlFor: id }, label), React.Children.map(children, (child) => React.isValidElement(child) && [Input, Select, "input", "select", "textarea"].includes(child.type) ? React.cloneElement(child, { id: child.props.id || id, "aria-label": child.props["aria-label"] || label }) : child));
 };
 const Input = ({ n, className, ...p }) => /* @__PURE__ */ React.createElement("input", { className: cx("inp", n && "n", className), ...p });
 const Money = ({ v, dash = true, tone, bold }) => /* @__PURE__ */ React.createElement("span", { className: "num", style: { color: tone ? `var(--${tone})` : void 0, fontWeight: bold ? 600 : void 0 } }, money(v, dash));
@@ -3012,7 +3013,7 @@ function ExportBar({ frameRef, title, meta, toast }) {
 const ReportFrame = ({ title, meta, right, children, toast, icon: Ic = BarChart3, chips }) => {
   const CO = useCo();
   const frameRef = React.useRef(null);
-  return /* @__PURE__ */ React.createElement("div", { className: "card rframe", ref: frameRef }, /* @__PURE__ */ React.createElement("div", { className: "rframe-h", style: { display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { className: "rf-title" }, /* @__PURE__ */ React.createElement("span", { className: "rf-ic noprint" }, /* @__PURE__ */ React.createElement(Ic, { size: 21 })), /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, CO.logo && /* @__PURE__ */ React.createElement("img", { src: CO.logo, alt: "", style: { maxHeight: 34, maxWidth: 150, objectFit: "contain", display: "block", marginBottom: 9 } }), /* @__PURE__ */ React.createElement("div", { className: "micro" }, CO.name, CO.trn ? ` \xB7 TRN ${CO.trn}` : ""), /* @__PURE__ */ React.createElement("h2", null, title), /* @__PURE__ */ React.createElement("div", { className: "rf-chips" }, (chips || [meta]).filter(Boolean).map((c, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: i === 0 ? "acc" : "" }, c))))), /* @__PURE__ */ React.createElement("div", { className: "acts noprint", style: { marginLeft: "auto", display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" } }, right, /* @__PURE__ */ React.createElement(ExportBar, { frameRef, title, meta, toast }))), children);
+  return /* @__PURE__ */ React.createElement("div", { className: "card rframe", ref: frameRef }, /* @__PURE__ */ React.createElement("div", { className: "rframe-h", style: { display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { className: "rf-title" }, /* @__PURE__ */ React.createElement("span", { className: "rf-ic noprint" }, /* @__PURE__ */ React.createElement(Ic, { size: 21 })), /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, CO.logo && /* @__PURE__ */ React.createElement("img", { src: CO.logo, alt: "", style: { maxHeight: 34, maxWidth: 150, objectFit: "contain", display: "block", marginBottom: 9 } }), /* @__PURE__ */ React.createElement("div", { className: "micro" }, CO.name, CO.trn ? ` \xB7 TRN ${CO.trn}` : ""), /* @__PURE__ */ React.createElement("h2", null, title), /* @__PURE__ */ React.createElement("div", { className: "rf-chips" }, (chips || [meta]).filter(Boolean).map((c, i) => c.cmp ? /* @__PURE__ */ React.createElement("span", { key: i, className: "cmp" }, c.cmp) : /* @__PURE__ */ React.createElement("span", { key: i, className: i === 0 ? "acc" : "" }, c))))), /* @__PURE__ */ React.createElement("div", { className: "acts noprint", style: { marginLeft: "auto", display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" } }, right, /* @__PURE__ */ React.createElement(ExportBar, { frameRef, title, meta, toast }))), children);
 };
 const Toasts = ({ items }) => /* @__PURE__ */ React.createElement("div", { className: "toasts noprint" }, items.map((t) => /* @__PURE__ */ React.createElement("div", { className: cx("toast", t.tone), key: t.id }, /* @__PURE__ */ React.createElement("span", { className: "tico" }, t.tone === "warn" ? /* @__PURE__ */ React.createElement(AlertTriangle, { size: 12, strokeWidth: 2.2 }) : /* @__PURE__ */ React.createElement(Check, { size: 13, strokeWidth: 2.6 })), t.msg)));
 function CommandPalette({ items, close, run }) {
@@ -4854,6 +4855,11 @@ function Aged({ state, kind, p, setP, toast }) {
 }
 function ProfitLoss({ books, p, setP, toast }) {
   const r = pnl(books.flat, p.from, p.to);
+  const x = useCompare(books, p), q = x.on ? pnl(books.flat, x.c.from, x.c.to) : null;
+  const moved = (cur, prev, word) => {
+    const c = chg(cur, prev);
+    return c.pct == null ? null : /* @__PURE__ */ React.createElement(React.Fragment, null, word, " ", c.dir > 0 ? "up" : c.dir < 0 ? "down" : "unchanged", c.dir ? /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("b", { className: c.dir > 0 ? "pos" : "neg" }, Math.abs(c.pct) >= 1e3 ? ">999" : Math.abs(c.pct).toFixed(1), "%")) : "");
+  };
   const share = (v) => r.revenue ? (v / r.revenue * 100).toFixed(1) + "%" : "\u2014";
   const Line = ({ a }) => /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { className: "mono muted", style: { width: 80 } }, a.acc.code), /* @__PURE__ */ React.createElement("td", null, a.acc.name), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(a.amount)), /* @__PURE__ */ React.createElement("td", { className: "n muted", style: { width: 92 } }, share(a.amount)));
   return /* @__PURE__ */ React.createElement(
@@ -4861,35 +4867,38 @@ function ProfitLoss({ books, p, setP, toast }) {
     {
       toast,
       title: "Statement of Profit or Loss",
-      meta: `${dmy(p.from)} to ${dmy(p.to)} \xB7 AED`,
+      meta: `${dmy(p.from)} to ${dmy(p.to)}${x.on ? ` compared with ${x.c.dates}` : ""} \xB7 AED`,
       icon: BarChart3,
-      chips: [`${dmy(p.from)} \u2013 ${dmy(p.to)}`, "Accrual basis", "AED"],
-      right: /* @__PURE__ */ React.createElement(PeriodBar, { p, setP })
+      chips: [`${dmy(p.from)} \u2013 ${dmy(p.to)}`, cmpChip(x), "Accrual basis", "AED"],
+      right: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(PeriodBar, { p, setP }), /* @__PURE__ */ React.createElement(CompareBar, { p, setP }))
     },
-    /* @__PURE__ */ React.createElement(Insight, { tone: r.net < 0 ? "warn" : "" }, r.revenue || r.expense || r.cost ? /* @__PURE__ */ React.createElement(React.Fragment, null, "From ", dmy(p.from), " to ", dmy(p.to), " you sold ", /* @__PURE__ */ React.createElement("b", null, aed(r.revenue)), ". The goods and services you sold cost ", /* @__PURE__ */ React.createElement("b", null, aed(r.cost)), ", leaving a gross profit of ", /* @__PURE__ */ React.createElement("b", null, aed(r.gross)), " (", r.gm.toFixed(1), "%). After ", /* @__PURE__ */ React.createElement("b", null, aed(r.expense)), " of running costs, the business made a ", /* @__PURE__ */ React.createElement("b", { className: r.net >= 0 ? "pos" : "neg" }, r.net >= 0 ? "profit" : "loss", " of ", aed(Math.abs(r.net))), ".") : /* @__PURE__ */ React.createElement(React.Fragment, null, "No sales or costs were recorded between ", dmy(p.from), " and ", dmy(p.to), ". Pick another period above.")),
-    /* @__PURE__ */ React.createElement(PnlVisuals, { books, r, p }),
-    /* @__PURE__ */ React.createElement(SectionTitle, null, "Statement detail"),
-    /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: 80 } }, "Code"), /* @__PURE__ */ React.createElement("th", null, "Account"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Amount"), /* @__PURE__ */ React.createElement("th", { className: "n", style: { width: 92 } }, "% revenue"))), /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 4 }, "Revenue")), r.rev.map((x) => /* @__PURE__ */ React.createElement(Line, { key: x.acc.code, a: x })), /* @__PURE__ */ React.createElement("tr", { className: "sub rule" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Total revenue"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(r.revenue)), /* @__PURE__ */ React.createElement("td", { className: "n muted" }, "100.0%")), /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 4 }, "Cost of sales")), r.cos.map((x) => /* @__PURE__ */ React.createElement(Line, { key: x.acc.code, a: x })), /* @__PURE__ */ React.createElement("tr", { className: "sub rule" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Gross profit"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(r.gross)), /* @__PURE__ */ React.createElement("td", { className: "n muted" }, r.gm.toFixed(1), "%")), /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 4 }, "Operating expenses")), r.exp.map((x) => /* @__PURE__ */ React.createElement(Line, { key: x.acc.code, a: x })), /* @__PURE__ */ React.createElement("tr", { className: "sub rule" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Total operating expenses"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(r.expense)), /* @__PURE__ */ React.createElement("td", { className: "n muted" }, share(r.expense)))), /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", { className: "grand" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, r.net >= 0 ? "Profit for the period" : "Loss for the period"), /* @__PURE__ */ React.createElement("td", { className: "n", style: { color: r.net >= 0 ? "var(--pos)" : "var(--neg)" } }, money(r.net)), /* @__PURE__ */ React.createElement("td", { className: "n muted" }, r.nm.toFixed(1), "%")))))
+    /* @__PURE__ */ React.createElement(CompareNote, { x, p, setP }),
+    /* @__PURE__ */ React.createElement(Insight, { tone: r.net < 0 ? "warn" : "" }, r.revenue || r.expense || r.cost ? /* @__PURE__ */ React.createElement(React.Fragment, null, "From ", dmy(p.from), " to ", dmy(p.to), " you sold ", /* @__PURE__ */ React.createElement("b", null, aed(r.revenue)), ". The goods and services you sold cost ", /* @__PURE__ */ React.createElement("b", null, aed(r.cost)), ", leaving a gross profit of ", /* @__PURE__ */ React.createElement("b", null, aed(r.gross)), " (", r.gm.toFixed(1), "%). After ", /* @__PURE__ */ React.createElement("b", null, aed(r.expense)), " of running costs, the business made a ", /* @__PURE__ */ React.createElement("b", { className: r.net >= 0 ? "pos" : "neg" }, r.net >= 0 ? "profit" : "loss", " of ", aed(Math.abs(r.net))), ".", q && (q.revenue || q.net) ? /* @__PURE__ */ React.createElement(React.Fragment, null, " Compared with ", x.c.dates, ", ", moved(r.revenue, q.revenue, "sales are") || /* @__PURE__ */ React.createElement(React.Fragment, null, "sales were nil before"), q.net ? /* @__PURE__ */ React.createElement(React.Fragment, null, " and ", moved(r.net, q.net, "profit is")) : "", " (profit then: ", aed(q.net), ").") : null) : /* @__PURE__ */ React.createElement(React.Fragment, null, "No sales or costs were recorded between ", dmy(p.from), " and ", dmy(p.to), ". Pick another period above.")),
+    /* @__PURE__ */ React.createElement(PnlVisuals, { books, r, p, c: x.on ? x.c : null, q }),
+    /* @__PURE__ */ React.createElement(SectionTitle, null, q ? `Statement detail \xB7 compared with ${x.c.dates}` : "Statement detail"),
+    q ? /* @__PURE__ */ React.createElement(PnlCompareTable, { r, q, p, c: x.c }) : /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: 80 } }, "Code"), /* @__PURE__ */ React.createElement("th", null, "Account"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Amount"), /* @__PURE__ */ React.createElement("th", { className: "n", style: { width: 92 } }, "% revenue"))), /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 4 }, "Revenue")), r.rev.map((x2) => /* @__PURE__ */ React.createElement(Line, { key: x2.acc.code, a: x2 })), /* @__PURE__ */ React.createElement("tr", { className: "sub rule" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Total revenue"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(r.revenue)), /* @__PURE__ */ React.createElement("td", { className: "n muted" }, "100.0%")), /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 4 }, "Cost of sales")), r.cos.map((x2) => /* @__PURE__ */ React.createElement(Line, { key: x2.acc.code, a: x2 })), /* @__PURE__ */ React.createElement("tr", { className: "sub rule" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Gross profit"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(r.gross)), /* @__PURE__ */ React.createElement("td", { className: "n muted" }, r.gm.toFixed(1), "%")), /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 4 }, "Operating expenses")), r.exp.map((x2) => /* @__PURE__ */ React.createElement(Line, { key: x2.acc.code, a: x2 })), /* @__PURE__ */ React.createElement("tr", { className: "sub rule" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Total operating expenses"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(r.expense)), /* @__PURE__ */ React.createElement("td", { className: "n muted" }, share(r.expense)))), /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", { className: "grand" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, r.net >= 0 ? "Profit for the period" : "Loss for the period"), /* @__PURE__ */ React.createElement("td", { className: "n", style: { color: r.net >= 0 ? "var(--pos)" : "var(--neg)" } }, money(r.net)), /* @__PURE__ */ React.createElement("td", { className: "n muted" }, r.nm.toFixed(1), "%")))))
   );
 }
 function BalanceSheetRep({ books, p, setP, toast }) {
   const b = balanceSheet(books.flat, p.asOf, p.asOf.slice(0, 4) + "-01-01");
-  const Block = ({ title, groups, rows, total, label }) => /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 3 }, title)), groups && groups.map((g) => /* @__PURE__ */ React.createElement(React.Fragment, { key: g.name }, /* @__PURE__ */ React.createElement("tr", { className: "sub" }, /* @__PURE__ */ React.createElement("td", { colSpan: 3, style: { paddingTop: 14 } }, g.name)), g.rows.map((x) => /* @__PURE__ */ React.createElement("tr", { key: x.acc.code }, /* @__PURE__ */ React.createElement("td", { className: "mono muted", style: { width: 78 } }, x.acc.code), /* @__PURE__ */ React.createElement("td", null, x.acc.name), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(x.amount)))), /* @__PURE__ */ React.createElement("tr", { className: "sub rule" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Total ", g.name.toLowerCase()), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(g.total))))), rows && rows.map((x) => /* @__PURE__ */ React.createElement("tr", { key: x.acc.code }, /* @__PURE__ */ React.createElement("td", { className: "mono muted", style: { width: 78 } }, x.acc.code), /* @__PURE__ */ React.createElement("td", null, x.acc.name), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(x.amount))))), /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, label), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(total)))));
+  const x = useCompare(books, p, true), q = x.on ? balanceSheet(books.flat, x.c.asOf, x.c.asOf.slice(0, 4) + "-01-01") : null;
+  const Block = ({ title, groups, rows, total, label }) => /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 3 }, title)), groups && groups.map((g) => /* @__PURE__ */ React.createElement(React.Fragment, { key: g.name }, /* @__PURE__ */ React.createElement("tr", { className: "sub" }, /* @__PURE__ */ React.createElement("td", { colSpan: 3, style: { paddingTop: 14 } }, g.name)), g.rows.map((x2) => /* @__PURE__ */ React.createElement("tr", { key: x2.acc.code }, /* @__PURE__ */ React.createElement("td", { className: "mono muted", style: { width: 78 } }, x2.acc.code), /* @__PURE__ */ React.createElement("td", null, x2.acc.name), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(x2.amount)))), /* @__PURE__ */ React.createElement("tr", { className: "sub rule" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Total ", g.name.toLowerCase()), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(g.total))))), rows && rows.map((x2) => /* @__PURE__ */ React.createElement("tr", { key: x2.acc.code }, /* @__PURE__ */ React.createElement("td", { className: "mono muted", style: { width: 78 } }, x2.acc.code), /* @__PURE__ */ React.createElement("td", null, x2.acc.name), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(x2.amount))))), /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, label), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(total)))));
   const balanced = Math.abs(b.diff) < 0.01;
   return /* @__PURE__ */ React.createElement(
     ReportFrame,
     {
       toast,
       title: "Statement of Financial Position",
-      meta: `As at ${dmy(p.asOf)} \xB7 AED`,
+      meta: `As at ${dmy(p.asOf)}${x.on ? ` compared with ${x.c.dates}` : ""} \xB7 AED`,
       icon: Scale,
-      chips: [`As at ${dmy(p.asOf)}`, balanced ? "Balanced" : "Out of balance", "AED"],
-      right: /* @__PURE__ */ React.createElement(PeriodBar, { p, setP, mode: "asOf" })
+      chips: [`As at ${dmy(p.asOf)}`, cmpChip(x), balanced ? "Balanced" : "Out of balance", "AED"],
+      right: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(PeriodBar, { p, setP, mode: "asOf" }), /* @__PURE__ */ React.createElement(CompareBar, { p, setP, mode: "asOf" }))
     },
-    /* @__PURE__ */ React.createElement(Insight, null, "On ", dmy(p.asOf), " the business owns ", /* @__PURE__ */ React.createElement("b", null, aed(b.totA)), " (cash, stock, money due from customers and equipment) and owes ", /* @__PURE__ */ React.createElement("b", null, aed(b.totL)), " (vendors, VAT, loans and other liabilities), so it is worth ", /* @__PURE__ */ React.createElement("b", { className: b.totE >= 0 ? "pos" : "neg" }, aed(b.totE)), " to its owners.", Math.abs(b.diff) < 0.01 ? " Both sides agree." : ""),
-    /* @__PURE__ */ React.createElement(BsVisuals, { b, books, p }),
-    /* @__PURE__ */ React.createElement(SectionTitle, null, "Statement detail"),
-    /* @__PURE__ */ React.createElement("div", { className: "grid", style: { gridTemplateColumns: "1fr 1fr", gap: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { borderRight: "1px solid var(--line)" } }, /* @__PURE__ */ React.createElement(Block, { title: "Assets", groups: b.assets, total: b.totA, label: "Total assets" })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Block, { title: "Liabilities", groups: b.liab, total: b.totL, label: "Total liabilities" }), /* @__PURE__ */ React.createElement(Block, { title: "Equity", rows: b.eqRows, total: b.totE, label: "Total equity" }), /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", { className: "grand" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Total liabilities and equity"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(R2(b.totL + b.totE)))))))),
+    /* @__PURE__ */ React.createElement(CompareNote, { x, p, setP, asOf: true }),
+    /* @__PURE__ */ React.createElement(Insight, null, "On ", dmy(p.asOf), " the business owns ", /* @__PURE__ */ React.createElement("b", null, aed(b.totA)), " (cash, stock, money due from customers and equipment) and owes ", /* @__PURE__ */ React.createElement("b", null, aed(b.totL)), " (vendors, VAT, loans and other liabilities), so it is worth ", /* @__PURE__ */ React.createElement("b", { className: b.totE >= 0 ? "pos" : "neg" }, aed(b.totE)), " to its owners.", Math.abs(b.diff) < 0.01 ? " Both sides agree." : "", q ? /* @__PURE__ */ React.createElement(React.Fragment, null, " On ", x.c.dates, " it was worth ", /* @__PURE__ */ React.createElement("b", null, aed(q.totE)), " \u2014 ", b.totE >= q.totE ? "an increase" : "a decrease", " of ", /* @__PURE__ */ React.createElement("b", { className: b.totE >= q.totE ? "pos" : "neg" }, aed(Math.abs(R2(b.totE - q.totE)))), ".") : null),
+    /* @__PURE__ */ React.createElement(BsVisuals, { b, books, p, q, c: x.on ? x.c : null }),
+    /* @__PURE__ */ React.createElement(SectionTitle, null, q ? `Statement detail \xB7 as at ${dmy(p.asOf)} and ${x.c.dates}` : "Statement detail"),
+    q ? /* @__PURE__ */ React.createElement(BsCompareTable, { b, q, p, c: x.c }) : /* @__PURE__ */ React.createElement("div", { className: "grid", style: { gridTemplateColumns: "1fr 1fr", gap: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { borderRight: "1px solid var(--line)" } }, /* @__PURE__ */ React.createElement(Block, { title: "Assets", groups: b.assets, total: b.totA, label: "Total assets" })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Block, { title: "Liabilities", groups: b.liab, total: b.totL, label: "Total liabilities" }), /* @__PURE__ */ React.createElement(Block, { title: "Equity", rows: b.eqRows, total: b.totE, label: "Total equity" }), /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", { className: "grand" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Total liabilities and equity"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(R2(b.totL + b.totE)))))))),
     /* @__PURE__ */ React.createElement("div", { style: {
       padding: "14px 18px",
       borderTop: "1px solid var(--line)",
@@ -5741,6 +5750,11 @@ function ProfitReport({ state, books, p, setP, by, toast }) {
   const C = useC();
   const r = profitability(state, books, p.from, p.to, by);
   const isProd = by === "product";
+  const cm = useCompare(books, p), q = cm.on ? profitability(state, books, cm.c.from, cm.c.to, by) : null;
+  const qk = {};
+  if (q) q.rows.forEach((z) => qk[z.key] = z);
+  const gone = q ? q.rows.filter((z) => !r.rows.some((y) => y.key === z.key) && Math.abs(z.revenue) > 4e-3).map((z) => ({ ...z, qty: 0, docs: 0, revenue: 0, cost: 0, profit: 0, margin: 0, gone: true })) : [];
+  const rows = [...r.rows, ...gone], cols = q ? 9 : 8;
   const top = r.rows.filter((x) => x.profit > 0).slice(0, 6);
   return /* @__PURE__ */ React.createElement("div", { className: "grid" }, /* @__PURE__ */ React.createElement(
     ReportFrame,
@@ -5748,19 +5762,26 @@ function ProfitReport({ state, books, p, setP, by, toast }) {
       toast,
       title: isProd ? "Profitability by Product" : "Profitability by Customer",
       icon: isProd ? Package : Users,
-      chips: [`${dmy(p.from)} \u2013 ${dmy(p.to)}`, `Costed on ${COSTING[state.costing || "avco"].label}`, "AED"],
-      meta: `${dmy(p.from)} to ${dmy(p.to)} \xB7 costed on ${COSTING[state.costing || "avco"].label} \xB7 AED`,
-      right: /* @__PURE__ */ React.createElement(PeriodBar, { p, setP })
+      chips: [`${dmy(p.from)} \u2013 ${dmy(p.to)}`, cmpChip(cm), `Costed on ${COSTING[state.costing || "avco"].label}`, "AED"],
+      meta: `${dmy(p.from)} to ${dmy(p.to)}${cm.on ? ` compared with ${cm.c.dates}` : ""} \xB7 costed on ${COSTING[state.costing || "avco"].label} \xB7 AED`,
+      right: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(PeriodBar, { p, setP }), /* @__PURE__ */ React.createElement(CompareBar, { p, setP }))
     },
-    /* @__PURE__ */ React.createElement(ProfitVisuals, { r, isProd }),
+    /* @__PURE__ */ React.createElement(CompareNote, { x: cm, p, setP }),
+    /* @__PURE__ */ React.createElement(ProfitVisuals, { r, isProd, q, c: cm.on ? cm.c : null }),
     /* @__PURE__ */ React.createElement(SectionTitle, null, isProd ? "Every product" : "Every customer"),
-    /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, isProd ? "Product" : "Customer"), /* @__PURE__ */ React.createElement("th", null, isProd ? "Type" : "Territory"), /* @__PURE__ */ React.createElement("th", { className: "n" }, isProd ? "Units sold" : "Invoices"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Revenue"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Cost of sales"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Gross profit"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Margin"), /* @__PURE__ */ React.createElement("th", { style: { width: 130 } }, "Share"))), /* @__PURE__ */ React.createElement("tbody", null, r.rows.length === 0 && /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 8 }, /* @__PURE__ */ React.createElement(EmptyState, { icon: BarChart3, title: "No sales in this period" }, "Widen the range above."))), r.rows.map((x) => /* @__PURE__ */ React.createElement("tr", { key: x.key }, /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, isProd ? /* @__PURE__ */ React.createElement("span", { className: cx("gt sm", x.kind === "goods" ? "g5" : "g6") }, x.kind === "goods" ? /* @__PURE__ */ React.createElement(Package, { size: 14, strokeWidth: 1.9 }) : /* @__PURE__ */ React.createElement(Layers, { size: 14, strokeWidth: 1.9 })) : /* @__PURE__ */ React.createElement(Avatar, { name: x.name }), /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("b", { style: { fontWeight: 500 } }, x.name), isProd && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: "var(--ink-4)" } }, x.code)))), /* @__PURE__ */ React.createElement("td", null, isProd ? /* @__PURE__ */ React.createElement(Pill, { tone: x.kind === "goods" ? "gold" : "info" }, x.kind === "goods" ? "Goods" : "Service") : /* @__PURE__ */ React.createElement("span", { className: "muted" }, x.code)), /* @__PURE__ */ React.createElement("td", { className: "n" }, isProd ? x.qty : x.docs), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(x.revenue)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(x.cost)), /* @__PURE__ */ React.createElement("td", { className: "n", style: { fontWeight: 600, color: x.profit >= 0 ? "var(--pos)" : "var(--neg)" } }, money(x.profit)), /* @__PURE__ */ React.createElement("td", { className: "n", style: { color: x.margin < 15 ? "var(--warn)" : void 0 } }, x.margin.toFixed(1), "%"), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: "bt", style: { display: "block", height: 8, borderRadius: 20, background: "var(--surface-3)", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("i", { style: {
+    /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: cx("tbl", q && "cmp-tbl") }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, isProd ? "Product" : "Customer"), /* @__PURE__ */ React.createElement("th", null, isProd ? "Type" : "Territory"), /* @__PURE__ */ React.createElement("th", { className: "n" }, isProd ? "Units sold" : "Invoices"), /* @__PURE__ */ React.createElement("th", { className: cx("n", q && "cmp-cur") }, "Revenue", q && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("span", { className: "th-d" }, span(p.from, p.to)))), q && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("th", { className: "n cmp-prev" }, "Revenue ", /* @__PURE__ */ React.createElement("span", { className: "th-d" }, cm.c.dates)), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Change ", /* @__PURE__ */ React.createElement("span", { className: "th-d" }, "%"))), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Cost of sales"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Gross profit"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Margin"), !q && /* @__PURE__ */ React.createElement("th", { style: { width: 130 } }, "Share"))), /* @__PURE__ */ React.createElement("tbody", null, rows.length === 0 && /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: cols }, /* @__PURE__ */ React.createElement(EmptyState, { icon: BarChart3, title: "No sales in this period" }, "Widen the range above."))), rows.map((x) => /* @__PURE__ */ React.createElement("tr", { key: x.key, className: x.gone ? "cmp-gone" : void 0 }, /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } }, isProd ? /* @__PURE__ */ React.createElement("span", { className: cx("gt sm", x.kind === "goods" ? "g5" : "g6") }, x.kind === "goods" ? /* @__PURE__ */ React.createElement(Package, { size: 14, strokeWidth: 1.9 }) : /* @__PURE__ */ React.createElement(Layers, { size: 14, strokeWidth: 1.9 })) : /* @__PURE__ */ React.createElement(Avatar, { name: x.name }), /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("b", { style: { fontWeight: 500 } }, x.name), isProd && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: "var(--ink-4)" } }, x.code), x.gone && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: "var(--warn)" } }, "No sales this period")))), /* @__PURE__ */ React.createElement("td", null, isProd ? /* @__PURE__ */ React.createElement(Pill, { tone: x.kind === "goods" ? "gold" : "info" }, x.kind === "goods" ? "Goods" : "Service") : /* @__PURE__ */ React.createElement("span", { className: "muted" }, x.code)), /* @__PURE__ */ React.createElement("td", { className: "n" }, isProd ? x.qty : x.docs), /* @__PURE__ */ React.createElement("td", { className: cx("n", q && "cmp-cur") }, money(x.revenue)), q && (() => {
+      const z = qk[x.key], c = chg(x.revenue, z ? z.revenue : 0), t = c.good === true ? "up" : c.good === false ? "down" : "";
+      return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("td", { className: "n cmp-prev" }, money(z ? z.revenue : 0)), /* @__PURE__ */ React.createElement("td", { className: cx("n cmp-p", t) }, c.dir !== 0 && /* @__PURE__ */ React.createElement("i", { "aria-hidden": "true" }, c.dir > 0 ? "\u25B2" : "\u25BC"), pctText(c, x.revenue)));
+    })(), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(x.cost)), /* @__PURE__ */ React.createElement("td", { className: "n", style: { fontWeight: 600, color: x.profit >= 0 ? "var(--pos)" : "var(--neg)" } }, money(x.profit)), /* @__PURE__ */ React.createElement("td", { className: "n", style: { color: x.margin < 15 ? "var(--warn)" : void 0 } }, x.margin.toFixed(1), "%"), !q && /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: "bt", style: { display: "block", height: 8, borderRadius: 20, background: "var(--surface-3)", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("i", { style: {
       display: "block",
       height: "100%",
       borderRadius: 20,
       width: `${r.t.profit > 0 ? Math.max(0, x.profit / r.t.profit * 100) : 0}%`,
       background: x.profit >= 0 ? "var(--brand)" : "var(--neg)"
-    } })))))), /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 3 }, "Totals \u2014 ", r.rows.length, " ", isProd ? "items" : "customers"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(r.t.revenue)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(r.t.cost)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(r.t.profit)), /* @__PURE__ */ React.createElement("td", { className: "n" }, r.margin.toFixed(1), "%"), /* @__PURE__ */ React.createElement("td", null)))))
+    } })))))), /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 3 }, "Totals \u2014 ", r.rows.length, " ", isProd ? "items" : "customers"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(r.t.revenue)), q && (() => {
+      const c = chg(r.t.revenue, q.t.revenue), t = c.good === true ? "up" : c.good === false ? "down" : "";
+      return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("td", { className: "n cmp-prev" }, money(q.t.revenue)), /* @__PURE__ */ React.createElement("td", { className: cx("n cmp-p", t) }, c.dir !== 0 && /* @__PURE__ */ React.createElement("i", { "aria-hidden": "true" }, c.dir > 0 ? "\u25B2" : "\u25BC"), pctText(c, r.t.revenue)));
+    })(), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(r.t.cost)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(r.t.profit)), /* @__PURE__ */ React.createElement("td", { className: "n" }, r.margin.toFixed(1), "%"), !q && /* @__PURE__ */ React.createElement("td", null)))))
   ), top.length > 0 && /* @__PURE__ */ React.createElement(Card, { title: `Where the profit comes from`, sub: `Top ${top.length} by gross profit \xB7 ${presetLabel(p)}` }, /* @__PURE__ */ React.createElement(
     Donut,
     {
@@ -6847,7 +6868,7 @@ function Invoeez() {
   const [state, setState] = useState(loadBooks);
   const [view, setView] = useState("dash");
   const [param, setParam] = useState(null);
-  const [period, setPeriod] = useState({ preset: "ytd", from: TODAY.slice(0, 4) + "-01-01", to: TODAY, asOf: TODAY });
+  const [period, setPeriod] = useState(() => ({ preset: "ytd", from: TODAY.slice(0, 4) + "-01-01", to: TODAY, asOf: TODAY, ...cmpDefaults() }));
   const [range, setRange] = useState({ preset: "ytd", from: TODAY.slice(0, 4) + "-01-01", to: TODAY });
   const [toasts, setToasts] = useState([]);
   const [cmdk, setCmdk] = useState(false);
@@ -7291,7 +7312,7 @@ function Invoeez() {
         return null;
     }
   };
-  return /* @__PURE__ */ React.createElement(ThemeCtx.Provider, { value: palette }, /* @__PURE__ */ React.createElement(CompanyCtx.Provider, { value: company }, /* @__PURE__ */ React.createElement("div", { className: "mz", "data-theme": theme, "data-accent": accent, "data-density": density, style: { height: "100vh" } }, /* @__PURE__ */ React.createElement("style", null, CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS), starting && /* @__PURE__ */ React.createElement(StartCompanyDialog, { state, company, backup, close: () => setStarting(false), onDone: companyStarted }), cmdk && /* @__PURE__ */ React.createElement(CommandPalette, { items: cmdItems, close: () => setCmdk(false), run: (i) => i.act() }), /* @__PURE__ */ React.createElement(Toasts, { items: toasts }), drawer && /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement(ThemeCtx.Provider, { value: palette }, /* @__PURE__ */ React.createElement(CompanyCtx.Provider, { value: company }, /* @__PURE__ */ React.createElement("div", { className: "mz", "data-theme": theme, "data-accent": accent, "data-density": density, style: { height: "100vh" } }, /* @__PURE__ */ React.createElement("style", null, CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS), starting && /* @__PURE__ */ React.createElement(StartCompanyDialog, { state, company, backup, close: () => setStarting(false), onDone: companyStarted }), cmdk && /* @__PURE__ */ React.createElement(CommandPalette, { items: cmdItems, close: () => setCmdk(false), run: (i) => i.act() }), /* @__PURE__ */ React.createElement(Toasts, { items: toasts }), drawer && /* @__PURE__ */ React.createElement(
     "div",
     {
       className: "side-scrim",
@@ -7979,7 +8000,7 @@ function Dashboard({ state, books, go, newDoc, range, setRange, user, setup }) {
   const [mode, setMode] = useState("overview"), [gran, setGran] = useState("month"), [tx, setTx] = useState("all"), [settlement, setSettlement] = useState("collect");
   const C = useC(), company = useCo(), from = range.from, to = range.to;
   const P = useMemo(() => pnl(books.flat, from, to), [books, from, to]);
-  const pastEnd = addDays(from, -1), pastStart = addDays(from, -rangeDays(range));
+  const cr = cmpRange(range, "prev"), pastEnd = cr.to, pastStart = cr.from;
   const prior = useMemo(() => pnl(books.flat, pastStart, pastEnd), [books, pastStart, pastEnd]);
   const periodBooks = useMemo(() => deriveBooks({ ...state, docs: state.docs.filter((d) => d.date <= to), payments: state.payments.filter((d) => d.date <= to), manual: state.manual.filter((d) => d.date <= to), stockOps: state.stockOps.filter((d) => d.date <= to) }), [state, to]);
   const ar = useMemo(() => aging(state, "receivable", to), [state, to]), ap = useMemo(() => aging(state, "payable", to), [state, to]);
@@ -10230,15 +10251,15 @@ function topN(rows, n, label = "Other") {
   const rest = rows.slice(n - 1);
   return [...rows.slice(0, n - 1), { key: "__other", label: `${label} (${rest.length})`, value: R2(rest.reduce((s, r) => s + r.value, 0)), other: true }];
 }
-function KpiTile({ label, value, prefix = "AED", text, delta, goodUp = true, sub, icon: I, tone, spark, onClick, foot }) {
+function KpiTile({ label, value, prefix = "AED", text, delta, goodUp = true, sub, icon: I, tone, spark, onClick, foot, deltaTitle = "Compared with the previous period" }) {
   const dir = delta == null ? 0 : delta > 0.05 ? 1 : delta < -0.05 ? -1 : 0;
   const good = dir === 0 ? null : dir > 0 === goodUp;
   const Tag2 = onClick ? "button" : "div";
-  return /* @__PURE__ */ React.createElement(Tag2, { className: cx("kpi-tile", tone, onClick && "click"), onClick }, /* @__PURE__ */ React.createElement("div", { className: "kt-top" }, /* @__PURE__ */ React.createElement("span", { className: "kt-label" }, label), I && /* @__PURE__ */ React.createElement("span", { className: "kt-ic" }, /* @__PURE__ */ React.createElement(I, { size: 16 }))), /* @__PURE__ */ React.createElement("div", { className: "kt-value" }, text != null ? text : /* @__PURE__ */ React.createElement(React.Fragment, null, prefix && /* @__PURE__ */ React.createElement("small", null, prefix), /* @__PURE__ */ React.createElement(CountUp, { value }))), /* @__PURE__ */ React.createElement("div", { className: "kt-foot" }, delta != null && /* @__PURE__ */ React.createElement("span", { className: cx("kt-delta", good === true && "up", good === false && "down"), title: "Compared with the previous period of the same length" }, dir > 0 ? "\u25B2" : dir < 0 ? "\u25BC" : "\u2022", " ", Math.abs(delta) >= 1e3 ? ">999" : Math.abs(delta).toFixed(1), "%"), sub && /* @__PURE__ */ React.createElement("span", { className: "kt-sub" }, sub)), spark && spark.length > 1 && /* @__PURE__ */ React.createElement(MiniSpark, { data: spark, color: { t2: "var(--s2)", t3: "var(--s3)", pos: "var(--pos)", neg: "var(--neg)", warn: "var(--warn)" }[tone] || "var(--s1)" }), foot);
+  return /* @__PURE__ */ React.createElement(Tag2, { className: cx("kpi-tile", tone, onClick && "click"), onClick }, /* @__PURE__ */ React.createElement("div", { className: "kt-top" }, /* @__PURE__ */ React.createElement("span", { className: "kt-label" }, label), I && /* @__PURE__ */ React.createElement("span", { className: "kt-ic" }, /* @__PURE__ */ React.createElement(I, { size: 16 }))), /* @__PURE__ */ React.createElement("div", { className: "kt-value" }, text != null ? text : /* @__PURE__ */ React.createElement(React.Fragment, null, prefix && /* @__PURE__ */ React.createElement("small", null, prefix), /* @__PURE__ */ React.createElement(CountUp, { value }))), /* @__PURE__ */ React.createElement("div", { className: "kt-foot" }, delta != null && /* @__PURE__ */ React.createElement("span", { className: cx("kt-delta", good === true && "up", good === false && "down"), title: deltaTitle }, dir > 0 ? "\u25B2" : dir < 0 ? "\u25BC" : "\u2022", " ", Math.abs(delta) >= 1e3 ? ">999" : Math.abs(delta).toFixed(1), "%"), sub && /* @__PURE__ */ React.createElement("span", { className: "kt-sub" }, sub)), spark && spark.length > 1 && /* @__PURE__ */ React.createElement(MiniSpark, { data: spark, color: { t2: "var(--s2)", t3: "var(--s3)", pos: "var(--pos)", neg: "var(--neg)", warn: "var(--warn)" }[tone] || "var(--s1)" }), foot);
 }
 function MiniSpark({ data, color = "var(--s1)", w = 120, h = 28 }) {
-  const max = Math.max(...data), min = Math.min(...data, 0), span = max - min || 1;
-  const pts = data.map((v, i) => [i / (data.length - 1) * w, h - 3 - (v - min) / span * (h - 6)]);
+  const max = Math.max(...data), min = Math.min(...data, 0), span2 = max - min || 1;
+  const pts = data.map((v, i) => [i / (data.length - 1) * w, h - 3 - (v - min) / span2 * (h - 6)]);
   const d = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
   return /* @__PURE__ */ React.createElement("svg", { className: "kt-spark", viewBox: `0 0 ${w} ${h}`, preserveAspectRatio: "none", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("path", { d: d + ` L ${w} ${h} L 0 ${h} Z`, style: { fill: color, opacity: 0.1 } }), /* @__PURE__ */ React.createElement("path", { d, style: { fill: "none", stroke: color, strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }, vectorEffect: "non-scaling-stroke" }));
 }
@@ -10253,8 +10274,8 @@ function ColumnChart({ data, series, line, height = 240, format = (v) => money(v
   const vals = data.flatMap((d) => [...series.map((s) => +d[s.key] || 0), ...line ? [+d[line.key] || 0] : []]);
   if (!vals.some((v) => Math.abs(v) > 4e-3)) return /* @__PURE__ */ React.createElement("div", { className: "viz-empty", style: { height } }, empty || "Nothing to chart for this period yet.");
   const hiV = Math.max(0, ...vals), loV = Math.min(0, ...vals);
-  const step = niceStep((hiV - loV) / 4), max = Math.ceil(hiV / step - 1e-9) * step, min = Math.floor(loV / step + 1e-9) * step, span = max - min || 1;
-  const Y = (v) => pad.t + ih - (v - min) / span * ih, y0 = Y(0);
+  const step = niceStep((hiV - loV) / 4), max = Math.ceil(hiV / step - 1e-9) * step, min = Math.floor(loV / step + 1e-9) * step, span2 = max - min || 1;
+  const Y = (v) => pad.t + ih - (v - min) / span2 * ih, y0 = Y(0);
   const bw = iw / n, k = series.length, barW = Math.max(3, Math.min(24, (bw * 0.7 - (k - 1) * 2) / k)), groupW = k * barW + (k - 1) * 2;
   const cx0 = (i) => pad.l + bw * i + bw / 2;
   const ticks = [];
@@ -10467,13 +10488,13 @@ const REPORTS_CSS = `
 @media (max-width:700px){.rpt-viz{padding:14px 12px 4px}.kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}.kt-value{font-size:18px}.hb-row{grid-template-columns:minmax(90px,40%) minmax(0,1fr) auto;gap:8px}.rf-ic{display:none}}
 @media print{.rpt-viz{background:#fff}.viz-table,.viz-tip{display:none}.kpi-tile,.viz-card{box-shadow:none;break-inside:avoid}}
 `;
-function PnlVisuals({ books, r, p }) {
-  const [pf, pt] = priorRange(p.from, p.to), prev = pnl(books.flat, pf, pt), cmp = comparable(books, p.from, p.to);
+function PnlVisuals({ books, r, p, c, q }) {
+  const prev = q || {}, cmp = !!q, vs = cmp ? `vs ${c.dates}` : null, dt = cmp ? `Compared with ${c.dates}` : void 0;
   const dl2 = (v, w) => cmp ? deltaPct(v, w) : null;
   const ser = useMemo(() => periodSeries(books.flat, p.from, p.to), [books, p.from, p.to]);
   const costs = [...r.cos, ...r.exp].map((x) => ({ key: x.acc.code, label: x.acc.name, sub: x.acc.code, value: x.amount, extra: r.revenue ? (x.amount / r.revenue * 100).toFixed(1) + "% of sales" : null })).filter((x) => x.value > 4e-3).sort((a, b) => b.value - a.value);
   const unit = { day: "day", week: "week", month: "month" }[ser.g];
-  return /* @__PURE__ */ React.createElement("div", { className: "rpt-viz" }, /* @__PURE__ */ React.createElement(KpiRow, null, /* @__PURE__ */ React.createElement(KpiTile, { label: "Revenue", value: r.revenue, icon: TrendingUp, delta: dl2(r.revenue, prev.revenue), sub: cmp ? "vs previous period" : "this period", spark: ser.rows.map((x) => x.revenue) }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Gross profit", value: r.gross, icon: Layers, tone: "t3", delta: dl2(r.gross, prev.gross), sub: `${r.gm.toFixed(1)}% gross margin` }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Operating expenses", value: r.expense, icon: Wallet, tone: "t2", goodUp: false, delta: dl2(r.expense, prev.expense), sub: r.revenue ? `${(r.expense / r.revenue * 100).toFixed(1)}% of revenue` : "running costs" }), /* @__PURE__ */ React.createElement(KpiTile, { label: r.net >= 0 ? "Net profit" : "Net loss", value: r.net, icon: r.net >= 0 ? TrendingUp : TrendingDown, tone: r.net >= 0 ? "pos" : "neg", delta: dl2(r.net, prev.net), sub: `${r.nm.toFixed(1)}% net margin`, spark: ser.rows.map((x) => x.profit) })), /* @__PURE__ */ React.createElement("div", { className: "rpt-grid" }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "rpt-viz" }, /* @__PURE__ */ React.createElement(KpiRow, null, /* @__PURE__ */ React.createElement(KpiTile, { label: "Revenue", value: r.revenue, icon: TrendingUp, delta: dl2(r.revenue, prev.revenue), deltaTitle: dt, sub: cmp ? `was ${money(prev.revenue, false)}` : "this period", spark: ser.rows.map((x) => x.revenue) }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Gross profit", value: r.gross, icon: Layers, tone: "t3", delta: dl2(r.gross, prev.gross), deltaTitle: dt, sub: cmp ? `${r.gm.toFixed(1)}% margin \xB7 was ${prev.gm.toFixed(1)}%` : `${r.gm.toFixed(1)}% gross margin` }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Operating expenses", value: r.expense, icon: Wallet, tone: "t2", goodUp: false, delta: dl2(r.expense, prev.expense), deltaTitle: dt, sub: cmp ? `was ${money(prev.expense, false)}` : r.revenue ? `${(r.expense / r.revenue * 100).toFixed(1)}% of revenue` : "running costs" }), /* @__PURE__ */ React.createElement(KpiTile, { label: r.net >= 0 ? "Net profit" : "Net loss", value: r.net, icon: r.net >= 0 ? TrendingUp : TrendingDown, tone: r.net >= 0 ? "pos" : "neg", delta: dl2(r.net, prev.net), deltaTitle: dt, sub: cmp ? `was ${money(prev.net, false)}` : `${r.nm.toFixed(1)}% net margin`, spark: ser.rows.map((x) => x.profit) })), cmp && /* @__PURE__ */ React.createElement(PnlCompareViz, { r, q, c }), /* @__PURE__ */ React.createElement("div", { className: "rpt-grid" }, /* @__PURE__ */ React.createElement(
     VizCard,
     {
       title: `Revenue, costs and profit by ${unit}`,
@@ -10499,8 +10520,8 @@ function LineChart({ data, color = "var(--s1)", height = 200, name = "Balance", 
   const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b, n = data.length;
   if (n < 2) return /* @__PURE__ */ React.createElement("div", { className: "viz-empty", style: { height: 120 } }, "Not enough movement to draw a trend.");
   const vals = data.map((d2) => d2.value), hiV = Math.max(0, ...vals), loV = Math.min(0, ...vals);
-  const step = niceStep((hiV - loV) / 4 || 1), max = Math.ceil(hiV / step - 1e-9) * step, min = Math.floor(loV / step + 1e-9) * step, span = max - min || 1;
-  const X2 = (i) => pad.l + i / (n - 1) * iw, Y = (v) => pad.t + ih - (v - min) / span * ih;
+  const step = niceStep((hiV - loV) / 4 || 1), max = Math.ceil(hiV / step - 1e-9) * step, min = Math.floor(loV / step + 1e-9) * step, span2 = max - min || 1;
+  const X2 = (i) => pad.l + i / (n - 1) * iw, Y = (v) => pad.t + ih - (v - min) / span2 * ih;
   const ticks = [];
   for (let t = min; t <= max + step / 2; t += step) ticks.push(R2(t));
   const d = data.map((x, i) => (i ? "L" : "M") + X2(i).toFixed(1) + " " + Y(x.value).toFixed(1)).join(" ");
@@ -10512,10 +10533,12 @@ function LineChart({ data, color = "var(--s1)", height = 200, name = "Balance", 
   };
   return /* @__PURE__ */ React.createElement("div", { className: "viz-wrap", onMouseLeave: () => setHi(null) }, /* @__PURE__ */ React.createElement("svg", { viewBox: `0 0 ${W} ${H}`, className: "viz-svg", role: "img", "aria-label": ariaLabel || name, onMouseMove: move }, ticks.map((t, i) => /* @__PURE__ */ React.createElement("g", { key: i }, /* @__PURE__ */ React.createElement("line", { x1: pad.l, x2: W - pad.r, y1: Y(t), y2: Y(t), className: Math.abs(t) < 4e-3 ? "viz-base" : "viz-grid" }), /* @__PURE__ */ React.createElement("text", { x: pad.l - 8, y: Y(t) + 3.5, textAnchor: "end", className: "viz-tick" }, short(t)))), /* @__PURE__ */ React.createElement("path", { d: d + ` L ${X2(n - 1)} ${Y(Math.max(min, 0))} L ${X2(0)} ${Y(Math.max(min, 0))} Z`, style: { fill: color, opacity: 0.1 } }), /* @__PURE__ */ React.createElement("path", { d, style: { fill: "none", stroke: color, strokeWidth: 2, strokeLinejoin: "round", strokeLinecap: "round" } }), data.map((x, i) => (i % every === 0 || i === n - 1) && /* @__PURE__ */ React.createElement("text", { key: i, x: X2(i), y: H - 9, textAnchor: i === 0 ? "start" : i === n - 1 ? "end" : "middle", className: "viz-tick" }, x.label)), /* @__PURE__ */ React.createElement("circle", { cx: X2(n - 1), cy: Y(data[n - 1].value), r: "4", style: { fill: color, stroke: "var(--surface)", strokeWidth: 2 } }), hi != null && /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("line", { x1: X2(hi), x2: X2(hi), y1: pad.t, y2: pad.t + ih, className: "viz-base" }), /* @__PURE__ */ React.createElement("circle", { cx: X2(hi), cy: Y(data[hi].value), r: "5", style: { fill: color, stroke: "var(--surface)", strokeWidth: 2 } }))), hi != null && /* @__PURE__ */ React.createElement("div", { className: "viz-tip", style: { left: `${X2(hi) / W * 100}%`, top: 6, transform: `translateX(${X2(hi) / W > 0.7 ? "-104%" : X2(hi) / W < 0.3 ? "4%" : "-50%"})` } }, /* @__PURE__ */ React.createElement("div", { className: "vt-h" }, data[hi].full || data[hi].label), /* @__PURE__ */ React.createElement("div", { className: "vt-r" }, /* @__PURE__ */ React.createElement("i", { className: "ln", style: { background: color } }), /* @__PURE__ */ React.createElement("b", null, format(data[hi].value)), /* @__PURE__ */ React.createElement("span", null, name))));
 }
-function BsVisuals({ b, books, p }) {
+function BsVisuals({ b, books, p, q, c }) {
+  const dl2 = (v, w) => q ? deltaPct(v, w) : null, dt = q ? `Compared with ${c.dates}` : void 0, was = (v) => q ? `was ${money(v, false)} on ${c.dates}` : null;
   const isCur = (g) => /current/i.test(g.name) && !/non/i.test(g.name);
   const ca = R2(b.assets.filter(isCur).reduce((s, g) => s + g.total, 0)), cl = R2(b.liab.filter(isCur).reduce((s, g) => s + g.total, 0));
-  const cash = R2(b.assets.flatMap((g) => g.rows).filter((x) => ACC[x.acc.code] && ACC[x.acc.code].type === "bank").reduce((s, x) => s + x.amount, 0));
+  const cashOf = (bs) => R2(bs.assets.flatMap((g) => g.rows).filter((x) => ACC[x.acc.code] && ACC[x.acc.code].type === "bank").reduce((s, x) => s + x.amount, 0));
+  const cash = cashOf(b), qCash = q ? cashOf(q) : 0;
   const assetRows = b.assets.flatMap((g) => g.rows).filter((x) => x.amount > 4e-3).map((x) => ({ label: x.acc.name, value: x.amount })).sort((x, y) => y.value - x.value);
   const fund = [...b.liab.flatMap((g) => g.rows).filter((x) => x.amount > 4e-3).map((x) => ({ label: x.acc.name, value: x.amount })).sort((x, y) => y.value - x.value)];
   const fold = (rows, n) => {
@@ -10523,7 +10546,14 @@ function BsVisuals({ b, books, p }) {
     return t.map((x, i) => ({ ...x, color: x.other ? OTHER : PARTS[i % PARTS.length] }));
   };
   const ratio = cl > 4e-3 ? ca / cl : null;
-  return /* @__PURE__ */ React.createElement("div", { className: "rpt-viz" }, /* @__PURE__ */ React.createElement(KpiRow, null, /* @__PURE__ */ React.createElement(KpiTile, { label: "Total assets", value: b.totA, icon: Layers, sub: "What the business owns" }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Total liabilities", value: b.totL, icon: Receipt, tone: "t2", sub: "What it owes" }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Net worth (equity)", value: b.totE, icon: Scale, tone: b.totE >= 0 ? "pos" : "neg", sub: b.totA ? `${(b.totE / b.totA * 100).toFixed(0)}% of assets` : "Owners' share" }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Current ratio", text: ratio == null ? "\u2014" : ratio.toFixed(2) + "\xD7", icon: CircleCheck, tone: ratio == null ? "t3" : ratio >= 1.5 ? "pos" : ratio >= 1 ? "warn" : "neg", sub: ratio == null ? "No current liabilities" : ratio >= 1.5 ? "Comfortable cover" : ratio >= 1 ? "Just covered" : "Short-term debts exceed assets" }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Cash & bank", value: cash, icon: Landmark, tone: "t3", sub: `As at ${dmy(p.asOf)}` })), /* @__PURE__ */ React.createElement("div", { className: "rpt-grid even" }, /* @__PURE__ */ React.createElement(VizCard, { title: "What the business owns", sub: `Assets by account \xB7 AED ${money(b.totA, false)}` }, /* @__PURE__ */ React.createElement(ShareBar, { parts: fold(assetRows, 6) })), /* @__PURE__ */ React.createElement(VizCard, { title: "How it is funded", sub: "Liabilities and owners' equity" }, /* @__PURE__ */ React.createElement(ShareBar, { parts: [{ label: "Liabilities", value: b.totL, color: "var(--s2)" }, { label: "Equity", value: Math.max(0, b.totE), color: "var(--s1)" }] }), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14 } }, /* @__PURE__ */ React.createElement("div", { className: "micro", style: { marginBottom: 8 } }, "Largest liabilities"), /* @__PURE__ */ React.createElement(HBars, { rows: topN(fund.map((x) => ({ ...x, key: x.label })), 5, "Other"), color: "var(--s2)", empty: "No liabilities." })))));
+  return /* @__PURE__ */ React.createElement("div", { className: "rpt-viz" }, /* @__PURE__ */ React.createElement(KpiRow, null, /* @__PURE__ */ React.createElement(KpiTile, { label: "Total assets", value: b.totA, icon: Layers, delta: dl2(b.totA, q && q.totA), deltaTitle: dt, sub: was(q && q.totA) || "What the business owns" }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Total liabilities", value: b.totL, icon: Receipt, tone: "t2", goodUp: false, delta: dl2(b.totL, q && q.totL), deltaTitle: dt, sub: was(q && q.totL) || "What it owes" }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Net worth (equity)", value: b.totE, icon: Scale, tone: b.totE >= 0 ? "pos" : "neg", delta: dl2(b.totE, q && q.totE), deltaTitle: dt, sub: was(q && q.totE) || (b.totA ? `${(b.totE / b.totA * 100).toFixed(0)}% of assets` : "Owners' share") }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Current ratio", text: ratio == null ? "\u2014" : ratio.toFixed(2) + "\xD7", icon: CircleCheck, tone: ratio == null ? "t3" : ratio >= 1.5 ? "pos" : ratio >= 1 ? "warn" : "neg", sub: ratio == null ? "No current liabilities" : ratio >= 1.5 ? "Comfortable cover" : ratio >= 1 ? "Just covered" : "Short-term debts exceed assets" }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Cash & bank", value: cash, icon: Landmark, tone: "t3", delta: q ? dl2(cash, qCash) : null, deltaTitle: dt, sub: q ? `was ${money(qCash, false)}` : `As at ${dmy(p.asOf)}` })), q && /* @__PURE__ */ React.createElement("div", { className: "rpt-grid even" }, /* @__PURE__ */ React.createElement(VizCard, { title: "Then and now", sub: `AED \xB7 as at ${dmy(p.asOf)} and ${c.dates} (grey)`, legend: [{ name: `As at ${dmy(p.asOf)}`, color: "var(--s1)" }, { name: `As at ${c.dates}`, color: "var(--k0)" }] }, /* @__PURE__ */ React.createElement(
+    PairBars,
+    {
+      rows: [["Total assets", b.totA, q.totA, true], ["Total liabilities", b.totL, q.totL, false], ["Net worth (equity)", b.totE, q.totE, true], ["Cash & bank", cash, qCash, true]].map(([label, cur, prev, goodUp]) => ({ label, cur, prev, goodUp })),
+      curName: `As at ${dmy(p.asOf)}`,
+      prevName: `As at ${c.dates}`
+    }
+  )), /* @__PURE__ */ React.createElement(VizCard, { title: "Biggest changes", sub: "Balances that moved most \xB7 green is good news, red is not" }, /* @__PURE__ */ React.createElement(ChangeList, { rows: biggest([...mergeGroups(b.assets, q.assets).flatMap((g) => g.rows).map((x) => ({ ...x, goodUp: true })), ...mergeGroups(b.liab, q.liab).flatMap((g) => g.rows).map((x) => ({ ...x, goodUp: false })), ...mergeRows(b.eqRows, q.eqRows).map((x) => ({ ...x, goodUp: true }))].map((x) => ({ key: x.acc.code + x.acc.name, label: x.acc.name, cur: x.cur, prev: x.prev, goodUp: x.goodUp }))) }))), /* @__PURE__ */ React.createElement("div", { className: "rpt-grid even" }, /* @__PURE__ */ React.createElement(VizCard, { title: "What the business owns", sub: `Assets by account \xB7 AED ${money(b.totA, false)}` }, /* @__PURE__ */ React.createElement(ShareBar, { parts: fold(assetRows, 6) })), /* @__PURE__ */ React.createElement(VizCard, { title: "How it is funded", sub: "Liabilities and owners' equity" }, /* @__PURE__ */ React.createElement(ShareBar, { parts: [{ label: "Liabilities", value: b.totL, color: "var(--s2)" }, { label: "Equity", value: Math.max(0, b.totE), color: "var(--s1)" }] }), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14 } }, /* @__PURE__ */ React.createElement("div", { className: "micro", style: { marginBottom: 8 } }, "Largest liabilities"), /* @__PURE__ */ React.createElement(HBars, { rows: topN(fund.map((x) => ({ ...x, key: x.label })), 5, "Other"), color: "var(--s2)", empty: "No liabilities." })))));
 }
 function AgedVisuals({ a, isAR, p, onPick }) {
   const SEV = ["var(--s1)", "var(--sev-1)", "var(--sev-2)", "var(--sev-3)", "var(--sev-3)", "var(--sev-3)"];
@@ -10540,10 +10570,18 @@ function AgedVisuals({ a, isAR, p, onPick }) {
   }));
   return /* @__PURE__ */ React.createElement("div", { className: "rpt-viz" }, /* @__PURE__ */ React.createElement(KpiRow, null, /* @__PURE__ */ React.createElement(KpiTile, { label: isAR ? "Customers owe you" : "You owe vendors", value: a.grand, icon: Receipt, sub: `${a.rows.length} ${isAR ? "customer" : "vendor"}${a.rows.length === 1 ? "" : "s"}` }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Not yet due", value: a.tot[0], icon: Clock, tone: "t3", sub: a.grand ? `${pct(a.tot[0], a.grand)}% of the total` : "" }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Overdue", value: overdue, icon: AlertTriangle, tone: overdue > 4e-3 ? "warn" : "pos", sub: a.grand ? `${pct(overdue, a.grand)}% of the total` : "Nothing late" }), /* @__PURE__ */ React.createElement(KpiTile, { label: "More than 60 days late", value: late60, icon: CircleAlert, tone: late60 > 4e-3 ? "neg" : "pos", sub: late60 > 4e-3 ? "Chase these first" : "None" }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Average days late", text: items.length ? `${avgLate} days` : "\u2014", icon: Calendar, tone: "t2", sub: "Weighted by amount overdue" })), /* @__PURE__ */ React.createElement("div", { className: "rpt-grid" }, /* @__PURE__ */ React.createElement(VizCard, { title: "How late the money is", sub: `Open balance by age on ${dmy(p.asOf)} \xB7 AED` }, /* @__PURE__ */ React.createElement(HBars, { rows: a.tot.map((v, i) => ({ key: BUCKETS[i], label: i ? `${BUCKETS[i]} days` : "Not yet due", value: v, color: SEV[i], extra: a.grand ? `${pct(v, a.grand)}%` : null })) })), /* @__PURE__ */ React.createElement(VizCard, { title: isAR ? "Who owes the most" : "Who you owe the most", sub: "Largest open balances \xB7 overdue part underneath" }, /* @__PURE__ */ React.createElement(HBars, { rows: topN(parties, 6, isAR ? "Other customers" : "Other vendors"), onPick, empty: "Nothing outstanding." }))));
 }
-function ProfitVisuals({ r, isProd }) {
+function ProfitVisuals({ r, isProd, q, c }) {
+  const dl2 = (v, w) => q ? deltaPct(v, w) : null, dt = q ? `Compared with ${c.dates}` : void 0;
   const best = r.rows.filter((x) => x.profit > 0).slice().sort((a, b) => b.profit - a.profit).map((x) => ({ key: x.key, label: x.name, sub: x.code, value: x.profit, extra: `${x.margin.toFixed(1)}% margin`, extraTone: x.margin < 0 ? "neg" : "" }));
   const thin = r.rows.filter((x) => x.revenue > 4e-3).slice().sort((a, b) => a.margin - b.margin).slice(0, 6).map((x) => ({ key: x.key, label: x.name, sub: `AED ${money(x.revenue, false)} sold`, value: x.margin, color: x.margin < 0 ? "var(--neg)" : x.margin < 10 ? "var(--warn)" : "var(--s3)" }));
-  return /* @__PURE__ */ React.createElement("div", { className: "rpt-viz" }, /* @__PURE__ */ React.createElement(KpiRow, null, /* @__PURE__ */ React.createElement(KpiTile, { label: "Revenue", value: r.t.revenue, icon: TrendingUp, sub: `${r.rows.length} ${isProd ? "products" : "customers"}` }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Cost of sales", value: r.t.cost, icon: Wallet, tone: "t2", sub: "Goods at cost" }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Gross profit", value: r.t.profit, icon: BarChart3, tone: r.t.profit >= 0 ? "pos" : "neg", sub: "Revenue minus cost of sales" }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Blended margin", text: `${r.margin.toFixed(1)}%`, icon: Percent, tone: "t3", sub: best[0] ? `Best: ${best[0].label}` : "" })), /* @__PURE__ */ React.createElement("div", { className: "rpt-grid" }, /* @__PURE__ */ React.createElement(VizCard, { title: `Top ${isProd ? "products" : "customers"} by gross profit`, sub: "Profit in AED \xB7 margin underneath" }, /* @__PURE__ */ React.createElement(HBars, { rows: topN(best, 10, "Others"), empty: "No profitable sales in this period." })), /* @__PURE__ */ React.createElement(VizCard, { title: "Thinnest margins", sub: "Lowest gross margin first \u2014 review prices or costs" }, /* @__PURE__ */ React.createElement(HBars, { rows: thin, format: (v) => v.toFixed(1) + "%", max: Math.max(100, ...thin.map((x) => Math.abs(x.value))), empty: "No sales in this period." }))));
+  return /* @__PURE__ */ React.createElement("div", { className: "rpt-viz" }, /* @__PURE__ */ React.createElement(KpiRow, null, /* @__PURE__ */ React.createElement(KpiTile, { label: "Revenue", value: r.t.revenue, icon: TrendingUp, delta: dl2(r.t.revenue, q && q.t.revenue), deltaTitle: dt, sub: `${r.rows.length} ${isProd ? "products" : "customers"}${q ? ` \xB7 was ${q.rows.length}` : ""}` }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Cost of sales", value: r.t.cost, icon: Wallet, tone: "t2", goodUp: false, delta: dl2(r.t.cost, q && q.t.cost), deltaTitle: dt, sub: q ? `was ${money(q.t.cost, false)}` : "Goods at cost" }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Gross profit", value: r.t.profit, icon: BarChart3, tone: r.t.profit >= 0 ? "pos" : "neg", delta: dl2(r.t.profit, q && q.t.profit), deltaTitle: dt, sub: q ? `was ${money(q.t.profit, false)}` : "Revenue minus cost of sales" }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Blended margin", text: `${r.margin.toFixed(1)}%`, icon: Percent, tone: "t3", sub: q ? `was ${q.margin.toFixed(1)}% \xB7 ${ptsText(r.margin - q.margin)}` : best[0] ? `Best: ${best[0].label}` : "" })), q && (() => {
+    const qk = {};
+    q.rows.forEach((z) => qk[z.key] = z);
+    const all = [...r.rows, ...q.rows.filter((z) => !r.rows.some((y) => y.key === z.key)).map((z) => ({ ...z, revenue: 0 }))];
+    const moves = all.map((x) => ({ key: x.key, label: x.name, cur: x.revenue, prev: qk[x.key] ? qk[x.key].revenue : 0 }));
+    const up = biggest(moves.filter((x) => x.cur > x.prev), 6), down = biggest(moves.filter((x) => x.cur < x.prev), 6);
+    return /* @__PURE__ */ React.createElement("div", { className: "rpt-grid even" }, /* @__PURE__ */ React.createElement(VizCard, { title: `Growing ${isProd ? "products" : "customers"}`, sub: `Revenue change vs ${c.dates}` }, /* @__PURE__ */ React.createElement(ChangeList, { rows: up, empty: "Nothing grew compared with the earlier period." })), /* @__PURE__ */ React.createElement(VizCard, { title: `Declining ${isProd ? "products" : "customers"}`, sub: `Revenue change vs ${c.dates}` }, /* @__PURE__ */ React.createElement(ChangeList, { rows: down, empty: "Nothing declined compared with the earlier period." })));
+  })(), /* @__PURE__ */ React.createElement("div", { className: "rpt-grid" }, /* @__PURE__ */ React.createElement(VizCard, { title: `Top ${isProd ? "products" : "customers"} by gross profit`, sub: "Profit in AED \xB7 margin underneath" }, /* @__PURE__ */ React.createElement(HBars, { rows: topN(best, 10, "Others"), empty: "No profitable sales in this period." })), /* @__PURE__ */ React.createElement(VizCard, { title: "Thinnest margins", sub: "Lowest gross margin first \u2014 review prices or costs" }, /* @__PURE__ */ React.createElement(HBars, { rows: thin, format: (v) => v.toFixed(1) + "%", max: Math.max(100, ...thin.map((x) => Math.abs(x.value))), empty: "No sales in this period." }))));
 }
 function VatVisuals({ state, v, p }) {
   const ser = useMemo(() => {
@@ -10873,6 +10911,265 @@ const DASH_CSS = `
   .dash-kpis .kpi-tile{padding:14px 14px 12px}.dash-kpis .kt-value{font-size:17px}.dash-kpis .kt-value small{display:none}}
 @media (prefers-reduced-motion:reduce){.dash-hero,.dh-glow,.dh-live i,.dash2 .dash-kpis>*,.dash2 .dash-row>*,.mv-row,.viz-svg .viz-bar,.viz-svg .viz-line,.hb-track i,.mv-bar i,.mt-track i,.share-bar i,.kt-spark,.dc-spark,.kt-meter i{animation:none!important}}
 @media print{.dash-hero{animation:none;box-shadow:none}.dh-glow,.dh-grid{display:none}}
+`;
+const CMP_STORE = "mizan.compare";
+const cmpDefaults = () => {
+  let s = {};
+  try {
+    s = JSON.parse(localStorage.getItem(CMP_STORE) || "{}") || {};
+  } catch (e) {
+  }
+  return { cmp: s.cmp || "prev", bsCmp: s.bsCmp || "ye" };
+};
+const saveCmp = (p) => {
+  try {
+    localStorage.setItem(CMP_STORE, JSON.stringify({ cmp: p.cmp, bsCmp: p.bsCmp }));
+  } catch (e) {
+  }
+};
+const pad2 = (n) => String(n).padStart(2, "0");
+const shiftMonths = (s, n, toEnd) => {
+  const f = addMonths(s, n), e = eom(f);
+  return toEnd ? e : f.slice(0, 8) + pad2(Math.min(+s.slice(8), +e.slice(8)));
+};
+const shiftYears = (s, n) => shiftMonths(s, 12 * n, s === eom(s));
+const monthsSpanned = (a, b) => (+b.slice(0, 4) - +a.slice(0, 4)) * 12 + (+b.slice(5, 7) - +a.slice(5, 7)) + 1;
+const PRESET_MONTHS = { mtd: 1, lastm: 1, qtd: 3, lastq: 3, ytd: 12, fy: 12, d365: 12 };
+const CMP_RANGE = [["prev", "Previous period"], ["yoy", "Same period last year"], ["custom", "Custom period"], ["off", "Don't compare"]];
+const CMP_ASOF = [["ye", "Last year-end"], ["pm", "Previous month-end"], ["yoy", "Same date last year"], ["custom", "Another date"], ["off", "Don't compare"]];
+const span = (f, t) => f === t ? dmy(f) : `${dmy(f)} \u2013 ${dmy(t)}`;
+function cmpRange(p, mode = p.cmp || "prev") {
+  if (!mode || mode === "off") return null;
+  const { from, to } = p;
+  let f, t;
+  if (mode === "custom") {
+    if (!p.cmpFrom || !p.cmpTo) return null;
+    f = p.cmpFrom <= p.cmpTo ? p.cmpFrom : p.cmpTo;
+    t = p.cmpFrom <= p.cmpTo ? p.cmpTo : p.cmpFrom;
+  } else if (mode === "yoy") {
+    f = shiftYears(from, -1);
+    t = shiftYears(to, -1);
+  } else {
+    const dayBased = ["today", "yesterday", "d7", "d30"].includes(p.preset);
+    const k = PRESET_MONTHS[p.preset] || (!dayBased && from === som(from) ? monthsSpanned(from, to) : 0);
+    if (k) {
+      f = shiftMonths(from, -k);
+      t = shiftMonths(to, -k, to === eom(to));
+    } else {
+      const n = daysBetween(from, to) + 1;
+      f = addDays(from, -n);
+      t = addDays(from, -1);
+    }
+  }
+  return { mode, from: f, to: t, dates: span(f, t), label: (CMP_RANGE.find((x) => x[0] === mode) || [])[1] };
+}
+function cmpAsOf(p, mode = p.bsCmp || "ye") {
+  if (!mode || mode === "off") return null;
+  const a = p.asOf;
+  let d;
+  if (mode === "pm") d = eom(addMonths(som(a), -1));
+  else if (mode === "ye") d = `${+a.slice(0, 4) - 1}-12-31`;
+  else if (mode === "yoy") d = shiftYears(a, -1);
+  else d = p.cmpAsOf || null;
+  if (!d) return null;
+  return { mode, asOf: d, from: d, to: d, dates: dmy(d), label: (CMP_ASOF.find((x) => x[0] === mode) || [])[1] };
+}
+function cmpCoverage(books, c) {
+  if (!c) return null;
+  const s = books.flat.reduce((m, l) => l.date < m ? l.date : m, "9999-12-31");
+  if (s === "9999-12-31" || c.to < s) return { status: "none", start: s === "9999-12-31" ? null : s };
+  return { status: !c.asOf && c.from < s ? "partial" : "full", start: s };
+}
+function useCompare(books, p, asOf) {
+  const c = asOf ? cmpAsOf(p) : cmpRange(p), cov = cmpCoverage(books, c);
+  return { c, cov, on: !!c && cov.status !== "none" };
+}
+const cmpChip = (x) => x.on ? { cmp: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ArrowLeftRight, { size: 12 }), " vs ", x.c.dates) } : null;
+function chg(cur, prev, goodUp = true) {
+  const d = R2(cur - prev), dir = d > 4e-3 ? 1 : d < -4e-3 ? -1 : 0;
+  const pct2 = Math.abs(prev) > 4e-3 ? d / Math.abs(prev) * 100 : null;
+  return { d, dir, pct: pct2, good: dir === 0 ? null : dir > 0 === goodUp };
+}
+const pctText = (x, cur) => x.pct == null ? Math.abs(cur) > 4e-3 ? "New" : "\u2014" : Math.abs(x.pct) >= 1e3 ? x.pct > 0 ? ">+999%" : "<\u2212999%" : (x.pct > 0 ? "+" : x.pct < 0 ? "\u2212" : "") + Math.abs(x.pct).toFixed(1) + "%";
+const dText = (x) => x.dir === 0 ? "\u2014" : (x.dir > 0 ? "+" : "\u2212") + money(Math.abs(x.d));
+function ChangeCells({ cur, prev, goodUp = true }) {
+  const x = chg(cur, prev, goodUp), tone = x.good === true ? "up" : x.good === false ? "down" : "";
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("td", { className: "n cmp-prev" }, money(prev)), /* @__PURE__ */ React.createElement("td", { className: cx("n cmp-d", tone) }, dText(x)), /* @__PURE__ */ React.createElement("td", { className: cx("n cmp-p", tone) }, x.dir !== 0 && /* @__PURE__ */ React.createElement("i", { "aria-hidden": "true" }, x.dir > 0 ? "\u25B2" : "\u25BC"), pctText(x, cur)));
+}
+const CmpHead = ({ cur, prev, curLabel = "This period", prevLabel = "Comparison" }) => /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("th", { className: "n cmp-cur" }, curLabel, " ", /* @__PURE__ */ React.createElement("span", { className: "th-d" }, cur)), /* @__PURE__ */ React.createElement("th", { className: "n cmp-prev" }, prevLabel, " ", /* @__PURE__ */ React.createElement("span", { className: "th-d" }, prev)), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Change ", /* @__PURE__ */ React.createElement("span", { className: "th-d" }, "AED")), /* @__PURE__ */ React.createElement("th", { className: "n", style: { width: 92 } }, "Change ", /* @__PURE__ */ React.createElement("span", { className: "th-d" }, "%")));
+function CompareBar({ p, setP, mode = "range" }) {
+  const asOf = mode === "asOf", key = asOf ? "bsCmp" : "cmp", opts = asOf ? CMP_ASOF : CMP_RANGE;
+  const cur = p[key] || (asOf ? "ye" : "prev");
+  const [open, setOpen] = useState(false), [at, setAt] = useState({ top: 0, left: 0 });
+  const btnRef = React.useRef(null);
+  const now = asOf ? cmpAsOf(p) : cmpRange(p);
+  const [d, setD] = useState({ from: p.cmpFrom || "", to: p.cmpTo || "", asOf: p.cmpAsOf || "" }), [sel, setSel] = useState(cur);
+  React.useEffect(() => {
+    if (!open) return;
+    setSel(cur);
+    const r = cmpRange({ ...p, cmp: "prev" }, "prev");
+    setD({ from: p.cmpFrom || r.from, to: p.cmpTo || r.to, asOf: p.cmpAsOf || cmpAsOf({ ...p }, "ye").asOf });
+  }, [open]);
+  const toggle = () => {
+    const el = btnRef.current;
+    if (el && el.getBoundingClientRect) {
+      const r = el.getBoundingClientRect(), w = 340, vw = window.innerWidth || 1280;
+      setAt({ top: Math.round(r.bottom + 6), left: Math.round(Math.min(Math.max(8, r.right - w), vw - w - 8)) });
+    }
+    setOpen((v) => !v);
+  };
+  const apply = (patch) => {
+    const np = { ...p, ...patch };
+    setP(np);
+    saveCmp(np);
+    setOpen(false);
+  };
+  const preview = (k) => {
+    const c = asOf ? cmpAsOf(p, k) : cmpRange(p, k);
+    return k === "off" ? "Show this period only" : k === "custom" ? p[key] === "custom" && now ? now.dates : "Pick the dates" : c ? (asOf ? "As at " : "") + c.dates : "";
+  };
+  return /* @__PURE__ */ React.createElement("div", { style: { position: "relative" }, className: "noprint" }, /* @__PURE__ */ React.createElement("button", { className: cx("btn cmp-btn", cur !== "off" && "on"), ref: btnRef, onClick: toggle, "aria-haspopup": "dialog", "aria-expanded": open }, /* @__PURE__ */ React.createElement(ArrowLeftRight, { size: 14 }), cur === "off" ? "Compare" : /* @__PURE__ */ React.createElement(React.Fragment, null, "Compare: ", /* @__PURE__ */ React.createElement("b", null, (opts.find((o) => o[0] === cur) || [])[1])), /* @__PURE__ */ React.createElement(ChevronDown, { size: 13, strokeWidth: 2, style: { opacity: 0.55, marginLeft: 1 } })), open && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pop-scrim", onMouseDown: () => setOpen(false) }), /* @__PURE__ */ React.createElement("div", { className: "rangepop cmp-pop", role: "dialog", "aria-label": "Compare with", style: { top: at.top, left: at.left } }, /* @__PURE__ */ React.createElement("div", { className: "cmp-pop-h" }, /* @__PURE__ */ React.createElement("b", null, "Compare with"), /* @__PURE__ */ React.createElement("span", null, asOf ? `Balances as at ${dmy(p.asOf)}` : `This period: ${span(p.from, p.to)}`)), /* @__PURE__ */ React.createElement("div", { className: "cmp-opts" }, opts.map(([k, label]) => /* @__PURE__ */ React.createElement("button", { key: k, className: cx("cmp-opt", sel === k && "on"), "aria-pressed": sel === k, onClick: () => k === "custom" ? setSel("custom") : apply({ [key]: k }) }, /* @__PURE__ */ React.createElement("span", { className: "cmp-radio" }), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, label), /* @__PURE__ */ React.createElement("small", null, preview(k)))))), sel === "custom" && /* @__PURE__ */ React.createElement("div", { className: "cmp-custom" }, asOf ? /* @__PURE__ */ React.createElement(Field, { label: "Compare with balances as at" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.asOf, onChange: (e) => setD({ ...d, asOf: e.target.value }) })) : /* @__PURE__ */ React.createElement("div", { className: "cmp-dates" }, /* @__PURE__ */ React.createElement(Field, { label: "From" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.from, onChange: (e) => setD({ ...d, from: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "To" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.to, onChange: (e) => setD({ ...d, to: e.target.value }) }))), /* @__PURE__ */ React.createElement(
+    Btn,
+    {
+      kind: "pri",
+      style: { width: "100%", marginTop: 10 },
+      onClick: () => apply(asOf ? { bsCmp: "custom", cmpAsOf: d.asOf } : { cmp: "custom", cmpFrom: d.from <= d.to ? d.from : d.to, cmpTo: d.from <= d.to ? d.to : d.from }),
+      disabled: asOf ? !d.asOf : !d.from || !d.to
+    },
+    "Compare"
+  )))));
+}
+const SUGGEST = [["qtd", "This quarter vs last quarter"], ["mtd", "This month vs last month"], ["lastq", "Last quarter vs the one before"], ["lastm", "Last month vs the month before"], ["d30", "Last 30 days vs the 30 before"]];
+function CompareNote({ x, p, setP, asOf }) {
+  if (!x.c || !x.cov || x.cov.status === "full") return null;
+  if (x.cov.status === "partial") return /* @__PURE__ */ React.createElement("div", { className: "cmp-note partial noprint" }, /* @__PURE__ */ React.createElement(Info, { size: 15 }), /* @__PURE__ */ React.createElement("span", null, "Your books start on ", /* @__PURE__ */ React.createElement("b", null, dmy(x.cov.start)), ", so only part of the comparison period (", x.c.dates, ") has figures. Changes may look larger than they really are."));
+  const start = x.cov.start;
+  const ideas = !start ? [] : asOf ? CMP_ASOF.filter(([k]) => k !== "custom" && k !== "off" && k !== p.bsCmp).map(([k, l]) => [k, l, cmpAsOf(p, k)]).filter((s) => s[2] && s[2].asOf >= start).map(([k, l, c]) => ({ label: `${l} (${c.dates})`, run: () => {
+    const np = { ...p, bsCmp: k };
+    setP(np);
+    saveCmp(np);
+  } })) : SUGGEST.map(([k, l]) => {
+    const f = PRESETS.find((z) => z[0] === k);
+    if (!f) return null;
+    const [from, to] = f[2]();
+    const c = cmpRange({ preset: k, from, to }, "prev");
+    return c.from >= start && !(p.preset === k && p.cmp === "prev") ? { label: l, run: () => {
+      const np = { ...p, preset: k, from, to, cmp: "prev" };
+      setP(np);
+      saveCmp(np);
+    } } : null;
+  }).filter(Boolean).slice(0, 3);
+  return /* @__PURE__ */ React.createElement("div", { className: "cmp-note none noprint" }, /* @__PURE__ */ React.createElement("span", { className: "cmp-note-ic" }, /* @__PURE__ */ React.createElement(ArrowLeftRight, { size: 17 })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("b", null, "Nothing to compare with yet"), /* @__PURE__ */ React.createElement("p", null, start ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Your books start on ", /* @__PURE__ */ React.createElement("b", null, dmy(start)), ", so there are no figures for ", asOf ? /* @__PURE__ */ React.createElement(React.Fragment, null, x.c.dates) : /* @__PURE__ */ React.createElement(React.Fragment, null, "the comparison period ", x.c.dates), ". ") : /* @__PURE__ */ React.createElement(React.Fragment, null, "There are no posted transactions yet. "), ideas.length ? "Pick a period your books cover:" : "Choose other dates with Compare above."), ideas.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cmp-ideas" }, ideas.map((i) => /* @__PURE__ */ React.createElement("button", { key: i.label, onClick: i.run }, i.label, /* @__PURE__ */ React.createElement(ArrowRight, { size: 13 }))))));
+}
+function mergeRows(a, b) {
+  const m = /* @__PURE__ */ new Map();
+  a.forEach((x) => m.set(x.acc.code, { acc: x.acc, cur: x.amount, prev: 0 }));
+  b.forEach((x) => {
+    const r = m.get(x.acc.code) || { acc: x.acc, cur: 0, prev: 0 };
+    r.prev = x.amount;
+    m.set(x.acc.code, r);
+  });
+  return [...m.values()].sort((x, y) => String(x.acc.code).localeCompare(String(y.acc.code)));
+}
+function PnlCompareTable({ r, q, p, c }) {
+  const share = (v, base) => base ? (v / base * 100).toFixed(1) + "%" : "\u2014";
+  const Rows = ({ a, b, goodUp }) => mergeRows(a, b).map((x) => /* @__PURE__ */ React.createElement("tr", { key: x.acc.code }, /* @__PURE__ */ React.createElement("td", { className: "mono muted", style: { width: 70 } }, x.acc.code), /* @__PURE__ */ React.createElement("td", null, x.acc.name), /* @__PURE__ */ React.createElement("td", { className: "n cmp-cur" }, money(x.cur)), /* @__PURE__ */ React.createElement("td", { className: "n muted", style: { width: 70 } }, share(x.cur, r.revenue)), /* @__PURE__ */ React.createElement(ChangeCells, { cur: x.cur, prev: x.prev, goodUp })));
+  const Sub = ({ label, cur, prev, goodUp, pct: pct2, cls = "sub rule" }) => /* @__PURE__ */ React.createElement("tr", { className: cls }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, label), /* @__PURE__ */ React.createElement("td", { className: "n cmp-cur" }, money(cur)), /* @__PURE__ */ React.createElement("td", { className: "n muted" }, pct2), /* @__PURE__ */ React.createElement(ChangeCells, { cur, prev, goodUp }));
+  return /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl cmp-tbl" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: 70 } }, "Code"), /* @__PURE__ */ React.createElement("th", null, "Account"), /* @__PURE__ */ React.createElement("th", { className: "n cmp-cur" }, "This period ", /* @__PURE__ */ React.createElement("span", { className: "th-d" }, span(p.from, p.to))), /* @__PURE__ */ React.createElement("th", { className: "n", style: { width: 70 } }, "% rev."), /* @__PURE__ */ React.createElement("th", { className: "n cmp-prev" }, "Comparison ", /* @__PURE__ */ React.createElement("span", { className: "th-d" }, c.dates)), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Change ", /* @__PURE__ */ React.createElement("span", { className: "th-d" }, "AED")), /* @__PURE__ */ React.createElement("th", { className: "n", style: { width: 92 } }, "Change ", /* @__PURE__ */ React.createElement("span", { className: "th-d" }, "%")))), /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 7 }, "Revenue")), /* @__PURE__ */ React.createElement(Rows, { a: r.rev, b: q.rev, goodUp: true }), /* @__PURE__ */ React.createElement(Sub, { label: "Total revenue", cur: r.revenue, prev: q.revenue, goodUp: true, pct: "100.0%" }), /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 7 }, "Cost of sales")), /* @__PURE__ */ React.createElement(Rows, { a: r.cos, b: q.cos, goodUp: false }), /* @__PURE__ */ React.createElement(Sub, { label: "Gross profit", cur: r.gross, prev: q.gross, goodUp: true, pct: r.gm.toFixed(1) + "%" }), /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 7 }, "Operating expenses")), /* @__PURE__ */ React.createElement(Rows, { a: r.exp, b: q.exp, goodUp: false }), /* @__PURE__ */ React.createElement(Sub, { label: "Total operating expenses", cur: r.expense, prev: q.expense, goodUp: false, pct: share(r.expense, r.revenue) })), /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", { className: "grand" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, r.net >= 0 ? "Profit for the period" : "Loss for the period"), /* @__PURE__ */ React.createElement("td", { className: "n cmp-cur", style: { color: r.net >= 0 ? "var(--pos)" : "var(--neg)" } }, money(r.net)), /* @__PURE__ */ React.createElement("td", { className: "n muted" }, r.nm.toFixed(1), "%"), /* @__PURE__ */ React.createElement(ChangeCells, { cur: r.net, prev: q.net, goodUp: true })), /* @__PURE__ */ React.createElement("tr", { className: "cmp-margins" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Gross margin \xB7 net margin"), /* @__PURE__ */ React.createElement("td", { className: "n cmp-cur" }, r.gm.toFixed(1), "% \xB7 ", r.nm.toFixed(1), "%"), /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", { className: "n cmp-prev" }, q.gm.toFixed(1), "% \xB7 ", q.nm.toFixed(1), "%"), /* @__PURE__ */ React.createElement("td", { className: "n", colSpan: 2 }, ptsText(r.gm - q.gm), " gross \xB7 ", ptsText(r.nm - q.nm), " net")))));
+}
+const ptsText = (v) => Math.abs(v) < 0.05 ? "\xB10.0 pts" : (v > 0 ? "+" : "\u2212") + Math.abs(v).toFixed(1) + " pts";
+function mergeGroups(A2, B) {
+  const names = [.../* @__PURE__ */ new Set([...A2.map((g) => g.name), ...B.map((g) => g.name)])];
+  return names.map((n) => {
+    const a = A2.find((g) => g.name === n), b = B.find((g) => g.name === n);
+    return { name: n, rows: mergeRows(a ? a.rows : [], b ? b.rows : []), cur: a ? a.total : 0, prev: b ? b.total : 0 };
+  });
+}
+function BsCompareTable({ b, q, p, c }) {
+  const Sec = ({ title, groups, rows, cur, prev, label, goodUp }) => /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 6 }, title)), groups && mergeGroups(groups.a, groups.b).map((g) => /* @__PURE__ */ React.createElement(React.Fragment, { key: g.name }, /* @__PURE__ */ React.createElement("tr", { className: "sub" }, /* @__PURE__ */ React.createElement("td", { colSpan: 6, style: { paddingTop: 12 } }, g.name)), g.rows.map((x) => /* @__PURE__ */ React.createElement("tr", { key: x.acc.code }, /* @__PURE__ */ React.createElement("td", { className: "mono muted", style: { width: 70 } }, x.acc.code), /* @__PURE__ */ React.createElement("td", null, x.acc.name), /* @__PURE__ */ React.createElement("td", { className: "n cmp-cur" }, money(x.cur)), /* @__PURE__ */ React.createElement(ChangeCells, { cur: x.cur, prev: x.prev, goodUp }))), /* @__PURE__ */ React.createElement("tr", { className: "sub rule" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Total ", g.name.toLowerCase()), /* @__PURE__ */ React.createElement("td", { className: "n cmp-cur" }, money(g.cur)), /* @__PURE__ */ React.createElement(ChangeCells, { cur: g.cur, prev: g.prev, goodUp })))), rows && mergeRows(rows.a, rows.b).map((x) => /* @__PURE__ */ React.createElement("tr", { key: x.acc.code }, /* @__PURE__ */ React.createElement("td", { className: "mono muted", style: { width: 70 } }, x.acc.code), /* @__PURE__ */ React.createElement("td", null, x.acc.name), /* @__PURE__ */ React.createElement("td", { className: "n cmp-cur" }, money(x.cur)), /* @__PURE__ */ React.createElement(ChangeCells, { cur: x.cur, prev: x.prev, goodUp }))), /* @__PURE__ */ React.createElement("tr", { className: "sub rule cmp-total" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, label), /* @__PURE__ */ React.createElement("td", { className: "n cmp-cur" }, money(cur)), /* @__PURE__ */ React.createElement(ChangeCells, { cur, prev, goodUp })));
+  return /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl cmp-tbl" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: 70 } }, "Code"), /* @__PURE__ */ React.createElement("th", null, "Account"), /* @__PURE__ */ React.createElement(CmpHead, { cur: dmy(p.asOf), prev: c.dates, curLabel: "As at", prevLabel: "As at" }))), /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement(Sec, { title: "Assets", groups: { a: b.assets, b: q.assets }, cur: b.totA, prev: q.totA, label: "Total assets", goodUp: true }), /* @__PURE__ */ React.createElement(Sec, { title: "Liabilities", groups: { a: b.liab, b: q.liab }, cur: b.totL, prev: q.totL, label: "Total liabilities", goodUp: false }), /* @__PURE__ */ React.createElement(Sec, { title: "Equity", rows: { a: b.eqRows, b: q.eqRows }, cur: b.totE, prev: q.totE, label: "Total equity", goodUp: true })), /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", { className: "grand" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Total liabilities and equity"), /* @__PURE__ */ React.createElement("td", { className: "n cmp-cur" }, money(R2(b.totL + b.totE))), /* @__PURE__ */ React.createElement(ChangeCells, { cur: R2(b.totL + b.totE), prev: R2(q.totL + q.totE), goodUp: true })))));
+}
+function ChangeList({ rows, empty = "No changes between the two periods." }) {
+  const max = Math.max(1, ...rows.map((x) => Math.abs(x.cur - x.prev)));
+  if (!rows.length) return /* @__PURE__ */ React.createElement("div", { className: "viz-empty", style: { height: 120 } }, empty);
+  return /* @__PURE__ */ React.createElement("div", { className: "chg-list" }, rows.map((x) => {
+    const c = chg(x.cur, x.prev, x.goodUp !== false), w = Math.abs(c.d) / max * 50;
+    return /* @__PURE__ */ React.createElement("div", { key: x.key, className: "chg-row", title: `${x.label}: ${money(x.prev, false)} \u2192 ${money(x.cur, false)}` }, /* @__PURE__ */ React.createElement("span", { className: "chg-name" }, /* @__PURE__ */ React.createElement("b", null, x.label), /* @__PURE__ */ React.createElement("small", null, money(x.prev, false), " \u2192 ", money(x.cur, false))), /* @__PURE__ */ React.createElement("span", { className: "chg-track", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("i", { className: cx(c.good === false ? "bad" : "good", c.dir < 0 && "l"), style: c.dir >= 0 ? { left: "50%", width: w + "%" } : { right: "50%", width: w + "%" } })), /* @__PURE__ */ React.createElement("span", { className: cx("chg-val", c.good === true && "up", c.good === false && "down") }, dText(c).replace(".00", ""), /* @__PURE__ */ React.createElement("small", null, pctText(c, x.cur))));
+  }));
+}
+function PairBars({ rows, curName = "This period", prevName = "Comparison" }) {
+  const max = Math.max(1, ...rows.flatMap((x) => [Math.abs(x.cur), Math.abs(x.prev)]));
+  return /* @__PURE__ */ React.createElement("div", { className: "pair-list", role: "list" }, rows.map((x, i) => {
+    const c = chg(x.cur, x.prev, x.goodUp !== false);
+    return /* @__PURE__ */ React.createElement("div", { key: x.label, className: "pair-row", role: "listitem", "aria-label": `${x.label}: ${curName} ${money(x.cur, false)}, ${prevName} ${money(x.prev, false)}` }, /* @__PURE__ */ React.createElement("div", { className: "pair-h" }, /* @__PURE__ */ React.createElement("b", null, x.label), /* @__PURE__ */ React.createElement("span", { className: cx("pair-chg", c.good === true && "up", c.good === false && "down") }, c.dir !== 0 && (c.dir > 0 ? "\u25B2 " : "\u25BC "), pctText(c, x.cur))), /* @__PURE__ */ React.createElement("div", { className: "pair-bar cur" }, /* @__PURE__ */ React.createElement("i", { className: x.cur < 0 ? "neg" : "", style: { width: Math.abs(x.cur) / max * 100 + "%", "--i": i } }), /* @__PURE__ */ React.createElement("span", null, money(x.cur, false))), /* @__PURE__ */ React.createElement("div", { className: "pair-bar prev" }, /* @__PURE__ */ React.createElement("i", { style: { width: Math.abs(x.prev) / max * 100 + "%", "--i": i } }), /* @__PURE__ */ React.createElement("span", null, money(x.prev, false))));
+  }));
+}
+function biggest(rows, n = 7) {
+  return rows.filter((x) => Math.abs(x.cur - x.prev) > 4e-3).sort((a, b) => Math.abs(b.cur - b.prev) - Math.abs(a.cur - a.prev)).slice(0, n);
+}
+function PnlCompareViz({ r, q, c }) {
+  const data = [["Revenue", r.revenue, q.revenue, true], ["Cost of sales", r.cost, q.cost, false], ["Gross profit", r.gross, q.gross, true], ["Operating expenses", r.expense, q.expense, false], [r.net < 0 ? "Net loss" : "Net profit", r.net, q.net, true]].map(([label, cur, prev, goodUp]) => ({ label, full: label, cur, prev, goodUp }));
+  const moves = biggest([...mergeRows(r.rev, q.rev).map((x) => ({ ...x, goodUp: true })), ...mergeRows([...r.cos, ...r.exp], [...q.cos, ...q.exp]).map((x) => ({ ...x, goodUp: false }))].map((x) => ({ key: x.acc.code, label: x.acc.name, cur: x.cur, prev: x.prev, goodUp: x.goodUp })));
+  return /* @__PURE__ */ React.createElement("div", { className: "rpt-grid even" }, /* @__PURE__ */ React.createElement(VizCard, { title: "This period vs comparison", sub: `AED \xB7 ${c.dates} in grey`, legend: [{ name: "This period", color: "var(--s1)" }, { name: "Comparison", color: "var(--k0)" }] }, /* @__PURE__ */ React.createElement(PairBars, { rows: data }), /* @__PURE__ */ React.createElement(VizTable, { caption: "This period vs comparison", cols: ["Line", "This period", "Comparison", "Change"], rows: data.map((x) => [x.label, money(x.cur, false), money(x.prev, false), dText(chg(x.cur, x.prev))]) })), /* @__PURE__ */ React.createElement(VizCard, { title: "Biggest changes", sub: "Accounts that moved most \xB7 green is good news, red is not" }, /* @__PURE__ */ React.createElement(ChangeList, { rows: moves })));
+}
+const COMPARE_CSS = `
+.cmp-btn b{font-weight:650;margin-left:2px}
+.mz .cmp-btn.on{border-color:var(--brand-100);background:var(--brand-50);color:var(--brand-600)}
+.mz .cmp-btn.on svg{color:var(--brand)}
+.cmp-pop{flex-direction:column;width:340px;padding:0}
+.cmp-pop-h{padding:13px 16px 10px;border-bottom:1px solid var(--line-2);background:var(--surface-2)}
+.cmp-pop-h b{display:block;font-size:13.5px;color:var(--ink)}.cmp-pop-h span{font-size:11.5px;color:var(--ink-3)}
+.cmp-opts{padding:6px}
+.cmp-opt{display:flex;align-items:flex-start;gap:11px;width:100%;text-align:left;padding:9px 10px;border-radius:10px;transition:background .12s}
+.cmp-opt:hover{background:var(--surface-2)}
+.cmp-opt b{display:block;font-size:13px;font-weight:600;color:var(--ink)}.cmp-opt small{display:block;font-size:11.5px;color:var(--ink-3);margin-top:1px}
+.cmp-radio{flex:0 0 16px;width:16px;height:16px;margin-top:2px;border-radius:50%;border:1.5px solid var(--ink-4);display:grid;place-items:center}
+.cmp-opt.on{background:var(--brand-50)}.cmp-opt.on .cmp-radio{border-color:var(--brand)}.cmp-opt.on .cmp-radio::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--brand)}
+.cmp-custom{padding:4px 16px 16px;border-top:1px solid var(--line-2);margin-top:2px;padding-top:12px}
+.cmp-dates{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rf-chips span.cmp{background:var(--surface-2);border-style:dashed;color:var(--ink-2);font-weight:600}
+.cmp-note{display:flex;gap:12px;align-items:flex-start;margin:14px 24px 0;padding:12px 14px;border-radius:12px;font-size:12.5px;line-height:1.5}
+.cmp-note.partial{align-items:center;background:var(--warn-50);color:var(--ink-2);border:1px solid color-mix(in srgb,var(--warn) 25%,transparent)}
+.cmp-note.partial svg{color:var(--warn);flex:0 0 auto}
+.cmp-note.none{background:var(--brand-50);border:1px solid var(--brand-100);color:var(--ink-2)}
+.cmp-note.none>div>b{display:block;font-size:13.5px;color:var(--ink)}
+.cmp-note p{margin-top:2px}
+.cmp-note-ic{flex:0 0 34px;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:#fff;background:linear-gradient(140deg,var(--pri-a),var(--pri-b))}
+.cmp-ideas{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.cmp-ideas button{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--brand-600);background:var(--surface);border:1px solid var(--brand-100);transition:transform .15s,box-shadow .15s}
+.cmp-ideas button:hover{transform:translateY(-1px);box-shadow:var(--sh-2)}
+.mz .rframe .tbl.cmp-tbl th .th-d{display:block;font-size:10px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--ink-4);margin-top:2px}
+.mz .tbl.cmp-tbl td.cmp-cur{font-weight:600}
+.mz .tbl.cmp-tbl th.cmp-prev,.mz .tbl.cmp-tbl td.cmp-prev{background:color-mix(in srgb,var(--surface-2) 70%,transparent);color:var(--ink-2)}
+.mz .tbl.cmp-tbl td.cmp-d,.mz .tbl.cmp-tbl td.cmp-p{color:var(--ink-3);white-space:nowrap}
+.mz .tbl.cmp-tbl td.cmp-d.up,.mz .tbl.cmp-tbl td.cmp-p.up{color:var(--pos)}
+.mz .tbl.cmp-tbl td.cmp-d.down,.mz .tbl.cmp-tbl td.cmp-p.down{color:var(--neg)}
+.mz .tbl.cmp-tbl td.cmp-p i{font-style:normal;font-size:9px;margin-right:4px;vertical-align:1px}
+.mz .tbl.cmp-tbl tr.cmp-margins td{font-size:12px;font-weight:500;color:var(--ink-3);background:var(--surface)}
+.pair-list{display:grid;gap:12px}
+.pair-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:5px}
+.pair-h b{font-size:12.5px;font-weight:600;color:var(--ink)}
+.pair-chg{font-size:11.5px;font-weight:650;color:var(--ink-3);font-variant-numeric:tabular-nums}.pair-chg.up{color:var(--pos)}.pair-chg.down{color:var(--neg)}
+.pair-bar{display:grid;grid-template-columns:minmax(0,1fr) 108px;gap:10px;align-items:center;height:14px}
+.pair-bar+.pair-bar{margin-top:3px}
+.pair-bar i{display:block;height:10px;border-radius:0 4px 4px 0;min-width:2px;transform-origin:0 50%;animation:barGrowX .8s var(--ease) both;animation-delay:calc(var(--i,0) * 60ms)}
+.pair-bar.cur i{background:var(--s1)}.pair-bar.cur i.neg{background:var(--neg)}.pair-bar.prev i{background:var(--k0);height:8px}
+.pair-bar span{font-size:11.5px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-2)}.pair-bar.prev span{color:var(--ink-3)}
+.chg-list{display:grid;gap:4px}
+.chg-row{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(70px,1fr) auto;gap:12px;align-items:center;padding:6px 2px;border-bottom:1px solid var(--line-2)}
+.chg-row:last-child{border-bottom:0}
+.chg-name b{display:block;font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chg-name small{display:block;font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.chg-track{position:relative;height:10px;background:linear-gradient(90deg,transparent calc(50% - .5px),var(--line) calc(50% - .5px),var(--line) calc(50% + .5px),transparent calc(50% + .5px))}
+.chg-track i{position:absolute;top:0;bottom:0;border-radius:3px;transform-origin:0 50%;animation:barGrowX .8s var(--ease) both}
+.chg-track i.l{transform-origin:100% 50%}
+.chg-track i.good{background:var(--pos)}.chg-track i.bad{background:var(--neg)}
+.chg-val{text-align:right;font-size:12.5px;font-weight:650;font-variant-numeric:tabular-nums;color:var(--ink-2);white-space:nowrap}
+.chg-val small{display:block;font-size:10.5px;font-weight:600}
+.chg-val.up{color:var(--pos)}.chg-val.down{color:var(--neg)}
+@media (max-width:700px){.cmp-note{margin:12px 12px 0}.cmp-pop{width:calc(100vw - 24px)}.chg-row{grid-template-columns:minmax(0,1fr) auto}.chg-track{display:none}}
+@media (prefers-reduced-motion:reduce){.chg-track i,.pair-bar i{animation:none!important}}
+@media print{.mz .tbl.cmp-tbl th.cmp-prev,.mz .tbl.cmp-tbl td.cmp-prev{background:none}}
 `;
 
 window.__Invoeez=Invoeez;</script>

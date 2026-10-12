@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.8)
+# InvoEez — Invoice Made Easy (3.8.1)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -74,6 +74,10 @@ Company profile, theme, user selection and connection settings use their existin
 | Scrap | Record damaged quantities with a reason. Scrap reduces stock at carrying cost and charges the category adjustment account. Quantities cannot exceed on-hand stock. |
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
+
+## Comparing periods (3.8.1)
+
+Open Profit & loss, Balance sheet or Profit by product / customer and use **Compare** next to the date range: *Previous period* (previous month, quarter or year to date for those ranges, otherwise the same number of days just before), *Same period last year*, *Custom period* or *Don't compare*. The balance sheet compares as-at dates (last year-end, previous month-end, same date last year or any date). Tables add Comparison, Change and Change % columns, which also appear in PDF and Excel exports. If the comparison period is before your first transaction, the report explains this and suggests periods that can be compared.
 
 ## Dashboard (3.8)
 
@@ -160,6 +164,7 @@ npm test
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
 | `dashboard.jsx` | New overview dashboard. |
+| `compare.jsx` | 3.8.1 report comparison: Compare control, period rules, comparative P&L / balance sheet tables and change charts. |
 | `dash.jsx` | 3.8 animated dashboard: banner, count-up figures, fast/slow-moving items, top customers and motion styles. |
 | `reports.jsx` | 3.7 report design system: KPI tiles, column/line charts, bars, meters and report visuals. |
 | `design.jsx` | New responsive visual system. |
@@ -167,6 +172,7 @@ npm test
 | `shell.html` | Original standalone shell and bundled libraries/fonts. |
 | `build.mjs` | Reproducible JSX compilation and standalone packaging. |
 | `tests/engine.cjs` | Executable accounting, pricing, migration and inventory regression checks. |
+| `tests/browser-compare.cjs` | 3.8.1 comparison checks: period rules, comparative tables add up, notes, custom dates, balance sheet, exports. |
 | `tests/browser-dashboard.cjs` | 3.8 dashboard checks: cards, rankings, count-up, motion, reduced motion, drill-downs. |
 | `templates/` | Excel import templates for products and for customers & vendors (also downloadable inside the app). |
 | `previews/` | Screenshots of the upgraded application. |

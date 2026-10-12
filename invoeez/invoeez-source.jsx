@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.8.0";
+const BUILD = "3.8.1";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -1930,7 +1930,7 @@ const ReportFrame = ({ title, meta, right, children, toast, icon: Ic = BarChart3
           {CO.logo && <img src={CO.logo} alt="" style={{ maxHeight: 34, maxWidth: 150, objectFit: "contain", display: "block", marginBottom: 9 }} />}
           <div className="micro">{CO.name}{CO.trn ? ` · TRN ${CO.trn}` : ""}</div>
           <h2>{title}</h2>
-          <div className="rf-chips">{(chips || [meta]).filter(Boolean).map((c, i) => <span key={i} className={i === 0 ? "acc" : ""}>{c}</span>)}</div>
+          <div className="rf-chips">{(chips || [meta]).filter(Boolean).map((c, i) => c.cmp ? <span key={i} className="cmp">{c.cmp}</span> : <span key={i} className={i === 0 ? "acc" : ""}>{c}</span>)}</div>
         </div>
       </div>
       <div className="acts noprint" style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
@@ -3961,20 +3961,24 @@ function Aged({ state, kind, p, setP , toast }) {
 
 function ProfitLoss({ books, p, setP , toast }) {
   const r = pnl(books.flat, p.from, p.to);
+  const x = useCompare(books, p), q = x.on ? pnl(books.flat, x.c.from, x.c.to) : null;
+  const moved = (cur, prev, word) => { const c = chg(cur, prev); return c.pct == null ? null : <>{word} {c.dir > 0 ? "up" : c.dir < 0 ? "down" : "unchanged"}{c.dir ? <> <b className={c.dir > 0 ? "pos" : "neg"}>{Math.abs(c.pct) >= 1000 ? ">999" : Math.abs(c.pct).toFixed(1)}%</b></> : ""}</>; };
   const share = (v) => (r.revenue ? ((v / r.revenue) * 100).toFixed(1) + "%" : "—");
   const Line = ({ a }) => (<tr><td className="mono muted" style={{ width: 80 }}>{a.acc.code}</td>
     <td>{a.acc.name}</td><td className="n">{money(a.amount)}</td>
     <td className="n muted" style={{ width: 92 }}>{share(a.amount)}</td></tr>);
   return (
-    <ReportFrame toast={toast} title="Statement of Profit or Loss" meta={`${dmy(p.from)} to ${dmy(p.to)} · AED`} icon={BarChart3}
-      chips={[`${dmy(p.from)} – ${dmy(p.to)}`, "Accrual basis", "AED"]} right={<PeriodBar p={p} setP={setP} />}>
+    <ReportFrame toast={toast} title="Statement of Profit or Loss" meta={`${dmy(p.from)} to ${dmy(p.to)}${x.on ? ` compared with ${x.c.dates}` : ""} · AED`} icon={BarChart3}
+      chips={[`${dmy(p.from)} – ${dmy(p.to)}`, cmpChip(x), "Accrual basis", "AED"]} right={<><PeriodBar p={p} setP={setP} /><CompareBar p={p} setP={setP} /></>}>
+      <CompareNote x={x} p={p} setP={setP} />
       <Insight tone={r.net < 0 ? "warn" : ""}>{r.revenue || r.expense || r.cost
         ? <>From {dmy(p.from)} to {dmy(p.to)} you sold <b>{aed(r.revenue)}</b>. The goods and services you sold cost <b>{aed(r.cost)}</b>, leaving a gross profit of <b>{aed(r.gross)}</b> ({r.gm.toFixed(1)}%).
-          After <b>{aed(r.expense)}</b> of running costs, the business made a <b className={r.net >= 0 ? "pos" : "neg"}>{r.net >= 0 ? "profit" : "loss"} of {aed(Math.abs(r.net))}</b>.</>
+          After <b>{aed(r.expense)}</b> of running costs, the business made a <b className={r.net >= 0 ? "pos" : "neg"}>{r.net >= 0 ? "profit" : "loss"} of {aed(Math.abs(r.net))}</b>.
+          {q && (q.revenue || q.net) ? <> Compared with {x.c.dates}, {moved(r.revenue, q.revenue, "sales are") || <>sales were nil before</>}{q.net ? <> and {moved(r.net, q.net, "profit is")}</> : ""} (profit then: {aed(q.net)}).</> : null}</>
         : <>No sales or costs were recorded between {dmy(p.from)} and {dmy(p.to)}. Pick another period above.</>}</Insight>
-      <PnlVisuals books={books} r={r} p={p} />
-      <SectionTitle>Statement detail</SectionTitle>
-      <div className="tbl-wrap"><table className="tbl">
+      <PnlVisuals books={books} r={r} p={p} c={x.on ? x.c : null} q={q} />
+      <SectionTitle>{q ? `Statement detail · compared with ${x.c.dates}` : "Statement detail"}</SectionTitle>
+      {q ? <PnlCompareTable r={r} q={q} p={p} c={x.c} /> : <div className="tbl-wrap"><table className="tbl">
         <thead><tr><th style={{ width: 80 }}>Code</th><th>Account</th><th className="n">Amount</th><th className="n" style={{ width: 92 }}>% revenue</th></tr></thead>
         <tbody>
           <tr className="sec"><td colSpan={4}>Revenue</td></tr>
@@ -3990,13 +3994,14 @@ function ProfitLoss({ books, p, setP , toast }) {
         <tfoot><tr className="grand"><td /><td>{r.net >= 0 ? "Profit for the period" : "Loss for the period"}</td>
           <td className="n" style={{ color: r.net >= 0 ? "var(--pos)" : "var(--neg)" }}>{money(r.net)}</td>
           <td className="n muted">{r.nm.toFixed(1)}%</td></tr></tfoot>
-      </table></div>
+      </table></div>}
     </ReportFrame>
   );
 }
 
 function BalanceSheetRep({ books, p, setP , toast }) {
   const b = balanceSheet(books.flat, p.asOf, p.asOf.slice(0, 4) + "-01-01");
+  const x = useCompare(books, p, true), q = x.on ? balanceSheet(books.flat, x.c.asOf, x.c.asOf.slice(0, 4) + "-01-01") : null;
   const Block = ({ title, groups, rows, total, label }) => (
     <table className="tbl">
       <tbody>
@@ -4015,13 +4020,15 @@ function BalanceSheetRep({ books, p, setP , toast }) {
   );
   const balanced = Math.abs(b.diff) < 0.01;
   return (
-    <ReportFrame toast={toast} title="Statement of Financial Position" meta={`As at ${dmy(p.asOf)} · AED`} icon={Scale}
-      chips={[`As at ${dmy(p.asOf)}`, balanced ? "Balanced" : "Out of balance", "AED"]} right={<PeriodBar p={p} setP={setP} mode="asOf" />}>
+    <ReportFrame toast={toast} title="Statement of Financial Position" meta={`As at ${dmy(p.asOf)}${x.on ? ` compared with ${x.c.dates}` : ""} · AED`} icon={Scale}
+      chips={[`As at ${dmy(p.asOf)}`, cmpChip(x), balanced ? "Balanced" : "Out of balance", "AED"]} right={<><PeriodBar p={p} setP={setP} mode="asOf" /><CompareBar p={p} setP={setP} mode="asOf" /></>}>
+      <CompareNote x={x} p={p} setP={setP} asOf />
       <Insight>On {dmy(p.asOf)} the business owns <b>{aed(b.totA)}</b> (cash, stock, money due from customers and equipment) and owes <b>{aed(b.totL)}</b> (vendors, VAT, loans and other liabilities),
-        so it is worth <b className={b.totE >= 0 ? "pos" : "neg"}>{aed(b.totE)}</b> to its owners.{Math.abs(b.diff) < 0.01 ? " Both sides agree." : ""}</Insight>
-      <BsVisuals b={b} books={books} p={p} />
-      <SectionTitle>Statement detail</SectionTitle>
-      <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 0 }}>
+        so it is worth <b className={b.totE >= 0 ? "pos" : "neg"}>{aed(b.totE)}</b> to its owners.{Math.abs(b.diff) < 0.01 ? " Both sides agree." : ""}
+        {q ? <> On {x.c.dates} it was worth <b>{aed(q.totE)}</b> — {b.totE >= q.totE ? "an increase" : "a decrease"} of <b className={b.totE >= q.totE ? "pos" : "neg"}>{aed(Math.abs(R2(b.totE - q.totE)))}</b>.</> : null}</Insight>
+      <BsVisuals b={b} books={books} p={p} q={q} c={x.on ? x.c : null} />
+      <SectionTitle>{q ? `Statement detail · as at ${dmy(p.asOf)} and ${x.c.dates}` : "Statement detail"}</SectionTitle>
+      {q ? <BsCompareTable b={b} q={q} p={p} c={x.c} /> : <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 0 }}>
         <div style={{ borderRight: "1px solid var(--line)" }}>
           <Block title="Assets" groups={b.assets} total={b.totA} label="Total assets" /></div>
         <div>
@@ -4030,7 +4037,7 @@ function BalanceSheetRep({ books, p, setP , toast }) {
           <table className="tbl"><tfoot><tr className="grand"><td /><td>Total liabilities and equity</td>
             <td className="n">{money(R2(b.totL + b.totE))}</td></tr></tfoot></table>
         </div>
-      </div>
+      </div>}
       <div style={{ padding: "14px 18px", borderTop: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 9,
         fontSize: 12.5, color: balanced ? "var(--pos)" : "var(--neg)", background: balanced ? "var(--pos-50)" : "var(--neg-50)" }}>
         {balanced ? <Check size={15} strokeWidth={2.3} /> : <AlertTriangle size={15} strokeWidth={2.1} />}
@@ -4999,50 +5006,63 @@ function ProfitReport({ state, books, p, setP, by, toast }) {
   const C = useC();
   const r = profitability(state, books, p.from, p.to, by);
   const isProd = by === "product";
+  const cm = useCompare(books, p), q = cm.on ? profitability(state, books, cm.c.from, cm.c.to, by) : null;
+  const qk = {}; if (q) q.rows.forEach((z) => (qk[z.key] = z));
+  const gone = q ? q.rows.filter((z) => !r.rows.some((y) => y.key === z.key) && Math.abs(z.revenue) > 0.004).map((z) => ({ ...z, qty: 0, docs: 0, revenue: 0, cost: 0, profit: 0, margin: 0, gone: true })) : [];
+  const rows = [...r.rows, ...gone], cols = q ? 9 : 8;
   const top = r.rows.filter((x) => x.profit > 0).slice(0, 6);
   return (
     <div className="grid">
       <ReportFrame toast={toast} title={isProd ? "Profitability by Product" : "Profitability by Customer"} icon={isProd ? Package : Users}
-        chips={[`${dmy(p.from)} – ${dmy(p.to)}`, `Costed on ${COSTING[state.costing || "avco"].label}`, "AED"]}
-        meta={`${dmy(p.from)} to ${dmy(p.to)} · costed on ${COSTING[state.costing || "avco"].label} · AED`}
-        right={<PeriodBar p={p} setP={setP} />}>
-        <ProfitVisuals r={r} isProd={isProd} />
+        chips={[`${dmy(p.from)} – ${dmy(p.to)}`, cmpChip(cm), `Costed on ${COSTING[state.costing || "avco"].label}`, "AED"]}
+        meta={`${dmy(p.from)} to ${dmy(p.to)}${cm.on ? ` compared with ${cm.c.dates}` : ""} · costed on ${COSTING[state.costing || "avco"].label} · AED`}
+        right={<><PeriodBar p={p} setP={setP} /><CompareBar p={p} setP={setP} /></>}>
+        <CompareNote x={cm} p={p} setP={setP} />
+        <ProfitVisuals r={r} isProd={isProd} q={q} c={cm.on ? cm.c : null} />
         <SectionTitle>{isProd ? "Every product" : "Every customer"}</SectionTitle>
-        <div className="tbl-wrap"><table className="tbl">
+        <div className="tbl-wrap"><table className={cx("tbl", q && "cmp-tbl")}>
           <thead><tr>
             <th>{isProd ? "Product" : "Customer"}</th>
             <th>{isProd ? "Type" : "Territory"}</th>
             <th className="n">{isProd ? "Units sold" : "Invoices"}</th>
-            <th className="n">Revenue</th><th className="n">Cost of sales</th>
-            <th className="n">Gross profit</th><th className="n">Margin</th><th style={{ width: 130 }}>Share</th>
+            <th className={cx("n", q && "cmp-cur")}>Revenue{q && <> <span className="th-d">{span(p.from, p.to)}</span></>}</th>
+            {q && <><th className="n cmp-prev">Revenue <span className="th-d">{cm.c.dates}</span></th><th className="n">Change <span className="th-d">%</span></th></>}
+            <th className="n">Cost of sales</th>
+            <th className="n">Gross profit</th><th className="n">Margin</th>{!q && <th style={{ width: 130 }}>Share</th>}
           </tr></thead>
           <tbody>
-            {r.rows.length === 0 && <tr><td colSpan={8}>
+            {rows.length === 0 && <tr><td colSpan={cols}>
               <EmptyState icon={BarChart3} title="No sales in this period">Widen the range above.</EmptyState></td></tr>}
-            {r.rows.map((x) => (
-              <tr key={x.key}>
+            {rows.map((x) => (
+              <tr key={x.key} className={x.gone ? "cmp-gone" : undefined}>
                 <td><div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   {isProd ? <span className={cx("gt sm", x.kind === "goods" ? "g5" : "g6")}>
                     {x.kind === "goods" ? <Package size={14} strokeWidth={1.9} /> : <Layers size={14} strokeWidth={1.9} />}</span>
                     : <Avatar name={x.name} />}
                   <div style={{ minWidth: 0 }}><b style={{ fontWeight: 500 }}>{x.name}</b>
-                    {isProd && <div style={{ fontSize: 11.5, color: "var(--ink-4)" }}>{x.code}</div>}</div></div></td>
+                    {isProd && <div style={{ fontSize: 11.5, color: "var(--ink-4)" }}>{x.code}</div>}
+                    {x.gone && <div style={{ fontSize: 11.5, color: "var(--warn)" }}>No sales this period</div>}</div></div></td>
                 <td>{isProd ? <Pill tone={x.kind === "goods" ? "gold" : "info"}>{x.kind === "goods" ? "Goods" : "Service"}</Pill>
                   : <span className="muted">{x.code}</span>}</td>
                 <td className="n">{isProd ? x.qty : x.docs}</td>
-                <td className="n">{money(x.revenue)}</td>
+                <td className={cx("n", q && "cmp-cur")}>{money(x.revenue)}</td>
+                {q && (() => { const z = qk[x.key], c = chg(x.revenue, z ? z.revenue : 0), t = c.good === true ? "up" : c.good === false ? "down" : "";
+                  return <><td className="n cmp-prev">{money(z ? z.revenue : 0)}</td><td className={cx("n cmp-p", t)}>{c.dir !== 0 && <i aria-hidden="true">{c.dir > 0 ? "▲" : "▼"}</i>}{pctText(c, x.revenue)}</td></>; })()}
                 <td className="n">{money(x.cost)}</td>
                 <td className="n" style={{ fontWeight: 600, color: x.profit >= 0 ? "var(--pos)" : "var(--neg)" }}>{money(x.profit)}</td>
                 <td className="n" style={{ color: x.margin < 15 ? "var(--warn)" : undefined }}>{x.margin.toFixed(1)}%</td>
-                <td><span className="bt" style={{ display: "block", height: 8, borderRadius: 20, background: "var(--surface-3)", overflow: "hidden" }}>
+                {!q && <td><span className="bt" style={{ display: "block", height: 8, borderRadius: 20, background: "var(--surface-3)", overflow: "hidden" }}>
                   <i style={{ display: "block", height: "100%", borderRadius: 20,
                     width: `${r.t.profit > 0 ? Math.max(0, (x.profit / r.t.profit) * 100) : 0}%`,
-                    background: x.profit >= 0 ? "var(--brand)" : "var(--neg)" }} /></span></td>
+                    background: x.profit >= 0 ? "var(--brand)" : "var(--neg)" }} /></span></td>}
               </tr>))}
           </tbody>
           <tfoot><tr><td colSpan={3}>Totals — {r.rows.length} {isProd ? "items" : "customers"}</td>
-            <td className="n">{money(r.t.revenue)}</td><td className="n">{money(r.t.cost)}</td>
-            <td className="n">{money(r.t.profit)}</td><td className="n">{r.margin.toFixed(1)}%</td><td /></tr></tfoot>
+            <td className="n">{money(r.t.revenue)}</td>
+            {q && (() => { const c = chg(r.t.revenue, q.t.revenue), t = c.good === true ? "up" : c.good === false ? "down" : "";
+              return <><td className="n cmp-prev">{money(q.t.revenue)}</td><td className={cx("n cmp-p", t)}>{c.dir !== 0 && <i aria-hidden="true">{c.dir > 0 ? "▲" : "▼"}</i>}{pctText(c, r.t.revenue)}</td></>; })()}
+            <td className="n">{money(r.t.cost)}</td>
+            <td className="n">{money(r.t.profit)}</td><td className="n">{r.margin.toFixed(1)}%</td>{!q && <td />}</tr></tfoot>
         </table></div>
       </ReportFrame>
 
@@ -6153,7 +6173,7 @@ function Invoeez() {
   const [state, setState] = useState(loadBooks);
   const [view, setView] = useState("dash");
   const [param, setParam] = useState(null);
-  const [period, setPeriod] = useState({ preset: "ytd", from: TODAY.slice(0,4)+"-01-01", to: TODAY, asOf: TODAY });
+  const [period, setPeriod] = useState(() => ({ preset: "ytd", from: TODAY.slice(0,4)+"-01-01", to: TODAY, asOf: TODAY, ...cmpDefaults() }));
   const [range, setRange] = useState({ preset: "ytd", from: TODAY.slice(0,4)+"-01-01", to: TODAY });
   const [toasts, setToasts] = useState([]);
   const [cmdk, setCmdk] = useState(false);
@@ -6378,7 +6398,7 @@ function Invoeez() {
     <ThemeCtx.Provider value={palette}>
     <CompanyCtx.Provider value={company}>
     <div className="mz" data-theme={theme} data-accent={accent} data-density={density} style={{ height: "100vh" }}>
-      <style>{CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS}</style>
+      <style>{CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS}</style>
       {starting && <StartCompanyDialog state={state} company={company} backup={backup} close={() => setStarting(false)} onDone={companyStarted} />}
       {cmdk && <CommandPalette items={cmdItems} close={() => setCmdk(false)} run={(i) => i.act()} />}
       <Toasts items={toasts} />
