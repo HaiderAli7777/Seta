@@ -5,7 +5,7 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright');const pa
 const errs=[],ok=[];const check=(c,m)=>(c?ok:errs).push(m);p.on('pageerror',e=>errs.push('PAGE '+e.message));p.on('dialog',d=>d.accept());
 await p.addInitScript(()=>{try{if(!sessionStorage.getItem('x')){localStorage.clear();localStorage.setItem('mizan.sidebar','pinned');localStorage.setItem('mizan.navgroups','{}');sessionStorage.setItem('x','1');}}catch(e){}});
 await p.goto('file://'+path.resolve(__dirname,'../invoeez.html'));await p.waitForTimeout(1300);
-const nav=async t=>{await p.locator(`.sbar [data-k][title="${t}"]`).first().click();await p.waitForTimeout(400);};
+const nav=async t=>{await p.locator(`.sbar [data-k][data-title="${t}"]`).first().click();await p.waitForTimeout(400);};
 const combo=(label)=>p.getByRole('combobox',{name:label,exact:true}).last();
 const books=()=>p.evaluate(()=>JSON.parse(localStorage.getItem('mizan.books.v2')));
 const create=async(label,name)=>{await combo(label).click();await p.locator('.sel-pop .sel-o.new').click();await p.waitForTimeout(200);await p.locator('.studio-modal').last().getByLabel('Name').fill(name);await p.getByRole('button',{name:'Create & select'}).click();await p.waitForTimeout(250);};

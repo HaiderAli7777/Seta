@@ -34,7 +34,7 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
   /* Folded by default: a slim rail that slides open over the page while the pointer (or keyboard focus) is on it. */
   const [peek, setPeek] = useState(false), peekT = React.useRef(0);
   const folded = (mini || tablet) && !drawer;
-  const enter = () => { if (!folded) return; clearTimeout(peekT.current); peekT.current = setTimeout(() => setPeek(true), 70); };
+  const enter = () => { if (!folded) return; clearTimeout(peekT.current); peekT.current = setTimeout(() => setPeek(true), 140); };
   const leave = () => { clearTimeout(peekT.current); peekT.current = setTimeout(() => setPeek(false), 240); };
   React.useEffect(() => () => clearTimeout(peekT.current), []);
   React.useEffect(() => { if (!folded) setPeek(false); }, [folded]);
@@ -66,7 +66,7 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
 
   const leaf = (it) => (
     <div key={it.k} className={cx("sb-row", view === it.k && "on")}>
-      <button className="sb-link" data-k={it.k} title={it.l} onClick={() => pick(it.k)} aria-current={view === it.k ? "page" : undefined}>
+      <button className="sb-link" data-k={it.k} data-title={it.l} onClick={() => pick(it.k)} aria-current={view === it.k ? "page" : undefined}>
         <span className="sb-tick" aria-hidden="true" />
         <span className="lbl">{it.l}</span>
         {counts[it.k] != null && counts[it.k] > 0 && <span className="ct">{counts[it.k]}</span>}
@@ -77,7 +77,7 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
     <div className="sb-tree">
       {g.items.map((x) => x.s ? (
         <div key={x.s} className={cx("sb-sub", isOpen(x.s) && "open", x.items.some((y) => y.k === view) && "has-on")}>
-          <button className="sb-subhead" title={x.s} onClick={() => toggle(x.s)} aria-expanded={isOpen(x.s)}>
+          <button className="sb-subhead" onClick={() => toggle(x.s)} aria-expanded={isOpen(x.s)}>
             <span className="sb-tick" aria-hidden="true" /><span className="lbl">{x.s}</span><ChevronRight size={13} strokeWidth={2.2} className="cv" /></button>
           {isOpen(x.s) && <div className="sb-tree inner">{x.items.map(leaf)}</div>}
         </div>) : leaf(x))}
@@ -105,7 +105,7 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
           const on = contains(g, view), open = !g.k && isOpen(g.g) && !rail;
           return (
             <div key={g.g} className={cx("sb-sec", on && "has-on", open && "open")}>
-              <button className={cx("sb-head", g.k && view === g.k && "on")} title={g.g} data-k={g.k || undefined}
+              <button className={cx("sb-head", g.k && view === g.k && "on")} title={rail ? g.g : undefined} data-title={g.g} data-k={g.k || undefined}
                 onClick={(e) => g.k ? pick(g.k) : rail ? openFly(g, e.currentTarget) : toggle(g.g)}
                 onMouseEnter={(e) => openFly(g, e.currentTarget)} aria-expanded={g.k ? undefined : open}>
                 <span className="ic"><g.i size={18} strokeWidth={1.8} /></span>

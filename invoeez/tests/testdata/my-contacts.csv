@@ -1,0 +1,5 @@
+Name;Type;TRN;Emirate;Address;Email;Phone;Payment Terms;Opening Balance
+"Al Hilal Stores";customer;100111222300003;Sharjah;"Al Nahda, Sharjah";ap@alhilal.ae;+971501110000;30;"8,400.00"
+Bright Futures Nursery;customer;;Dubai;Mirdif;;;15;0
+Desert Paper Co.;vendor;100999888700003;Ajman;Ajman Industrial 1;sales@desertpaper.ae;+97167770000;45;3150
+Broken TRN Trading;customer;12345;Dubai;;;;30;

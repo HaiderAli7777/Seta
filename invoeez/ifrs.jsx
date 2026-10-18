@@ -212,7 +212,7 @@ function FinTable({ cols, rows, onDrill, pctBase, asOf, caption }) {
     return <><td className={cx("n cmp-d", t)}>{dText(c)}</td><td className={cx("n cmp-p", t)}>{c.dir !== 0 && <i aria-hidden="true">{c.dir > 0 ? "▲" : "▼"}</i>}{pctText(c, x.values[ci])}</td></>; };
   const pctCell = (x) => pctBase ? <td className="n muted fin-pct">{Math.abs(pctBase[0]) > 0.004 ? (((x.kind === "subtotal" || x.kind === "total" ? x.values[0] : Math.abs(x.values[0])) / Math.abs(pctBase[0])) * 100).toFixed(1) + "%" : "—"}</td> : null;
   const walk = (xs, depth) => xs.forEach((x) => {
-    if (x.kind === "category") { out.push(<tr key={x.id} className="fin-cat"><td colSpan={1 + cols.length + (change ? 3 : 0) + (pctBase ? 1 : 0)}><span>{x.label}</span>{x.help && <small>{x.help}</small>}</td></tr>); return; }
+    if (x.kind === "category") { out.push(<tr key={x.id} className="fin-cat"><td colSpan={1 + cols.length + (change ? 3 : 0) + (pctBase ? 1 : 0)}><span>{x.label}</span>{x.help && <small className="noexport">{x.help}</small>}</td></tr>); return; }
     if (x.kind === "heading") { out.push(<tr key={x.id} className="fin-head"><td colSpan={1 + cols.length + (change ? 3 : 0) + (pctBase ? 1 : 0)}>{x.label}</td></tr>); return; }
     if (x.kind === "note") { out.push(<tr key={x.id} className="fin-note"><td colSpan={1 + cols.length + (change ? 3 : 0) + (pctBase ? 1 : 0)}>{x.label}</td></tr>); return; }
     if (x.kind === "subtotal" || x.kind === "total") {
@@ -258,11 +258,11 @@ function IfrsNotes({ st, cols }) {
       <p>Under IFRS 18 every income and expense line sits in a category. <b>Operating</b> covers the main business; <b>investing</b> covers returns on investments held apart from it; <b>financing</b> covers the cost of borrowing; <b>income taxes</b> covers corporate tax. Three subtotals are required: <b>operating profit</b>, <b>profit before financing and income taxes</b>, and <b>profit for the period</b>. You choose each account's category in Account groups.</p></div>
     <div className="ifrs-note-card"><h4><span>B</span>Management-defined performance measure — EBITDA</h4>
       <p>EBITDA is not defined by IFRS. It is shown here because management uses it to judge operating performance, and it is reconciled to operating profit.</p>
-      <div className="tbl-wrap"><table className="tbl ifrs-tbl"><thead>{head}</thead><tbody>
+      <div className="tbl-wrap"><table className="tbl ifrs-tbl" aria-label="Note B — EBITDA reconciliation"><thead>{head}</thead><tbody>
         {row("Operating profit (IFRS 18 subtotal)", st.op)}{row("Add back: depreciation and amortisation", dep)}{row("EBITDA", ebitda, "fin-sub")}</tbody></table></div></div>
     <div className="ifrs-note-card"><h4><span>C</span>Specified expenses by nature</h4>
       <p>Amounts included in the lines above.</p>
-      <div className="tbl-wrap"><table className="tbl ifrs-tbl"><thead>{head}</thead><tbody>
+      <div className="tbl-wrap"><table className="tbl ifrs-tbl" aria-label="Note C — Specified expenses by nature"><thead>{head}</thead><tbody>
         {row("Employee benefits", staff)}{row("Depreciation and amortisation", dep)}{row("Inventory write-downs and stock adjustments", write)}{row("Impairment of receivables (bad debts)", bad)}</tbody></table></div></div>
   </div>;
 }

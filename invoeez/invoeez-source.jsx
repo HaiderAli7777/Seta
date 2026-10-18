@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.9.0";
+const BUILD = "3.10.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -1897,26 +1897,26 @@ function exportPdf(title, meta, CO, tables, name) {
 function ExportBar({ frameRef, title, meta, toast }) {
   const CO = useCo();
   const run = (kind) => {
-    const tables = scrapeTables(frameRef.current);
+    const tables = scrapeRich(frameRef.current);
     if (!tables.length) { toast && toast("Nothing to export on this view", "warn"); return; }
     const name = `${slug(title)}-${TODAY}`;
     try {
       if (kind === "xlsx") {
-        const ok = exportExcel(title, meta, CO, tables, name);
+        const ok = exportExcelPro(title, meta, CO, tables, name);
         toast && toast(ok ? `${name}.xlsx downloaded` : "The browser blocked that download", ok ? "" : "warn");
       } else {
-        const ok = exportPdf(title, meta, CO, tables, name);
+        const ok = exportPdfPro(title, meta, CO, tables, name);
         toast && toast(ok ? `${name}.pdf downloaded` : "PDF unavailable — opening the print dialog", ok ? "" : "warn");
       }
     } catch (e) {
       toast && toast(`Export failed: ${e && e.message ? e.message : "unknown error"}`, "warn");
     }
   };
-  return (<>
+  return (<div className="exp-group" role="group" aria-label="Download or print">
     <Btn icon={FileDown} onClick={() => run("pdf")}>PDF</Btn>
     <Btn icon={Sheet} onClick={() => run("xlsx")}>Excel</Btn>
     <Btn icon={Printer} onClick={() => window.print()}>Print</Btn>
-  </>);
+  </div>);
 }
 
 /* -------------------------------------------------------- report wrapper */
@@ -2658,6 +2658,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     const it = r && r.items.find((x) => x.id === d.id);
     return it ? it.open : 0;
   }, [state, d, locked]);
+  const settle = useMemo(() => (locked ? settlementsOf(state, d) : null), [state, d, locked]);
+  const drillTo = go ? (k, id) => go(k, id) : null;
   const [payOpen, setPayOpen] = useState(false);
   const [pdcOpen, setPdcOpen] = useState(false);
   const [payAmt, setPayAmt] = useState(0);
@@ -2712,7 +2714,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
 
   return (
     <div>
-      {print && <PrintDoc d={d} close={() => setPrint(false)} fta={fta} toast={toast} />}
+      {print && <PrintDoc d={d} settle={settle} close={() => setPrint(false)} fta={fta} toast={toast} />}
       <div className="page-head doc-head">
         <div>
           <button className="btn ghost doc-back" onClick={close}>
@@ -2831,7 +2833,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
               {askPrice(l)&&<table className="price-ask-card"><tbody>{priceAskRow(l,1)}</tbody></table>}
               {p&&<div className="line-insights"><button className="line-detail-toggle" aria-expanded={!!expandedLines[l.id]} onClick={()=>setExpandedLines(x=>({...x,[l.id]:!x[l.id]}))}><ChevronDown size={13}/>{expandedLines[l.id]?"Hide description":"Description"}</button><span className="price-source">{l.manualPricing?'Manual price':l.priceSource||'Product price'}</span><span>{last?<>Last {sale?'sold':'purchased'}: <b>AED {money(last.unitNet,false)}</b> / {p.uom.toLowerCase()} · {dmy(last.date)} · Qty {last.qty}</>:<>No previous {sale?'sale to this customer':'purchase from this vendor'}</>}</span><button onClick={()=>setHistoryLine(l)}><Clock size={13}/>View history</button>{showCost&&<div className="runtime-cost"><span>Cost price <b>{money(p.cost,false)}</b></span><span>Current unit cost ({(books.method||'avco').toUpperCase()}) <b>{money(cost,false)}</b></span>{sale&&<span>Est. margin / unit <b className={l.price*(1-(l.disc||0)/100)-cost<0?'neg':'pos'}>{money(l.price*(1-(l.disc||0)/100)-cost,false)}</b></span>}<small>Current costs · AED · before VAT</small></div>}{showAccounts&&<div className="runtime-account"><Field label="Account">{p?.kind==='goods'&&!sale?<div className="readonly">{def} · {ACC[def]?.name}</div>:<Select aria-label={'Account on line '+(i+1)} value={l.account||def||''} disabled={locked||!p} onChange={e=>setLine(l.id,'account',e.target.value)}><option value="">Select product first</option>{accounts.map(a=><option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}</Select>}</Field><span className="account-source">{p.kind==='goods'&&!sale?'Inventory account from product category':l.account?'Line account override':'Default from product category'}</span>{!locked&&l.account&&!(p.kind==='goods'&&!sale)&&<button onClick={()=>setLine(l.id,'account',null)}><RotateCcw size={13}/>Use category default</button>}</div>}</div>}
             </article>;})}</div>}
-          <Card><div className="document-bottom"><Field label="Internal note"><textarea className="inp" rows={3} value={d.note} disabled={locked} placeholder="Delivery terms, references or notes…" onChange={e=>set('note',e.target.value)}/></Field><div className="sumbox"><div className="sumrow"><span className="k">Subtotal before discount</span><span className="v">{money(d.lines.reduce((s,l)=>s+R2(l.qty*l.price),0),false)}</span></div><div className="sumrow"><span className="k">Line discounts</span><span className="v">{money(d.lines.reduce((s,l)=>s+R2(l.qty*l.price),0)-am.net,false)}</span></div><div className="sumrow"><span className="k">Subtotal excluding VAT</span><span className="v">{money(am.net,false)}</span></div><div className="sumrow"><span className="k">VAT charged</span><span className="v">{money(am.vat,false)}</span></div>{am.rcm>0&&<div className="sumrow"><span>Reverse charge</span><span>{money(am.rcm,false)}</span></div>}<div className="sumrow total"><span className="k">Total · AED</span><span className="v">{money(am.total,false)}</span></div></div></div></Card>
+          <Card><div className="document-bottom"><Field label="Internal note"><textarea className="inp" rows={3} value={d.note} disabled={locked} placeholder="Delivery terms, references or notes…" onChange={e=>set('note',e.target.value)}/></Field><div className="sumbox"><div className="sumrow"><span className="k">Subtotal before discount</span><span className="v">{money(d.lines.reduce((s,l)=>s+R2(l.qty*l.price),0),false)}</span></div><div className="sumrow"><span className="k">Line discounts</span><span className="v">{money(d.lines.reduce((s,l)=>s+R2(l.qty*l.price),0)-am.net,false)}</span></div><div className="sumrow"><span className="k">Subtotal excluding VAT</span><span className="v">{money(am.net,false)}</span></div><div className="sumrow"><span className="k">VAT charged</span><span className="v">{money(am.vat,false)}</span></div>{am.rcm>0&&<div className="sumrow"><span>Reverse charge</span><span>{money(am.rcm,false)}</span></div>}<div className="sumrow total"><span className="k">Total · AED</span><span className="v">{money(am.total,false)}</span></div>{settle&&<><div className="sumrow paid"><span className="k">{d.type==='invoice'?'Received':'Paid'}{settle.items.length?` · ${settle.items.length} ${settle.items.length===1?'payment':'payments'}`:''}</span><span className="v">{settle.paid>0.004?'('+money(settle.paid,false)+')':money(0,false)}</span></div><div className={cx('sumrow balance',settle.open<=0.004&&'zero')}><span className="k">{settle.open<=0.004?'Paid in full':d.type==='invoice'?'Balance receivable':'Balance payable'}</span><span className="v">{money(settle.open,false)}</span></div></>}</div></div></Card>
+          {settle&&<PaymentsPanel s={settle} d={d} onRecord={settle.open>0.004?()=>{setPayAmt(settle.open);setPayOpen(true);scrollPageTop();}:null} drill={drillTo} />}
           {!locked&&<div className="document-dock"><span>{d.lines.length} {d.lines.length===1?'line':'lines'}</span><div><small>Total · AED</small><b>{money(am.total,false)}</b></div><Btn onClick={save}>Save {isQuote?'quotation':'draft'}</Btn></div>}
         </>}
         {tab==='journal'&&<div className="journal-tab"><div className="info-strip"><BookOpen size={20}/><span><b>{locked?'Posted journal entry':'Journal preview'}</b><br/>{locked?'The ledger entry for this document.':'This preview updates as you edit. Posting creates the ledger entry.'}</span></div><PostingPreview lines={preview} title={locked?'Posted journal entry':'Journal preview · AED'}/></div>}
@@ -2928,7 +2931,8 @@ function SendDialog({ channel, close, deliver, doc, party, msg, fileName, cap, w
   );
 }
 
-function PrintDoc({ d, close, fta, toast }) {
+function PrintDoc({ d, close, fta, toast, settle }) {
+  const paidSoFar = settle && settle.paid > 0.004 && !(d.type === "credit_note") ? settle : null;
   const CO = useCo();
   const am = amounts(d), p = PMAP[d.partner], isCN = d.type === "credit_note";
   const words = (n) => {
@@ -3026,12 +3030,24 @@ function PrintDoc({ d, close, fta, toast }) {
     doc.text(`${tl} AED`, W - 236, ly + 23);
     if (bi) pdfAr(doc, AR[tl], W - 236, ly + 33, 6.5, "#C9CED4");
     doc.text(money(am.total, false), W - 54, ly + 23, { align: "right" });
+    let extra = 0;
+    if (paidSoFar) {
+      const py = ly + (bi ? 32 : 26) + 22;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...MUTE); doc.text("Less: received to date", W - 236, py);
+      doc.setTextColor(18, 128, 74); doc.text(`(${money(paidSoFar.paid, false)})`, W - 54, py, { align: "right" });
+      doc.setFillColor(241, 244, 249); doc.setDrawColor(...SILVER); doc.roundedRect(W - 244, py + 8, 198, 24, 4, 4, "FD");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...INK);
+      doc.text(paidSoFar.open <= 0.004 ? "PAID IN FULL" : "BALANCE DUE AED", W - 236, py + 24); doc.text(money(paidSoFar.open, false), W - 54, py + 24, { align: "right" });
+      doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
+      doc.text(paidSoFar.items.map((x) => `${x.number} ${dmy(x.date)} ${money(x.amount, false)}`).join("  ·  ").slice(0, 110), W - 244, py + 44);
+      extra = 56;
+    }
     doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
     doc.text("AMOUNT IN WORDS", 40, fy + 2);
     if (bi) pdfAr(doc, AR["Amount in words"], 40 + doc.getTextWidth("AMOUNT IN WORDS") + 6, fy + 2, 7.5, "#626973");
     doc.setFontSize(8.5); doc.setTextColor(...INK);
     doc.text(doc.splitTextToSize(words(am.total), W / 2 - 40), 40, fy + 16);
-    const sy = Math.max(ly + 80, fy + 90);
+    const sy = Math.max(ly + 80 + extra, fy + 90);
     if (sy < H - 90) { doc.setDrawColor(201, 206, 212); doc.line(W - 220, sy, W - 54, sy); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
       doc.text("Authorised signatory", W - 54, sy + 11, { align: "right" }); if (bi) pdfAr(doc, AR["Authorised signatory"], W - 54, sy + 23, 7, "#8A9099", "right"); }
     doc.setFillColor(201, 206, 212); doc.rect(40, H - 70, W - 80, 0.8, "F");
@@ -3178,6 +3194,9 @@ function PrintDoc({ d, close, fta, toast }) {
                   <div className="sumrow"><span className="k">{T("VAT")}</span><span className="v">{money(am.vat, false)}</span></div>
                   {am.rcm > 0 && <div className="sumrow"><span className="k">{T("Reverse charge")}</span><span className="v">{money(am.rcm, false)}</span></div>}
                   <div className="grand"><b>{T(isCN ? "TOTAL CREDITED" : "TOTAL PAYABLE")} <small>AED</small></b><span>{money(am.total, false)}</span></div>
+                  {paidSoFar && <><div className="sumrow paid"><span className="k">Less: received to date</span><span className="v">({money(paidSoFar.paid, false)})</span></div>
+                    <div className="baldue"><span>{paidSoFar.open <= 0.004 ? "PAID IN FULL" : "BALANCE DUE"} <small>AED</small></span><span>{money(paidSoFar.open, false)}</span></div>
+                    <div style={{ fontSize: 10.5, color: "#626973", marginTop: 6 }}>{paidSoFar.items.map((x) => `${x.number} · ${dmy(x.date)} · ${money(x.amount, false)}`).join("  |  ")}</div></>}
                 </div>
                 <div className="sign">{T("Authorised signatory")}</div>
               </div>
@@ -3994,7 +4013,7 @@ function ProfitLoss({ books, p, setP, toast, state, drill, go }) {
           {q && (q.revenue || q.net) ? <> Compared with {x.c.dates}, {moved(r.revenue, q.revenue, "sales are") || <>sales were nil before</>}{q.net ? <> and {moved(net, st.net[i1] != null ? st.net[i1] : q.net, "profit is")}</> : ""}.</> : null}</>
         : <>No sales or costs were recorded between {dmy(p.from)} and {dmy(p.to)}. Pick another period above.</>}</Insight>
       <PnlVisuals books={books} r={r} p={p} c={x.on ? x.c : null} q={q} st={st} sc={sc} />
-      <SectionTitle>Statement of profit or loss · by IFRS 18 category</SectionTitle>
+      <StatementHead title="Statement of profit or loss" sub={`For the period ${dmy(p.from)} to ${dmy(p.to)}${sc.cols.length > 1 ? ` · compared with ${sc.cols.length - 1} earlier period${sc.cols.length > 2 ? "s" : ""}` : ""} · presented by IFRS 18 category`} />
       <FinTable cols={sc.cols} rows={st.rows} onDrill={onDrill} pctBase={sc.cols.length === 1 ? st.revenue : null} caption="Statement of profit or loss" />
       <div className="fin-foot noprint"><span>Group accounts your way and choose each account's IFRS 18 category in <button className="linkish" onClick={() => go("acct_groups")}>Account groups</button>.</span></div>
       <SectionTitle>Notes</SectionTitle>
@@ -4018,7 +4037,7 @@ function BalanceSheetRep({ books, p, setP, toast, state, drill, go }) {
         so it is worth <b className={b.totE >= 0 ? "pos" : "neg"}>{aed(b.totE)}</b> to its owners.{balanced ? " Both sides agree." : ""}
         {q ? <> On {x.c.dates} it was worth <b>{aed(q.totE)}</b> — {b.totE >= q.totE ? "an increase" : "a decrease"} of <b className={b.totE >= q.totE ? "pos" : "neg"}>{aed(Math.abs(R2(b.totE - q.totE)))}</b>.</> : null}</Insight>
       <BsVisuals b={b} books={books} p={p} q={q} c={x.on ? x.c : null} />
-      <SectionTitle>Statement of financial position</SectionTitle>
+      <StatementHead title="Statement of financial position" sub={`As at ${dmy(p.asOf)}${sc.cols.length > 1 ? ` · with ${sc.cols.length - 1} comparative date${sc.cols.length > 2 ? "s" : ""}` : ""}`} />
       <FinTable cols={sc.cols} rows={st.rows} onDrill={onDrill} asOf caption="Statement of financial position" />
       <div className="fin-foot noprint"><span>Build groups such as Current assets › Cash and cash equivalents in <button className="linkish" onClick={() => go("acct_groups")}>Account groups</button>.</span></div>
       <div style={{ padding: "12px 18px", borderTop: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 9,
@@ -6413,7 +6432,7 @@ function Invoeez() {
     }
   };
 
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS;
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS;
   /* Nobody signed in in this tab: show the sign-in screen. */
   if (!meFound) return (
     <ThemeCtx.Provider value={palette}>

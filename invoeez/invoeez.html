@@ -1110,7 +1110,7 @@ const addDays = (iso, n) => {
   return d.toISOString().slice(0, 10);
 };
 const daysBetween = (a, b) => Math.round((/* @__PURE__ */ new Date(b + "T00:00:00Z") - /* @__PURE__ */ new Date(a + "T00:00:00Z")) / 864e5);
-const BUILD = "3.9.0";
+const BUILD = "3.10.0";
 const TODAY = (() => {
   const d = /* @__PURE__ */ new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -2995,7 +2995,7 @@ function exportPdf(title, meta, CO, tables, name) {
 function ExportBar({ frameRef, title, meta, toast }) {
   const CO = useCo();
   const run = (kind) => {
-    const tables = scrapeTables(frameRef.current);
+    const tables = scrapeRich(frameRef.current);
     if (!tables.length) {
       toast && toast("Nothing to export on this view", "warn");
       return;
@@ -3003,17 +3003,17 @@ function ExportBar({ frameRef, title, meta, toast }) {
     const name = `${slug(title)}-${TODAY}`;
     try {
       if (kind === "xlsx") {
-        const ok = exportExcel(title, meta, CO, tables, name);
+        const ok = exportExcelPro(title, meta, CO, tables, name);
         toast && toast(ok ? `${name}.xlsx downloaded` : "The browser blocked that download", ok ? "" : "warn");
       } else {
-        const ok = exportPdf(title, meta, CO, tables, name);
+        const ok = exportPdfPro(title, meta, CO, tables, name);
         toast && toast(ok ? `${name}.pdf downloaded` : "PDF unavailable \u2014 opening the print dialog", ok ? "" : "warn");
       }
     } catch (e) {
       toast && toast(`Export failed: ${e && e.message ? e.message : "unknown error"}`, "warn");
     }
   };
-  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Btn, { icon: FileDown, onClick: () => run("pdf") }, "PDF"), /* @__PURE__ */ React.createElement(Btn, { icon: Sheet, onClick: () => run("xlsx") }, "Excel"), /* @__PURE__ */ React.createElement(Btn, { icon: Printer, onClick: () => window.print() }, "Print"));
+  return /* @__PURE__ */ React.createElement("div", { className: "exp-group", role: "group", "aria-label": "Download or print" }, /* @__PURE__ */ React.createElement(Btn, { icon: FileDown, onClick: () => run("pdf") }, "PDF"), /* @__PURE__ */ React.createElement(Btn, { icon: Sheet, onClick: () => run("xlsx") }, "Excel"), /* @__PURE__ */ React.createElement(Btn, { icon: Printer, onClick: () => window.print() }, "Print"));
 }
 const ReportFrame = ({ title, meta, right, children, toast, icon: Ic = BarChart3, chips }) => {
   const CO = useCo();
@@ -3720,6 +3720,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     const it = r && r.items.find((x) => x.id === d.id);
     return it ? it.open : 0;
   }, [state, d, locked]);
+  const settle = useMemo(() => locked ? settlementsOf(state, d) : null, [state, d, locked]);
+  const drillTo = go ? (k, id) => go(k, id) : null;
   const [payOpen, setPayOpen] = useState(false);
   const [pdcOpen2, setPdcOpen] = useState(false);
   const [payAmt, setPayAmt] = useState(0);
@@ -3803,7 +3805,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   const partners = PARTNERS.filter((p) => sale ? p.role === "customer" : p.role === "vendor");
   const taxes = TAXES.filter((t) => t.scope === "both" || t.scope === meta.side);
   const accounts = ACCOUNTS.filter((a) => sale ? a.type === "income" : ["expense", "cogs", "casset", "fasset"].includes(a.type));
-  return /* @__PURE__ */ React.createElement("div", null, print && /* @__PURE__ */ React.createElement(PrintDoc, { d, close: () => setPrint(false), fta, toast }), /* @__PURE__ */ React.createElement("div", { className: "page-head doc-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn ghost doc-back", onClick: close }, /* @__PURE__ */ React.createElement(ArrowLeft, { size: 14 }), " All ", meta.short.toLowerCase(), "s"), /* @__PURE__ */ React.createElement("div", { className: "micro" }, meta.label, meta.journal && meta.journal !== "\u2014" ? ` \xB7 ${meta.journal} journal` : ""), /* @__PURE__ */ React.createElement("h1", { style: { marginTop: 4, display: "flex", alignItems: "center", gap: 11 } }, d.number, (() => {
+  return /* @__PURE__ */ React.createElement("div", null, print && /* @__PURE__ */ React.createElement(PrintDoc, { d, settle, close: () => setPrint(false), fta, toast }), /* @__PURE__ */ React.createElement("div", { className: "page-head doc-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn ghost doc-back", onClick: close }, /* @__PURE__ */ React.createElement(ArrowLeft, { size: 14 }), " All ", meta.short.toLowerCase(), "s"), /* @__PURE__ */ React.createElement("div", { className: "micro" }, meta.label, meta.journal && meta.journal !== "\u2014" ? ` \xB7 ${meta.journal} journal` : ""), /* @__PURE__ */ React.createElement("h1", { style: { marginTop: 4, display: "flex", alignItems: "center", gap: 11 } }, d.number, (() => {
     const st = isQuote ? QUOTE_STATES[d.state] || QUOTE_STATES.draft : docStatus(d, outstanding, d.type);
     return /* @__PURE__ */ React.createElement(Pill, { tone: st.tone, dot: true }, st.label);
   })(), sale && state.einv && state.einv[d.id] && /* @__PURE__ */ React.createElement(Pill, { tone: EINV_STATES[state.einv[d.id].status].tone, dot: true }, EINV_STATES[state.einv[d.id].status].label))), /* @__PURE__ */ React.createElement("div", { className: "acts" }, isQuote && !locked && /* @__PURE__ */ React.createElement(Btn, { icon: Send, onClick: () => {
@@ -3876,7 +3878,11 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     const last = p ? productHistory(state, p.id, meta.side, d.partner, d.id, d.date)[0] : null;
     const def = sale ? l.accounts?.income || p?.income : p?.kind === "goods" ? l.accounts?.inventory || p?.inventory : l.accounts?.expense || p?.expense;
     return /* @__PURE__ */ React.createElement("article", { key: l.id, className: cx("doc-line", !p && "blank", lineView === "compact" && "compact", expandedLines[l.id] && "expanded"), "data-line-id": l.id }, /* @__PURE__ */ React.createElement("div", { className: "line-product" }, /* @__PURE__ */ React.createElement("span", { className: "line-num" }, String(i + 1).padStart(2, "0")), /* @__PURE__ */ React.createElement("div", { className: "line-picker" }, /* @__PURE__ */ React.createElement(SmartPicker, { label: "Product on line " + (i + 1), items: productOptions(books), value: l.product, disabled: locked, placeholder: "Search product, ID or barcode\u2026", onChange: (pid) => pickProduct(l.id, pid), onCreate: !locked ? (name) => setQuick({ kind: "product", line: l.id, record: { ...newProduct(), name } }) : void 0 }), p && /* @__PURE__ */ React.createElement("small", { className: "product-meta" }, [p.brand, categoryOf(p)?.name, p.barcode && "Barcode " + p.barcode, p.packing].filter(Boolean).join(" \xB7 ") || p.id)), p && /* @__PURE__ */ React.createElement("div", { className: "line-stock" }, /* @__PURE__ */ React.createElement("span", null, "Available stock"), p.kind === "goods" ? /* @__PURE__ */ React.createElement("b", { className: st.qty <= 0 ? "neg" : "pos" }, st.qty, " ", /* @__PURE__ */ React.createElement("small", null, p.uom)) : /* @__PURE__ */ React.createElement("b", null, "Service")), !locked && /* @__PURE__ */ React.createElement("button", { className: "icon-btn", title: "Remove line " + (i + 1), "aria-label": "Remove line " + (i + 1), onClick: () => setD((s) => ({ ...s, lines: s.lines.filter((x) => x.id !== l.id) })) }, /* @__PURE__ */ React.createElement(Trash2, { size: 16 }))), /* @__PURE__ */ React.createElement("div", { className: "line-fields" }, /* @__PURE__ */ React.createElement(Field, { label: "Description" }, /* @__PURE__ */ React.createElement(Input, { value: l.desc, disabled: locked || !p, onChange: (e) => setLine(l.id, "desc", e.target.value) }))), /* @__PURE__ */ React.createElement("div", { className: "line-values" }, /* @__PURE__ */ React.createElement(Field, { label: "Quantity" + (p ? " \xB7 " + p.uom : "") }, /* @__PURE__ */ React.createElement(Input, { n: true, type: "number", min: "0", step: "0.01", value: l.qty, disabled: locked || !p, onChange: (e) => setLine(l.id, "qty", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Unit price \xB7 AED" }, /* @__PURE__ */ React.createElement(Input, { n: true, className: "q-price", type: "number", min: "0", step: "0.01", value: l.price, placeholder: p ? "Price" : "", disabled: locked || !p, onChange: (e) => setLine(l.id, "price", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Discount %" }, /* @__PURE__ */ React.createElement(Input, { n: true, type: "number", min: "0", max: "100", step: "0.01", value: l.disc || "", placeholder: "0", disabled: locked || !p, onChange: (e) => setLine(l.id, "disc", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "VAT treatment" }, /* @__PURE__ */ React.createElement(Select, { value: l.tax, disabled: locked || !p, onChange: (e) => setLine(l.id, "tax", e.target.value) }, taxes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.id, value: t.id }, t.name)))), /* @__PURE__ */ React.createElement("div", { className: "line-amount" }, /* @__PURE__ */ React.createElement("small", null, "Amount excl. VAT"), /* @__PURE__ */ React.createElement("b", null, money(l.amount, false)), /* @__PURE__ */ React.createElement("span", null, "VAT ", money(l.taxAmt, false)))), askPrice(l) && /* @__PURE__ */ React.createElement("table", { className: "price-ask-card" }, /* @__PURE__ */ React.createElement("tbody", null, priceAskRow(l, 1))), p && /* @__PURE__ */ React.createElement("div", { className: "line-insights" }, /* @__PURE__ */ React.createElement("button", { className: "line-detail-toggle", "aria-expanded": !!expandedLines[l.id], onClick: () => setExpandedLines((x) => ({ ...x, [l.id]: !x[l.id] })) }, /* @__PURE__ */ React.createElement(ChevronDown, { size: 13 }), expandedLines[l.id] ? "Hide description" : "Description"), /* @__PURE__ */ React.createElement("span", { className: "price-source" }, l.manualPricing ? "Manual price" : l.priceSource || "Product price"), /* @__PURE__ */ React.createElement("span", null, last ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Last ", sale ? "sold" : "purchased", ": ", /* @__PURE__ */ React.createElement("b", null, "AED ", money(last.unitNet, false)), " / ", p.uom.toLowerCase(), " \xB7 ", dmy(last.date), " \xB7 Qty ", last.qty) : /* @__PURE__ */ React.createElement(React.Fragment, null, "No previous ", sale ? "sale to this customer" : "purchase from this vendor")), /* @__PURE__ */ React.createElement("button", { onClick: () => setHistoryLine(l) }, /* @__PURE__ */ React.createElement(Clock, { size: 13 }), "View history"), showCost && /* @__PURE__ */ React.createElement("div", { className: "runtime-cost" }, /* @__PURE__ */ React.createElement("span", null, "Cost price ", /* @__PURE__ */ React.createElement("b", null, money(p.cost, false))), /* @__PURE__ */ React.createElement("span", null, "Current unit cost (", (books.method || "avco").toUpperCase(), ") ", /* @__PURE__ */ React.createElement("b", null, money(cost, false))), sale && /* @__PURE__ */ React.createElement("span", null, "Est. margin / unit ", /* @__PURE__ */ React.createElement("b", { className: l.price * (1 - (l.disc || 0) / 100) - cost < 0 ? "neg" : "pos" }, money(l.price * (1 - (l.disc || 0) / 100) - cost, false))), /* @__PURE__ */ React.createElement("small", null, "Current costs \xB7 AED \xB7 before VAT")), showAccounts && /* @__PURE__ */ React.createElement("div", { className: "runtime-account" }, /* @__PURE__ */ React.createElement(Field, { label: "Account" }, p?.kind === "goods" && !sale ? /* @__PURE__ */ React.createElement("div", { className: "readonly" }, def, " \xB7 ", ACC[def]?.name) : /* @__PURE__ */ React.createElement(Select, { "aria-label": "Account on line " + (i + 1), value: l.account || def || "", disabled: locked || !p, onChange: (e) => setLine(l.id, "account", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Select product first"), accounts.map((a) => /* @__PURE__ */ React.createElement("option", { key: a.code, value: a.code }, a.code, " \xB7 ", a.name)))), /* @__PURE__ */ React.createElement("span", { className: "account-source" }, p.kind === "goods" && !sale ? "Inventory account from product category" : l.account ? "Line account override" : "Default from product category"), !locked && l.account && !(p.kind === "goods" && !sale) && /* @__PURE__ */ React.createElement("button", { onClick: () => setLine(l.id, "account", null) }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 13 }), "Use category default"))));
-  })), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { className: "document-bottom" }, /* @__PURE__ */ React.createElement(Field, { label: "Internal note" }, /* @__PURE__ */ React.createElement("textarea", { className: "inp", rows: 3, value: d.note, disabled: locked, placeholder: "Delivery terms, references or notes\u2026", onChange: (e) => set("note", e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "sumbox" }, /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Subtotal before discount"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(d.lines.reduce((s, l) => s + R2(l.qty * l.price), 0), false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Line discounts"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(d.lines.reduce((s, l) => s + R2(l.qty * l.price), 0) - am.net, false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Subtotal excluding VAT"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.net, false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "VAT charged"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.vat, false))), am.rcm > 0 && /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", null, "Reverse charge"), /* @__PURE__ */ React.createElement("span", null, money(am.rcm, false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow total" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Total \xB7 AED"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.total, false)))))), !locked && /* @__PURE__ */ React.createElement("div", { className: "document-dock" }, /* @__PURE__ */ React.createElement("span", null, d.lines.length, " ", d.lines.length === 1 ? "line" : "lines"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("small", null, "Total \xB7 AED"), /* @__PURE__ */ React.createElement("b", null, money(am.total, false))), /* @__PURE__ */ React.createElement(Btn, { onClick: save }, "Save ", isQuote ? "quotation" : "draft"))), tab === "journal" && /* @__PURE__ */ React.createElement("div", { className: "journal-tab" }, /* @__PURE__ */ React.createElement("div", { className: "info-strip" }, /* @__PURE__ */ React.createElement(BookOpen, { size: 20 }), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, locked ? "Posted journal entry" : "Journal preview"), /* @__PURE__ */ React.createElement("br", null), locked ? "The ledger entry for this document." : "This preview updates as you edit. Posting creates the ledger entry.")), /* @__PURE__ */ React.createElement(PostingPreview, { lines: preview, title: locked ? "Posted journal entry" : "Journal preview \xB7 AED" })), tab === "history" && /* @__PURE__ */ React.createElement(Card, { title: sale ? "Price history for this customer" : "Price history for this vendor", sub: `Every product on this document${d.partner ? " for " + (PMAP[d.partner]?.name || "") : ""} \u2014 or search any other product.` }, /* @__PURE__ */ React.createElement("div", { className: "history-pick" }, /* @__PURE__ */ React.createElement(SmartPicker, { items: productOptions(books), value: historyProduct, label: "History product", placeholder: "Search any product\u2026", onChange: setHistoryProduct }), historyProduct && /* @__PURE__ */ React.createElement(Btn, { size: "sm", onClick: () => setHistoryProduct("") }, "Products on this document")), historyProduct ? /* @__PURE__ */ React.createElement(HistoryTable, { key: historyProduct + d.partner, title: PROD[historyProduct]?.name, state, product: historyProduct, side: meta.side, partner: d.partner, exclude: d.id, date: d.date }) : [...new Set(d.lines.map((l) => l.product).filter((pid) => PROD[pid]))].length ? [...new Set(d.lines.map((l) => l.product).filter((pid) => PROD[pid]))].map((pid) => /* @__PURE__ */ React.createElement(HistoryTable, { key: pid + d.partner, title: PROD[pid].name, state, product: pid, side: meta.side, partner: d.partner, exclude: d.id, date: d.date })) : /* @__PURE__ */ React.createElement(EmptyState, { icon: Clock, title: "Add a product or choose one above" }, "Every product on this document shows its posted prices to this ", sale ? "customer" : "vendor", " here.")), tab === "status" && /* @__PURE__ */ React.createElement(Card, { title: isQuote ? "Quotation progress" : "Document activity" }, /* @__PURE__ */ React.createElement("div", { className: "tl" }, (isQuote ? ["draft", "sent", "accepted", "invoiced"].map((k) => ({ t: QUOTE_STATES[k].label, done: ["draft", "sent", "accepted", "invoiced"].indexOf(d.state) >= ["draft", "sent", "accepted", "invoiced"].indexOf(k) })) : timeline).map((t, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: cx("tl-row", t.done ? "done" : "pending") }, /* @__PURE__ */ React.createElement("span", { className: "dot" }, /* @__PURE__ */ React.createElement("i", null)), /* @__PURE__ */ React.createElement("span", { className: "tt" }, /* @__PURE__ */ React.createElement("b", null, t.t), t.s && /* @__PURE__ */ React.createElement("span", null, t.s))))))), pdcOpen2 && /* @__PURE__ */ React.createElement(PdcDialog, { state, setState, toast, init: { kind: sale ? "in" : "out", partner: d.partner, doc: d.id, amount: R2(outstanding) }, close: () => setPdcOpen(false) }), quick && /* @__PURE__ */ React.createElement(MasterModal, { kind: quick.kind, initial: quick.record, state, setState, books, toast, close: () => setQuick(null), onSaved: (rec) => {
+  })), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { className: "document-bottom" }, /* @__PURE__ */ React.createElement(Field, { label: "Internal note" }, /* @__PURE__ */ React.createElement("textarea", { className: "inp", rows: 3, value: d.note, disabled: locked, placeholder: "Delivery terms, references or notes\u2026", onChange: (e) => set("note", e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "sumbox" }, /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Subtotal before discount"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(d.lines.reduce((s, l) => s + R2(l.qty * l.price), 0), false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Line discounts"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(d.lines.reduce((s, l) => s + R2(l.qty * l.price), 0) - am.net, false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Subtotal excluding VAT"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.net, false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "VAT charged"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.vat, false))), am.rcm > 0 && /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", null, "Reverse charge"), /* @__PURE__ */ React.createElement("span", null, money(am.rcm, false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow total" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Total \xB7 AED"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.total, false))), settle && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sumrow paid" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, d.type === "invoice" ? "Received" : "Paid", settle.items.length ? ` \xB7 ${settle.items.length} ${settle.items.length === 1 ? "payment" : "payments"}` : ""), /* @__PURE__ */ React.createElement("span", { className: "v" }, settle.paid > 4e-3 ? "(" + money(settle.paid, false) + ")" : money(0, false))), /* @__PURE__ */ React.createElement("div", { className: cx("sumrow balance", settle.open <= 4e-3 && "zero") }, /* @__PURE__ */ React.createElement("span", { className: "k" }, settle.open <= 4e-3 ? "Paid in full" : d.type === "invoice" ? "Balance receivable" : "Balance payable"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(settle.open, false))))))), settle && /* @__PURE__ */ React.createElement(PaymentsPanel, { s: settle, d, onRecord: settle.open > 4e-3 ? () => {
+    setPayAmt(settle.open);
+    setPayOpen(true);
+    scrollPageTop();
+  } : null, drill: drillTo }), !locked && /* @__PURE__ */ React.createElement("div", { className: "document-dock" }, /* @__PURE__ */ React.createElement("span", null, d.lines.length, " ", d.lines.length === 1 ? "line" : "lines"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("small", null, "Total \xB7 AED"), /* @__PURE__ */ React.createElement("b", null, money(am.total, false))), /* @__PURE__ */ React.createElement(Btn, { onClick: save }, "Save ", isQuote ? "quotation" : "draft"))), tab === "journal" && /* @__PURE__ */ React.createElement("div", { className: "journal-tab" }, /* @__PURE__ */ React.createElement("div", { className: "info-strip" }, /* @__PURE__ */ React.createElement(BookOpen, { size: 20 }), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, locked ? "Posted journal entry" : "Journal preview"), /* @__PURE__ */ React.createElement("br", null), locked ? "The ledger entry for this document." : "This preview updates as you edit. Posting creates the ledger entry.")), /* @__PURE__ */ React.createElement(PostingPreview, { lines: preview, title: locked ? "Posted journal entry" : "Journal preview \xB7 AED" })), tab === "history" && /* @__PURE__ */ React.createElement(Card, { title: sale ? "Price history for this customer" : "Price history for this vendor", sub: `Every product on this document${d.partner ? " for " + (PMAP[d.partner]?.name || "") : ""} \u2014 or search any other product.` }, /* @__PURE__ */ React.createElement("div", { className: "history-pick" }, /* @__PURE__ */ React.createElement(SmartPicker, { items: productOptions(books), value: historyProduct, label: "History product", placeholder: "Search any product\u2026", onChange: setHistoryProduct }), historyProduct && /* @__PURE__ */ React.createElement(Btn, { size: "sm", onClick: () => setHistoryProduct("") }, "Products on this document")), historyProduct ? /* @__PURE__ */ React.createElement(HistoryTable, { key: historyProduct + d.partner, title: PROD[historyProduct]?.name, state, product: historyProduct, side: meta.side, partner: d.partner, exclude: d.id, date: d.date }) : [...new Set(d.lines.map((l) => l.product).filter((pid) => PROD[pid]))].length ? [...new Set(d.lines.map((l) => l.product).filter((pid) => PROD[pid]))].map((pid) => /* @__PURE__ */ React.createElement(HistoryTable, { key: pid + d.partner, title: PROD[pid].name, state, product: pid, side: meta.side, partner: d.partner, exclude: d.id, date: d.date })) : /* @__PURE__ */ React.createElement(EmptyState, { icon: Clock, title: "Add a product or choose one above" }, "Every product on this document shows its posted prices to this ", sale ? "customer" : "vendor", " here.")), tab === "status" && /* @__PURE__ */ React.createElement(Card, { title: isQuote ? "Quotation progress" : "Document activity" }, /* @__PURE__ */ React.createElement("div", { className: "tl" }, (isQuote ? ["draft", "sent", "accepted", "invoiced"].map((k) => ({ t: QUOTE_STATES[k].label, done: ["draft", "sent", "accepted", "invoiced"].indexOf(d.state) >= ["draft", "sent", "accepted", "invoiced"].indexOf(k) })) : timeline).map((t, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: cx("tl-row", t.done ? "done" : "pending") }, /* @__PURE__ */ React.createElement("span", { className: "dot" }, /* @__PURE__ */ React.createElement("i", null)), /* @__PURE__ */ React.createElement("span", { className: "tt" }, /* @__PURE__ */ React.createElement("b", null, t.t), t.s && /* @__PURE__ */ React.createElement("span", null, t.s))))))), pdcOpen2 && /* @__PURE__ */ React.createElement(PdcDialog, { state, setState, toast, init: { kind: sale ? "in" : "out", partner: d.partner, doc: d.id, amount: R2(outstanding) }, close: () => setPdcOpen(false) }), quick && /* @__PURE__ */ React.createElement(MasterModal, { kind: quick.kind, initial: quick.record, state, setState, books, toast, close: () => setQuick(null), onSaved: (rec) => {
     if (quick.kind === "product") pickProduct(quick.line, rec.id);
     else pickPartner(rec.id);
   } }), historyLine && /* @__PURE__ */ React.createElement(StudioModal, { wide: true, title: PROD[historyLine.product]?.name || "Product history", sub: sale ? "Previous prices charged to your customer" : "Previous prices charged by your vendor", close: () => setHistoryLine(null) }, /* @__PURE__ */ React.createElement(HistoryTable, { state, product: historyLine.product, side: meta.side, partner: d.partner, exclude: d.id, date: d.date, apply: !locked ? (l) => {
@@ -3938,7 +3944,8 @@ function SendDialog({ channel, close, deliver, doc, party, msg, fileName, cap, w
     gap: 11
   } }, attaches ? /* @__PURE__ */ React.createElement(Check, { size: 16, strokeWidth: 2.2, style: { flex: "0 0 16px", marginTop: 1 } }) : /* @__PURE__ */ React.createElement(CircleAlert, { size: 16, strokeWidth: 1.9, style: { flex: "0 0 16px", marginTop: 1 } }), /* @__PURE__ */ React.createElement("span", null, attaches ? "Your browser can hand the PDF straight to the share sheet, so it goes across attached to the message." : /* @__PURE__ */ React.createElement(React.Fragment, null, note && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("b", { style: { display: "block", marginBottom: 4 } }, note.head), note.body, " "), wa ? "Meanwhile a wa.me link cannot carry a file \u2014 that is a WhatsApp limitation, not a setting. InvoEez will save the PDF, copy the message to your clipboard and open the chat; attach it with the paperclip. Fully automatic sending needs the WhatsApp Business API and a server." : "Your mail client opens with the message ready. The PDF is saved to your downloads \u2014 attach it before sending."))), missing && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 12, fontSize: 12, color: "var(--neg)" } }, "No ", wa ? "WhatsApp number" : "email address", " on file for ", party.name, ". Add one under Customers & vendors.")), /* @__PURE__ */ React.createElement("div", { className: "savebar" }, /* @__PURE__ */ React.createElement("span", null, attaches ? "One step" : "Two steps: send, then attach"), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(Btn, { onClick: close }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { kind: wa ? "wa" : "pri", icon: Send, disabled: missing, onClick: () => deliver(channel) }, attaches ? "Share with PDF" : wa ? "Open WhatsApp" : "Open email")))));
 }
-function PrintDoc({ d, close, fta, toast }) {
+function PrintDoc({ d, close, fta, toast, settle }) {
+  const paidSoFar = settle && settle.paid > 4e-3 && !(d.type === "credit_note") ? settle : null;
   const CO = useCo();
   const am = amounts(d), p = PMAP[d.partner], isCN = d.type === "credit_note";
   const words = (n) => {
@@ -4099,6 +4106,29 @@ ${[CO.phone, CO.email].filter(Boolean).join("  \xB7  ")}`, 40, ty + 14);
     doc.text(`${tl} AED`, W - 236, ly + 23);
     if (bi) pdfAr(doc, AR[tl], W - 236, ly + 33, 6.5, "#C9CED4");
     doc.text(money(am.total, false), W - 54, ly + 23, { align: "right" });
+    let extra = 0;
+    if (paidSoFar) {
+      const py2 = ly + (bi ? 32 : 26) + 22;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(...MUTE);
+      doc.text("Less: received to date", W - 236, py2);
+      doc.setTextColor(18, 128, 74);
+      doc.text(`(${money(paidSoFar.paid, false)})`, W - 54, py2, { align: "right" });
+      doc.setFillColor(241, 244, 249);
+      doc.setDrawColor(...SILVER);
+      doc.roundedRect(W - 244, py2 + 8, 198, 24, 4, 4, "FD");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(...INK);
+      doc.text(paidSoFar.open <= 4e-3 ? "PAID IN FULL" : "BALANCE DUE AED", W - 236, py2 + 24);
+      doc.text(money(paidSoFar.open, false), W - 54, py2 + 24, { align: "right" });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(...MUTE);
+      doc.text(paidSoFar.items.map((x) => `${x.number} ${dmy(x.date)} ${money(x.amount, false)}`).join("  \xB7  ").slice(0, 110), W - 244, py2 + 44);
+      extra = 56;
+    }
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(...MUTE);
@@ -4107,7 +4137,7 @@ ${[CO.phone, CO.email].filter(Boolean).join("  \xB7  ")}`, 40, ty + 14);
     doc.setFontSize(8.5);
     doc.setTextColor(...INK);
     doc.text(doc.splitTextToSize(words(am.total), W / 2 - 40), 40, fy + 16);
-    const sy = Math.max(ly + 80, fy + 90);
+    const sy = Math.max(ly + 80 + extra, fy + 90);
     if (sy < H - 90) {
       doc.setDrawColor(201, 206, 212);
       doc.line(W - 220, sy, W - 54, sy);
@@ -4211,7 +4241,7 @@ ${CO.email}`;
   ), /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 880, width: "100%", margin: "0 auto" }, onMouseDown: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "sendbar noprint" }, /* @__PURE__ */ React.createElement(Btn, { icon: FileDown, onClick: savePdf }, "Download PDF"), /* @__PURE__ */ React.createElement(Btn, { icon: Printer, onClick: () => window.print() }, "Print"), /* @__PURE__ */ React.createElement(Btn, { icon: Mail, onClick: () => setSendTo("mail") }, "Email"), /* @__PURE__ */ React.createElement(Btn, { kind: "wa", icon: MessageCircle, onClick: () => setSendTo("wa") }, "WhatsApp"), /* @__PURE__ */ React.createElement(Btn, { icon: X, onClick: close }, "Close")), /* @__PURE__ */ React.createElement("div", { className: cx("sheet", "sheet-chrome", bi && "bi") }, /* @__PURE__ */ React.createElement("div", { className: "sheet-crest" }, /* @__PURE__ */ React.createElement("div", { className: "rowtop" }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, CO.logo && /* @__PURE__ */ React.createElement("img", { className: "sheet-logo", src: CO.logo, alt: "" }), /* @__PURE__ */ React.createElement("h1", null, CO.name), bi && CO.nameAr && /* @__PURE__ */ React.createElement("div", { className: "h1-ar", lang: "ar", dir: "rtl" }, CO.nameAr), /* @__PURE__ */ React.createElement("div", { className: "sub" }, addrLines(CO).map((a, i) => /* @__PURE__ */ React.createElement(React.Fragment, { key: i }, a, /* @__PURE__ */ React.createElement("br", null))), CO.city, /* @__PURE__ */ React.createElement("br", null), [CO.phone, CO.email].filter(Boolean).join(" \xB7 "), bi && CO.addressAr && /* @__PURE__ */ React.createElement("div", { className: "sub-ar", lang: "ar", dir: "rtl" }, CO.addressAr))), /* @__PURE__ */ React.createElement("div", { className: "doc" }, /* @__PURE__ */ React.createElement("span", { className: "badge" }, title, bi && /* @__PURE__ */ React.createElement("span", { className: "ar", lang: "ar", dir: "rtl" }, AR[title])), /* @__PURE__ */ React.createElement("div", { className: "no" }, d.number), /* @__PURE__ */ React.createElement("div", { className: "dt" }, [["Issued", dmy(d.date)], ["Due", dmy(d.due)], ["Place of supply", d.emirate]].map(([k, v]) => /* @__PURE__ */ React.createElement("div", { key: k, className: "kv" }, bi && /* @__PURE__ */ React.createElement("span", { className: "ar", lang: "ar", dir: "rtl" }, AR[k]), /* @__PURE__ */ React.createElement("span", null, k, ": ", /* @__PURE__ */ React.createElement("b", null, v)))))))), /* @__PURE__ */ React.createElement("div", { className: "sheet-body" }, /* @__PURE__ */ React.createElement("div", { className: "sheet-parties" }, [
     ["Supplier", CO.name, CO.nameAr, [addrText(CO), CO.city].filter(Boolean).join(", "), CO.trn],
     ["Billed to", p.name, p.nameAr, addrText(p), p.trn]
-  ].map(([t, n, nAr, ad, trn]) => /* @__PURE__ */ React.createElement("div", { className: "blk", key: t }, /* @__PURE__ */ React.createElement("div", { className: "lb" }, T(t)), /* @__PURE__ */ React.createElement("div", { className: "nm" }, n), bi && nAr && /* @__PURE__ */ React.createElement("div", { className: "nm-ar", lang: "ar", dir: "rtl" }, nAr), /* @__PURE__ */ React.createElement("div", { className: "ad" }, ad), /* @__PURE__ */ React.createElement("div", { className: "trn" }, T("TRN"), " ", trn || /* @__PURE__ */ React.createElement("span", { style: { color: "#9AA0A8" } }, "not registered")))), /* @__PURE__ */ React.createElement("div", { className: "blk", style: { flex: "0 0 168px" } }, /* @__PURE__ */ React.createElement("div", { className: "lb" }, T("Payment terms")), /* @__PURE__ */ React.createElement("div", { className: "ad", style: { marginTop: 7 } }, "Net ", daysBetween(d.date, d.due), " days", /* @__PURE__ */ React.createElement("br", null), "Due ", dmy(d.due), d.ref && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("br", null), "Your ref: ", d.ref)))), /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap", style: { marginTop: 22 } }, /* @__PURE__ */ React.createElement("table", { className: "tbl sheet-lines", style: { fontSize: 12.5 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: 32 } }, T("#")), /* @__PURE__ */ React.createElement("th", null, T("Description")), /* @__PURE__ */ React.createElement("th", { className: "n" }, T("Qty")), /* @__PURE__ */ React.createElement("th", { className: "n" }, T("Unit price")), /* @__PURE__ */ React.createElement("th", { className: "n" }, T("Taxable")), /* @__PURE__ */ React.createElement("th", { className: "n" }, T("VAT %")), /* @__PURE__ */ React.createElement("th", { className: "n" }, T("VAT")), /* @__PURE__ */ React.createElement("th", { className: "n" }, T("Total")))), /* @__PURE__ */ React.createElement("tbody", null, am.lines.map((l, i) => /* @__PURE__ */ React.createElement("tr", { key: l.id }, /* @__PURE__ */ React.createElement("td", { className: "mono", style: { fontSize: 11.5, color: "#9AA0A8" } }, i + 1), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("b", { style: { fontWeight: 500 } }, l.desc), bi && PROD[l.product].nameAr && /* @__PURE__ */ React.createElement("div", { className: "desc-ar", lang: "ar", dir: "rtl" }, PROD[l.product].nameAr), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9AA0A8", marginTop: 2 } }, PROD[l.product].code)), /* @__PURE__ */ React.createElement("td", { className: "n" }, l.qty, " ", PROD[l.product].uom), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(l.price, false)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(l.amount, false)), /* @__PURE__ */ React.createElement("td", { className: "n" }, l.rate, "%"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(l.taxAmt, false)), /* @__PURE__ */ React.createElement("td", { className: "n", style: { fontWeight: 600 } }, money(l.amount + l.taxAmt, false))))))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 28, marginTop: 26, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { style: { flex: "1 1 290px", minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { className: "sheet-parties", style: { border: "none", padding: 0 } }, /* @__PURE__ */ React.createElement("div", { className: "blk" }, /* @__PURE__ */ React.createElement("div", { className: "lb" }, T("Amount in words")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, marginTop: 7, lineHeight: 1.6 } }, words(am.total)))), d.note && /* @__PURE__ */ React.createElement("div", { className: "payblk", style: { marginTop: 16 } }, d.note), /* @__PURE__ */ React.createElement("div", { className: "payblk", style: { marginTop: 16 } }, /* @__PURE__ */ React.createElement("b", { style: { color: "#16191D" } }, T("Payment")), /* @__PURE__ */ React.createElement("br", null), "Bank transfer to ", CO.name, /* @__PURE__ */ React.createElement("br", null), "Quote ", d.number, " as the payment reference.")), /* @__PURE__ */ React.createElement("div", { style: { flex: "0 0 288px" } }, /* @__PURE__ */ React.createElement("div", { className: "totbox" }, /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, T("Taxable amount")), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.net, false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, T("VAT")), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.vat, false))), am.rcm > 0 && /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, T("Reverse charge")), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.rcm, false))), /* @__PURE__ */ React.createElement("div", { className: "grand" }, /* @__PURE__ */ React.createElement("b", null, T(isCN ? "TOTAL CREDITED" : "TOTAL PAYABLE"), " ", /* @__PURE__ */ React.createElement("small", null, "AED")), /* @__PURE__ */ React.createElement("span", null, money(am.total, false)))), /* @__PURE__ */ React.createElement("div", { className: "sign" }, T("Authorised signatory")))), /* @__PURE__ */ React.createElement("div", { className: "foot" }, /* @__PURE__ */ React.createElement("span", { style: { flex: "1 1 340px" } }, "Issued under Federal Decree-Law No. 8 of 2017 on Value Added Tax and its Executive Regulations. All amounts in ", CO.currency, ".", CO.licence ? ` Trade licence ${CO.licence}.` : "", bi && /* @__PURE__ */ React.createElement("span", { className: "foot-ar", lang: "ar", dir: "rtl" }, AR.legal)), /* @__PURE__ */ React.createElement("span", null, CO.name, CO.trn ? ` \xB7 TRN ${CO.trn}` : ""))))));
+  ].map(([t, n, nAr, ad, trn]) => /* @__PURE__ */ React.createElement("div", { className: "blk", key: t }, /* @__PURE__ */ React.createElement("div", { className: "lb" }, T(t)), /* @__PURE__ */ React.createElement("div", { className: "nm" }, n), bi && nAr && /* @__PURE__ */ React.createElement("div", { className: "nm-ar", lang: "ar", dir: "rtl" }, nAr), /* @__PURE__ */ React.createElement("div", { className: "ad" }, ad), /* @__PURE__ */ React.createElement("div", { className: "trn" }, T("TRN"), " ", trn || /* @__PURE__ */ React.createElement("span", { style: { color: "#9AA0A8" } }, "not registered")))), /* @__PURE__ */ React.createElement("div", { className: "blk", style: { flex: "0 0 168px" } }, /* @__PURE__ */ React.createElement("div", { className: "lb" }, T("Payment terms")), /* @__PURE__ */ React.createElement("div", { className: "ad", style: { marginTop: 7 } }, "Net ", daysBetween(d.date, d.due), " days", /* @__PURE__ */ React.createElement("br", null), "Due ", dmy(d.due), d.ref && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("br", null), "Your ref: ", d.ref)))), /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap", style: { marginTop: 22 } }, /* @__PURE__ */ React.createElement("table", { className: "tbl sheet-lines", style: { fontSize: 12.5 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: 32 } }, T("#")), /* @__PURE__ */ React.createElement("th", null, T("Description")), /* @__PURE__ */ React.createElement("th", { className: "n" }, T("Qty")), /* @__PURE__ */ React.createElement("th", { className: "n" }, T("Unit price")), /* @__PURE__ */ React.createElement("th", { className: "n" }, T("Taxable")), /* @__PURE__ */ React.createElement("th", { className: "n" }, T("VAT %")), /* @__PURE__ */ React.createElement("th", { className: "n" }, T("VAT")), /* @__PURE__ */ React.createElement("th", { className: "n" }, T("Total")))), /* @__PURE__ */ React.createElement("tbody", null, am.lines.map((l, i) => /* @__PURE__ */ React.createElement("tr", { key: l.id }, /* @__PURE__ */ React.createElement("td", { className: "mono", style: { fontSize: 11.5, color: "#9AA0A8" } }, i + 1), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("b", { style: { fontWeight: 500 } }, l.desc), bi && PROD[l.product].nameAr && /* @__PURE__ */ React.createElement("div", { className: "desc-ar", lang: "ar", dir: "rtl" }, PROD[l.product].nameAr), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9AA0A8", marginTop: 2 } }, PROD[l.product].code)), /* @__PURE__ */ React.createElement("td", { className: "n" }, l.qty, " ", PROD[l.product].uom), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(l.price, false)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(l.amount, false)), /* @__PURE__ */ React.createElement("td", { className: "n" }, l.rate, "%"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(l.taxAmt, false)), /* @__PURE__ */ React.createElement("td", { className: "n", style: { fontWeight: 600 } }, money(l.amount + l.taxAmt, false))))))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 28, marginTop: 26, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { style: { flex: "1 1 290px", minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { className: "sheet-parties", style: { border: "none", padding: 0 } }, /* @__PURE__ */ React.createElement("div", { className: "blk" }, /* @__PURE__ */ React.createElement("div", { className: "lb" }, T("Amount in words")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12.5, marginTop: 7, lineHeight: 1.6 } }, words(am.total)))), d.note && /* @__PURE__ */ React.createElement("div", { className: "payblk", style: { marginTop: 16 } }, d.note), /* @__PURE__ */ React.createElement("div", { className: "payblk", style: { marginTop: 16 } }, /* @__PURE__ */ React.createElement("b", { style: { color: "#16191D" } }, T("Payment")), /* @__PURE__ */ React.createElement("br", null), "Bank transfer to ", CO.name, /* @__PURE__ */ React.createElement("br", null), "Quote ", d.number, " as the payment reference.")), /* @__PURE__ */ React.createElement("div", { style: { flex: "0 0 288px" } }, /* @__PURE__ */ React.createElement("div", { className: "totbox" }, /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, T("Taxable amount")), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.net, false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, T("VAT")), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.vat, false))), am.rcm > 0 && /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, T("Reverse charge")), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.rcm, false))), /* @__PURE__ */ React.createElement("div", { className: "grand" }, /* @__PURE__ */ React.createElement("b", null, T(isCN ? "TOTAL CREDITED" : "TOTAL PAYABLE"), " ", /* @__PURE__ */ React.createElement("small", null, "AED")), /* @__PURE__ */ React.createElement("span", null, money(am.total, false))), paidSoFar && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "sumrow paid" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Less: received to date"), /* @__PURE__ */ React.createElement("span", { className: "v" }, "(", money(paidSoFar.paid, false), ")")), /* @__PURE__ */ React.createElement("div", { className: "baldue" }, /* @__PURE__ */ React.createElement("span", null, paidSoFar.open <= 4e-3 ? "PAID IN FULL" : "BALANCE DUE", " ", /* @__PURE__ */ React.createElement("small", null, "AED")), /* @__PURE__ */ React.createElement("span", null, money(paidSoFar.open, false))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10.5, color: "#626973", marginTop: 6 } }, paidSoFar.items.map((x) => `${x.number} \xB7 ${dmy(x.date)} \xB7 ${money(x.amount, false)}`).join("  |  ")))), /* @__PURE__ */ React.createElement("div", { className: "sign" }, T("Authorised signatory")))), /* @__PURE__ */ React.createElement("div", { className: "foot" }, /* @__PURE__ */ React.createElement("span", { style: { flex: "1 1 340px" } }, "Issued under Federal Decree-Law No. 8 of 2017 on Value Added Tax and its Executive Regulations. All amounts in ", CO.currency, ".", CO.licence ? ` Trade licence ${CO.licence}.` : "", bi && /* @__PURE__ */ React.createElement("span", { className: "foot-ar", lang: "ar", dir: "rtl" }, AR.legal)), /* @__PURE__ */ React.createElement("span", null, CO.name, CO.trn ? ` \xB7 TRN ${CO.trn}` : ""))))));
 }
 function nextPay(list, kind) {
   const n = list.filter((p) => p.kind === kind).reduce((m, p) => Math.max(m, +p.number.split("/").pop() || 0), 0);
@@ -4896,7 +4926,7 @@ function ProfitLoss({ books, p, setP, toast, state, drill, go }) {
     sc.dropped > 0 && x.on && /* @__PURE__ */ React.createElement("div", { className: "cmp-note partial noprint" }, /* @__PURE__ */ React.createElement(Info, { size: 15 }), /* @__PURE__ */ React.createElement("span", null, sc.dropped, " earlier period", sc.dropped === 1 ? " is" : "s are", " before your books start, so ", sc.dropped === 1 ? "it is" : "they are", " left out.")),
     /* @__PURE__ */ React.createElement(Insight, { tone: net < 0 ? "warn" : "" }, r.revenue || r.expense || r.cost ? /* @__PURE__ */ React.createElement(React.Fragment, null, "From ", dmy(p.from), " to ", dmy(p.to), " you sold ", /* @__PURE__ */ React.createElement("b", null, aed(r.revenue)), " and kept a gross profit of ", /* @__PURE__ */ React.createElement("b", null, aed(r.gross)), " (", r.gm.toFixed(1), "%). After running costs the ", /* @__PURE__ */ React.createElement("b", null, "operating profit"), " is ", /* @__PURE__ */ React.createElement("b", { className: op >= 0 ? "pos" : "neg" }, aed(op)), ", and after investing, financing and tax the business made a ", /* @__PURE__ */ React.createElement("b", { className: net >= 0 ? "pos" : "neg" }, net >= 0 ? "profit" : "loss", " of ", aed(Math.abs(net))), ".", q && (q.revenue || q.net) ? /* @__PURE__ */ React.createElement(React.Fragment, null, " Compared with ", x.c.dates, ", ", moved(r.revenue, q.revenue, "sales are") || /* @__PURE__ */ React.createElement(React.Fragment, null, "sales were nil before"), q.net ? /* @__PURE__ */ React.createElement(React.Fragment, null, " and ", moved(net, st.net[i1] != null ? st.net[i1] : q.net, "profit is")) : "", ".") : null) : /* @__PURE__ */ React.createElement(React.Fragment, null, "No sales or costs were recorded between ", dmy(p.from), " and ", dmy(p.to), ". Pick another period above.")),
     /* @__PURE__ */ React.createElement(PnlVisuals, { books, r, p, c: x.on ? x.c : null, q, st, sc }),
-    /* @__PURE__ */ React.createElement(SectionTitle, null, "Statement of profit or loss \xB7 by IFRS 18 category"),
+    /* @__PURE__ */ React.createElement(StatementHead, { title: "Statement of profit or loss", sub: `For the period ${dmy(p.from)} to ${dmy(p.to)}${sc.cols.length > 1 ? ` \xB7 compared with ${sc.cols.length - 1} earlier period${sc.cols.length > 2 ? "s" : ""}` : ""} \xB7 presented by IFRS 18 category` }),
     /* @__PURE__ */ React.createElement(FinTable, { cols: sc.cols, rows: st.rows, onDrill, pctBase: sc.cols.length === 1 ? st.revenue : null, caption: "Statement of profit or loss" }),
     /* @__PURE__ */ React.createElement("div", { className: "fin-foot noprint" }, /* @__PURE__ */ React.createElement("span", null, "Group accounts your way and choose each account's IFRS 18 category in ", /* @__PURE__ */ React.createElement("button", { className: "linkish", onClick: () => go("acct_groups") }, "Account groups"), ".")),
     /* @__PURE__ */ React.createElement(SectionTitle, null, "Notes"),
@@ -4923,7 +4953,7 @@ function BalanceSheetRep({ books, p, setP, toast, state, drill, go }) {
     /* @__PURE__ */ React.createElement(CompareNote, { x, p, setP, asOf: true }),
     /* @__PURE__ */ React.createElement(Insight, null, "On ", dmy(p.asOf), " the business owns ", /* @__PURE__ */ React.createElement("b", null, aed(b.totA)), " (cash, stock, money due from customers and equipment) and owes ", /* @__PURE__ */ React.createElement("b", null, aed(b.totL)), " (vendors, VAT, loans and other liabilities), so it is worth ", /* @__PURE__ */ React.createElement("b", { className: b.totE >= 0 ? "pos" : "neg" }, aed(b.totE)), " to its owners.", balanced ? " Both sides agree." : "", q ? /* @__PURE__ */ React.createElement(React.Fragment, null, " On ", x.c.dates, " it was worth ", /* @__PURE__ */ React.createElement("b", null, aed(q.totE)), " \u2014 ", b.totE >= q.totE ? "an increase" : "a decrease", " of ", /* @__PURE__ */ React.createElement("b", { className: b.totE >= q.totE ? "pos" : "neg" }, aed(Math.abs(R2(b.totE - q.totE)))), ".") : null),
     /* @__PURE__ */ React.createElement(BsVisuals, { b, books, p, q, c: x.on ? x.c : null }),
-    /* @__PURE__ */ React.createElement(SectionTitle, null, "Statement of financial position"),
+    /* @__PURE__ */ React.createElement(StatementHead, { title: "Statement of financial position", sub: `As at ${dmy(p.asOf)}${sc.cols.length > 1 ? ` \xB7 with ${sc.cols.length - 1} comparative date${sc.cols.length > 2 ? "s" : ""}` : ""}` }),
     /* @__PURE__ */ React.createElement(FinTable, { cols: sc.cols, rows: st.rows, onDrill, asOf: true, caption: "Statement of financial position" }),
     /* @__PURE__ */ React.createElement("div", { className: "fin-foot noprint" }, /* @__PURE__ */ React.createElement("span", null, "Build groups such as Current assets \u203A Cash and cash equivalents in ", /* @__PURE__ */ React.createElement("button", { className: "linkish", onClick: () => go("acct_groups") }, "Account groups"), ".")),
     /* @__PURE__ */ React.createElement("div", { style: {
@@ -7415,7 +7445,7 @@ function Invoeez() {
         return null;
     }
   };
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS;
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS;
   if (!meFound) return /* @__PURE__ */ React.createElement(ThemeCtx.Provider, { value: palette }, /* @__PURE__ */ React.createElement(CompanyCtx.Provider, { value: company }, /* @__PURE__ */ React.createElement("div", { className: "mz", "data-theme": theme, "data-accent": accent, "data-density": density }, /* @__PURE__ */ React.createElement("style", null, ALL_CSS), /* @__PURE__ */ React.createElement(Toasts, { items: toasts }), /* @__PURE__ */ React.createElement(
     SignInScreen,
     {
@@ -9475,7 +9505,7 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
   const enter = () => {
     if (!folded) return;
     clearTimeout(peekT.current);
-    peekT.current = setTimeout(() => setPeek(true), 70);
+    peekT.current = setTimeout(() => setPeek(true), 140);
   };
   const leave = () => {
     clearTimeout(peekT.current);
@@ -9532,8 +9562,8 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
     setQ("");
     quickAdd(k);
   };
-  const leaf = (it) => /* @__PURE__ */ React.createElement("div", { key: it.k, className: cx("sb-row", view === it.k && "on") }, /* @__PURE__ */ React.createElement("button", { className: "sb-link", "data-k": it.k, title: it.l, onClick: () => pick(it.k), "aria-current": view === it.k ? "page" : void 0 }, /* @__PURE__ */ React.createElement("span", { className: "sb-tick", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "lbl" }, it.l), counts[it.k] != null && counts[it.k] > 0 && /* @__PURE__ */ React.createElement("span", { className: "ct" }, counts[it.k])), it.add && canAdd(it.k) && /* @__PURE__ */ React.createElement("button", { className: "sb-add", title: `New \u2014 ${it.l}`, "aria-label": `Create new: ${it.l}`, onClick: () => add(it.k) }, /* @__PURE__ */ React.createElement(Plus, { size: 13, strokeWidth: 2.4 })));
-  const tree = (g) => /* @__PURE__ */ React.createElement("div", { className: "sb-tree" }, g.items.map((x) => x.s ? /* @__PURE__ */ React.createElement("div", { key: x.s, className: cx("sb-sub", isOpen(x.s) && "open", x.items.some((y) => y.k === view) && "has-on") }, /* @__PURE__ */ React.createElement("button", { className: "sb-subhead", title: x.s, onClick: () => toggle(x.s), "aria-expanded": isOpen(x.s) }, /* @__PURE__ */ React.createElement("span", { className: "sb-tick", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "lbl" }, x.s), /* @__PURE__ */ React.createElement(ChevronRight, { size: 13, strokeWidth: 2.2, className: "cv" })), isOpen(x.s) && /* @__PURE__ */ React.createElement("div", { className: "sb-tree inner" }, x.items.map(leaf))) : leaf(x)));
+  const leaf = (it) => /* @__PURE__ */ React.createElement("div", { key: it.k, className: cx("sb-row", view === it.k && "on") }, /* @__PURE__ */ React.createElement("button", { className: "sb-link", "data-k": it.k, "data-title": it.l, onClick: () => pick(it.k), "aria-current": view === it.k ? "page" : void 0 }, /* @__PURE__ */ React.createElement("span", { className: "sb-tick", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "lbl" }, it.l), counts[it.k] != null && counts[it.k] > 0 && /* @__PURE__ */ React.createElement("span", { className: "ct" }, counts[it.k])), it.add && canAdd(it.k) && /* @__PURE__ */ React.createElement("button", { className: "sb-add", title: `New \u2014 ${it.l}`, "aria-label": `Create new: ${it.l}`, onClick: () => add(it.k) }, /* @__PURE__ */ React.createElement(Plus, { size: 13, strokeWidth: 2.4 })));
+  const tree = (g) => /* @__PURE__ */ React.createElement("div", { className: "sb-tree" }, g.items.map((x) => x.s ? /* @__PURE__ */ React.createElement("div", { key: x.s, className: cx("sb-sub", isOpen(x.s) && "open", x.items.some((y) => y.k === view) && "has-on") }, /* @__PURE__ */ React.createElement("button", { className: "sb-subhead", onClick: () => toggle(x.s), "aria-expanded": isOpen(x.s) }, /* @__PURE__ */ React.createElement("span", { className: "sb-tick", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "lbl" }, x.s), /* @__PURE__ */ React.createElement(ChevronRight, { size: 13, strokeWidth: 2.2, className: "cv" })), isOpen(x.s) && /* @__PURE__ */ React.createElement("div", { className: "sb-tree inner" }, x.items.map(leaf))) : leaf(x)));
   return /* @__PURE__ */ React.createElement(
     "nav",
     {
@@ -9575,7 +9605,8 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
         "button",
         {
           className: cx("sb-head", g.k && view === g.k && "on"),
-          title: g.g,
+          title: rail ? g.g : void 0,
+          "data-title": g.g,
           "data-k": g.k || void 0,
           onClick: (e) => g.k ? pick(g.k) : rail ? openFly(g, e.currentTarget) : toggle(g.g),
           onMouseEnter: (e) => openFly(g, e.currentTarget),
@@ -11796,7 +11827,7 @@ function FinTable({ cols, rows, onDrill, pctBase, asOf, caption }) {
   const pctCell = (x) => pctBase ? /* @__PURE__ */ React.createElement("td", { className: "n muted fin-pct" }, Math.abs(pctBase[0]) > 4e-3 ? ((x.kind === "subtotal" || x.kind === "total" ? x.values[0] : Math.abs(x.values[0])) / Math.abs(pctBase[0]) * 100).toFixed(1) + "%" : "\u2014") : null;
   const walk = (xs, depth) => xs.forEach((x) => {
     if (x.kind === "category") {
-      out.push(/* @__PURE__ */ React.createElement("tr", { key: x.id, className: "fin-cat" }, /* @__PURE__ */ React.createElement("td", { colSpan: 1 + cols.length + (change ? 3 : 0) + (pctBase ? 1 : 0) }, /* @__PURE__ */ React.createElement("span", null, x.label), x.help && /* @__PURE__ */ React.createElement("small", null, x.help))));
+      out.push(/* @__PURE__ */ React.createElement("tr", { key: x.id, className: "fin-cat" }, /* @__PURE__ */ React.createElement("td", { colSpan: 1 + cols.length + (change ? 3 : 0) + (pctBase ? 1 : 0) }, /* @__PURE__ */ React.createElement("span", null, x.label), x.help && /* @__PURE__ */ React.createElement("small", { className: "noexport" }, x.help))));
       return;
     }
     if (x.kind === "heading") {
@@ -11843,7 +11874,7 @@ function IfrsNotes({ st, cols }) {
   const ebitda = st.op.map((v, i) => R2(v + dep[i]));
   const head = /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Item"), cols.map((c) => /* @__PURE__ */ React.createElement("th", { key: c.key, className: "n" }, c.title)));
   const row = (label, v, cls) => /* @__PURE__ */ React.createElement("tr", { className: cls }, /* @__PURE__ */ React.createElement("td", null, label), v.map((x, i) => /* @__PURE__ */ React.createElement("td", { key: i, className: "n" }, money(x))));
-  return /* @__PURE__ */ React.createElement("div", { className: "ifrs-notes" }, /* @__PURE__ */ React.createElement("div", { className: "ifrs-note-card" }, /* @__PURE__ */ React.createElement("h4", null, /* @__PURE__ */ React.createElement("span", null, "A"), "How this statement is organised"), /* @__PURE__ */ React.createElement("p", null, "Under IFRS 18 every income and expense line sits in a category. ", /* @__PURE__ */ React.createElement("b", null, "Operating"), " covers the main business; ", /* @__PURE__ */ React.createElement("b", null, "investing"), " covers returns on investments held apart from it; ", /* @__PURE__ */ React.createElement("b", null, "financing"), " covers the cost of borrowing; ", /* @__PURE__ */ React.createElement("b", null, "income taxes"), " covers corporate tax. Three subtotals are required: ", /* @__PURE__ */ React.createElement("b", null, "operating profit"), ", ", /* @__PURE__ */ React.createElement("b", null, "profit before financing and income taxes"), ", and ", /* @__PURE__ */ React.createElement("b", null, "profit for the period"), ". You choose each account's category in Account groups.")), /* @__PURE__ */ React.createElement("div", { className: "ifrs-note-card" }, /* @__PURE__ */ React.createElement("h4", null, /* @__PURE__ */ React.createElement("span", null, "B"), "Management-defined performance measure \u2014 EBITDA"), /* @__PURE__ */ React.createElement("p", null, "EBITDA is not defined by IFRS. It is shown here because management uses it to judge operating performance, and it is reconciled to operating profit."), /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl ifrs-tbl" }, /* @__PURE__ */ React.createElement("thead", null, head), /* @__PURE__ */ React.createElement("tbody", null, row("Operating profit (IFRS 18 subtotal)", st.op), row("Add back: depreciation and amortisation", dep), row("EBITDA", ebitda, "fin-sub"))))), /* @__PURE__ */ React.createElement("div", { className: "ifrs-note-card" }, /* @__PURE__ */ React.createElement("h4", null, /* @__PURE__ */ React.createElement("span", null, "C"), "Specified expenses by nature"), /* @__PURE__ */ React.createElement("p", null, "Amounts included in the lines above."), /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl ifrs-tbl" }, /* @__PURE__ */ React.createElement("thead", null, head), /* @__PURE__ */ React.createElement("tbody", null, row("Employee benefits", staff), row("Depreciation and amortisation", dep), row("Inventory write-downs and stock adjustments", write), row("Impairment of receivables (bad debts)", bad))))));
+  return /* @__PURE__ */ React.createElement("div", { className: "ifrs-notes" }, /* @__PURE__ */ React.createElement("div", { className: "ifrs-note-card" }, /* @__PURE__ */ React.createElement("h4", null, /* @__PURE__ */ React.createElement("span", null, "A"), "How this statement is organised"), /* @__PURE__ */ React.createElement("p", null, "Under IFRS 18 every income and expense line sits in a category. ", /* @__PURE__ */ React.createElement("b", null, "Operating"), " covers the main business; ", /* @__PURE__ */ React.createElement("b", null, "investing"), " covers returns on investments held apart from it; ", /* @__PURE__ */ React.createElement("b", null, "financing"), " covers the cost of borrowing; ", /* @__PURE__ */ React.createElement("b", null, "income taxes"), " covers corporate tax. Three subtotals are required: ", /* @__PURE__ */ React.createElement("b", null, "operating profit"), ", ", /* @__PURE__ */ React.createElement("b", null, "profit before financing and income taxes"), ", and ", /* @__PURE__ */ React.createElement("b", null, "profit for the period"), ". You choose each account's category in Account groups.")), /* @__PURE__ */ React.createElement("div", { className: "ifrs-note-card" }, /* @__PURE__ */ React.createElement("h4", null, /* @__PURE__ */ React.createElement("span", null, "B"), "Management-defined performance measure \u2014 EBITDA"), /* @__PURE__ */ React.createElement("p", null, "EBITDA is not defined by IFRS. It is shown here because management uses it to judge operating performance, and it is reconciled to operating profit."), /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl ifrs-tbl", "aria-label": "Note B \u2014 EBITDA reconciliation" }, /* @__PURE__ */ React.createElement("thead", null, head), /* @__PURE__ */ React.createElement("tbody", null, row("Operating profit (IFRS 18 subtotal)", st.op), row("Add back: depreciation and amortisation", dep), row("EBITDA", ebitda, "fin-sub"))))), /* @__PURE__ */ React.createElement("div", { className: "ifrs-note-card" }, /* @__PURE__ */ React.createElement("h4", null, /* @__PURE__ */ React.createElement("span", null, "C"), "Specified expenses by nature"), /* @__PURE__ */ React.createElement("p", null, "Amounts included in the lines above."), /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl ifrs-tbl", "aria-label": "Note C \u2014 Specified expenses by nature" }, /* @__PURE__ */ React.createElement("thead", null, head), /* @__PURE__ */ React.createElement("tbody", null, row("Employee benefits", staff), row("Depreciation and amortisation", dep), row("Inventory write-downs and stock adjustments", write), row("Impairment of receivables (bad debts)", bad))))));
 }
 function EntryModal({ entry, close, drill }) {
   const lines = entry.lines || [], d = R2(lines.reduce((s, l) => s + l.debit, 0)), c = R2(lines.reduce((s, l) => s + l.credit, 0));
@@ -12097,6 +12128,440 @@ const IFRS_CSS = `
 @media (max-width:760px){.mz .tbl.fin-tbl td:first-child,.mz .tbl.fin-tbl th:first-child{min-width:140px;max-width:180px}.mz .tbl.fin-tbl td,.mz .tbl.fin-tbl th{padding-left:8px;padding-right:8px;font-size:12px}.mz .tbl.fin-tbl td:first-child{padding-left:calc(8px + var(--d,0) * 10px)}.fin-name .mono{display:none}.fin-pct{display:none}
   .agp-acts{opacity:1;flex-wrap:wrap}.agp-row{flex-wrap:wrap}.agp-bal{width:auto}.agp-sel{max-width:100%}.fin-tools span{display:none}.ifrs-notes{padding:6px 12px 16px}}
 @media print{.fin-tools,.drill-trail{display:none}.mz .tbl.fin-tbl tr.fin-sub td,.mz .tbl.fin-tbl tr.fin-total td,.mz .tbl.fin-tbl tr.fin-sec td{background:none}}
+`;
+function settlementsOf(state, doc, asOf = TODAY) {
+  if (!doc || doc.state !== "posted" || !["invoice", "bill"].includes(doc.type)) return null;
+  const isAR = doc.type === "invoice", creditT = isAR ? "credit_note" : "debit_note", payK = isAR ? "in" : "out";
+  const charges = state.docs.filter((d) => d.state === "posted" && d.partner === doc.partner && d.type === doc.type && d.date <= asOf).map((d) => {
+    const t = amounts(d).total;
+    return { id: d.id, number: d.number, due: d.due, amount: t, open: t, paid: [] };
+  }).sort((a, b) => a.due.localeCompare(b.due) || a.number.localeCompare(b.number));
+  const byId = Object.fromEntries(charges.map((c) => [c.id, c])), byNo = Object.fromEntries(charges.map((c) => [c.number, c]));
+  const pool = [];
+  const settle = (c, amt, src) => {
+    let left = R2(amt);
+    if (c) {
+      const ap = Math.min(left, c.open);
+      if (ap > 4e-3) {
+        c.open = R2(c.open - ap);
+        c.paid.push({ ...src, amount: R2(ap), direct: true });
+      }
+      left = R2(left - ap);
+    }
+    if (left > 4e-3) pool.push({ src, left });
+  };
+  state.docs.filter((d) => d.state === "posted" && d.partner === doc.partner && d.type === creditT && d.date <= asOf).forEach((d) => settle(byId[d.against] || byNo[d.ref], amounts(d).total, { kind: "credit", label: DOCMETA[d.type].label, date: d.date, number: d.number, id: d.id, docType: d.type }));
+  state.payments.filter((x) => x.partner === doc.partner && x.kind === payK && x.date <= asOf).forEach((x) => settle(byId[x.doc], x.amount, { kind: "payment", label: MET[x.method] ? MET[x.method].name : isAR ? "Receipt" : "Payment", date: x.date, number: x.number, id: x.id, memo: x.memo || x.ref || "" }));
+  (state.pdcs || []).filter((x) => x.partner === doc.partner && x.kind === payK && pdcSettles(x, asOf)).forEach((x) => settle(byId[x.doc], +x.amount, { kind: "pdc", label: "Post-dated cheque", date: x.date, number: `Cheque ${x.chequeNo}`, id: x.id, memo: [x.bank, pdcStatus(x) === "cleared" ? "cleared" : "not yet cleared"].filter(Boolean).join(" \xB7 ") }));
+  pool.sort((a, b) => a.src.date.localeCompare(b.src.date));
+  charges.forEach((c) => {
+    while (c.open > 4e-3 && pool.length) {
+      const p = pool[0], ap = Math.min(p.left, c.open);
+      c.open = R2(c.open - ap);
+      p.left = R2(p.left - ap);
+      c.paid.push({ ...p.src, amount: R2(ap), direct: false });
+      if (p.left <= 4e-3) pool.shift();
+    }
+  });
+  const me = charges.find((c) => c.id === doc.id);
+  if (!me) return null;
+  const items = me.paid.slice().sort((a, b) => a.date.localeCompare(b.date));
+  const overdue = me.open > 4e-3 && doc.due < TODAY ? daysBetween(doc.due, TODAY) : 0;
+  return { total: me.amount, paid: R2(me.amount - me.open), open: me.open, items, overdue };
+}
+function PaymentsPanel({ s, d, onRecord, drill }) {
+  const isInv = d.type === "invoice", pct2 = s.total > 0 ? Math.min(100, s.paid / s.total * 100) : 0;
+  const tone = s.open <= 4e-3 ? "ok" : s.overdue ? "bad" : "warn";
+  return /* @__PURE__ */ React.createElement("section", { className: "pay-panel" }, /* @__PURE__ */ React.createElement("header", null, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", null, isInv ? "Payments received" : "Payments made"), /* @__PURE__ */ React.createElement("p", null, s.items.length ? `${s.items.length} ${s.items.length === 1 ? "settlement" : "settlements"} applied to ${d.number}` : `Nothing ${isInv ? "received" : "paid"} against ${d.number} yet`)), /* @__PURE__ */ React.createElement("span", { className: cx("pay-state", tone) }, s.open <= 4e-3 ? "Paid in full" : s.paid > 4e-3 ? s.overdue ? `Part paid \xB7 ${s.overdue} days overdue` : "Part paid" : s.overdue ? `${s.overdue} days overdue` : `Due ${dmy(d.due)}`)), /* @__PURE__ */ React.createElement("div", { className: "pay-figs" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", null, "Document total"), /* @__PURE__ */ React.createElement("b", null, money(s.total, false))), /* @__PURE__ */ React.createElement("div", { className: "paid" }, /* @__PURE__ */ React.createElement("span", null, isInv ? "Received" : "Paid"), /* @__PURE__ */ React.createElement("b", null, money(s.paid, false))), /* @__PURE__ */ React.createElement("div", { className: cx("due", tone) }, /* @__PURE__ */ React.createElement("span", null, isInv ? "Balance receivable" : "Balance payable"), /* @__PURE__ */ React.createElement("b", null, money(s.open, false)))), /* @__PURE__ */ React.createElement("div", { className: "pay-bar", role: "img", "aria-label": `${pct2.toFixed(0)}% settled` }, /* @__PURE__ */ React.createElement("i", { style: { width: pct2 + "%" } })), s.items.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl pay-tbl" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Date"), /* @__PURE__ */ React.createElement("th", null, "Reference"), /* @__PURE__ */ React.createElement("th", null, "Method"), /* @__PURE__ */ React.createElement("th", null, "Note"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Amount \xB7 AED"))), /* @__PURE__ */ React.createElement("tbody", null, s.items.map((x, i) => /* @__PURE__ */ React.createElement("tr", { key: i, className: x.kind === "credit" && drill ? "gl-row" : "", onClick: x.kind === "credit" && drill ? () => drill(LIST_OF[x.docType], x.id, x.number, d.number) : void 0 }, /* @__PURE__ */ React.createElement("td", { className: "muted" }, dmy(x.date)), /* @__PURE__ */ React.createElement("td", { className: "mono" }, x.number), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: cx("pay-kind", x.kind) }, x.kind === "credit" ? x.label : x.kind === "pdc" ? "Cheque" : x.label)), /* @__PURE__ */ React.createElement("td", { className: "muted" }, x.direct ? x.memo || "Recorded against this document" : `Applied from an earlier ${x.kind === "credit" ? "credit" : "payment"} (oldest open first)`), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(x.amount))))), /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 4 }, "Total ", isInv ? "received" : "paid"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(s.paid))), /* @__PURE__ */ React.createElement("tr", { className: "pay-open" }, /* @__PURE__ */ React.createElement("td", { colSpan: 4 }, isInv ? "Balance receivable" : "Balance payable"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(s.open)))))), s.open > 4e-3 && onRecord && /* @__PURE__ */ React.createElement("div", { className: "pay-cta" }, /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Wallet, onClick: onRecord }, "Record ", isInv ? "a receipt" : "a payment", " \xB7 ", money(s.open, false))));
+}
+const StatementHead = ({ title, sub }) => {
+  const CO = useCo();
+  return /* @__PURE__ */ React.createElement("div", { className: "stmt-head" }, /* @__PURE__ */ React.createElement("b", null, CO.name), /* @__PURE__ */ React.createElement("h3", null, title), /* @__PURE__ */ React.createElement("span", null, sub), /* @__PURE__ */ React.createElement("small", null, "All amounts in UAE dirhams (AED)", CO.trn ? ` \xB7 TRN ${CO.trn}` : ""));
+};
+const pdfSafe = (s) => String(s == null ? "" : s).replace(/−/g, "-").replace(/[▲▼▴▾●•]/g, "").replace(/[   ]/g, " ").replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/…/g, "...").replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").trim();
+function cellText(td) {
+  if (td.dataset && td.dataset.x != null) return td.dataset.x;
+  const c = td.cloneNode(true);
+  c.querySelectorAll(".noexport,svg,.fin-go,.fin-i,.fin-cnt,.icon-btn,.th-d-hide").forEach((e) => e.remove());
+  c.querySelectorAll(".th-d").forEach((e) => e.prepend("\n"));
+  c.querySelectorAll("*").forEach((e) => e.append(" "));
+  return (c.textContent || "").replace(/[ \t]+/g, " ").replace(/ *\n */g, "\n").trim();
+}
+function scrapeRich(root) {
+  const out = [];
+  if (!root) return out;
+  root.querySelectorAll("table.tbl").forEach((t) => {
+    if (t.closest(".noexport")) return;
+    const head = [], rows = [], numCols = [];
+    t.querySelectorAll("tr").forEach((tr) => {
+      const sec = tr.parentElement && tr.parentElement.tagName, cells = [], tones = [];
+      tr.querySelectorAll("th,td").forEach((td) => {
+        const span2 = td.colSpan || 1;
+        if (sec === "THEAD" && /\bn\b/.test(td.className)) numCols[cells.length] = true;
+        const raw = pdfSafe(cellText(td)), txt2 = sec === "THEAD" ? raw : raw.replace(/\n/g, " ");
+        cells.push(span2 > 1 ? { text: txt2, span: span2 } : txt2);
+        tones.push(/\bup\b/.test(td.className) ? "up" : /\bdown\b/.test(td.className) ? "down" : "");
+        for (let i = 1; i < span2; i++) {
+          cells.push(null);
+          tones.push("");
+        }
+      });
+      const txt = cells.filter((c) => c != null).map((c) => typeof c === "object" ? c.text : c);
+      if (!txt.some((c) => c !== "")) return;
+      if (sec === "THEAD") {
+        head.push(cells.map((c) => c && typeof c === "object" ? c.text : c || ""));
+        return;
+      }
+      const k = tr.className || "";
+      const kind = /fin-cat/.test(k) ? "cat" : /fin-head/.test(k) ? "heading" : /fin-note/.test(k) ? "note" : /fin-total|\bgrand\b/.test(k) || sec === "TFOOT" ? "total" : /fin-sub|\bsub\b/.test(k) ? "subtotal" : /fin-sec|\bsec\b/.test(k) ? "section" : /fin-grp/.test(k) ? "group" : "row";
+      rows.push({ cells, kind, depth: +(tr.style.getPropertyValue("--d") || 0), tones });
+    });
+    if (rows.length || head.length) out.push({ caption: t.getAttribute("aria-label") || t.dataset.caption || "", head, rows, numCols });
+  });
+  return out;
+}
+const isNumText = (s) => /^\(?[+-]?[\d,]*\d(\.\d+)?\)?$/.test(String(s || "").trim());
+const isPctText = (s) => /^[<>]?[+-]?\d[\d,]*(\.\d+)?%$/.test(String(s || "").trim());
+const xNum = (s) => {
+  const t = String(s).trim(), neg = /^\(.*\)$/.test(t) || /^-/.test(t);
+  const v = +t.replace(/[^\d.]/g, "");
+  return neg ? -v : v;
+};
+const cssRgb = (name, fb) => {
+  try {
+    const el = document.querySelector(".mz") || document.body;
+    const v = getComputedStyle(el).getPropertyValue(name).trim();
+    const m = /^#([0-9a-f]{6})$/i.exec(v);
+    if (m) return [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16));
+    const r = /rgba?\(([^)]+)\)/.exec(v);
+    if (r) return r[1].split(",").slice(0, 3).map((x) => +x);
+  } catch (e) {
+  }
+  return fb;
+};
+function exportPdfPro(title, meta, CO, tables, name) {
+  const JS = window.jspdf && window.jspdf.jsPDF;
+  if (!JS) {
+    window.print();
+    return false;
+  }
+  const cols = Math.max(1, ...tables.map((t) => Math.max(t.head.length ? t.head[t.head.length - 1].length : 0, ...t.rows.map((r) => r.cells.length))));
+  const doc = new JS({ orientation: cols > 6 ? "landscape" : "portrait", unit: "pt", format: "a4" });
+  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 40;
+  const BRAND = cssRgb("--pri-a", [37, 99, 235]), DARK = cssRgb("--sb-2", [17, 24, 39]), INK = [24, 29, 38], MUTE = [104, 112, 124];
+  const tint = (c, f) => c.map((v) => Math.round(255 - (255 - v) * f));
+  doc.setFillColor(...DARK);
+  doc.rect(0, 0, W, 5, "F");
+  doc.setFillColor(...BRAND);
+  doc.rect(0, 5, W, 1.6, "F");
+  let y = 36, logoW = 0;
+  if (CO.logo) {
+    try {
+      const p = doc.getImageProperties(CO.logo), h = 34, w = Math.min(130, p.width / p.height * h);
+      doc.addImage(CO.logo, W - M - w, 22, w, h);
+      logoW = w;
+    } catch (e) {
+    }
+  }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(...BRAND);
+  doc.text(pdfSafe(CO.name || ""), M, y);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...MUTE);
+  doc.text(pdfSafe([CO.trn ? `TRN ${CO.trn}` : "", addrText ? addrText(CO) : "", CO.emirate].filter(Boolean).join("  \xB7  ")).slice(0, 120), M, y + 12);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(...INK);
+  doc.text(pdfSafe(title), M, y + 38);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...MUTE);
+  doc.text(doc.splitTextToSize(pdfSafe(meta), W - 2 * M - 150), M, y + 54);
+  doc.setFontSize(8);
+  doc.text(`Prepared ${dmy(TODAY)}`, W - M, y + 38, { align: "right" });
+  doc.text("Amounts in AED", W - M, y + 50, { align: "right" });
+  doc.setDrawColor(...tint(DARK, 0.35));
+  doc.setLineWidth(0.8);
+  doc.line(M, y + 66, W - M, y + 66);
+  let startY = y + 82;
+  tables.forEach((t, ti) => {
+    if (t.caption && ti > 0) {
+      if (startY > H - 120) {
+        doc.addPage();
+        startY = 48;
+      }
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(...BRAND);
+      doc.text(pdfSafe(t.caption), M, startY);
+      startY += 8;
+    }
+    const n = Math.max(t.head.length ? t.head[t.head.length - 1].length : 0, ...t.rows.map((r) => r.cells.length));
+    const right = (i) => t.numCols[i] || t.rows.some((r) => {
+      const c = r.cells[i];
+      return typeof c === "string" && (isNumText(c) || isPctText(c));
+    });
+    const body = t.rows.map((r) => {
+      const row = [];
+      r.cells.forEach((c) => {
+        if (c === null) return;
+        row.push(typeof c === "object" ? { content: c.text, colSpan: c.span } : c);
+      });
+      return row;
+    });
+    doc.autoTable({
+      head: t.head.length ? t.head : void 0,
+      body,
+      startY,
+      theme: "plain",
+      margin: { left: M, right: M, top: 46, bottom: 50 },
+      styles: { font: "helvetica", fontSize: n > 7 ? 7.4 : 8.4, cellPadding: { top: 4.2, bottom: 4.2, left: 6, right: 6 }, textColor: INK, overflow: "linebreak", valign: "middle" },
+      headStyles: { fillColor: DARK, textColor: [255, 255, 255], fontStyle: "bold", fontSize: n > 7 ? 6.8 : 7.4, cellPadding: { top: 6, bottom: 6, left: 6, right: 6 } },
+      columnStyles: { 0: { cellWidth: n > 4 ? cols > 6 ? 190 : 170 : "auto" } },
+      didParseCell: (h) => {
+        const i = h.column.index;
+        if (right(i) && i > 0) h.cell.styles.halign = "right";
+        if (h.section !== "body") return;
+        const r = t.rows[h.row.index];
+        if (!r) return;
+        const st = h.cell.styles;
+        if (r.kind === "cat" || r.kind === "heading") {
+          st.fontStyle = "bold";
+          st.textColor = BRAND;
+          st.fontSize = 7.2;
+          st.cellPadding = { top: 10, bottom: 3, left: 6, right: 6 };
+          if (typeof h.cell.raw === "string" || h.cell.raw && h.cell.raw.content) h.cell.text = h.cell.text.map((x) => x.toUpperCase());
+        } else if (r.kind === "section") {
+          st.fontStyle = "bold";
+          st.fillColor = [244, 246, 249];
+        } else if (r.kind === "group") {
+          st.fontStyle = "bold";
+        } else if (r.kind === "subtotal") {
+          st.fontStyle = "bold";
+          st.fillColor = tint(BRAND, 0.06);
+        } else if (r.kind === "total") {
+          st.fontStyle = "bold";
+          st.fillColor = tint(BRAND, 0.12);
+          st.fontSize = (st.fontSize || 8.4) + 0.6;
+        } else if (r.kind === "note") {
+          st.fontStyle = "italic";
+          st.textColor = MUTE;
+        }
+        if (i === 0 && r.depth) st.cellPadding = { top: 4.2, bottom: 4.2, left: 6 + r.depth * 11, right: 6 };
+        const tone = r.tones[i];
+        if (tone === "up") st.textColor = [18, 128, 74];
+        if (tone === "down") st.textColor = [196, 43, 43];
+      },
+      didDrawCell: (h) => {
+        if (h.section !== "body") return;
+        const r = t.rows[h.row.index];
+        if (!r) return;
+        const c = h.cell;
+        if (r.kind === "subtotal" || r.kind === "total") {
+          doc.setDrawColor(...INK);
+          doc.setLineWidth(r.kind === "total" ? 0.9 : 0.6);
+          doc.line(c.x, c.y, c.x + c.width, c.y);
+          if (r.kind === "total") {
+            doc.setLineWidth(0.5);
+            doc.line(c.x, c.y + c.height - 2.4, c.x + c.width, c.y + c.height - 2.4);
+            doc.line(c.x, c.y + c.height, c.x + c.width, c.y + c.height);
+          }
+        } else if (r.kind !== "cat" && r.kind !== "heading") {
+          doc.setDrawColor(232, 235, 240);
+          doc.setLineWidth(0.4);
+          doc.line(c.x, c.y + c.height, c.x + c.width, c.y + c.height);
+        }
+      }
+    });
+    startY = doc.lastAutoTable.finalY + 22;
+  });
+  const pages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pages; i++) {
+    doc.setPage(i);
+    if (i > 1) {
+      doc.setFillColor(...DARK);
+      doc.rect(0, 0, W, 4, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(...MUTE);
+      doc.text(pdfSafe(`${CO.name} \u2014 ${title}`), M, 26);
+      doc.setFont("helvetica", "normal");
+      doc.text(pdfSafe(meta).slice(0, 90), W - M, 26, { align: "right" });
+    }
+    doc.setDrawColor(226, 229, 234);
+    doc.setLineWidth(0.5);
+    doc.line(M, H - 34, W - M, H - 34);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(140, 147, 156);
+    doc.text(pdfSafe(`${CO.name} \xB7 ${title} \xB7 prepared with InvoEez on ${dmy(TODAY)}`), M, H - 22);
+    doc.text(`Page ${i} of ${pages}`, W - M, H - 22, { align: "right" });
+  }
+  return saveBlob(doc.output("blob"), name + ".pdf");
+}
+function exportExcelPro(title, meta, CO, tables, name) {
+  const XF = [], key = {}, xf = (o) => {
+    const k = JSON.stringify(o);
+    if (key[k] == null) {
+      key[k] = XF.length;
+      XF.push(o);
+    }
+    return key[k];
+  };
+  const base = { font: 0, fill: 0, border: 0, num: 0, h: "", indent: 0, wrap: false };
+  const S = (o) => xf({ ...base, ...o });
+  const rows = [], put = (cells) => rows.push(cells);
+  put([{ v: title, s: S({ font: 2 }) }]);
+  put([{ v: CO.name + (CO.trn ? `  \xB7  TRN ${CO.trn}` : ""), s: S({ font: 1 }) }]);
+  put([{ v: meta, s: S({ font: 3 }) }]);
+  put([{ v: `Prepared ${dmy(TODAY)} \xB7 amounts in AED`, s: S({ font: 3 }) }]);
+  put([]);
+  let freeze = 0, width = [];
+  tables.forEach((t, ti) => {
+    if (t.caption && ti > 0) put([{ v: t.caption, s: S({ font: 5 }) }]);
+    t.head.forEach((h) => {
+      if (!freeze && ti === 0) freeze = rows.length + 1;
+      put(h.map((c, i) => ({ v: String(c || "").replace(/\n/g, " \xB7 "), s: S({ font: 4, fill: 2, h: i > 0 && t.numCols[i] ? "right" : "", wrap: true }) })));
+    });
+    t.rows.forEach((r) => {
+      const kind = r.kind, font = kind === "cat" || kind === "heading" ? 5 : kind === "note" ? 6 : ["section", "group", "subtotal", "total"].includes(kind) ? 1 : 0;
+      const fill2 = kind === "section" ? 3 : kind === "subtotal" ? 4 : kind === "total" ? 5 : 0, border = kind === "subtotal" ? 2 : kind === "total" ? 3 : kind === "row" ? 1 : 0;
+      const cells = [];
+      r.cells.forEach((c, i) => {
+        if (c === null) {
+          cells.push(null);
+          return;
+        }
+        const txt = typeof c === "object" ? c.text : c, tone = r.tones[i];
+        const f = tone === "up" ? 7 : tone === "down" ? 8 : font;
+        if (i > 0 && isNumText(txt)) cells.push({ v: xNum(txt), n: true, s: S({ font: f, fill: fill2, border, num: 164, h: "right" }) });
+        else if (i > 0 && isPctText(txt) && !/[<>]/.test(txt)) cells.push({ v: xNum(txt.replace("%", "")) / 100, n: true, s: S({ font: f, fill: fill2, border, num: /^[+-]/.test(txt.trim()) ? 165 : 166, h: "right" }) });
+        else if (i > 0 && /^[–—-]$/.test(txt.trim())) cells.push({ v: 0, n: true, s: S({ font, fill: fill2, border, num: 164, h: "right" }) });
+        else cells.push({ v: kind === "cat" || kind === "heading" ? txt.toUpperCase() : txt, s: S({ font: f, fill: fill2, border, indent: i === 0 ? Math.min(6, r.depth) : 0, h: i > 0 && t.numCols[i] ? "right" : "" }) });
+      });
+      put(cells);
+    });
+    put([]);
+  });
+  rows.forEach((r) => r.forEach((c, i) => {
+    if (!c) return;
+    const l = String(c.n ? money(c.v, false) : c.v).length;
+    width[i] = Math.max(width[i] || 10, Math.min(i === 0 ? 60 : 22, l + 3));
+  }));
+  width[0] = Math.max(width[0] || 30, 34);
+  const fonts = [
+    '<font><sz val="10"/><name val="Calibri"/></font>',
+    '<font><b/><sz val="10"/><name val="Calibri"/></font>',
+    '<font><b/><sz val="15"/><color rgb="FF1E3A8A"/><name val="Calibri"/></font>',
+    '<font><sz val="9"/><color rgb="FF6B7280"/><name val="Calibri"/></font>',
+    '<font><b/><sz val="9"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>',
+    '<font><b/><sz val="9"/><color rgb="FF1D4ED8"/><name val="Calibri"/></font>',
+    '<font><i/><sz val="9"/><color rgb="FF6B7280"/><name val="Calibri"/></font>',
+    '<font><sz val="10"/><color rgb="FF12804A"/><name val="Calibri"/></font>',
+    '<font><sz val="10"/><color rgb="FFC42B2B"/><name val="Calibri"/></font>'
+  ];
+  const fill = (rgb) => `<fill><patternFill patternType="solid"><fgColor rgb="FF${rgb}"/><bgColor indexed="64"/></patternFill></fill>`;
+  const fills = ['<fill><patternFill patternType="none"/></fill>', '<fill><patternFill patternType="gray125"/></fill>', fill("1F2937"), fill("F3F5F8"), fill("EEF3FD"), fill("E1EAFB")];
+  const borders = [
+    "<border><left/><right/><top/><bottom/><diagonal/></border>",
+    '<border><left/><right/><top/><bottom style="hair"><color rgb="FFD6DAE0"/></bottom><diagonal/></border>',
+    '<border><left/><right/><top style="thin"><color rgb="FF1F2937"/></top><bottom/><diagonal/></border>',
+    '<border><left/><right/><top style="thin"><color rgb="FF1F2937"/></top><bottom style="double"><color rgb="FF1F2937"/></bottom><diagonal/></border>'
+  ];
+  const xfs = XF.map((o) => `<xf numFmtId="${o.num}" fontId="${o.font}" fillId="${o.fill}" borderId="${o.border}" xfId="0"${o.num ? ' applyNumberFormat="1"' : ""} applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment${o.h ? ` horizontal="${o.h}"` : ""}${o.indent ? ` indent="${o.indent}"` : ""}${o.wrap ? ' wrapText="1"' : ""} vertical="center"/></xf>`);
+  const styles = `<?xml version="1.0" encoding="UTF-8"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="3"><numFmt numFmtId="164" formatCode="#,##0.00;(#,##0.00);&quot;\u2013&quot;"/><numFmt numFmtId="165" formatCode="+0.0%;-0.0%;0.0%"/><numFmt numFmtId="166" formatCode="0.0%"/></numFmts><fonts count="${fonts.length}">${fonts.join("")}</fonts><fills count="${fills.length}">${fills.join("")}</fills><borders count="${borders.length}">${borders.join("")}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${xfs.length}">${xfs.join("")}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const colName = (i) => {
+    let s = "";
+    i++;
+    while (i) {
+      const m = (i - 1) % 26;
+      s = String.fromCharCode(65 + m) + s;
+      i = Math.floor((i - 1) / 26);
+    }
+    return s;
+  };
+  let sd = "";
+  rows.forEach((r, ri) => {
+    sd += `<row r="${ri + 1}"${ri === 0 ? ' ht="22" customHeight="1"' : ""}>`;
+    r.forEach((c, ci) => {
+      if (!c) return;
+      const ref = colName(ci) + (ri + 1);
+      sd += c.n ? `<c r="${ref}" s="${c.s}"><v>${c.v}</v></c>` : `<c r="${ref}" s="${c.s}" t="inlineStr"><is><t xml:space="preserve">${esc(c.v)}</t></is></c>`;
+    });
+    sd += "</row>";
+  });
+  const sheet = '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' + (freeze ? `<sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="${freeze}" topLeftCell="A${freeze + 1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` : '<sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews>') + `<cols>${width.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w || 12}" customWidth="1"/>`).join("")}</cols><sheetData>${sd}</sheetData><pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>`;
+  const sheetName = esc(title.replace(/[\\/?*[\]:]/g, " ").slice(0, 31));
+  const files = [
+    { name: "[Content_Types].xml", body: '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>' },
+    { name: "_rels/.rels", body: '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
+    { name: "xl/workbook.xml", body: `<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${sheetName}" sheetId="1" r:id="rId1"/></sheets></workbook>` },
+    { name: "xl/_rels/workbook.xml.rels", body: '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
+    { name: "xl/styles.xml", body: styles },
+    { name: "xl/worksheets/sheet1.xml", body: sheet }
+  ];
+  return saveBlob(new Blob([_zip(files)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), name + ".xlsx");
+}
+const PRO_CSS = `
+/* sidebar opens beside the page, never over it */
+.sbar.folded.peek{margin-right:0!important}
+
+/* statements read like statements */
+.mz .rframe .tbl td.n,.mz .rframe .tbl th.n,.mz .fin-tbl td.n,.mz .pay-tbl td.n{font-family:var(--sans);font-variant-numeric:tabular-nums lining-nums;font-feature-settings:"tnum" 1,"lnum" 1;letter-spacing:-.005em}
+.stmt-head{text-align:center;padding:22px 16px 14px;border-bottom:1px solid var(--line-2);margin:4px 24px 0}
+.stmt-head b{display:block;font-size:13px;font-weight:650;color:var(--brand-600);letter-spacing:.02em}
+.stmt-head h3{font-size:19px;font-weight:700;letter-spacing:-.02em;color:var(--ink);margin-top:3px}
+.stmt-head span{display:block;font-size:12.5px;color:var(--ink-2);margin-top:3px}
+.stmt-head small{display:block;font-size:11px;color:var(--ink-4);margin-top:3px}
+.mz .tbl.fin-tbl{font-size:13px}
+.mz .tbl.fin-tbl thead th{background:var(--surface);border-bottom:1.5px solid var(--ink-3);color:var(--ink-2);vertical-align:bottom}
+.mz .tbl.fin-tbl thead th .th-d{color:var(--ink-4)}
+.mz .tbl.fin-tbl tr.fin-sec td{background:color-mix(in srgb,var(--surface-2) 70%,var(--surface))}
+.mz .tbl.fin-tbl tr.fin-acc td{color:var(--ink-2)}
+.mz .tbl.fin-tbl tr.fin-sub td{background:transparent;border-top:1px solid var(--ink-3)}
+.mz .tbl.fin-tbl tr.fin-total td{background:color-mix(in srgb,var(--brand-50) 70%,var(--surface));border-top:1.5px solid var(--ink-2);border-bottom:3px double var(--ink-2)}
+.mz .tbl.fin-tbl td.cmp-prev,.mz .tbl.fin-tbl th.cmp-prev{background:color-mix(in srgb,var(--surface-2) 45%,transparent)}
+.mz .rframe .acts .btn{height:34px}
+.exp-group{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface);box-shadow:var(--sh-1)}
+.mz .exp-group .btn{border:0;border-radius:0;box-shadow:none;background:transparent}
+.mz .exp-group .btn+.btn{border-left:1px solid var(--line)}
+.mz .exp-group .btn:hover{background:var(--brand-50);color:var(--brand-600)}
+.sbar.folded{transition:width .2s var(--ease),flex-basis .2s var(--ease)}
+.sbar.folded.peek{box-shadow:inset -1px 0 0 rgba(255,255,255,.06),8px 0 24px rgba(8,12,24,.18)}
+
+/* payments on a document */
+.pay-panel{border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:16px 18px 14px;box-shadow:var(--sh-1)}
+.pay-panel header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pay-panel h3{font-size:15px;font-weight:650;color:var(--ink)}
+.pay-panel header p{font-size:12px;color:var(--ink-3);margin-top:2px}
+.pay-state{display:inline-flex;align-items:center;height:26px;padding:0 11px;border-radius:20px;font-size:12px;font-weight:650}
+.pay-state.ok{background:var(--pos-50);color:var(--pos)}.pay-state.warn{background:var(--warn-50);color:var(--warn)}.pay-state.bad{background:var(--neg-50);color:var(--neg)}
+.pay-figs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+.pay-figs>div{padding:10px 12px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line-2)}
+.pay-figs span{display:block;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.pay-figs b{display:block;font-size:19px;font-weight:700;letter-spacing:-.02em;color:var(--ink);margin-top:3px;font-variant-numeric:tabular-nums}
+.pay-figs .paid b{color:var(--pos)}
+.pay-figs .due.warn{background:var(--warn-50);border-color:color-mix(in srgb,var(--warn) 25%,transparent)}.pay-figs .due.warn b{color:var(--warn)}
+.pay-figs .due.bad{background:var(--neg-50);border-color:color-mix(in srgb,var(--neg) 25%,transparent)}.pay-figs .due.bad b{color:var(--neg)}
+.pay-figs .due.ok b{color:var(--pos)}
+.pay-bar{height:8px;border-radius:6px;background:var(--surface-3);overflow:hidden;margin:12px 0 4px}
+.pay-bar i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--pos),color-mix(in srgb,var(--pos) 60%,var(--s1)));transform-origin:0 50%;animation:barGrowX .8s var(--ease) both}
+.pay-tbl{margin-top:10px}
+.mz .tbl.pay-tbl tfoot td{font-weight:650}
+.mz .tbl.pay-tbl tr.pay-open td{color:var(--ink);font-weight:700;background:var(--brand-50)}
+.pay-kind{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:20px;font-size:11.5px;font-weight:600;background:var(--surface-3);color:var(--ink-2)}
+.pay-kind.payment{background:var(--pos-50);color:var(--pos)}.pay-kind.credit{background:var(--brand-50);color:var(--brand-600)}.pay-kind.pdc{background:var(--warn-50);color:var(--warn)}
+.pay-cta{display:flex;justify-content:flex-end;margin-top:10px}
+.sumrow.paid .v{color:var(--pos)}
+.sumrow.balance{margin-top:6px;padding:9px 10px;border-radius:10px;background:var(--brand-50)}
+.sumrow.balance .k,.sumrow.balance .v{font-weight:700;color:var(--ink)}
+.sumrow.balance.zero{background:var(--pos-50)}.sumrow.balance.zero .v{color:var(--pos)}
+.totbox .sumrow.paid .v{color:#12804A}.totbox .baldue{display:flex;justify-content:space-between;margin-top:8px;padding:9px 12px;border-radius:8px;background:#F1F4F9;font-weight:700;color:#16191D}
+@media (max-width:700px){.pay-figs{grid-template-columns:minmax(0,1fr)}.stmt-head{margin:4px 12px 0}}
+@media print{.pay-cta{display:none}}
 `;
 
 window.__Invoeez=Invoeez;</script>

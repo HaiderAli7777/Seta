@@ -11,7 +11,7 @@ await p.locator('.sbar [data-k="invoices"]').click();await p.waitForTimeout(400)
 await p.keyboard.type(pair.cust.slice(0,12));await p.locator('.picker-pop [role=option]').first().waitFor();await p.keyboard.press('Enter');await p.waitForTimeout(300);
 const row=i=>p.locator('.line-grid tbody tr[data-line-id]').nth(i);
 await row(0).locator('input[role=combobox]').click();await p.keyboard.type(pair.prod);await p.locator('.picker-pop [role=option]').first().waitFor();await p.keyboard.press('Enter');await p.waitForTimeout(300);
-console.log('price',await row(0).locator('.q-price').inputValue(), 'source', await row(0).locator('.q-price').getAttribute('title'));
+console.log('price',await row(0).locator('.q-price').inputValue(), 'source', await row(0).locator('.q-price').getAttribute('data-title'));
 const ok=[],bad=[];const check=(c,m)=>(c?ok:bad).push(m);
 check(await p.locator('tr.lg-info').count()===1,'info strip on active line');
 const info=await p.locator('tr.lg-info').innerText();check(/Last sold to/.test(info)&&/AED/.test(info),'customer history inline: '+info.replace(/\n/g,' '));

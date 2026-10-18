@@ -2,7 +2,7 @@
    old-data cleanup, exports, responsive layouts, branding and contrast. */
 const { chromium } = require('/opt/node-tools/node_modules/playwright');
 const path = require('path'), fs = require('fs');
-const HTML = 'file://' + path.resolve(__dirname, 'inv/invoeez.html');
+const HTML = 'file://' + path.resolve(__dirname, '../invoeez.html');
 const FIX = fs.readFileSync(path.join(__dirname, 'fixture.json'), 'utf8');
 const results = []; const ok = (name, pass, info = '') => { results.push({ name, pass: !!pass, info }); console.log((pass ? 'PASS ' : 'FAIL ') + name + (info ? ' — ' + info : '')); };
 
@@ -15,15 +15,15 @@ async function open(b, { w = 1440, h = 900, theme = 'light', books = null, compa
     if (bk) localStorage.setItem('mizan.books.v2', bk); if (co) localStorage.setItem('mizan.company', co); if (ex) Object.entries(ex).forEach(([k, v]) => localStorage.setItem(k, v)); sessionStorage.setItem('x', '1'); } } catch (e) {} }, [theme, books, company, extra]);
   await p.goto(HTML); await p.waitForTimeout(1300); return p;
 }
-const navTitles = (p) => p.locator('.sbar [data-k]').evaluateAll((els) => els.map((e) => e.getAttribute('title')));
-async function nav(p, t, mobile) { if (mobile) { await p.locator('.burger').click(); await p.waitForTimeout(250); } await p.locator(`.sbar [data-k][title="${t}"]`).first().click({ timeout: 4000 }); await p.waitForTimeout(350); }
+const navTitles = (p) => p.locator('.sbar [data-k]').evaluateAll((els) => els.map((e) => e.getAttribute('data-title')));
+async function nav(p, t, mobile) { if (mobile) { await p.locator('.burger').click(); await p.waitForTimeout(250); } await p.locator(`.sbar [data-k][data-title="${t}"]`).first().click({ timeout: 4000 }); await p.waitForTimeout(350); }
 const books = (p) => p.evaluate(() => JSON.parse(localStorage.getItem('mizan.books.v2')));
 
 (async () => {
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 
   /* 1. Branding and first start */
-  const raw = fs.readFileSync(path.resolve(__dirname, 'inv/invoeez.html'), 'utf8');
+  const raw = fs.readFileSync(path.resolve(__dirname, '../invoeez.html'), 'utf8');
   ok('no "Mizan" text in the shipped page', !/>[^<]*Miz<em>a<\/em>n|>\s*Mizan\s*</.test(raw) && !raw.includes('Miz<em>'));
   ok('title is InvoEez — Invoice Made Easy', raw.includes('<title>InvoEez — Invoice Made Easy</title>'));
   ok('splash shows the logo image', /id="boot"[\s\S]{0,400}<img src="data:image\/webp;base64,/.test(raw));

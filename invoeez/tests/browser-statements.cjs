@@ -14,7 +14,7 @@ check(await p.locator('.sbar.rail').count()===1&&await p.locator('.sbar [data-k=
 await p.mouse.move(30,320);await p.waitForTimeout(500);
 check(await p.locator('.sbar.peek').count()===1&&await p.locator('.sbar .sb-search').isVisible(),'hovering opens the full menu');
 const mainX=await p.evaluate(()=>document.querySelector('.main').getBoundingClientRect().left);
-check(mainX<90,'the open menu floats over the page instead of pushing it ('+mainX+')');
+check(mainX>250,'the open menu sits beside the page instead of covering it ('+Math.round(mainX)+')');
 await p.mouse.move(900,400);await p.waitForTimeout(600);
 check(await p.locator('.sbar.rail').count()===1,'moving away folds it again');
 await p.mouse.move(30,320);await p.waitForTimeout(500);await p.locator('.sb-foot .collapse').click();await p.mouse.move(900,400);await p.waitForTimeout(500);
