@@ -1,43 +1,62 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <odoo>
-    <data>
-        <!--views-->
-        <record id="customer_statement_report_wizard_view_form" model="ir.ui.view">
-            <field name="name">customer.statement.report.wizard.view.form</field>
-            <field name="model">customer.statement.wizard</field>
-            <field name="arch" type="xml">
-                <form>
-                    <group string="Dates">
-                        <group>
-                            <field name="start_date"/>
-                        </group>
-                        <group>
-                            <field name="end_date"/>
-                        </group>
+    <record id="customer_statement_report_wizard_view_form" model="ir.ui.view">
+        <field name="name">customer.statement.wizard.view.form</field>
+        <field name="model">customer.statement.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Customer Statement">
+                <group>
+                    <group string="Statement">
+                        <field name="statement_type" widget="radio"/>
+                        <field name="date_from" invisible="statement_type != 'activity'"
+                               required="statement_type == 'activity'"/>
+                        <field name="date_to"/>
+                        <field name="company_id" groups="base.group_multi_company" options="{'no_create': True}"/>
                     </group>
-                    <group string="Customer">
-                        <group>
-                            <field name="partner_id"/>
-                        </group>
+                    <group string="Options">
+                        <field name="show_aging"/>
+                        <field name="skip_empty"/>
                     </group>
-                    <footer>
-                        <div style="display: flex; justify-content: center; align-items: center;">
-                            <button name="customer_statements_pdf_report" string="PDF" type="object" class="oe_highlight"/>
-                            <span style="vertical-align: middle; margin: 0 5px;">or</span>
-                            <button name="customer_statements_excel_report" string="Excel" type="object" class="oe_highlight"/>
-                            <span style="margin: 0 5px;">or</span>
-                            <button special="cancel" string="Cancel" type="object" class="oe_highlight"/>
-                        </div>
-                    </footer>
-                </form>
-            </field>
-        </record>
-        <!--action-->
-        <record id="customer_statement_report_wizard_action" model="ir.actions.act_window">
-            <field name="name">Customer Statement</field>
-            <field name="res_model">customer.statement.wizard</field>
-            <field name="view_mode">form</field>
-            <field name="target">new</field>
-        </record>
-    </data>
+                </group>
+                <group string="Customers">
+                    <field name="all_customers"/>
+                    <field name="partner_ids" widget="many2many_tags" invisible="all_customers"
+                           required="not all_customers" options="{'no_create': True}"
+                           placeholder="Choose one or more customers"/>
+                </group>
+                <div class="text-muted small" invisible="statement_type != 'activity'">
+                    Opening balance, every invoice, credit note and payment between the two dates with a running
+                    balance, then the closing balance and its aging.
+                </div>
+                <div class="text-muted small" invisible="statement_type != 'outstanding'">
+                    Invoices and unapplied payments still open on the statement date, with days overdue.
+                    Payments made after that date are not counted, so past statements can be reprinted exactly.
+                </div>
+                <footer>
+                    <button name="action_print_pdf" string="Print PDF" type="object" class="btn-primary" data-hotkey="q"/>
+                    <button name="action_export_xlsx" string="Export Excel" type="object" class="btn-secondary" data-hotkey="w"/>
+                    <button name="action_send_email" string="Send by Email" type="object" class="btn-secondary" data-hotkey="e"/>
+                    <button special="cancel" string="Cancel" class="btn-secondary" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="customer_statement_report_wizard_action" model="ir.actions.act_window">
+        <field name="name">Customer Statements</field>
+        <field name="res_model">customer.statement.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Action menu of customers (list and form) -->
+    <record id="action_partner_customer_statement" model="ir.actions.act_window">
+        <field name="name">Customer Statement</field>
+        <field name="res_model">customer.statement.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="base.model_res_partner"/>
+        <field name="binding_view_types">list,form</field>
+        <field name="group_ids" eval="[Command.set([ref('tk_customer_statements.customer_statement_group'), ref('account.group_account_invoice'), ref('account.group_account_readonly')])]"/>
+    </record>
 </odoo>

@@ -1,12 +1,23 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <odoo>
-    <data>
-        <menuitem id="menu_customer_statement"
-                  name="Customer Statement"
-                  parent="contacts.menu_contacts"
-                  action="customer_statement_report_wizard_action"
-                  groups="tk_customer_statements.customer_statement_group"
-                  sequence="2"
-        />
-    </data>
+    <menuitem id="menu_customer_statement"
+              name="Customer Statements"
+              parent="contacts.menu_contacts"
+              action="customer_statement_report_wizard_action"
+              groups="tk_customer_statements.customer_statement_group,account.group_account_invoice,account.group_account_readonly"
+              sequence="2"/>
+
+    <menuitem id="menu_customer_statement_invoicing"
+              name="Statements"
+              parent="account.menu_finance_receivables"
+              action="customer_statement_report_wizard_action"
+              groups="tk_customer_statements.customer_statement_group,account.group_account_invoice,account.group_account_readonly"
+              sequence="16"/>
+
+    <menuitem id="menu_customer_statement_reporting"
+              name="Customer Statements"
+              parent="account.account_reports_partners_reports_menu"
+              action="customer_statement_report_wizard_action"
+              groups="tk_customer_statements.customer_statement_group,account.group_account_invoice,account.group_account_readonly"
+              sequence="50"/>
 </odoo>

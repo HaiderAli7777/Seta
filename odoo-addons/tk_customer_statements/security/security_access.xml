@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <odoo>
-    <data>
-        <record id="customer_statement_group" model="res.groups">
-            <field name="name">Show Customer Statement</field>
-        </record>
-    </data>
+    <!-- Lets users outside accounting (e.g. sales people) print and send statements.
+         Billing and accounting users have access without it. -->
+    <record id="customer_statement_group" model="res.groups">
+        <field name="name">Customer Statements</field>
+        <field name="comment">Print, export and email customer statements without other accounting access.</field>
+    </record>
 </odoo>

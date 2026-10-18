@@ -1,158 +1,259 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <odoo>
-    <template id="customer_report_template">
-        <t t-call="web.html_container">
-            <t t-call="web.basic_layout">
-                <style>
-                    .article { margin-top: 0 !important; padding-top: 0 !important; }
-                    body, html { margin-top: 0 !important; padding-top: 0 !important; }
-                    table.no-border, table.no-border tr, table.no-border td, table.no-border th {
-                        border: none !important;
-                        border-color: transparent !important;
-                        border-width: 0 !important;
-                        border-style: hidden !important;
-                        outline: none !important;
-                        box-shadow: none !important;
-                    }
-                </style>
-                <div style="font-family: Arial, sans-serif; font-size: 11pt; padding: 0 15px;">
-
-                    <!-- Header Image -->
-                    <div style="text-align:center; margin: 0;">
-                        <img src="/tk_customer_statements/static/img/header.jpeg" style="width:100%; display:block;"/>
-                    </div>
-
-                    <!-- Spacer between header and To (wkhtmltopdf-safe) -->
-                    <div style="height:40px; line-height:40px;">&#160;</div>
-
-                    <!-- To + Logo Row -->
-                    <table class="no-border" style="width:100%; border:none !important; border-collapse:collapse; margin:0 0 6px 0;">
-                        <tr>
-                            <td style="border:none !important; vertical-align:top; width:100%; padding:0;">
-                                <p style="margin:0 0 2px 0;"><strong>To</strong></p>
-                                <p style="margin:2px 0;" t-if="partner_name"><strong><t t-esc="partner_name"/></strong></p>
-                                <p style="margin:2px 0;" t-if="partner_street"><t t-esc="partner_street"/></p>
-                                <p style="margin:2px 0;" t-if="partner_street2"><t t-esc="partner_street2"/></p>
-                                <p style="margin:2px 0;" t-if="partner_city or partner_zip">
-                                    <t t-if="partner_city" t-esc="partner_city"/>
-                                    <t t-if="partner_city and partner_zip">, </t>
-                                    <t t-if="partner_zip" t-esc="partner_zip"/>
-                                </p>
-                                <p style="margin:2px 0;" t-if="partner_state_id"><t t-esc="partner_state_id"/></p>
-                                <p style="margin:2px 0;" t-if="partner_country_id"><t t-esc="partner_country_id"/></p>
-                                <p style="margin:2px 0;" t-if="vat"><strong>TRN: </strong><t t-esc="vat"/></p>
-                            </td>
-                        </tr>
-                    </table>
-
-                    <!-- Date -->
-                    <p style="margin:4px 0;">Date – <t t-esc="today_date"/></p>
-
-                    <!-- Subject -->
-                    <p style="margin:6px 0;">
-                        <strong>Subject : </strong>
-                        Accounts confirmation from <t t-esc="start_date"/> to <t t-esc="end_date"/>.
-                    </p>
-
-                    <!-- Salutation + Body -->
-                    <p style="margin:8px 0;">Dear Sir,</p>
-                    <p style="margin:4px 0;">Given below is the details of your Accounts as standing in my/our books of Accounts.</p>
-                    <p style="margin:4px 0;">
-                        Your Account Balance is <t t-esc="currency"/> <t t-esc="total_balance"/>.
-                        Please make payment of the total balance by the stated due date.
-                        Make all checks payable to Company Name.
-                    </p>
-
-                    <!-- Invoice Table -->
-                    <table style="width:100%; border-collapse:collapse; margin-top:12px; font-size:10pt;">
-                        <thead>
-                            <tr style="background-color:#f2f2f2;">
-                                <th style="border:1px solid #ccc; padding:6px; text-align:center;">Invoice Date</th>
-                                <th style="border:1px solid #ccc; padding:6px; text-align:center;">Due Date</th>
-                                <th style="border:1px solid #ccc; padding:6px; text-align:center;">Invoice</th>
-                                <th style="border:1px solid #ccc; padding:6px; text-align:right;">Invoice Amount</th>
-                                <th style="border:1px solid #ccc; padding:6px; text-align:right;">Payment Amount</th>
-                                <th style="border:1px solid #ccc; padding:6px; text-align:right;">Balance Due</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <t t-foreach="docs" t-as="invoice">
-                                <tr>
-                                    <td style="border:1px solid #ccc; padding:5px; text-align:center;"><t t-esc="invoice['invoice_date']"/></td>
-                                    <td style="border:1px solid #ccc; padding:5px; text-align:center;"><t t-esc="invoice['due_date']"/></td>
-                                    <td style="border:1px solid #ccc; padding:5px; text-align:center;"><t t-esc="invoice['invoice_id']"/></td>
-                                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><t t-esc="currency"/> <t t-esc="invoice['amount']"/></td>
-                                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><t t-esc="currency"/> <t t-esc="invoice['payment_amount']"/></td>
-                                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><t t-esc="currency"/> <t t-esc="invoice['balance_due']"/></td>
-                                </tr>
-                            </t>
-                            <!-- Total Row -->
-                            <tr style="font-weight:bold;">
-                                <td colspan="3" style="border:1px solid #ccc; padding:5px; text-align:right;">Total</td>
-                                <td style="border:1px solid #ccc; padding:5px; text-align:right;"><t t-esc="currency"/> <t t-esc="total_amount"/></td>
-                                <td style="border:1px solid #ccc; padding:5px; text-align:right;"><t t-esc="currency"/> <t t-esc="total_payment"/></td>
-                                <td style="border:1px solid #ccc; padding:5px; text-align:right;"><t t-esc="currency"/> <t t-esc="total_balance"/></td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <!-- Payment Terms -->
-                    <div style="margin-top:16px;">
-                        <p style="margin:4px 0;"><strong>Payment Terms</strong></p>
-                        <p style="margin:3px 0;">&#160;&#160;&#160;Please make the payment via bank transfer or cheque within 30 days from the statement date.</p>
-                        <p style="margin:3px 0;">&#160;&#160;&#160;To ensure proper credit please enclosed a copy of this statement along with your cheque.</p>
-                        <p style="margin:3px 0;">&#160;&#160;&#160;Make the cheque in favor of the company name mentioned below or via Bank Transfer, details follow.</p>
-                    </div>
-
-                    <!-- Bank Details + Stamp Row -->
-                    <table class="no-border" style="width:100%; border:none !important; border-collapse:collapse; margin-top:14px;">
-                        <tr>
-                            <td style="border:none !important; vertical-align:top; width:65%;">
-                                <p style="margin:3px 0;"><strong><u>Bank Details:-</u></strong></p>
-                                <p style="margin:3px 0;">&#160;&#160;&#160;Bank Name&#160;&#160;&#160;:&#160;&#160; Bank of Baroda</p>
-                                <p style="margin:3px 0;">&#160;&#160;&#160;Account Name :&#160;&#160; Hearty Mart Overseas General Trading L.L.C</p>
-                                <p style="margin:3px 0;">&#160;&#160;&#160;Account No.&#160;&#160;&#160;:&#160;&#160; 90030200022621</p>
-                                <p style="margin:3px 0;">&#160;&#160;&#160;Account IBAN :&#160;&#160; AE640110090030200022621</p>
-                                <p style="margin:3px 0;">&#160;&#160;&#160;Branch&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;:&#160;&#160; Deira Dubai U.A.E</p>
-                            </td>
-                            <td style="border:none !important; vertical-align:top; text-align:center; width:35%;">
-                                <p style="margin:3px 0; font-weight:bold;">For Hearty Mart Overseas General Trading L.L.C</p>
-                                <img src="/tk_customer_statements/static/img/stamp.jpeg" style="height:110px; margin-top:6px;"/>
-                                <p style="margin:3px 0;">(Authorised Signatory)</p>
-                            </td>
-                        </tr>
-                    </table>
-
-
-                </div>
-            </t>
-        </t>
-    </template>
-
-    <!-- Paper format with zero top margin -->
+    <!-- Used only when the company has a statement letterhead (see ir_actions_report.get_paperformat) -->
     <record id="paperformat_customer_statement" model="report.paperformat">
-        <field name="name">Customer Statement A4</field>
+        <field name="name">Customer Statement A4 (letterhead)</field>
         <field name="format">A4</field>
         <field name="orientation">Portrait</field>
-        <field name="margin_top">2</field>
-        <field name="margin_bottom">10</field>
-        <field name="margin_left">0</field>
-        <field name="margin_right">0</field>
+        <field name="margin_top">48</field>
+        <field name="margin_bottom">18</field>
+        <field name="margin_left">8</field>
+        <field name="margin_right">8</field>
         <field name="header_line" eval="False"/>
-        <field name="header_spacing">0</field>
+        <field name="header_spacing">42</field>
         <field name="dpi">90</field>
         <field name="css_margins" eval="False"/>
     </record>
 
-    <!-- Report Action -->
     <record id="customer_report_template_action" model="ir.actions.report">
-        <field name="name">Customer Statement Report</field>
-        <field name="model">customer.statement.wizard</field>
+        <field name="name">Customer Statement</field>
+        <field name="model">res.partner</field>
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">tk_customer_statements.customer_report_template</field>
         <field name="report_file">tk_customer_statements.customer_report_template</field>
-        <field name="paperformat_id" ref="paperformat_customer_statement"/>
-        <field name="binding_model_id" ref="model_customer_statement_wizard"/>
+        <field name="print_report_name">'Statement - %s' % (object.commercial_partner_id.name)</field>
+        <field name="paperformat_id" eval="False"/>
+        <field name="binding_model_id" ref="base.model_res_partner"/>
         <field name="binding_type">report</field>
+        <field name="group_ids" eval="[Command.set([ref('tk_customer_statements.customer_statement_group'), ref('account.group_account_invoice'), ref('account.group_account_readonly')])]"/>
     </record>
+
+    <!-- Letterhead layout: the company's banner on every page, page numbers in the footer -->
+    <template id="statement_banner_layout">
+        <div t-attf-class="header o_company_#{company.id}_layout">
+            <img t-att-src="image_data_uri(company.statement_header_image)" alt="Letterhead"
+                 style="width:100%; max-height:40mm; object-fit:contain; display:block;"/>
+        </div>
+        <div t-attf-class="article o_report_layout_standard o_table_standard o_company_#{company.id}_layout"
+             t-att-data-oe-model="o and o._name"
+             t-att-data-oe-id="o and o.id"
+             t-att-data-oe-lang="o and o.env.context.get('lang')">
+            <div class="row mb-3" t-if="address">
+                <div class="col-6" name="address"><t t-out="address"/></div>
+            </div>
+            <h2 t-out="layout_document_title"/>
+            <t t-out="0"/>
+        </div>
+        <div t-attf-class="footer o_company_#{company.id}_layout">
+            <div class="d-flex border-top pt-1 small text-muted">
+                <div class="flex-grow-1" t-out="o.name"/>
+                <div t-if="report_type == 'pdf'" class="text-nowrap">Page <span class="page"/> / <span class="topage"/></div>
+            </div>
+        </div>
+    </template>
+
+    <template id="customer_statement_document">
+        <t t-set="o" t-value="partner"/>
+        <t t-set="currency" t-value="statement['currency']"/>
+        <t t-set="company_lang" t-value="company.with_context(lang=partner.lang)"/>
+        <t t-set="monetary" t-value="{'widget': 'monetary', 'display_currency': currency}"/>
+        <t t-set="layout_document_title" t-value="statement_title"/>
+        <t t-set="address">
+            <div t-out="partner" t-options="{'widget': 'contact', 'fields': ['address', 'name'], 'no_marker': True}"/>
+            <div t-if="partner.vat"><t t-out="vat_label"/>: <span t-out="partner.vat"/></div>
+        </t>
+        <t t-call="{{ 'tk_customer_statements.statement_banner_layout' if company.statement_header_image else 'web.external_layout' }}">
+            <div class="page o_customer_statement">
+                <!-- Statement information -->
+                <div class="row mb-3" id="informations">
+                    <div class="col-auto me-4">
+                        <strong>Statement Date</strong>
+                        <div t-out="options['date_to']" t-options="{'widget': 'date'}"/>
+                    </div>
+                    <div class="col-auto me-4" t-if="options['date_from']">
+                        <strong>Period</strong>
+                        <div>
+                            <span t-out="options['date_from']" t-options="{'widget': 'date'}"/>
+                            -
+                            <span t-out="options['date_to']" t-options="{'widget': 'date'}"/>
+                        </div>
+                    </div>
+                    <div class="col-auto me-4" t-if="partner.ref">
+                        <strong>Customer Code</strong>
+                        <div t-out="partner.ref"/>
+                    </div>
+                    <div class="col-auto me-4">
+                        <strong>Currency</strong>
+                        <div t-out="currency.name"/>
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <table class="table table-sm table-borderless mb-3" name="statement_summary"
+                       style="background-color:#f6f7f9;">
+                    <tr>
+                        <t t-if="options['date_from']">
+                            <td class="text-center"><small class="text-muted d-block">Opening Balance</small>
+                                <strong t-out="statement['opening_balance']" t-options="monetary"/></td>
+                            <td class="text-center"><small class="text-muted d-block">Invoiced</small>
+                                <strong t-out="statement['total_debit']" t-options="monetary"/></td>
+                            <td class="text-center"><small class="text-muted d-block">Paid / Credited</small>
+                                <strong t-out="statement['total_credit']" t-options="monetary"/></td>
+                        </t>
+                        <t t-else="">
+                            <td class="text-center"><small class="text-muted d-block">Invoiced</small>
+                                <strong t-out="statement['total_amount']" t-options="monetary"/></td>
+                            <td class="text-center"><small class="text-muted d-block">Paid / Credited</small>
+                                <strong t-out="statement['total_paid']" t-options="monetary"/></td>
+                        </t>
+                        <td class="text-center"><small class="text-muted d-block">Balance Due</small>
+                            <strong t-out="statement['closing_balance']" t-options="monetary"/></td>
+                        <td class="text-center"><small class="text-muted d-block">Overdue</small>
+                            <strong t-attf-class="{{ 'text-danger' if statement['overdue'] &gt; 0 else '' }}"
+                                    t-out="statement['overdue']" t-options="monetary"/></td>
+                    </tr>
+                </table>
+
+                <div class="mb-3" name="statement_intro" t-if="company_lang.statement_intro"
+                     t-out="company_lang.statement_intro"/>
+
+                <!-- Account activity -->
+                <table class="table table-sm o_main_table" name="statement_activity" t-if="options['date_from']">
+                    <thead style="display: table-row-group">
+                        <tr>
+                            <th class="text-start">Date</th>
+                            <th class="text-start">Number</th>
+                            <th class="text-start">Type</th>
+                            <th class="text-start">Reference</th>
+                            <th class="text-start">Due Date</th>
+                            <th class="text-end">Debit</th>
+                            <th class="text-end">Credit</th>
+                            <th class="text-end">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="fst-italic">
+                            <td><span t-out="options['date_from']" t-options="{'widget': 'date'}"/></td>
+                            <td colspan="6">Opening Balance</td>
+                            <td class="text-end text-nowrap"><span t-out="statement['opening_balance']" t-options="monetary"/></td>
+                        </tr>
+                        <tr t-foreach="statement['activity']" t-as="entry">
+                            <td class="text-nowrap"><span t-out="entry['date']" t-options="{'widget': 'date'}"/></td>
+                            <td class="text-nowrap"><span t-out="entry['name']"/></td>
+                            <td><span t-out="entry['type']"/></td>
+                            <td><span t-out="entry['reference']"/></td>
+                            <td class="text-nowrap"><span t-if="entry['due_date']" t-out="entry['due_date']" t-options="{'widget': 'date'}"/></td>
+                            <td class="text-end text-nowrap"><span t-if="entry['debit']" t-out="entry['debit']" t-options="monetary"/></td>
+                            <td class="text-end text-nowrap"><span t-if="entry['credit']" t-out="entry['credit']" t-options="monetary"/></td>
+                            <td class="text-end text-nowrap"><span t-out="entry['balance']" t-options="monetary"/></td>
+                        </tr>
+                        <tr t-if="not statement['activity']">
+                            <td colspan="8" class="text-center text-muted">No transactions in this period.</td>
+                        </tr>
+                        <tr class="fw-bold border-top border-dark">
+                            <td colspan="5" class="text-end">Closing Balance</td>
+                            <td class="text-end text-nowrap"><span t-out="statement['total_debit']" t-options="monetary"/></td>
+                            <td class="text-end text-nowrap"><span t-out="statement['total_credit']" t-options="monetary"/></td>
+                            <td class="text-end text-nowrap"><span t-out="statement['closing_balance']" t-options="monetary"/></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Outstanding invoices -->
+                <table class="table table-sm o_main_table" name="statement_outstanding" t-else="">
+                    <thead style="display: table-row-group">
+                        <tr>
+                            <th class="text-start">Date</th>
+                            <th class="text-start">Number</th>
+                            <th class="text-start">Reference</th>
+                            <th class="text-start">Due Date</th>
+                            <th class="text-end">Days Overdue</th>
+                            <th class="text-end">Amount</th>
+                            <th class="text-end">Paid</th>
+                            <th class="text-end">Balance Due</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="statement['outstanding']" t-as="item">
+                            <td class="text-nowrap"><span t-out="item['date']" t-options="{'widget': 'date'}"/></td>
+                            <td class="text-nowrap"><span t-out="item['name']"/></td>
+                            <td><span t-out="item['reference'] or item['type']"/></td>
+                            <td class="text-nowrap"><span t-out="item['due_date']" t-options="{'widget': 'date'}"/></td>
+                            <td class="text-end"><span t-if="item['days_overdue']" t-out="item['days_overdue']"
+                                                       t-attf-class="{{ 'text-danger' if item['residual'] &gt; 0 else '' }}"/></td>
+                            <td class="text-end text-nowrap"><span t-out="item['amount']" t-options="monetary"/></td>
+                            <td class="text-end text-nowrap"><span t-out="item['paid']" t-options="monetary"/></td>
+                            <td class="text-end text-nowrap"><span t-out="item['residual']" t-options="monetary"/></td>
+                        </tr>
+                        <tr t-if="not statement['outstanding']">
+                            <td colspan="8" class="text-center text-muted">Nothing outstanding. Thank you!</td>
+                        </tr>
+                        <tr class="fw-bold border-top border-dark">
+                            <td colspan="5" class="text-end">Total</td>
+                            <td class="text-end text-nowrap"><span t-out="statement['total_amount']" t-options="monetary"/></td>
+                            <td class="text-end text-nowrap"><span t-out="statement['total_paid']" t-options="monetary"/></td>
+                            <td class="text-end text-nowrap"><span t-out="statement['amount_due']" t-options="monetary"/></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Aging -->
+                <div t-if="options['show_aging']" name="statement_aging" style="page-break-inside: avoid;">
+                    <h5 class="mt-3">Aging of Balance Due</h5>
+                    <table class="table table-sm table-bordered text-center">
+                        <thead>
+                            <tr>
+                                <th t-foreach="statement['aging']" t-as="bucket" class="text-center" t-out="bucket['label']"/>
+                                <th class="text-center">Total Due</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td t-foreach="statement['aging']" t-as="bucket" class="text-nowrap">
+                                    <span t-out="bucket['amount']" t-options="monetary"/>
+                                </td>
+                                <td class="text-nowrap fw-bold"><span t-out="statement['amount_due']" t-options="monetary"/></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="small text-muted">Days overdue are counted from each due date to the statement date.</p>
+                </div>
+
+                <div class="mt-3" name="statement_payment_terms" t-if="company_lang.statement_payment_terms"
+                     t-out="company_lang.statement_payment_terms"/>
+
+                <!-- Bank details and signature -->
+                <div class="row mt-3" style="page-break-inside: avoid;">
+                    <div class="col-7" name="bank_details" t-if="bank_accounts">
+                        <strong><u>Bank Details</u></strong>
+                        <table class="table table-sm table-borderless mb-2" t-foreach="bank_accounts" t-as="bank">
+                            <tr t-if="bank.bank_id"><td class="p-0 pe-3 text-nowrap">Bank Name</td><td class="p-0">: <span t-out="bank.bank_id.name"/></td></tr>
+                            <tr><td class="p-0 pe-3 text-nowrap">Account Name</td><td class="p-0">: <span t-out="bank.acc_holder_name or company.name"/></td></tr>
+                            <tr><td class="p-0 pe-3 text-nowrap"><t t-if="bank.acc_type == 'iban'">IBAN</t><t t-else="">Account No.</t></td><td class="p-0">: <span t-out="bank.acc_number"/></td></tr>
+                            <tr t-if="bank.bank_id.bic"><td class="p-0 pe-3 text-nowrap">SWIFT / BIC</td><td class="p-0">: <span t-out="bank.bank_id.bic"/></td></tr>
+                            <tr t-if="bank.bank_id.city"><td class="p-0 pe-3 text-nowrap">Branch</td><td class="p-0">: <span t-out="', '.join(filter(None, [bank.bank_id.street, bank.bank_id.city, bank.bank_id.country.name]))"/></td></tr>
+                        </table>
+                    </div>
+                    <div t-attf-class="{{ 'col-5' if bank_accounts else 'col-5 offset-7' }} text-center" name="signature">
+                        <strong>For <t t-out="company.name"/></strong>
+                        <div style="height:110px;" class="my-1">
+                            <img t-if="company.statement_signature" t-att-src="image_data_uri(company.statement_signature)"
+                                 style="max-height:110px; max-width:100%;" alt="Signature"/>
+                        </div>
+                        <div>(Authorised Signatory)</div>
+                    </div>
+                </div>
+                <p class="small text-muted mt-3">This statement was generated electronically on <span t-out="datetime.datetime.now()" t-options="{'widget': 'datetime'}"/>.</p>
+            </div>
+        </t>
+    </template>
+
+    <template id="customer_report_template">
+        <t t-call="web.html_container">
+            <t t-foreach="statements" t-as="statement">
+                <t t-set="partner" t-value="statement['partner']"/>
+                <t t-call="tk_customer_statements.customer_statement_document" t-lang="partner.lang"/>
+            </t>
+        </t>
+    </template>
 </odoo>
