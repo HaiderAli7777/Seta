@@ -2,7 +2,7 @@
 const { chromium } = require('/opt/node-tools/node_modules/playwright');const path=require('path');
 (async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await (await b.newContext({viewport:{width:1440,height:900}})).newPage();
 const errs=[],ok=[];const check=(c,m)=>(c?ok:errs).push(m);p.on('pageerror',e=>errs.push('PAGE '+e.message));p.on('dialog',d=>d.accept());
-await p.addInitScript(()=>{try{if(!sessionStorage.getItem('x')){localStorage.clear();localStorage.setItem('mizan.navgroups','{}');sessionStorage.setItem('x','1');}}catch(e){}});
+await p.addInitScript(()=>{try{if(!sessionStorage.getItem('x')){localStorage.clear();localStorage.setItem('mizan.sidebar','pinned');localStorage.setItem('mizan.navgroups','{}');sessionStorage.setItem('x','1');}}catch(e){}});
 await p.goto('file://'+path.resolve(__dirname,'../invoeez.html'));await p.waitForTimeout(1200);
 const nav=async k=>{await p.locator(`.sbar [data-k="${k}"]`).first().click();await p.waitForTimeout(350);};
 const books=()=>p.evaluate(()=>JSON.parse(localStorage.getItem('mizan.books.v2')));

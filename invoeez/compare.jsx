@@ -9,8 +9,8 @@
    ========================================================================== */
 const CMP_STORE = "mizan.compare";
 const cmpDefaults = () => { let s = {}; try { s = JSON.parse(localStorage.getItem(CMP_STORE) || "{}") || {}; } catch (e) {}
-  return { cmp: s.cmp || "prev", bsCmp: s.bsCmp || "ye" }; };
-const saveCmp = (p) => { try { localStorage.setItem(CMP_STORE, JSON.stringify({ cmp: p.cmp, bsCmp: p.bsCmp })); } catch (e) {} };
+  return { cmp: s.cmp || "prev", bsCmp: s.bsCmp || "ye", cmpN: Math.max(1, Math.min(12, +s.cmpN || 1)), cmpOrder: s.cmpOrder === "asc" ? "asc" : "desc" }; };
+const saveCmp = (p) => { try { localStorage.setItem(CMP_STORE, JSON.stringify({ cmp: p.cmp, bsCmp: p.bsCmp, cmpN: p.cmpN, cmpOrder: p.cmpOrder })); } catch (e) {} };
 const pad2 = (n) => String(n).padStart(2, "0");
 /* Move a date by whole months, keeping the day (clamped to the month) or snapping to month-end. */
 const shiftMonths = (s, n, toEnd) => { const f = addMonths(s, n), e = eom(f); return toEnd ? e : f.slice(0, 8) + pad2(Math.min(+s.slice(8), +e.slice(8))); };
@@ -92,10 +92,13 @@ function CompareBar({ p, setP, mode = "range" }) {
       setAt({ top: Math.round(r.bottom + 6), left: Math.round(Math.min(Math.max(8, r.right - w), vw - w - 8)) }); }
     setOpen((v) => !v); };
   const apply = (patch) => { const np = { ...p, ...patch }; setP(np); saveCmp(np); setOpen(false); };
+  const patch = (x) => { const np = { ...p, ...x }; setP(np); saveCmp(np); };
+  const n = Math.max(1, Math.min(12, +p.cmpN || 1)), multi = ["prev", "yoy", "pm", "ye"].includes(cur) && n > 1;
+  const many = { prev: "previous periods", yoy: "years", pm: "month-ends", ye: "year-ends" }[cur];
   const preview = (k) => { const c = asOf ? cmpAsOf(p, k) : cmpRange(p, k); return k === "off" ? "Show this period only" : k === "custom" ? (p[key] === "custom" && now ? now.dates : "Pick the dates") : c ? (asOf ? "As at " : "") + c.dates : ""; };
   return <div style={{ position: "relative" }} className="noprint">
     <button className={cx("btn cmp-btn", cur !== "off" && "on")} ref={btnRef} onClick={toggle} aria-haspopup="dialog" aria-expanded={open}>
-      <ArrowLeftRight size={14} />{cur === "off" ? "Compare" : <>Compare: <b>{(opts.find((o) => o[0] === cur) || [])[1]}</b></>}
+      <ArrowLeftRight size={14} />{cur === "off" ? "Compare" : <>Compare: <b>{multi ? `${n} ${many}` : (opts.find((o) => o[0] === cur) || [])[1]}</b></>}
       <ChevronDown size={13} strokeWidth={2} style={{ opacity: .55, marginLeft: 1 }} /></button>
     {open && <>
       <div className="pop-scrim" onMouseDown={() => setOpen(false)} />
@@ -109,6 +112,12 @@ function CompareBar({ p, setP, mode = "range" }) {
               <Field label="To"><Input type="date" value={d.to} onChange={(e) => setD({ ...d, to: e.target.value })} /></Field></div>}
           <Btn kind="pri" style={{ width: "100%", marginTop: 10 }} onClick={() => apply(asOf ? { bsCmp: "custom", cmpAsOf: d.asOf } : { cmp: "custom", cmpFrom: d.from <= d.to ? d.from : d.to, cmpTo: d.from <= d.to ? d.to : d.from })}
             disabled={asOf ? !d.asOf : !d.from || !d.to}>Compare</Btn></div>}
+        {["prev", "yoy", "pm", "ye"].includes(sel) && sel === cur && <div className="cmp-more">
+          <div className="cmp-n"><span>Number of periods<small>Columns side by side, like a monthly report</small></span>
+            <div className="stepper"><button aria-label="Fewer periods" disabled={n <= 1} onClick={() => patch({ cmpN: n - 1 })}>−</button><b aria-live="polite">{n}</b><button aria-label="More periods" disabled={n >= 12} onClick={() => patch({ cmpN: n + 1 })}>+</button></div></div>
+          <div className="cmp-n"><span>Column order</span>
+            <div className="seg"><button className={p.cmpOrder !== "asc" ? "on" : ""} onClick={() => patch({ cmpOrder: "desc" })}>Newest first</button><button className={p.cmpOrder === "asc" ? "on" : ""} onClick={() => patch({ cmpOrder: "asc" })}>Oldest first</button></div></div>
+        </div>}
       </div></>}
   </div>;
 }
@@ -246,6 +255,13 @@ const COMPARE_CSS = `
 .cmp-opt.on{background:var(--brand-50)}.cmp-opt.on .cmp-radio{border-color:var(--brand)}.cmp-opt.on .cmp-radio::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--brand)}
 .cmp-custom{padding:4px 16px 16px;border-top:1px solid var(--line-2);margin-top:2px;padding-top:12px}
 .cmp-dates{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cmp-more{border-top:1px solid var(--line-2);padding:10px 16px 14px;display:grid;gap:10px;background:var(--surface-2)}
+.cmp-n{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.cmp-n small{display:block;font-size:11px;font-weight:400;color:var(--ink-4)}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:9px;background:var(--surface);overflow:hidden}
+.stepper button{width:30px;height:30px;font-size:16px;font-weight:600;color:var(--ink-2)}.stepper button:disabled{opacity:.35}
+.stepper button:hover:not(:disabled){background:var(--brand-50);color:var(--brand)}
+.stepper b{min-width:28px;text-align:center;font-variant-numeric:tabular-nums}
 .rf-chips span.cmp{background:var(--surface-2);border-style:dashed;color:var(--ink-2);font-weight:600}
 .cmp-note{display:flex;gap:12px;align-items:flex-start;margin:14px 24px 0;padding:12px 14px;border-radius:12px;font-size:12.5px;line-height:1.5}
 .cmp-note.partial{align-items:center;background:var(--warn-50);color:var(--ink-2);border:1px solid color-mix(in srgb,var(--warn) 25%,transparent)}

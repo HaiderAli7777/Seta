@@ -3,7 +3,7 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright');const pa
 
 (async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await (await b.newContext({viewport:{width:1440,height:900}})).newPage();
 const errs=[],ok=[];const check=(c,m)=>(c?ok:errs).push(m);p.on('pageerror',e=>errs.push('PAGE '+e.message));p.on('dialog',d=>d.accept());
-await p.addInitScript(()=>{try{if(!sessionStorage.getItem('x')){localStorage.clear();localStorage.setItem('mizan.navgroups','{}');sessionStorage.setItem('x','1');}}catch(e){}});
+await p.addInitScript(()=>{try{if(!sessionStorage.getItem('x')){localStorage.clear();localStorage.setItem('mizan.sidebar','pinned');localStorage.setItem('mizan.navgroups','{}');sessionStorage.setItem('x','1');}}catch(e){}});
 await p.goto('file://'+path.resolve(__dirname,'../invoeez.html'));await p.waitForTimeout(1300);
 const nav=async t=>{await p.locator(`.sbar [data-k][title="${t}"]`).first().click();await p.waitForTimeout(400);};
 const combo=(label)=>p.getByRole('combobox',{name:label,exact:true}).last();

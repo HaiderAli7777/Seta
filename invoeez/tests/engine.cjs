@@ -1,9 +1,9 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{transformSync}=require('esbuild'),path=require('node:path');
 const root=path.join(__dirname,'..');
-const source=['invoeez-source.jsx','enhancements-data.jsx','company-template.jsx','enhancements-ui.jsx','dashboard.jsx','design.jsx','onboarding.jsx','brand-assets.jsx','brand.jsx','clarity.jsx','sidebar.jsx','select.jsx','features.jsx','pdc.jsx','reports.jsx','dash.jsx','compare.jsx','users.jsx'].concat(['tests/sample-fixture.jsx']).map(f=>fs.readFileSync(path.join(root,f),'utf8')).join('\n');
+const source=['invoeez-source.jsx','enhancements-data.jsx','company-template.jsx','enhancements-ui.jsx','dashboard.jsx','design.jsx','onboarding.jsx','brand-assets.jsx','brand.jsx','clarity.jsx','sidebar.jsx','select.jsx','features.jsx','pdc.jsx','reports.jsx','dash.jsx','compare.jsx','users.jsx','ifrs.jsx'].concat(['tests/sample-fixture.jsx']).map(f=>fs.readFileSync(path.join(root,f),'utf8')).join('\n');
 const icons=[...fs.readFileSync(path.join(root,'runtime-prefix.js'),'utf8').matchAll(/var ([A-Z]\w+) = __mk/g)].map(m=>m[1]);
 const ctx={console,Intl,Date,Math,Number,crypto:require('node:crypto').webcrypto,React:{createContext:v=>v},window:{},setTimeout};icons.forEach(n=>ctx[n]=()=>null);vm.createContext(ctx);
-vm.runInContext(transformSync(source,{loader:'jsx',target:'es2020'}).code+`\n globalThis.api={aging,buildSampleBooks,freshBooks,LEGACY_PARTNERS,LEGACY_PRODUCTS,TEMPLATE_ACCOUNTS,TEMPLATE_CATEGORIES,TEMPLATE_EXPENSE_ITEMS,DEMO,migrateBooks,deriveBooks,syncProducts,syncPartners,syncAccounts,syncMethods,pricingFor,productHistory,freezeAccounts,amounts,searchScore,cashMovement,validateStockOperation,PRODUCTS_SEED,DEFAULT_CATEGORIES,TODAY,learnPurchasePrices,nextProductCode,autoCodes,currentCost,PRODUCTS,syncProducts,pdcStatus,pdcEntries,partySpecial,stockMovement,inRange,cmpRange,cmpAsOf,cmpCoverage,mergeRows,chg,pnl,balanceSheet};`,ctx);
+vm.runInContext(transformSync(source,{loader:'jsx',target:'es2020'}).code+`\n globalThis.api={aging,buildSampleBooks,freshBooks,LEGACY_PARTNERS,LEGACY_PRODUCTS,TEMPLATE_ACCOUNTS,TEMPLATE_CATEGORIES,TEMPLATE_EXPENSE_ITEMS,DEMO,migrateBooks,deriveBooks,syncProducts,syncPartners,syncAccounts,syncMethods,pricingFor,productHistory,freezeAccounts,amounts,searchScore,cashMovement,validateStockOperation,PRODUCTS_SEED,DEFAULT_CATEGORIES,TODAY,learnPurchasePrices,nextProductCode,autoCodes,currentCost,PRODUCTS,syncProducts,pdcStatus,pdcEntries,partySpecial,stockMovement,inRange,cmpRange,cmpAsOf,cmpCoverage,mergeRows,chg,pnl,balanceSheet,plStatement,bsStatement,sectionOf,seedGroups,groupsOf,statementCols,generalLedger,ACC:()=>ACC};`,ctx);
 const a=ctx.api;const clean=a.migrateBooks(a.DEMO());assert.equal(clean.docs.length+clean.payments.length+clean.manual.length+clean.stockOps.length,0);assert(!clean.sample&&clean.partners.length===0&&clean.accounts.length>=30&&clean.categories.length>=20);assert.equal(clean.users.length,1);
 let s=a.migrateBooks(a.buildSampleBooks(a.TODAY));a.syncAccounts(s.accounts);a.syncProducts(s.products,s.categories);a.syncPartners(s.partners);a.syncMethods(s.methods);
 const base=a.deriveBooks(s);assert(base.balanced);for(const e of base.entries)assert(Math.abs(e.lines.reduce((n,l)=>n+l.debit-l.credit,0))<.011,e.number);
@@ -143,4 +143,36 @@ assert.equal(a.pricingFor({...s,docs:[]},{...pr,price:0},1,a.TODAY,'','sale',cus
  assert.equal(merged.length,new Set([...cur.rev,...cur.cos,...cur.exp,...prev.rev,...prev.cos,...prev.exp].map(x=>x.acc.code)).size);
  assert(Math.abs(merged.reduce((s,x)=>s+(x.acc.type==='income'?x.prev:-x.prev),0)-prev.net)<.01,'comparison column adds up to the earlier profit');
  const b1=a.balanceSheet(bb.flat,'2026-09-30','2026-01-01'),b0=a.balanceSheet(bb.flat,'2025-12-31','2025-01-01');assert(Math.abs(b1.diff)<.01&&Math.abs(b0.diff)<.01,'both balance sheets balance');}
-console.log('PASS: report comparison periods and comparative statements, dashboard fast/slow movers, post-dated cheques (received, cleared, bounced with charges, issued), party specials, last price, empty price, product codes, first-purchase cost, last purchase price, clean new company, document-specific settlement, sample fixture, legacy master-data migration, start-fresh template, ledger balance, historical account preservation, inherited accounts, pricing tiers, date validity, manual discounts, retired-rule migration, cash movement, stock counts, scrap, costing methods, validation, search and history.');
+// IFRS 18 statements: categories, required subtotals, account groups and drill-down figures add up.
+{const sm=a.migrateBooks(a.buildSampleBooks(a.TODAY));a.syncAccounts(sm.accounts);a.syncProducts(sm.products,sm.categories);a.syncPartners(sm.partners);a.syncMethods(sm.methods);const bb=a.deriveBooks(sm);
+ const ACC=a.ACC(),Y=a.TODAY.slice(0,4);
+ assert.equal(a.sectionOf(ACC['6460'],sm),'financing');assert.equal(a.sectionOf(ACC['6950'],sm),'income_tax');assert.equal(a.sectionOf(ACC['4900'],sm),'other_income');
+ assert.equal(a.sectionOf(ACC['4100'],sm),'revenue');assert.equal(a.sectionOf(ACC['1110'],sm),'assets');assert.equal(a.sectionOf(ACC['2500'],sm),'liabilities');
+ const cols=[{key:'c0',from:Y+'-01-01',to:a.TODAY},{key:'c1',from:(Y-1)+'-01-01',to:(Y-1)+'-12-31'}];
+ const st=a.plStatement(bb,sm,cols);
+ cols.forEach((c,i)=>{const r=a.pnl(bb.flat,c.from,c.to);assert(Math.abs(st.net[i]-r.net)<.011,'profit for the period = ledger result '+i);
+   const S=st.sections;assert(Math.abs(st.op[i]-(S.rev.values[i]+S.cos.values[i]+S.oth.values[i]+S.opx.values[i]))<.011,'operating profit');
+   assert(Math.abs(st.net[i]-(st.op[i]+S.inv.values[i]+S.fin.values[i]+S.tax.values[i]))<.011,'categories add up');});
+ const finRow=st.rows.find(r=>r.id==='s_financing');assert(finRow&&finRow.children.some(x=>x.code==='6460'),'loan interest sits in financing');
+ const seen=new Set();const walk=(xs)=>xs.forEach(x=>{if(x.kind==='account'&&x.code){assert(!seen.has(x.code),'account once: '+x.code);seen.add(x.code);}if(x.children)walk(x.children);});walk(st.rows);
+ const g=a.seedGroups(sm);assert(g.some(x=>x.id==='g_cash'&&x.accounts.includes('1110')&&x.parent==='g_ca'),'cash group under current assets');
+ const codes=g.flatMap(x=>x.accounts);assert.equal(codes.length,new Set(codes).size);
+ const bcols=[{key:'c0',asOf:a.TODAY},{key:'c1',asOf:(Y-1)+'-12-31'}],bs=a.bsStatement(bb,sm,bcols);
+ bs.diff.forEach((d,i)=>assert(Math.abs(d)<.011,'financial position balances '+i));
+ const b0=a.balanceSheet(bb.flat,a.TODAY,Y+'-01-01');assert(Math.abs(bs.ta[0]-b0.totA)<.011&&Math.abs(bs.te[0]-b0.totE)<.011,'same totals as the ledger balance sheet');
+ // own groups: Petty cash inside Cash and cash equivalents; moving an account moves its balance
+ const own={...sm,accountGroups:[...g.map(x=>({...x,accounts:x.accounts.filter(c=>c!=='1110')})),{id:'gp',name:'Petty cash',section:'assets',parent:'g_cash',accounts:['1110']}]};
+ const bs2=a.bsStatement(bb,own,bcols);const find=(xs,id)=>{for(const x of xs){if(x.id===id)return x;if(x.children){const f=find(x.children,id);if(f)return f;}}};
+ const pc=find(bs2.rows,'gp'),cash=find(bs2.rows,'g_cash');assert(pc&&cash&&cash.children.includes(pc),'petty cash nested in cash');
+ assert(Math.abs(pc.values[0]-(bs.rows.length&&find(bs.rows,'a1110').values[0]))<.011,'petty cash carries the account balance');
+ assert(Math.abs(bs2.ta[0]-bs.ta[0])<.011,'regrouping never changes totals');
+ // IFRS category override moves an account between categories without changing profit
+ const moved={...sm,ifrs:{'6600':'investing'}},st3=a.plStatement(bb,moved,cols);
+ assert(Math.abs(st3.net[0]-st.net[0])<.011&&st3.op[0]>st.op[0],'category change moves the line, not the profit');
+ // P&L accounts start each year at zero in the ledger drill-down
+ const gl=a.generalLedger(bb.flat,'6100',Y+'-01-01',a.TODAY);assert.equal(gl.open,0);
+ const plLine=st.rows.find(r=>r.id==='s_operating_expenses');assert(plLine);
+ // statement columns: N previous months, oldest first when asked
+ const sc=a.statementCols(bb,{preset:'mtd',from:a.TODAY.slice(0,8)+'01',to:a.TODAY,cmp:'prev',cmpN:3,cmpOrder:'asc'},false);
+ assert.equal(sc.cols.length,4);assert.equal(sc.cols[3].key,'c0');assert(sc.cols[0].from<sc.cols[1].from&&sc.cols[1].from<sc.cols[2].from,'oldest first');}
+console.log('PASS: IFRS 18 statements, account groups and drill-down, report comparison periods and comparative statements, dashboard fast/slow movers, post-dated cheques (received, cleared, bounced with charges, issued), party specials, last price, empty price, product codes, first-purchase cost, last purchase price, clean new company, document-specific settlement, sample fixture, legacy master-data migration, start-fresh template, ledger balance, historical account preservation, inherited accounts, pricing tiers, date validity, manual discounts, retired-rule migration, cash movement, stock counts, scrap, costing methods, validation, search and history.');

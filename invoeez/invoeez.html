@@ -938,6 +938,7 @@ var Ban = __mk('<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>')
 var ArrowLeftRight = __mk('<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>');
 var Lock = __mk('<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>');
 var LogOut = __mk('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>');
+var Pin = __mk('<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>');
 var ChevronLeft = __mk('<path d="m15 18-6-6 6-6"/>');
 var Ticket = __mk('<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>');
 var Store = __mk('<path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12a2 2 0 0 1-2-2V7"/>');
@@ -1109,7 +1110,7 @@ const addDays = (iso, n) => {
   return d.toISOString().slice(0, 10);
 };
 const daysBetween = (a, b) => Math.round((/* @__PURE__ */ new Date(b + "T00:00:00Z") - /* @__PURE__ */ new Date(a + "T00:00:00Z")) / 864e5);
-const BUILD = "3.8.2";
+const BUILD = "3.9.0";
 const TODAY = (() => {
   const d = /* @__PURE__ */ new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -1542,7 +1543,7 @@ function deriveBooks(state) {
   entries.push(...pdcEntries(state));
   entries.sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number));
   const flat = [];
-  entries.forEach((e) => e.lines.forEach((l, i) => flat.push({ ...l, entryId: e.id, date: e.date, number: e.number, ref: e.ref, journal: e.journal, docId: e.docId, key: e.id + "_" + i })));
+  entries.forEach((e) => e.lines.forEach((l, i) => flat.push({ ...l, entryId: e.id, date: e.date, number: e.number, ref: e.ref, journal: e.journal, docId: e.docId, source: e.source, key: e.id + "_" + i })));
   const totalD = R2(flat.reduce((s, l) => s + l.debit, 0));
   const totalC = R2(flat.reduce((s, l) => s + l.credit, 0));
   return { entries, flat, stock, moves, totalD, totalC, method, balanced: Math.abs(totalD - totalC) < 0.01 };
@@ -1574,9 +1575,11 @@ function trialBalance(flat, from, to) {
 function generalLedger(flat, accId, from, to) {
   let open = 0;
   const rows = [];
+  const fy = from && ACC[accId] && IS_PL(ACC[accId].type) ? from.slice(0, 4) + "-01-01" : "";
   flat.filter((l) => l.acc === accId).forEach((l) => {
-    if (from && l.date < from) open = R2(open + l.debit - l.credit);
-    else if (inRange(l.date, from, to)) rows.push(l);
+    if (from && l.date < from) {
+      if (l.date >= fy) open = R2(open + l.debit - l.credit);
+    } else if (inRange(l.date, from, to)) rows.push(l);
   });
   let run = open;
   const out = rows.map((l) => {
@@ -3569,20 +3572,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   const [print, setPrint] = useState(false);
   const [activeLine, setActiveLine] = useState(null);
   const [tab, setTab] = useState("items"), [quick, setQuick] = useState(null), [showCost, setShowCost] = useState(false), [showAccounts, setShowAccounts] = useState(false), [historyLine, setHistoryLine] = useState(null), [historyProduct, setHistoryProduct] = useState("");
-  const [lineView, setLineView] = useState(() => {
-    try {
-      return localStorage.getItem("mizan.lineView") || "compact";
-    } catch {
-      return "compact";
-    }
-  });
+  const lineView = "compact";
   const [expandedLines, setExpandedLines] = useState({});
-  React.useEffect(() => {
-    try {
-      localStorage.setItem("mizan.lineView", lineView);
-    } catch {
-    }
-  }, [lineView]);
   const pendingLine = React.useRef(null);
   React.useEffect(() => {
     scrollPageTop();
@@ -3812,7 +3803,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   const partners = PARTNERS.filter((p) => sale ? p.role === "customer" : p.role === "vendor");
   const taxes = TAXES.filter((t) => t.scope === "both" || t.scope === meta.side);
   const accounts = ACCOUNTS.filter((a) => sale ? a.type === "income" : ["expense", "cogs", "casset", "fasset"].includes(a.type));
-  return /* @__PURE__ */ React.createElement("div", null, print && /* @__PURE__ */ React.createElement(PrintDoc, { d, close: () => setPrint(false), fta, toast }), /* @__PURE__ */ React.createElement("div", { className: "page-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn ghost", style: { marginBottom: 9, marginLeft: -9 }, onClick: close }, /* @__PURE__ */ React.createElement(ArrowLeft, { size: 14 }), " All ", meta.short.toLowerCase(), "s"), /* @__PURE__ */ React.createElement("div", { className: "micro" }, meta.label, " \xB7 ", meta.journal, " journal"), /* @__PURE__ */ React.createElement("h1", { style: { marginTop: 6, display: "flex", alignItems: "center", gap: 11 } }, d.number, (() => {
+  return /* @__PURE__ */ React.createElement("div", null, print && /* @__PURE__ */ React.createElement(PrintDoc, { d, close: () => setPrint(false), fta, toast }), /* @__PURE__ */ React.createElement("div", { className: "page-head doc-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "btn ghost doc-back", onClick: close }, /* @__PURE__ */ React.createElement(ArrowLeft, { size: 14 }), " All ", meta.short.toLowerCase(), "s"), /* @__PURE__ */ React.createElement("div", { className: "micro" }, meta.label, meta.journal && meta.journal !== "\u2014" ? ` \xB7 ${meta.journal} journal` : ""), /* @__PURE__ */ React.createElement("h1", { style: { marginTop: 4, display: "flex", alignItems: "center", gap: 11 } }, d.number, (() => {
     const st = isQuote ? QUOTE_STATES[d.state] || QUOTE_STATES.draft : docStatus(d, outstanding, d.type);
     return /* @__PURE__ */ React.createElement(Pill, { tone: st.tone, dot: true }, st.label);
   })(), sale && state.einv && state.einv[d.id] && /* @__PURE__ */ React.createElement(Pill, { tone: EINV_STATES[state.einv[d.id].status].tone, dot: true }, EINV_STATES[state.einv[d.id].status].label))), /* @__PURE__ */ React.createElement("div", { className: "acts" }, isQuote && !locked && /* @__PURE__ */ React.createElement(Btn, { icon: Send, onClick: () => {
@@ -3867,7 +3858,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
         onRef: setPayRef
       }
     ), /* @__PURE__ */ React.createElement(Field, { label: "Quick fill" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => setPayAmt(outstanding) }, "Full ", money(outstanding, false)), /* @__PURE__ */ React.createElement(Btn, { onClick: () => setPayAmt(R2(outstanding / 2)) }, "Half"))))
-  ), /* @__PURE__ */ React.createElement("div", { className: "doc-workspace" }, /* @__PURE__ */ React.createElement(Card, { title: "Document details", sub: sale ? "Customer, ownership and pricing" : "Vendor and purchase terms" }, /* @__PURE__ */ React.createElement("div", { className: cx("document-fields", sale && "sales-document-fields") }, /* @__PURE__ */ React.createElement(Field, { label: sale ? "Customer" : "Vendor", span: 2 }, /* @__PURE__ */ React.createElement(SmartPicker, { items: partnerOptions(meta.side), value: d.partner, disabled: locked, autoFocus: !!d.isNew && !d.partner, onChange: pickPartner, label: sale ? "Select customer" : "Select vendor", placeholder: "Search " + (sale ? "customers" : "vendors") + "\u2026", onCreate: !locked ? (name) => setQuick({ kind: sale ? "customer" : "vendor", record: { ...newPartner(sale ? "customer" : "vendor"), name } }) : void 0 })), /* @__PURE__ */ React.createElement(Field, { label: "Counterparty TRN" }, /* @__PURE__ */ React.createElement("div", { className: "readonly" }, PMAP[d.partner]?.trn || "Not registered")), sale && /* @__PURE__ */ React.createElement(Field, { label: "Salesperson" }, /* @__PURE__ */ React.createElement(CreatableSelect, { value: d.salesman, disabled: locked, onChange: (v) => set("salesman", v), options: (state.salespeople || []).filter((p) => p.active !== false || p.id === d.salesman).map((p) => ({ value: p.id, label: p.name + (p.active === false ? " (inactive)" : "") })), placeholder: "Unassigned", createLabel: "New salesperson", onCreate: addSalesperson(setState), ariaLabel: "Salesperson" })), /* @__PURE__ */ React.createElement(Field, { label: "Price list" }, /* @__PURE__ */ React.createElement(Select, { value: d.pricelist || "", disabled: locked, onChange: (e) => changePricing({ pricelist: e.target.value }, true) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Product ", sale ? "sales prices" : "costs"), state.priceLists.filter((x) => x.side === meta.side).map((x) => /* @__PURE__ */ React.createElement("option", { key: x.id, value: x.id }, x.name, x.active ? "" : " (inactive)")))), /* @__PURE__ */ React.createElement(Field, { label: isQuote ? "Quotation date" : sale ? "Invoice date" : "Bill date" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.date, disabled: locked, onChange: (e) => changePricing({ date: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "Payment due" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.due, disabled: locked, onChange: (e) => set("due", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Place of supply" }, /* @__PURE__ */ React.createElement(Select, { value: d.emirate, disabled: locked, onChange: (e) => set("emirate", e.target.value) }, [...EMIRATES, "Export", "Import"].map((x) => /* @__PURE__ */ React.createElement("option", { key: x }, x)))), /* @__PURE__ */ React.createElement(Field, { span: sale ? 2 : 1, label: sale ? "Customer purchase order" : "Supplier invoice number" }, /* @__PURE__ */ React.createElement(Input, { value: d.ref, disabled: locked, onChange: (e) => set("ref", e.target.value), placeholder: "Optional reference" })))), /* @__PURE__ */ React.createElement("div", { className: "document-toolbar" }, /* @__PURE__ */ React.createElement("div", { className: "doc-tabs", role: "tablist", "aria-label": "Document views" }, [["items", "Line items", Layers], ...!isQuote ? [["journal", "Journal entry", BookOpen]] : [], ["history", "Price history", Clock], ["status", "Activity", CircleCheck]].map(([k, label, I]) => /* @__PURE__ */ React.createElement("button", { role: "tab", "aria-selected": tab === k, key: k, className: tab === k ? "on" : "", onClick: () => setTab(k) }, /* @__PURE__ */ React.createElement(I, { size: 15 }), label, k === "items" && /* @__PURE__ */ React.createElement("span", null, d.lines.length)))), /* @__PURE__ */ React.createElement("div", { className: "acts" }, tab === "items" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "seg line-view-switch", "aria-label": "Line layout" }, /* @__PURE__ */ React.createElement("button", { className: lineView === "compact" ? "on" : "", onClick: () => setLineView("compact") }, "Compact"), /* @__PURE__ */ React.createElement("button", { className: lineView === "detail" ? "on" : "", onClick: () => setLineView("detail") }, "Detailed")), /* @__PURE__ */ React.createElement(Btn, { size: "sm", "aria-pressed": showAccounts, onClick: () => setShowAccounts((x) => !x) }, showAccounts ? "Hide accounts" : "Show accounts"), /* @__PURE__ */ React.createElement(Btn, { size: "sm", "aria-pressed": showCost, onClick: () => setShowCost((x) => !x) }, showCost ? "Hide cost" : "Show cost"), !locked && /* @__PURE__ */ React.createElement(Btn, { size: "sm", onClick: () => changePricing({}, true) }, "Reapply pricing")))), tab === "items" && /* @__PURE__ */ React.createElement(React.Fragment, null, lineView !== "compact" && /* @__PURE__ */ React.createElement("div", { className: "line-section-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", null, "Products & services"), /* @__PURE__ */ React.createElement("p", null, "Search by name, code or barcode. Select a product to fill the line.")), !locked && /* @__PURE__ */ React.createElement(Btn, { icon: Plus, kind: "pri", onClick: addLine }, "Add line")), !d.lines.length && lineView !== "compact" && /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement(EmptyState, { icon: Package, title: "Start with your first product" }, "Add a blank line, then search or scan a product."), !locked && /* @__PURE__ */ React.createElement("div", { className: "center" }, /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Plus, onClick: addLine }, "Add first line"))), lineView === "compact" && /* @__PURE__ */ React.createElement("div", { className: "line-grid-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "line-grid" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "lg-n" }, "#"), /* @__PURE__ */ React.createElement("th", { className: "lg-p" }, "Product"), /* @__PURE__ */ React.createElement("th", { className: "lg-d" }, "Description"), /* @__PURE__ */ React.createElement("th", { className: "lg-q" }, "Qty"), /* @__PURE__ */ React.createElement("th", { className: "lg-u" }, "Unit"), /* @__PURE__ */ React.createElement("th", { className: "lg-pr" }, "Unit price"), /* @__PURE__ */ React.createElement("th", { className: "lg-di" }, "Disc %"), /* @__PURE__ */ React.createElement("th", { className: "lg-t" }, "VAT"), showAccounts && /* @__PURE__ */ React.createElement("th", { className: "lg-a" }, "Account"), showCost && /* @__PURE__ */ React.createElement("th", { className: "lg-c" }, "Cost / margin"), /* @__PURE__ */ React.createElement("th", { className: "lg-am" }, "Amount"), /* @__PURE__ */ React.createElement("th", { className: "lg-x" }))), /* @__PURE__ */ React.createElement("tbody", null, am.lines.map((l, i) => {
+  ), /* @__PURE__ */ React.createElement("div", { className: "doc-workspace" }, /* @__PURE__ */ React.createElement(Card, { title: "Document details", sub: sale ? "Customer, ownership and pricing" : "Vendor and purchase terms" }, /* @__PURE__ */ React.createElement("div", { className: cx("document-fields", sale && "sales-document-fields") }, /* @__PURE__ */ React.createElement(Field, { label: sale ? "Customer" : "Vendor", span: 2 }, /* @__PURE__ */ React.createElement(SmartPicker, { items: partnerOptions(meta.side), value: d.partner, disabled: locked, autoFocus: !!d.isNew && !d.partner, onChange: pickPartner, label: sale ? "Select customer" : "Select vendor", placeholder: "Search " + (sale ? "customers" : "vendors") + "\u2026", onCreate: !locked ? (name) => setQuick({ kind: sale ? "customer" : "vendor", record: { ...newPartner(sale ? "customer" : "vendor"), name } }) : void 0 })), /* @__PURE__ */ React.createElement(Field, { label: "Counterparty TRN" }, /* @__PURE__ */ React.createElement("div", { className: "readonly" }, PMAP[d.partner]?.trn || "Not registered")), sale && /* @__PURE__ */ React.createElement(Field, { label: "Salesperson" }, /* @__PURE__ */ React.createElement(CreatableSelect, { value: d.salesman, disabled: locked, onChange: (v) => set("salesman", v), options: (state.salespeople || []).filter((p) => p.active !== false || p.id === d.salesman).map((p) => ({ value: p.id, label: p.name + (p.active === false ? " (inactive)" : "") })), placeholder: "Unassigned", createLabel: "New salesperson", onCreate: addSalesperson(setState), ariaLabel: "Salesperson" })), /* @__PURE__ */ React.createElement(Field, { label: "Price list" }, /* @__PURE__ */ React.createElement(Select, { value: d.pricelist || "", disabled: locked, onChange: (e) => changePricing({ pricelist: e.target.value }, true) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Product ", sale ? "sales prices" : "costs"), state.priceLists.filter((x) => x.side === meta.side).map((x) => /* @__PURE__ */ React.createElement("option", { key: x.id, value: x.id }, x.name, x.active ? "" : " (inactive)")))), /* @__PURE__ */ React.createElement(Field, { label: isQuote ? "Quotation date" : sale ? "Invoice date" : "Bill date" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.date, disabled: locked, onChange: (e) => changePricing({ date: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "Payment due" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.due, disabled: locked, onChange: (e) => set("due", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Place of supply" }, /* @__PURE__ */ React.createElement(Select, { value: d.emirate, disabled: locked, onChange: (e) => set("emirate", e.target.value) }, [...EMIRATES, "Export", "Import"].map((x) => /* @__PURE__ */ React.createElement("option", { key: x }, x)))), /* @__PURE__ */ React.createElement(Field, { span: sale ? 2 : 1, label: sale ? "Customer purchase order" : "Supplier invoice number" }, /* @__PURE__ */ React.createElement(Input, { value: d.ref, disabled: locked, onChange: (e) => set("ref", e.target.value), placeholder: "Optional reference" })))), /* @__PURE__ */ React.createElement("div", { className: "document-toolbar" }, /* @__PURE__ */ React.createElement("div", { className: "doc-tabs", role: "tablist", "aria-label": "Document views" }, [["items", "Line items", Layers], ...!isQuote ? [["journal", "Journal entry", BookOpen]] : [], ["history", "Price history", Clock], ["status", "Activity", CircleCheck]].map(([k, label, I]) => /* @__PURE__ */ React.createElement("button", { role: "tab", "aria-selected": tab === k, key: k, className: tab === k ? "on" : "", onClick: () => setTab(k) }, /* @__PURE__ */ React.createElement(I, { size: 15 }), label, k === "items" && /* @__PURE__ */ React.createElement("span", null, d.lines.length)))), /* @__PURE__ */ React.createElement("div", { className: "acts" }, tab === "items" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Btn, { size: "sm", "aria-pressed": showAccounts, onClick: () => setShowAccounts((x) => !x) }, showAccounts ? "Hide accounts" : "Show accounts"), /* @__PURE__ */ React.createElement(Btn, { size: "sm", "aria-pressed": showCost, onClick: () => setShowCost((x) => !x) }, showCost ? "Hide cost" : "Show cost"), !locked && /* @__PURE__ */ React.createElement(Btn, { size: "sm", onClick: () => changePricing({}, true) }, "Reapply pricing")))), tab === "items" && /* @__PURE__ */ React.createElement(React.Fragment, null, lineView !== "compact" && /* @__PURE__ */ React.createElement("div", { className: "line-section-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", null, "Products & services"), /* @__PURE__ */ React.createElement("p", null, "Search by name, code or barcode. Select a product to fill the line.")), !locked && /* @__PURE__ */ React.createElement(Btn, { icon: Plus, kind: "pri", onClick: addLine }, "Add line")), !d.lines.length && lineView !== "compact" && /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement(EmptyState, { icon: Package, title: "Start with your first product" }, "Add a blank line, then search or scan a product."), !locked && /* @__PURE__ */ React.createElement("div", { className: "center" }, /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Plus, onClick: addLine }, "Add first line"))), lineView === "compact" && /* @__PURE__ */ React.createElement("div", { className: "line-grid-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "line-grid" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "lg-n" }, "#"), /* @__PURE__ */ React.createElement("th", { className: "lg-p" }, "Product"), /* @__PURE__ */ React.createElement("th", { className: "lg-d" }, "Description"), /* @__PURE__ */ React.createElement("th", { className: "lg-q" }, "Qty"), /* @__PURE__ */ React.createElement("th", { className: "lg-u" }, "Unit"), /* @__PURE__ */ React.createElement("th", { className: "lg-pr" }, "Unit price"), /* @__PURE__ */ React.createElement("th", { className: "lg-di" }, "Disc %"), /* @__PURE__ */ React.createElement("th", { className: "lg-t" }, "VAT"), showAccounts && /* @__PURE__ */ React.createElement("th", { className: "lg-a" }, "Account"), showCost && /* @__PURE__ */ React.createElement("th", { className: "lg-c" }, "Cost / margin"), /* @__PURE__ */ React.createElement("th", { className: "lg-am" }, "Amount"), /* @__PURE__ */ React.createElement("th", { className: "lg-x" }))), /* @__PURE__ */ React.createElement("tbody", null, am.lines.map((l, i) => {
     const p = PROD[l.product], st = p && books.stock[p.id] || { qty: 0, value: 0 }, cost = p ? currentCost(p, books) : 0;
     const def = sale ? l.accounts?.income || p?.income : p?.kind === "goods" ? l.accounts?.inventory || p?.inventory : l.accounts?.expense || p?.expense;
     const last = i === am.lines.length - 1;
@@ -3885,7 +3876,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     const last = p ? productHistory(state, p.id, meta.side, d.partner, d.id, d.date)[0] : null;
     const def = sale ? l.accounts?.income || p?.income : p?.kind === "goods" ? l.accounts?.inventory || p?.inventory : l.accounts?.expense || p?.expense;
     return /* @__PURE__ */ React.createElement("article", { key: l.id, className: cx("doc-line", !p && "blank", lineView === "compact" && "compact", expandedLines[l.id] && "expanded"), "data-line-id": l.id }, /* @__PURE__ */ React.createElement("div", { className: "line-product" }, /* @__PURE__ */ React.createElement("span", { className: "line-num" }, String(i + 1).padStart(2, "0")), /* @__PURE__ */ React.createElement("div", { className: "line-picker" }, /* @__PURE__ */ React.createElement(SmartPicker, { label: "Product on line " + (i + 1), items: productOptions(books), value: l.product, disabled: locked, placeholder: "Search product, ID or barcode\u2026", onChange: (pid) => pickProduct(l.id, pid), onCreate: !locked ? (name) => setQuick({ kind: "product", line: l.id, record: { ...newProduct(), name } }) : void 0 }), p && /* @__PURE__ */ React.createElement("small", { className: "product-meta" }, [p.brand, categoryOf(p)?.name, p.barcode && "Barcode " + p.barcode, p.packing].filter(Boolean).join(" \xB7 ") || p.id)), p && /* @__PURE__ */ React.createElement("div", { className: "line-stock" }, /* @__PURE__ */ React.createElement("span", null, "Available stock"), p.kind === "goods" ? /* @__PURE__ */ React.createElement("b", { className: st.qty <= 0 ? "neg" : "pos" }, st.qty, " ", /* @__PURE__ */ React.createElement("small", null, p.uom)) : /* @__PURE__ */ React.createElement("b", null, "Service")), !locked && /* @__PURE__ */ React.createElement("button", { className: "icon-btn", title: "Remove line " + (i + 1), "aria-label": "Remove line " + (i + 1), onClick: () => setD((s) => ({ ...s, lines: s.lines.filter((x) => x.id !== l.id) })) }, /* @__PURE__ */ React.createElement(Trash2, { size: 16 }))), /* @__PURE__ */ React.createElement("div", { className: "line-fields" }, /* @__PURE__ */ React.createElement(Field, { label: "Description" }, /* @__PURE__ */ React.createElement(Input, { value: l.desc, disabled: locked || !p, onChange: (e) => setLine(l.id, "desc", e.target.value) }))), /* @__PURE__ */ React.createElement("div", { className: "line-values" }, /* @__PURE__ */ React.createElement(Field, { label: "Quantity" + (p ? " \xB7 " + p.uom : "") }, /* @__PURE__ */ React.createElement(Input, { n: true, type: "number", min: "0", step: "0.01", value: l.qty, disabled: locked || !p, onChange: (e) => setLine(l.id, "qty", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Unit price \xB7 AED" }, /* @__PURE__ */ React.createElement(Input, { n: true, className: "q-price", type: "number", min: "0", step: "0.01", value: l.price, placeholder: p ? "Price" : "", disabled: locked || !p, onChange: (e) => setLine(l.id, "price", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Discount %" }, /* @__PURE__ */ React.createElement(Input, { n: true, type: "number", min: "0", max: "100", step: "0.01", value: l.disc || "", placeholder: "0", disabled: locked || !p, onChange: (e) => setLine(l.id, "disc", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "VAT treatment" }, /* @__PURE__ */ React.createElement(Select, { value: l.tax, disabled: locked || !p, onChange: (e) => setLine(l.id, "tax", e.target.value) }, taxes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.id, value: t.id }, t.name)))), /* @__PURE__ */ React.createElement("div", { className: "line-amount" }, /* @__PURE__ */ React.createElement("small", null, "Amount excl. VAT"), /* @__PURE__ */ React.createElement("b", null, money(l.amount, false)), /* @__PURE__ */ React.createElement("span", null, "VAT ", money(l.taxAmt, false)))), askPrice(l) && /* @__PURE__ */ React.createElement("table", { className: "price-ask-card" }, /* @__PURE__ */ React.createElement("tbody", null, priceAskRow(l, 1))), p && /* @__PURE__ */ React.createElement("div", { className: "line-insights" }, /* @__PURE__ */ React.createElement("button", { className: "line-detail-toggle", "aria-expanded": !!expandedLines[l.id], onClick: () => setExpandedLines((x) => ({ ...x, [l.id]: !x[l.id] })) }, /* @__PURE__ */ React.createElement(ChevronDown, { size: 13 }), expandedLines[l.id] ? "Hide description" : "Description"), /* @__PURE__ */ React.createElement("span", { className: "price-source" }, l.manualPricing ? "Manual price" : l.priceSource || "Product price"), /* @__PURE__ */ React.createElement("span", null, last ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Last ", sale ? "sold" : "purchased", ": ", /* @__PURE__ */ React.createElement("b", null, "AED ", money(last.unitNet, false)), " / ", p.uom.toLowerCase(), " \xB7 ", dmy(last.date), " \xB7 Qty ", last.qty) : /* @__PURE__ */ React.createElement(React.Fragment, null, "No previous ", sale ? "sale to this customer" : "purchase from this vendor")), /* @__PURE__ */ React.createElement("button", { onClick: () => setHistoryLine(l) }, /* @__PURE__ */ React.createElement(Clock, { size: 13 }), "View history"), showCost && /* @__PURE__ */ React.createElement("div", { className: "runtime-cost" }, /* @__PURE__ */ React.createElement("span", null, "Cost price ", /* @__PURE__ */ React.createElement("b", null, money(p.cost, false))), /* @__PURE__ */ React.createElement("span", null, "Current unit cost (", (books.method || "avco").toUpperCase(), ") ", /* @__PURE__ */ React.createElement("b", null, money(cost, false))), sale && /* @__PURE__ */ React.createElement("span", null, "Est. margin / unit ", /* @__PURE__ */ React.createElement("b", { className: l.price * (1 - (l.disc || 0) / 100) - cost < 0 ? "neg" : "pos" }, money(l.price * (1 - (l.disc || 0) / 100) - cost, false))), /* @__PURE__ */ React.createElement("small", null, "Current costs \xB7 AED \xB7 before VAT")), showAccounts && /* @__PURE__ */ React.createElement("div", { className: "runtime-account" }, /* @__PURE__ */ React.createElement(Field, { label: "Account" }, p?.kind === "goods" && !sale ? /* @__PURE__ */ React.createElement("div", { className: "readonly" }, def, " \xB7 ", ACC[def]?.name) : /* @__PURE__ */ React.createElement(Select, { "aria-label": "Account on line " + (i + 1), value: l.account || def || "", disabled: locked || !p, onChange: (e) => setLine(l.id, "account", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Select product first"), accounts.map((a) => /* @__PURE__ */ React.createElement("option", { key: a.code, value: a.code }, a.code, " \xB7 ", a.name)))), /* @__PURE__ */ React.createElement("span", { className: "account-source" }, p.kind === "goods" && !sale ? "Inventory account from product category" : l.account ? "Line account override" : "Default from product category"), !locked && l.account && !(p.kind === "goods" && !sale) && /* @__PURE__ */ React.createElement("button", { onClick: () => setLine(l.id, "account", null) }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 13 }), "Use category default"))));
-  })), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { className: "document-bottom" }, /* @__PURE__ */ React.createElement(Field, { label: "Internal note" }, /* @__PURE__ */ React.createElement("textarea", { className: "inp", rows: 3, value: d.note, disabled: locked, placeholder: "Delivery terms, references or notes\u2026", onChange: (e) => set("note", e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "sumbox" }, /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Subtotal before discount"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(d.lines.reduce((s, l) => s + R2(l.qty * l.price), 0), false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Line discounts"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(d.lines.reduce((s, l) => s + R2(l.qty * l.price), 0) - am.net, false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Subtotal excluding VAT"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.net, false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "VAT charged"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.vat, false))), am.rcm > 0 && /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", null, "Reverse charge"), /* @__PURE__ */ React.createElement("span", null, money(am.rcm, false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow total" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Total \xB7 AED"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.total, false)))))), !locked && /* @__PURE__ */ React.createElement("div", { className: "document-dock" }, /* @__PURE__ */ React.createElement(Btn, { icon: Plus, onClick: addLine }, "Add line"), /* @__PURE__ */ React.createElement("span", null, d.lines.length, " items"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("small", null, "Total \xB7 AED"), /* @__PURE__ */ React.createElement("b", null, money(am.total, false))), /* @__PURE__ */ React.createElement(Btn, { onClick: save }, "Save ", isQuote ? "quotation" : "draft"))), tab === "journal" && /* @__PURE__ */ React.createElement("div", { className: "journal-tab" }, /* @__PURE__ */ React.createElement("div", { className: "info-strip" }, /* @__PURE__ */ React.createElement(BookOpen, { size: 20 }), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, locked ? "Posted journal entry" : "Journal preview"), /* @__PURE__ */ React.createElement("br", null), locked ? "The ledger entry for this document." : "This preview updates as you edit. Posting creates the ledger entry.")), /* @__PURE__ */ React.createElement(PostingPreview, { lines: preview, title: locked ? "Posted journal entry" : "Journal preview \xB7 AED" })), tab === "history" && /* @__PURE__ */ React.createElement(Card, { title: sale ? "Price history for this customer" : "Price history for this vendor", sub: `Every product on this document${d.partner ? " for " + (PMAP[d.partner]?.name || "") : ""} \u2014 or search any other product.` }, /* @__PURE__ */ React.createElement("div", { className: "history-pick" }, /* @__PURE__ */ React.createElement(SmartPicker, { items: productOptions(books), value: historyProduct, label: "History product", placeholder: "Search any product\u2026", onChange: setHistoryProduct }), historyProduct && /* @__PURE__ */ React.createElement(Btn, { size: "sm", onClick: () => setHistoryProduct("") }, "Products on this document")), historyProduct ? /* @__PURE__ */ React.createElement(HistoryTable, { key: historyProduct + d.partner, title: PROD[historyProduct]?.name, state, product: historyProduct, side: meta.side, partner: d.partner, exclude: d.id, date: d.date }) : [...new Set(d.lines.map((l) => l.product).filter((pid) => PROD[pid]))].length ? [...new Set(d.lines.map((l) => l.product).filter((pid) => PROD[pid]))].map((pid) => /* @__PURE__ */ React.createElement(HistoryTable, { key: pid + d.partner, title: PROD[pid].name, state, product: pid, side: meta.side, partner: d.partner, exclude: d.id, date: d.date })) : /* @__PURE__ */ React.createElement(EmptyState, { icon: Clock, title: "Add a product or choose one above" }, "Every product on this document shows its posted prices to this ", sale ? "customer" : "vendor", " here.")), tab === "status" && /* @__PURE__ */ React.createElement(Card, { title: isQuote ? "Quotation progress" : "Document activity" }, /* @__PURE__ */ React.createElement("div", { className: "tl" }, (isQuote ? ["draft", "sent", "accepted", "invoiced"].map((k) => ({ t: QUOTE_STATES[k].label, done: ["draft", "sent", "accepted", "invoiced"].indexOf(d.state) >= ["draft", "sent", "accepted", "invoiced"].indexOf(k) })) : timeline).map((t, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: cx("tl-row", t.done ? "done" : "pending") }, /* @__PURE__ */ React.createElement("span", { className: "dot" }, /* @__PURE__ */ React.createElement("i", null)), /* @__PURE__ */ React.createElement("span", { className: "tt" }, /* @__PURE__ */ React.createElement("b", null, t.t), t.s && /* @__PURE__ */ React.createElement("span", null, t.s))))))), pdcOpen2 && /* @__PURE__ */ React.createElement(PdcDialog, { state, setState, toast, init: { kind: sale ? "in" : "out", partner: d.partner, doc: d.id, amount: R2(outstanding) }, close: () => setPdcOpen(false) }), quick && /* @__PURE__ */ React.createElement(MasterModal, { kind: quick.kind, initial: quick.record, state, setState, books, toast, close: () => setQuick(null), onSaved: (rec) => {
+  })), /* @__PURE__ */ React.createElement(Card, null, /* @__PURE__ */ React.createElement("div", { className: "document-bottom" }, /* @__PURE__ */ React.createElement(Field, { label: "Internal note" }, /* @__PURE__ */ React.createElement("textarea", { className: "inp", rows: 3, value: d.note, disabled: locked, placeholder: "Delivery terms, references or notes\u2026", onChange: (e) => set("note", e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "sumbox" }, /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Subtotal before discount"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(d.lines.reduce((s, l) => s + R2(l.qty * l.price), 0), false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Line discounts"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(d.lines.reduce((s, l) => s + R2(l.qty * l.price), 0) - am.net, false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Subtotal excluding VAT"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.net, false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "VAT charged"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.vat, false))), am.rcm > 0 && /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", null, "Reverse charge"), /* @__PURE__ */ React.createElement("span", null, money(am.rcm, false))), /* @__PURE__ */ React.createElement("div", { className: "sumrow total" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Total \xB7 AED"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(am.total, false)))))), !locked && /* @__PURE__ */ React.createElement("div", { className: "document-dock" }, /* @__PURE__ */ React.createElement("span", null, d.lines.length, " ", d.lines.length === 1 ? "line" : "lines"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("small", null, "Total \xB7 AED"), /* @__PURE__ */ React.createElement("b", null, money(am.total, false))), /* @__PURE__ */ React.createElement(Btn, { onClick: save }, "Save ", isQuote ? "quotation" : "draft"))), tab === "journal" && /* @__PURE__ */ React.createElement("div", { className: "journal-tab" }, /* @__PURE__ */ React.createElement("div", { className: "info-strip" }, /* @__PURE__ */ React.createElement(BookOpen, { size: 20 }), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, locked ? "Posted journal entry" : "Journal preview"), /* @__PURE__ */ React.createElement("br", null), locked ? "The ledger entry for this document." : "This preview updates as you edit. Posting creates the ledger entry.")), /* @__PURE__ */ React.createElement(PostingPreview, { lines: preview, title: locked ? "Posted journal entry" : "Journal preview \xB7 AED" })), tab === "history" && /* @__PURE__ */ React.createElement(Card, { title: sale ? "Price history for this customer" : "Price history for this vendor", sub: `Every product on this document${d.partner ? " for " + (PMAP[d.partner]?.name || "") : ""} \u2014 or search any other product.` }, /* @__PURE__ */ React.createElement("div", { className: "history-pick" }, /* @__PURE__ */ React.createElement(SmartPicker, { items: productOptions(books), value: historyProduct, label: "History product", placeholder: "Search any product\u2026", onChange: setHistoryProduct }), historyProduct && /* @__PURE__ */ React.createElement(Btn, { size: "sm", onClick: () => setHistoryProduct("") }, "Products on this document")), historyProduct ? /* @__PURE__ */ React.createElement(HistoryTable, { key: historyProduct + d.partner, title: PROD[historyProduct]?.name, state, product: historyProduct, side: meta.side, partner: d.partner, exclude: d.id, date: d.date }) : [...new Set(d.lines.map((l) => l.product).filter((pid) => PROD[pid]))].length ? [...new Set(d.lines.map((l) => l.product).filter((pid) => PROD[pid]))].map((pid) => /* @__PURE__ */ React.createElement(HistoryTable, { key: pid + d.partner, title: PROD[pid].name, state, product: pid, side: meta.side, partner: d.partner, exclude: d.id, date: d.date })) : /* @__PURE__ */ React.createElement(EmptyState, { icon: Clock, title: "Add a product or choose one above" }, "Every product on this document shows its posted prices to this ", sale ? "customer" : "vendor", " here.")), tab === "status" && /* @__PURE__ */ React.createElement(Card, { title: isQuote ? "Quotation progress" : "Document activity" }, /* @__PURE__ */ React.createElement("div", { className: "tl" }, (isQuote ? ["draft", "sent", "accepted", "invoiced"].map((k) => ({ t: QUOTE_STATES[k].label, done: ["draft", "sent", "accepted", "invoiced"].indexOf(d.state) >= ["draft", "sent", "accepted", "invoiced"].indexOf(k) })) : timeline).map((t, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: cx("tl-row", t.done ? "done" : "pending") }, /* @__PURE__ */ React.createElement("span", { className: "dot" }, /* @__PURE__ */ React.createElement("i", null)), /* @__PURE__ */ React.createElement("span", { className: "tt" }, /* @__PURE__ */ React.createElement("b", null, t.t), t.s && /* @__PURE__ */ React.createElement("span", null, t.s))))))), pdcOpen2 && /* @__PURE__ */ React.createElement(PdcDialog, { state, setState, toast, init: { kind: sale ? "in" : "out", partner: d.partner, doc: d.id, amount: R2(outstanding) }, close: () => setPdcOpen(false) }), quick && /* @__PURE__ */ React.createElement(MasterModal, { kind: quick.kind, initial: quick.record, state, setState, books, toast, close: () => setQuick(null), onSaved: (rec) => {
     if (quick.kind === "product") pickProduct(quick.line, rec.id);
     else pickPartner(rec.id);
   } }), historyLine && /* @__PURE__ */ React.createElement(StudioModal, { wide: true, title: PROD[historyLine.product]?.name || "Product history", sub: sale ? "Previous prices charged to your customer" : "Previous prices charged by your vendor", close: () => setHistoryLine(null) }, /* @__PURE__ */ React.createElement(HistoryTable, { state, product: historyLine.product, side: meta.side, partner: d.partner, exclude: d.id, date: d.date, apply: !locked ? (l) => {
@@ -4768,7 +4759,7 @@ function csv(rows, name) {
   }).join(",")).join("\n");
   return saveText(body, name, "text/csv;charset=utf-8");
 }
-function TrialBalance({ books, p, setP, toast }) {
+function TrialBalance({ books, p, setP, toast, drill }) {
   const tb = trialBalance(books.flat, p.from, p.to);
   let group = "";
   return /* @__PURE__ */ React.createElement(
@@ -4786,29 +4777,53 @@ function TrialBalance({ books, p, setP, toast }) {
     /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { colSpan: 2 }), /* @__PURE__ */ React.createElement("th", { className: "n", colSpan: 2, style: { textAlign: "center", borderLeft: "1px solid var(--line)" } }, "Opening"), /* @__PURE__ */ React.createElement("th", { className: "n", colSpan: 2, style: { textAlign: "center", borderLeft: "1px solid var(--line)" } }, "Movement"), /* @__PURE__ */ React.createElement("th", { className: "n", colSpan: 2, style: { textAlign: "center", borderLeft: "1px solid var(--line)" } }, "Closing")), /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: 80 } }, "Code"), /* @__PURE__ */ React.createElement("th", null, "Account"), /* @__PURE__ */ React.createElement("th", { className: "n", style: { borderLeft: "1px solid var(--line)" } }, "Debit"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Credit"), /* @__PURE__ */ React.createElement("th", { className: "n", style: { borderLeft: "1px solid var(--line)" } }, "Debit"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Credit"), /* @__PURE__ */ React.createElement("th", { className: "n", style: { borderLeft: "1px solid var(--line)" } }, "Debit"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Credit"))), /* @__PURE__ */ React.createElement("tbody", null, tb.rows.map((r) => {
       const g = AT[r.acc.type].group, head = g !== group;
       group = g;
-      return /* @__PURE__ */ React.createElement(React.Fragment, { key: r.acc.code }, head && /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 8 }, g)), /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { className: "mono" }, r.acc.code), /* @__PURE__ */ React.createElement("td", null, r.acc.name), /* @__PURE__ */ React.createElement(DrCr, { v: r.open }), /* @__PURE__ */ React.createElement("td", { className: "n" }, r.d ? money(r.d) : ""), /* @__PURE__ */ React.createElement("td", { className: "n" }, r.c ? money(r.c) : ""), /* @__PURE__ */ React.createElement(DrCr, { v: r.close })));
+      return /* @__PURE__ */ React.createElement(React.Fragment, { key: r.acc.code }, head && /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 8 }, g)), /* @__PURE__ */ React.createElement("tr", { className: "fin-acc" }, /* @__PURE__ */ React.createElement("td", { className: "mono" }, r.acc.code), /* @__PURE__ */ React.createElement("td", null, drill ? /* @__PURE__ */ React.createElement("button", { className: "fin-name", title: "Open this account's transactions", onClick: () => drill("r_gl", { acc: r.acc.code, from: p.from, to: p.to }, `${r.acc.code} \xB7 ${r.acc.name}`, "Trial balance") }, r.acc.name, /* @__PURE__ */ React.createElement(ArrowUpRight, { size: 12, className: "fin-go" })) : r.acc.name), /* @__PURE__ */ React.createElement(DrCr, { v: r.open }), /* @__PURE__ */ React.createElement("td", { className: "n" }, r.d ? money(r.d) : ""), /* @__PURE__ */ React.createElement("td", { className: "n" }, r.c ? money(r.c) : ""), /* @__PURE__ */ React.createElement(DrCr, { v: r.close })));
     })), /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 2 }, "Totals \u2014 ", tb.rows.length, " accounts"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(tb.t.od)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(tb.t.oc)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(tb.t.d)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(tb.t.c)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(tb.t.cd)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(tb.t.cc))))))
   );
 }
-function GeneralLedger({ books, p, setP, param, toast }) {
-  const [acc, setAcc] = useState(param || A.AR);
+function GeneralLedger({ books, p, setP, param, toast, drill }) {
+  const prm = param && typeof param === "object" ? param : null;
+  const [acc, setAcc] = useState(prm && prm.acc || (typeof param === "string" && ACC[param] ? param : A.AR));
+  const [lp, setLp] = useState(prm && prm.from ? { ...p, preset: "custom", from: prm.from, to: prm.to } : null);
   React.useEffect(() => {
-    if (param) setAcc(param);
+    if (prm) {
+      setAcc(prm.acc);
+      setLp(prm.from ? { ...p, preset: "custom", from: prm.from, to: prm.to } : null);
+    } else if (typeof param === "string" && ACC[param]) {
+      setAcc(param);
+      setLp(null);
+    }
   }, [param]);
-  const g = generalLedger(books.flat, acc, p.from, p.to);
+  const pp = lp || p, setPP = (np) => lp ? setLp(np) : setP(np);
+  const [entry, setEntry] = useState(null);
+  const g = generalLedger(books.flat, acc, pp.from, pp.to);
+  const ents = useMemo(() => Object.fromEntries((books.entries || []).map((e) => [e.id, e])), [books]);
+  const SRC = { doc: ["Document", FileText], payment: ["Payment", Banknote], manual: ["Journal", BookOpen], pdc: ["Cheque", CalendarClock], stock: ["Stock", Boxes] };
+  const open = (l) => {
+    const e = ents[l.entryId];
+    if (!e) return;
+    if (e.source === "doc" && e.docId && LIST_OF[e.docType]) drill(LIST_OF[e.docType], e.docId, e.number, `${ACC[acc].code} \xB7 ${ACC[acc].name}`);
+    else setEntry(e);
+  };
   return /* @__PURE__ */ React.createElement(
     ReportFrame,
     {
       toast,
-      title: "General Ledger",
-      meta: `${ACC[acc].code} \u2014 ${ACC[acc].name} \xB7 ${dmy(p.from)} to ${dmy(p.to)}`,
+      title: "Account transactions",
+      meta: `${ACC[acc].code} \u2014 ${ACC[acc].name} \xB7 ${dmy(pp.from)} to ${dmy(pp.to)}`,
       icon: BookOpen,
-      chips: [`${ACC[acc].code} \xB7 ${ACC[acc].name}`, `${dmy(p.from)} \u2013 ${dmy(p.to)}`, `${g.rows.length} postings`],
-      right: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Field, { label: "Account" }, /* @__PURE__ */ React.createElement(Select, { value: acc, onChange: (e) => setAcc(e.target.value), style: { width: 268 } }, ACCOUNTS.map((a) => /* @__PURE__ */ React.createElement("option", { key: a.code, value: a.code }, a.code, " \u2014 ", a.name)))), /* @__PURE__ */ React.createElement(PeriodBar, { p, setP }))
+      chips: [`${ACC[acc].code} \xB7 ${ACC[acc].name}`, `${dmy(pp.from)} \u2013 ${dmy(pp.to)}`, `${g.rows.length} postings`],
+      right: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Field, { label: "Account" }, /* @__PURE__ */ React.createElement(Select, { value: acc, onChange: (e) => setAcc(e.target.value), style: { width: 268 } }, ACCOUNTS.map((a) => /* @__PURE__ */ React.createElement("option", { key: a.code, value: a.code }, a.code, " \u2014 ", a.name)))), /* @__PURE__ */ React.createElement(PeriodBar, { p: pp, setP: setPP }))
     },
+    entry && /* @__PURE__ */ React.createElement(EntryModal, { entry, close: () => setEntry(null), drill }),
     /* @__PURE__ */ React.createElement(LedgerVisuals, { g, title: `${ACC[acc].code} \u2014 ${ACC[acc].name}` }),
-    /* @__PURE__ */ React.createElement(SectionTitle, null, "Postings"),
-    /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: 104 } }, "Date"), /* @__PURE__ */ React.createElement("th", { style: { width: 148 } }, "Entry"), /* @__PURE__ */ React.createElement("th", null, "Narration"), /* @__PURE__ */ React.createElement("th", { style: { width: 128 } }, "Journal"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Debit"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Credit"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Balance"))), /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement("tr", { className: "sub" }, /* @__PURE__ */ React.createElement("td", { colSpan: 4 }, "Opening balance carried forward"), /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(g.open))), g.rows.length === 0 && /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 7 }, /* @__PURE__ */ React.createElement(EmptyState, { icon: BookOpen, title: "No movement in this period" }, "Widen the date range or pick another account."))), g.rows.map((l) => /* @__PURE__ */ React.createElement("tr", { key: l.key }, /* @__PURE__ */ React.createElement("td", { className: "muted" }, dmy(l.date)), /* @__PURE__ */ React.createElement("td", { className: "mono", style: { fontSize: 12.5 } }, l.number), /* @__PURE__ */ React.createElement("td", null, l.label, l.partner ? /* @__PURE__ */ React.createElement("span", { className: "muted" }, " \u2014 ", PMAP[l.partner].name) : ""), /* @__PURE__ */ React.createElement("td", { className: "muted", style: { fontSize: 12.5 } }, l.journal), /* @__PURE__ */ React.createElement("td", { className: "n", style: { color: l.debit ? "var(--pos)" : void 0 } }, l.debit ? money(l.debit) : ""), /* @__PURE__ */ React.createElement("td", { className: "n", style: { color: l.credit ? "var(--neg)" : void 0 } }, l.credit ? money(l.credit) : ""), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(l.run))))), /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 4 }, "Closing balance"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(g.d)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(g.c)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(g.close))))))
+    /* @__PURE__ */ React.createElement(SectionTitle, null, "Transactions \xB7 click one to open its invoice, bill or journal entry"),
+    /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl gl-tbl" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: 100 } }, "Date"), /* @__PURE__ */ React.createElement("th", { style: { width: 160 } }, "Document"), /* @__PURE__ */ React.createElement("th", null, "Partner / narration"), /* @__PURE__ */ React.createElement("th", { style: { width: 120 } }, "Journal"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Debit"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Credit"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Balance"))), /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement("tr", { className: "sub" }, /* @__PURE__ */ React.createElement("td", { colSpan: 4 }, "Opening balance on ", dmy(pp.from)), /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(g.open))), g.rows.length === 0 && /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 7 }, /* @__PURE__ */ React.createElement(EmptyState, { icon: BookOpen, title: "No movement in this period" }, "Widen the date range or pick another account."))), g.rows.map((l) => {
+      const e = ents[l.entryId] || {}, [srcL, SrcI] = SRC[e.source] || ["Entry", BookOpen];
+      return /* @__PURE__ */ React.createElement("tr", { key: l.key, className: "gl-row", onClick: () => open(l), tabIndex: 0, onKeyDown: (ev) => {
+        if (ev.key === "Enter") open(l);
+      }, title: `Open ${l.number}` }, /* @__PURE__ */ React.createElement("td", { className: "muted" }, dmy(l.date)), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: "gl-doc" }, /* @__PURE__ */ React.createElement(SrcI, { size: 13 }), /* @__PURE__ */ React.createElement("span", { className: "mono" }, l.number))), /* @__PURE__ */ React.createElement("td", null, l.partner && PMAP[l.partner] ? /* @__PURE__ */ React.createElement("b", { className: "gl-pt" }, PMAP[l.partner].name) : null, /* @__PURE__ */ React.createElement("span", { className: "muted" }, l.label)), /* @__PURE__ */ React.createElement("td", { className: "muted", style: { fontSize: 12.5 } }, l.journal || srcL), /* @__PURE__ */ React.createElement("td", { className: "n", style: { color: l.debit ? "var(--pos)" : void 0 } }, l.debit ? money(l.debit) : ""), /* @__PURE__ */ React.createElement("td", { className: "n", style: { color: l.credit ? "var(--neg)" : void 0 } }, l.credit ? money(l.credit) : ""), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(l.run)));
+    })), /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 4 }, "Closing balance on ", dmy(pp.to), " \xB7 ", g.rows.length, " transactions"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(g.d)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(g.c)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(g.close))))))
   );
 }
 function PartnerLedgerRep(props) {
@@ -4855,54 +4870,64 @@ function Aged({ state, kind, p, setP, toast }) {
     /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, isAR ? "Customer" : "Vendor"), BUCKETS.map((b) => /* @__PURE__ */ React.createElement("th", { key: b, className: "n" }, b)), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Total"))), /* @__PURE__ */ React.createElement("tbody", null, a.rows.length === 0 && /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 8 }, /* @__PURE__ */ React.createElement(EmptyState, { icon: Check, title: "Nothing outstanding" }, "Every document is settled as at this date."))), a.rows.map((r) => /* @__PURE__ */ React.createElement(React.Fragment, { key: r.partner.id }, /* @__PURE__ */ React.createElement("tr", { className: "click", onClick: () => setOpen((o) => ({ ...o, [r.partner.id]: !o[r.partner.id] })) }, /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 9 } }, /* @__PURE__ */ React.createElement(ChevronRight, { size: 14, style: { color: "var(--ink-4)", transform: open[r.partner.id] ? "rotate(90deg)" : "none", transition: "transform .15s" } }), /* @__PURE__ */ React.createElement(Party, { name: r.partner.name, meta: `${r.items.length} open document${r.items.length === 1 ? "" : "s"}` }), r.unapplied > 4e-3 && /* @__PURE__ */ React.createElement(Pill, { tone: "gold" }, money(r.unapplied), " unapplied"))), r.b.map((v, i) => /* @__PURE__ */ React.createElement("td", { key: i, className: "n", style: { color: i > 2 && v > 4e-3 ? "var(--neg)" : void 0 } }, money(v))), /* @__PURE__ */ React.createElement("td", { className: "n", style: { fontWeight: 600 } }, money(r.total))), open[r.partner.id] && r.items.map((it) => /* @__PURE__ */ React.createElement("tr", { key: it.id, style: { background: "var(--surface-2)" } }, /* @__PURE__ */ React.createElement("td", { style: { paddingLeft: 46 } }, /* @__PURE__ */ React.createElement("span", { className: "mono", style: { fontSize: 12.5 } }, it.number), /* @__PURE__ */ React.createElement("span", { className: "muted", style: { marginLeft: 10, fontSize: 12 } }, "due ", dmy(it.due), " \xB7", " ", daysBetween(it.due, p.asOf) > 0 ? `${daysBetween(it.due, p.asOf)} days overdue` : "not yet due")), BUCKETS.map((_, i) => /* @__PURE__ */ React.createElement("td", { key: i, className: "n" }, i === it.b ? money(it.open) : "")), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(it.open))))))), /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", null, "Total ", isAR ? "receivable" : "payable"), a.tot.map((v, i) => /* @__PURE__ */ React.createElement("td", { key: i, className: "n" }, money(v))), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(a.grand))))))
   );
 }
-function ProfitLoss({ books, p, setP, toast }) {
+function ProfitLoss({ books, p, setP, toast, state, drill, go }) {
   const r = pnl(books.flat, p.from, p.to);
   const x = useCompare(books, p), q = x.on ? pnl(books.flat, x.c.from, x.c.to) : null;
+  const sc = useMemo(() => statementCols(books, p, false), [books, p]);
+  const st = useMemo(() => plStatement(books, state, sc.cols), [books, state, sc]);
+  const i0 = sc.cols.findIndex((c) => c.key === "c0"), i1 = sc.cols.findIndex((c) => c.key === "c1");
+  const op = st.op[i0], net = st.net[i0];
   const moved = (cur, prev, word) => {
     const c = chg(cur, prev);
     return c.pct == null ? null : /* @__PURE__ */ React.createElement(React.Fragment, null, word, " ", c.dir > 0 ? "up" : c.dir < 0 ? "down" : "unchanged", c.dir ? /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("b", { className: c.dir > 0 ? "pos" : "neg" }, Math.abs(c.pct) >= 1e3 ? ">999" : Math.abs(c.pct).toFixed(1), "%")) : "");
   };
-  const share = (v) => r.revenue ? (v / r.revenue * 100).toFixed(1) + "%" : "\u2014";
-  const Line = ({ a }) => /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { className: "mono muted", style: { width: 80 } }, a.acc.code), /* @__PURE__ */ React.createElement("td", null, a.acc.name), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(a.amount)), /* @__PURE__ */ React.createElement("td", { className: "n muted", style: { width: 92 } }, share(a.amount)));
+  const onDrill = (acc, col) => drill("r_gl", { acc: acc.code, from: col.from, to: col.to }, `${acc.code} \xB7 ${acc.name}`, "Profit or loss");
   return /* @__PURE__ */ React.createElement(
     ReportFrame,
     {
       toast,
       title: "Statement of Profit or Loss",
-      meta: `${dmy(p.from)} to ${dmy(p.to)}${x.on ? ` compared with ${x.c.dates}` : ""} \xB7 AED`,
+      meta: `${dmy(p.from)} to ${dmy(p.to)}${sc.cols.length > 1 ? ` with ${sc.cols.length - 1} comparison period${sc.cols.length > 2 ? "s" : ""}` : ""} \xB7 IFRS 18 \xB7 AED`,
       icon: BarChart3,
-      chips: [`${dmy(p.from)} \u2013 ${dmy(p.to)}`, cmpChip(x), "Accrual basis", "AED"],
+      chips: [`${dmy(p.from)} \u2013 ${dmy(p.to)}`, cmpChip(x), "IFRS 18", "Accrual basis", "AED"],
       right: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(PeriodBar, { p, setP }), /* @__PURE__ */ React.createElement(CompareBar, { p, setP }))
     },
     /* @__PURE__ */ React.createElement(CompareNote, { x, p, setP }),
-    /* @__PURE__ */ React.createElement(Insight, { tone: r.net < 0 ? "warn" : "" }, r.revenue || r.expense || r.cost ? /* @__PURE__ */ React.createElement(React.Fragment, null, "From ", dmy(p.from), " to ", dmy(p.to), " you sold ", /* @__PURE__ */ React.createElement("b", null, aed(r.revenue)), ". The goods and services you sold cost ", /* @__PURE__ */ React.createElement("b", null, aed(r.cost)), ", leaving a gross profit of ", /* @__PURE__ */ React.createElement("b", null, aed(r.gross)), " (", r.gm.toFixed(1), "%). After ", /* @__PURE__ */ React.createElement("b", null, aed(r.expense)), " of running costs, the business made a ", /* @__PURE__ */ React.createElement("b", { className: r.net >= 0 ? "pos" : "neg" }, r.net >= 0 ? "profit" : "loss", " of ", aed(Math.abs(r.net))), ".", q && (q.revenue || q.net) ? /* @__PURE__ */ React.createElement(React.Fragment, null, " Compared with ", x.c.dates, ", ", moved(r.revenue, q.revenue, "sales are") || /* @__PURE__ */ React.createElement(React.Fragment, null, "sales were nil before"), q.net ? /* @__PURE__ */ React.createElement(React.Fragment, null, " and ", moved(r.net, q.net, "profit is")) : "", " (profit then: ", aed(q.net), ").") : null) : /* @__PURE__ */ React.createElement(React.Fragment, null, "No sales or costs were recorded between ", dmy(p.from), " and ", dmy(p.to), ". Pick another period above.")),
-    /* @__PURE__ */ React.createElement(PnlVisuals, { books, r, p, c: x.on ? x.c : null, q }),
-    /* @__PURE__ */ React.createElement(SectionTitle, null, q ? `Statement detail \xB7 compared with ${x.c.dates}` : "Statement detail"),
-    q ? /* @__PURE__ */ React.createElement(PnlCompareTable, { r, q, p, c: x.c }) : /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { width: 80 } }, "Code"), /* @__PURE__ */ React.createElement("th", null, "Account"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Amount"), /* @__PURE__ */ React.createElement("th", { className: "n", style: { width: 92 } }, "% revenue"))), /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 4 }, "Revenue")), r.rev.map((x2) => /* @__PURE__ */ React.createElement(Line, { key: x2.acc.code, a: x2 })), /* @__PURE__ */ React.createElement("tr", { className: "sub rule" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Total revenue"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(r.revenue)), /* @__PURE__ */ React.createElement("td", { className: "n muted" }, "100.0%")), /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 4 }, "Cost of sales")), r.cos.map((x2) => /* @__PURE__ */ React.createElement(Line, { key: x2.acc.code, a: x2 })), /* @__PURE__ */ React.createElement("tr", { className: "sub rule" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Gross profit"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(r.gross)), /* @__PURE__ */ React.createElement("td", { className: "n muted" }, r.gm.toFixed(1), "%")), /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 4 }, "Operating expenses")), r.exp.map((x2) => /* @__PURE__ */ React.createElement(Line, { key: x2.acc.code, a: x2 })), /* @__PURE__ */ React.createElement("tr", { className: "sub rule" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Total operating expenses"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(r.expense)), /* @__PURE__ */ React.createElement("td", { className: "n muted" }, share(r.expense)))), /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", { className: "grand" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, r.net >= 0 ? "Profit for the period" : "Loss for the period"), /* @__PURE__ */ React.createElement("td", { className: "n", style: { color: r.net >= 0 ? "var(--pos)" : "var(--neg)" } }, money(r.net)), /* @__PURE__ */ React.createElement("td", { className: "n muted" }, r.nm.toFixed(1), "%")))))
+    sc.dropped > 0 && x.on && /* @__PURE__ */ React.createElement("div", { className: "cmp-note partial noprint" }, /* @__PURE__ */ React.createElement(Info, { size: 15 }), /* @__PURE__ */ React.createElement("span", null, sc.dropped, " earlier period", sc.dropped === 1 ? " is" : "s are", " before your books start, so ", sc.dropped === 1 ? "it is" : "they are", " left out.")),
+    /* @__PURE__ */ React.createElement(Insight, { tone: net < 0 ? "warn" : "" }, r.revenue || r.expense || r.cost ? /* @__PURE__ */ React.createElement(React.Fragment, null, "From ", dmy(p.from), " to ", dmy(p.to), " you sold ", /* @__PURE__ */ React.createElement("b", null, aed(r.revenue)), " and kept a gross profit of ", /* @__PURE__ */ React.createElement("b", null, aed(r.gross)), " (", r.gm.toFixed(1), "%). After running costs the ", /* @__PURE__ */ React.createElement("b", null, "operating profit"), " is ", /* @__PURE__ */ React.createElement("b", { className: op >= 0 ? "pos" : "neg" }, aed(op)), ", and after investing, financing and tax the business made a ", /* @__PURE__ */ React.createElement("b", { className: net >= 0 ? "pos" : "neg" }, net >= 0 ? "profit" : "loss", " of ", aed(Math.abs(net))), ".", q && (q.revenue || q.net) ? /* @__PURE__ */ React.createElement(React.Fragment, null, " Compared with ", x.c.dates, ", ", moved(r.revenue, q.revenue, "sales are") || /* @__PURE__ */ React.createElement(React.Fragment, null, "sales were nil before"), q.net ? /* @__PURE__ */ React.createElement(React.Fragment, null, " and ", moved(net, st.net[i1] != null ? st.net[i1] : q.net, "profit is")) : "", ".") : null) : /* @__PURE__ */ React.createElement(React.Fragment, null, "No sales or costs were recorded between ", dmy(p.from), " and ", dmy(p.to), ". Pick another period above.")),
+    /* @__PURE__ */ React.createElement(PnlVisuals, { books, r, p, c: x.on ? x.c : null, q, st, sc }),
+    /* @__PURE__ */ React.createElement(SectionTitle, null, "Statement of profit or loss \xB7 by IFRS 18 category"),
+    /* @__PURE__ */ React.createElement(FinTable, { cols: sc.cols, rows: st.rows, onDrill, pctBase: sc.cols.length === 1 ? st.revenue : null, caption: "Statement of profit or loss" }),
+    /* @__PURE__ */ React.createElement("div", { className: "fin-foot noprint" }, /* @__PURE__ */ React.createElement("span", null, "Group accounts your way and choose each account's IFRS 18 category in ", /* @__PURE__ */ React.createElement("button", { className: "linkish", onClick: () => go("acct_groups") }, "Account groups"), ".")),
+    /* @__PURE__ */ React.createElement(SectionTitle, null, "Notes"),
+    /* @__PURE__ */ React.createElement(IfrsNotes, { st, cols: sc.cols })
   );
 }
-function BalanceSheetRep({ books, p, setP, toast }) {
+function BalanceSheetRep({ books, p, setP, toast, state, drill, go }) {
   const b = balanceSheet(books.flat, p.asOf, p.asOf.slice(0, 4) + "-01-01");
   const x = useCompare(books, p, true), q = x.on ? balanceSheet(books.flat, x.c.asOf, x.c.asOf.slice(0, 4) + "-01-01") : null;
-  const Block = ({ title, groups, rows, total, label }) => /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement("tr", { className: "sec" }, /* @__PURE__ */ React.createElement("td", { colSpan: 3 }, title)), groups && groups.map((g) => /* @__PURE__ */ React.createElement(React.Fragment, { key: g.name }, /* @__PURE__ */ React.createElement("tr", { className: "sub" }, /* @__PURE__ */ React.createElement("td", { colSpan: 3, style: { paddingTop: 14 } }, g.name)), g.rows.map((x2) => /* @__PURE__ */ React.createElement("tr", { key: x2.acc.code }, /* @__PURE__ */ React.createElement("td", { className: "mono muted", style: { width: 78 } }, x2.acc.code), /* @__PURE__ */ React.createElement("td", null, x2.acc.name), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(x2.amount)))), /* @__PURE__ */ React.createElement("tr", { className: "sub rule" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Total ", g.name.toLowerCase()), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(g.total))))), rows && rows.map((x2) => /* @__PURE__ */ React.createElement("tr", { key: x2.acc.code }, /* @__PURE__ */ React.createElement("td", { className: "mono muted", style: { width: 78 } }, x2.acc.code), /* @__PURE__ */ React.createElement("td", null, x2.acc.name), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(x2.amount))))), /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, label), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(total)))));
-  const balanced = Math.abs(b.diff) < 0.01;
+  const sc = useMemo(() => statementCols(books, p, true), [books, p]);
+  const st = useMemo(() => bsStatement(books, state, sc.cols), [books, state, sc]);
+  const balanced = st.diff.every((d) => Math.abs(d) < 0.01);
+  const onDrill = (acc, col) => drill("r_gl", { acc: acc.code, from: col.asOf.slice(0, 4) + "-01-01", to: col.asOf }, `${acc.code} \xB7 ${acc.name}`, "Financial position");
   return /* @__PURE__ */ React.createElement(
     ReportFrame,
     {
       toast,
       title: "Statement of Financial Position",
-      meta: `As at ${dmy(p.asOf)}${x.on ? ` compared with ${x.c.dates}` : ""} \xB7 AED`,
+      meta: `As at ${dmy(p.asOf)}${sc.cols.length > 1 ? ` with ${sc.cols.length - 1} comparison date${sc.cols.length > 2 ? "s" : ""}` : ""} \xB7 AED`,
       icon: Scale,
       chips: [`As at ${dmy(p.asOf)}`, cmpChip(x), balanced ? "Balanced" : "Out of balance", "AED"],
       right: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(PeriodBar, { p, setP, mode: "asOf" }), /* @__PURE__ */ React.createElement(CompareBar, { p, setP, mode: "asOf" }))
     },
     /* @__PURE__ */ React.createElement(CompareNote, { x, p, setP, asOf: true }),
-    /* @__PURE__ */ React.createElement(Insight, null, "On ", dmy(p.asOf), " the business owns ", /* @__PURE__ */ React.createElement("b", null, aed(b.totA)), " (cash, stock, money due from customers and equipment) and owes ", /* @__PURE__ */ React.createElement("b", null, aed(b.totL)), " (vendors, VAT, loans and other liabilities), so it is worth ", /* @__PURE__ */ React.createElement("b", { className: b.totE >= 0 ? "pos" : "neg" }, aed(b.totE)), " to its owners.", Math.abs(b.diff) < 0.01 ? " Both sides agree." : "", q ? /* @__PURE__ */ React.createElement(React.Fragment, null, " On ", x.c.dates, " it was worth ", /* @__PURE__ */ React.createElement("b", null, aed(q.totE)), " \u2014 ", b.totE >= q.totE ? "an increase" : "a decrease", " of ", /* @__PURE__ */ React.createElement("b", { className: b.totE >= q.totE ? "pos" : "neg" }, aed(Math.abs(R2(b.totE - q.totE)))), ".") : null),
+    /* @__PURE__ */ React.createElement(Insight, null, "On ", dmy(p.asOf), " the business owns ", /* @__PURE__ */ React.createElement("b", null, aed(b.totA)), " (cash, stock, money due from customers and equipment) and owes ", /* @__PURE__ */ React.createElement("b", null, aed(b.totL)), " (vendors, VAT, loans and other liabilities), so it is worth ", /* @__PURE__ */ React.createElement("b", { className: b.totE >= 0 ? "pos" : "neg" }, aed(b.totE)), " to its owners.", balanced ? " Both sides agree." : "", q ? /* @__PURE__ */ React.createElement(React.Fragment, null, " On ", x.c.dates, " it was worth ", /* @__PURE__ */ React.createElement("b", null, aed(q.totE)), " \u2014 ", b.totE >= q.totE ? "an increase" : "a decrease", " of ", /* @__PURE__ */ React.createElement("b", { className: b.totE >= q.totE ? "pos" : "neg" }, aed(Math.abs(R2(b.totE - q.totE)))), ".") : null),
     /* @__PURE__ */ React.createElement(BsVisuals, { b, books, p, q, c: x.on ? x.c : null }),
-    /* @__PURE__ */ React.createElement(SectionTitle, null, q ? `Statement detail \xB7 as at ${dmy(p.asOf)} and ${x.c.dates}` : "Statement detail"),
-    q ? /* @__PURE__ */ React.createElement(BsCompareTable, { b, q, p, c: x.c }) : /* @__PURE__ */ React.createElement("div", { className: "grid", style: { gridTemplateColumns: "1fr 1fr", gap: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { borderRight: "1px solid var(--line)" } }, /* @__PURE__ */ React.createElement(Block, { title: "Assets", groups: b.assets, total: b.totA, label: "Total assets" })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Block, { title: "Liabilities", groups: b.liab, total: b.totL, label: "Total liabilities" }), /* @__PURE__ */ React.createElement(Block, { title: "Equity", rows: b.eqRows, total: b.totE, label: "Total equity" }), /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", { className: "grand" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", null, "Total liabilities and equity"), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(R2(b.totL + b.totE)))))))),
+    /* @__PURE__ */ React.createElement(SectionTitle, null, "Statement of financial position"),
+    /* @__PURE__ */ React.createElement(FinTable, { cols: sc.cols, rows: st.rows, onDrill, asOf: true, caption: "Statement of financial position" }),
+    /* @__PURE__ */ React.createElement("div", { className: "fin-foot noprint" }, /* @__PURE__ */ React.createElement("span", null, "Build groups such as Current assets \u203A Cash and cash equivalents in ", /* @__PURE__ */ React.createElement("button", { className: "linkish", onClick: () => go("acct_groups") }, "Account groups"), ".")),
     /* @__PURE__ */ React.createElement("div", { style: {
-      padding: "14px 18px",
+      padding: "12px 18px",
       borderTop: "1px solid var(--line)",
       display: "flex",
       alignItems: "center",
@@ -4910,7 +4935,7 @@ function BalanceSheetRep({ books, p, setP, toast }) {
       fontSize: 12.5,
       color: balanced ? "var(--pos)" : "var(--neg)",
       background: balanced ? "var(--pos-50)" : "var(--neg-50)"
-    } }, balanced ? /* @__PURE__ */ React.createElement(Check, { size: 15, strokeWidth: 2.3 }) : /* @__PURE__ */ React.createElement(AlertTriangle, { size: 15, strokeWidth: 2.1 }), balanced ? "Assets equal liabilities plus equity. The statement balances." : `Out of balance by ${money(b.diff)}.`)
+    } }, balanced ? /* @__PURE__ */ React.createElement(Check, { size: 15, strokeWidth: 2.3 }) : /* @__PURE__ */ React.createElement(AlertTriangle, { size: 15, strokeWidth: 2.1 }), balanced ? "Assets equal equity plus liabilities on every date shown. The statement balances." : `Out of balance by ${money(st.diff.find((d) => Math.abs(d) >= 0.01))}.`)
   );
 }
 function VatReturn({ state, p, setP, toast }) {
@@ -6541,6 +6566,7 @@ const SCREEN_PERM = {
   r_method: "reports",
   r_stmt: "reports",
   accounts: "master",
+  acct_groups: "master",
   journal: "journal",
   r_stock: "reports",
   r_pnl: "reports",
@@ -6828,7 +6854,7 @@ function SettingsScreen({ accent, setAccent, company, setCompany, theme, setThem
 const NAV = [
   { g: "Dashboard", i: LayoutDashboard, k: "dash" },
   { g: "Master", i: Database, items: [
-    { s: "Accounts master", items: [{ k: "accounts", l: "Chart of accounts", i: BookOpen, add: 1 }, { k: "customers", l: "Customers", i: Users, add: 1 }, { k: "vendors", l: "Vendors", i: Truck, add: 1 }] },
+    { s: "Accounts master", items: [{ k: "accounts", l: "Chart of accounts", i: BookOpen, add: 1 }, { k: "acct_groups", l: "Account groups", i: Layers }, { k: "customers", l: "Customers", i: Users, add: 1 }, { k: "vendors", l: "Vendors", i: Truck, add: 1 }] },
     { s: "Inventory master", items: [{ k: "products", l: "Products & services", i: Package, add: 1 }, { k: "categories", l: "Product categories", i: Layers, add: 1 }] },
     { s: "Rate master", items: [{ k: "pricelists", l: "Price lists", i: Tag, add: 1 }] },
     { s: "Other master", items: [{ k: "salespeople", l: "Sales team", i: Users, add: 1 }, { k: "methods", l: "Payment methods", i: CreditCard, add: 1 }] },
@@ -6892,7 +6918,19 @@ function Invoeez() {
   const [toasts, setToasts] = useState([]);
   const [cmdk, setCmdk] = useState(false);
   const [create, setCreate] = useState(null);
-  const [mini, setMini] = useState(false);
+  const [mini, setMini] = useState(() => {
+    try {
+      return window.localStorage.getItem("mizan.sidebar") !== "pinned";
+    } catch (e) {
+      return true;
+    }
+  });
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem("mizan.sidebar", mini ? "folded" : "pinned");
+    } catch (e) {
+    }
+  }, [mini]);
   const [menu, setMenu] = useState(false);
   const [newMenu, setNewMenu] = useState(false);
   const [newAt, setNewAt] = useState({ top: 0, left: 0 });
@@ -7059,7 +7097,25 @@ function Invoeez() {
     setToasts((t) => [...t, { id, msg, tone }]);
     window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3400);
   };
+  const [trail, setTrail] = useState([]), [crumb, setCrumb] = useState(null);
   const go = (k, p) => {
+    setTrail([]);
+    setCrumb(null);
+    navTo(k, p);
+  };
+  const drill = (k, p, label, fromLabel) => {
+    setTrail((t) => [...t, { k: view, p: param, label: crumb || fromLabel || (NAV_FLAT.find((i) => i.k === view) || { l: "Back" }).l }].slice(-8));
+    setCrumb(label);
+    navTo(k, p);
+  };
+  const backTo = (i) => {
+    const t = trail[i];
+    if (!t) return;
+    setTrail(trail.slice(0, i));
+    setCrumb(i > 0 ? t.label : null);
+    navTo(t.k, t.p);
+  };
+  const navTo = (k, p) => {
     if (k === "partners") k = p && PMAP[p] && PMAP[p].role === "vendor" ? "vendors" : "customers";
     scrollPageTop();
     const f = NAV_FLAT.find((i) => i.k === k);
@@ -7332,9 +7388,11 @@ function Invoeez() {
           }
         );
       case "r_tb":
-        return /* @__PURE__ */ React.createElement(TrialBalance, { books, p: period, setP: setPeriod, toast });
+        return /* @__PURE__ */ React.createElement(TrialBalance, { books, p: period, setP: setPeriod, toast, drill });
       case "r_gl":
-        return /* @__PURE__ */ React.createElement(GeneralLedger, { books, p: period, setP: setPeriod, toast, param });
+        return /* @__PURE__ */ React.createElement(GeneralLedger, { books, p: period, setP: setPeriod, toast, param, drill });
+      case "acct_groups":
+        return /* @__PURE__ */ React.createElement(AccountGroupsScreen, { state, setState, books, toast, go });
       case "r_partner":
         return /* @__PURE__ */ React.createElement(PartnerLedgerRep, { books, p: period, setP: setPeriod, toast, param });
       case "r_aged_ar":
@@ -7342,9 +7400,9 @@ function Invoeez() {
       case "r_aged_ap":
         return /* @__PURE__ */ React.createElement(Aged, { state, kind: "payable", p: period, setP: setPeriod, toast });
       case "r_pnl":
-        return /* @__PURE__ */ React.createElement(ProfitLoss, { books, p: period, setP: setPeriod, toast });
+        return /* @__PURE__ */ React.createElement(ProfitLoss, { books, p: period, setP: setPeriod, toast, state, drill, go });
       case "r_bs":
-        return /* @__PURE__ */ React.createElement(BalanceSheetRep, { books, p: period, setP: setPeriod, toast });
+        return /* @__PURE__ */ React.createElement(BalanceSheetRep, { books, p: period, setP: setPeriod, toast, state, drill, go });
       case "r_prod":
         return /* @__PURE__ */ React.createElement(ProfitReport, { state, books, p: period, setP: setPeriod, by: "product", toast });
       case "r_cust":
@@ -7357,7 +7415,7 @@ function Invoeez() {
         return null;
     }
   };
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS;
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS;
   if (!meFound) return /* @__PURE__ */ React.createElement(ThemeCtx.Provider, { value: palette }, /* @__PURE__ */ React.createElement(CompanyCtx.Provider, { value: company }, /* @__PURE__ */ React.createElement("div", { className: "mz", "data-theme": theme, "data-accent": accent, "data-density": density }, /* @__PURE__ */ React.createElement("style", null, ALL_CSS), /* @__PURE__ */ React.createElement(Toasts, { items: toasts }), /* @__PURE__ */ React.createElement(
     SignInScreen,
     {
@@ -7491,7 +7549,7 @@ function Invoeez() {
   )), /* @__PURE__ */ React.createElement("div", { className: "pop-sep" }), /* @__PURE__ */ React.createElement("button", { className: "pop-item", onClick: () => {
     setMenu(false);
     startCompany();
-  } }, /* @__PURE__ */ React.createElement(Rocket, { size: 15, strokeWidth: 1.8 }), state.sample ? "Start my company" : "Start a new company"))))), /* @__PURE__ */ React.createElement("div", { className: "page" }, /* @__PURE__ */ React.createElement("div", { className: "view", key: view }, state.sample && !bannerHidden && view !== "setup" && /* @__PURE__ */ React.createElement(SampleBanner, { onStart: startCompany, onHide: () => setBannerHidden(true) }), body()))))));
+  } }, /* @__PURE__ */ React.createElement(Rocket, { size: 15, strokeWidth: 1.8 }), state.sample ? "Start my company" : "Start a new company"))))), /* @__PURE__ */ React.createElement("div", { className: "page" }, /* @__PURE__ */ React.createElement("div", { className: "view", key: view }, trail.length > 0 && /* @__PURE__ */ React.createElement("nav", { className: "drill-trail noprint", "aria-label": "Drill-down path" }, /* @__PURE__ */ React.createElement("button", { className: "back", onClick: () => backTo(trail.length - 1) }, /* @__PURE__ */ React.createElement(ArrowLeft, { size: 14 }), "Back"), trail.map((t, i) => /* @__PURE__ */ React.createElement(React.Fragment, { key: i }, /* @__PURE__ */ React.createElement("button", { className: "crumb", onClick: () => backTo(i) }, t.label), /* @__PURE__ */ React.createElement(ChevronRight, { size: 13, className: "sep" }))), /* @__PURE__ */ React.createElement("span", { className: "here" }, crumb)), state.sample && !bannerHidden && view !== "setup" && /* @__PURE__ */ React.createElement(SampleBanner, { onStart: startCompany, onHide: () => setBannerHidden(true) }), body()))))));
 }
 const DEFAULT_CATEGORIES = [
   { id: "cat_goods", name: "Trading goods", income: "4100", expense: "5100", inventory: "1300", adjustment: "6900" },
@@ -9412,7 +9470,22 @@ function navFlat() {
 }
 function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini, setMini, drawer, company, meUser, role, canAdd, onSwitchUser, onSignOut }) {
   const tablet = useMedia("(min-width:901px) and (max-width:1024px)");
-  const rail = (mini || tablet) && !drawer;
+  const [peek, setPeek] = useState(false), peekT = React.useRef(0);
+  const folded = (mini || tablet) && !drawer;
+  const enter = () => {
+    if (!folded) return;
+    clearTimeout(peekT.current);
+    peekT.current = setTimeout(() => setPeek(true), 70);
+  };
+  const leave = () => {
+    clearTimeout(peekT.current);
+    peekT.current = setTimeout(() => setPeek(false), 240);
+  };
+  React.useEffect(() => () => clearTimeout(peekT.current), []);
+  React.useEffect(() => {
+    if (!folded) setPeek(false);
+  }, [folded]);
+  const rail = folded && !peek;
   const [q, setQ] = useState("");
   const [fly, setFly] = useState(null);
   const flyT = React.useRef(0), search = React.useRef(null);
@@ -9461,42 +9534,78 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
   };
   const leaf = (it) => /* @__PURE__ */ React.createElement("div", { key: it.k, className: cx("sb-row", view === it.k && "on") }, /* @__PURE__ */ React.createElement("button", { className: "sb-link", "data-k": it.k, title: it.l, onClick: () => pick(it.k), "aria-current": view === it.k ? "page" : void 0 }, /* @__PURE__ */ React.createElement("span", { className: "sb-tick", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "lbl" }, it.l), counts[it.k] != null && counts[it.k] > 0 && /* @__PURE__ */ React.createElement("span", { className: "ct" }, counts[it.k])), it.add && canAdd(it.k) && /* @__PURE__ */ React.createElement("button", { className: "sb-add", title: `New \u2014 ${it.l}`, "aria-label": `Create new: ${it.l}`, onClick: () => add(it.k) }, /* @__PURE__ */ React.createElement(Plus, { size: 13, strokeWidth: 2.4 })));
   const tree = (g) => /* @__PURE__ */ React.createElement("div", { className: "sb-tree" }, g.items.map((x) => x.s ? /* @__PURE__ */ React.createElement("div", { key: x.s, className: cx("sb-sub", isOpen(x.s) && "open", x.items.some((y) => y.k === view) && "has-on") }, /* @__PURE__ */ React.createElement("button", { className: "sb-subhead", title: x.s, onClick: () => toggle(x.s), "aria-expanded": isOpen(x.s) }, /* @__PURE__ */ React.createElement("span", { className: "sb-tick", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("span", { className: "lbl" }, x.s), /* @__PURE__ */ React.createElement(ChevronRight, { size: 13, strokeWidth: 2.2, className: "cv" })), isOpen(x.s) && /* @__PURE__ */ React.createElement("div", { className: "sb-tree inner" }, x.items.map(leaf))) : leaf(x)));
-  return /* @__PURE__ */ React.createElement("nav", { className: cx("sbar", rail && "rail", drawer && "open"), "aria-label": "Main navigation" }, /* @__PURE__ */ React.createElement("div", { className: "sb-brand" }, /* @__PURE__ */ React.createElement("img", { className: "sb-lockup", src: BRAND_LOCKUP, alt: "InvoEez \u2014 Invoice Made Easy" }), /* @__PURE__ */ React.createElement("img", { className: "sb-mark", src: BRAND_MARK, alt: "InvoEez" })), /* @__PURE__ */ React.createElement("button", { className: "sb-co", onClick: () => pick("settings"), title: "Company profile" }, company.logo ? /* @__PURE__ */ React.createElement("img", { src: company.logo, alt: "" }) : /* @__PURE__ */ React.createElement("span", { className: "av" }, initials(company.name)), /* @__PURE__ */ React.createElement("span", { className: "t" }, /* @__PURE__ */ React.createElement("b", null, company.name), company.nameAr ? /* @__PURE__ */ React.createElement("span", { dir: "rtl", className: "ar" }, company.nameAr) : /* @__PURE__ */ React.createElement("span", null, company.trn ? `TRN ${company.trn}` : "Add company details"))), /* @__PURE__ */ React.createElement("label", { className: "sb-search" }, /* @__PURE__ */ React.createElement(
-    "input",
+  return /* @__PURE__ */ React.createElement(
+    "nav",
     {
-      ref: search,
-      "aria-label": "Search navigation",
-      placeholder: "Type to search",
-      value: q,
-      onChange: (e) => setQ(e.target.value),
-      onKeyDown: (e) => {
-        if (e.key === "Escape") {
-          setQ("");
-          e.currentTarget.blur();
+      className: cx("sbar", rail && "rail", folded && "folded", folded && peek && "peek", drawer && "open"),
+      "aria-label": "Main navigation",
+      onMouseEnter: enter,
+      onMouseLeave: leave,
+      onFocus: () => {
+        if (folded) {
+          clearTimeout(peekT.current);
+          setPeek(true);
+        }
+      },
+      onBlur: (e) => {
+        if (folded && !e.currentTarget.contains(e.relatedTarget)) leave();
+      }
+    },
+    /* @__PURE__ */ React.createElement("div", { className: "sb-brand" }, /* @__PURE__ */ React.createElement("img", { className: "sb-lockup", src: BRAND_LOCKUP, alt: "InvoEez \u2014 Invoice Made Easy" }), /* @__PURE__ */ React.createElement("img", { className: "sb-mark", src: BRAND_MARK, alt: "InvoEez" })),
+    /* @__PURE__ */ React.createElement("button", { className: "sb-co", onClick: () => pick("settings"), title: "Company profile" }, company.logo ? /* @__PURE__ */ React.createElement("img", { src: company.logo, alt: "" }) : /* @__PURE__ */ React.createElement("span", { className: "av" }, initials(company.name)), /* @__PURE__ */ React.createElement("span", { className: "t" }, /* @__PURE__ */ React.createElement("b", null, company.name), company.nameAr ? /* @__PURE__ */ React.createElement("span", { dir: "rtl", className: "ar" }, company.nameAr) : /* @__PURE__ */ React.createElement("span", null, company.trn ? `TRN ${company.trn}` : "Add company details"))),
+    /* @__PURE__ */ React.createElement("label", { className: "sb-search" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        ref: search,
+        "aria-label": "Search navigation",
+        placeholder: "Type to search",
+        value: q,
+        onChange: (e) => setQ(e.target.value),
+        onKeyDown: (e) => {
+          if (e.key === "Escape") {
+            setQ("");
+            e.currentTarget.blur();
+          }
         }
       }
-    }
-  ), q ? /* @__PURE__ */ React.createElement("button", { className: "x", onClick: () => setQ(""), "aria-label": "Clear search" }, /* @__PURE__ */ React.createElement(X, { size: 13 })) : /* @__PURE__ */ React.createElement(Search, { size: 15, strokeWidth: 2.1 })), /* @__PURE__ */ React.createElement("div", { className: "sb-scroll", onMouseLeave: closeFly }, visible.map((g) => {
-    const on = contains(g, view), open = !g.k && isOpen(g.g) && !rail;
-    return /* @__PURE__ */ React.createElement("div", { key: g.g, className: cx("sb-sec", on && "has-on", open && "open") }, /* @__PURE__ */ React.createElement(
+    ), q ? /* @__PURE__ */ React.createElement("button", { className: "x", onClick: () => setQ(""), "aria-label": "Clear search" }, /* @__PURE__ */ React.createElement(X, { size: 13 })) : /* @__PURE__ */ React.createElement(Search, { size: 15, strokeWidth: 2.1 })),
+    /* @__PURE__ */ React.createElement("div", { className: "sb-scroll", onMouseLeave: closeFly }, visible.map((g) => {
+      const on = contains(g, view), open = !g.k && isOpen(g.g) && !rail;
+      return /* @__PURE__ */ React.createElement("div", { key: g.g, className: cx("sb-sec", on && "has-on", open && "open") }, /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: cx("sb-head", g.k && view === g.k && "on"),
+          title: g.g,
+          "data-k": g.k || void 0,
+          onClick: (e) => g.k ? pick(g.k) : rail ? openFly(g, e.currentTarget) : toggle(g.g),
+          onMouseEnter: (e) => openFly(g, e.currentTarget),
+          "aria-expanded": g.k ? void 0 : open
+        },
+        /* @__PURE__ */ React.createElement("span", { className: "ic" }, /* @__PURE__ */ React.createElement(g.i, { size: 18, strokeWidth: 1.8 })),
+        /* @__PURE__ */ React.createElement("span", { className: "lbl" }, g.g),
+        !g.k && /* @__PURE__ */ React.createElement(ChevronRight, { size: 14, strokeWidth: 2.2, className: "cv" })
+      ), open && tree(g));
+    }), !visible.length && /* @__PURE__ */ React.createElement("div", { className: "sb-none" }, "No section matches \u201C", q, "\u201D.")),
+    fly && rail && ReactDOM.createPortal((() => {
+      const g = visible.find((x) => x.g === fly.g);
+      if (!g) return null;
+      return /* @__PURE__ */ React.createElement("div", { className: "sb-fly mz-fly", style: { top: fly.top, left: fly.left }, onMouseEnter: () => clearTimeout(flyT.current), onMouseLeave: closeFly }, /* @__PURE__ */ React.createElement("div", { className: "sb-fly-h" }, /* @__PURE__ */ React.createElement(g.i, { size: 15, strokeWidth: 1.9 }), g.g), g.items.map((x) => x.s ? /* @__PURE__ */ React.createElement("div", { key: x.s, className: "sb-fly-grp" }, /* @__PURE__ */ React.createElement("div", { className: "sb-fly-s" }, x.s), x.items.map(flyItem)) : flyItem(x)));
+    })(), document.querySelector(".mz") || document.body),
+    /* @__PURE__ */ React.createElement("div", { className: "sb-foot" }, /* @__PURE__ */ React.createElement("button", { className: "who-btn", onClick: onSwitchUser, title: "Switch user", "aria-label": `Signed in as ${meUser.name}. Switch user` }, /* @__PURE__ */ React.createElement("span", { className: "av" }, initials(meUser.name)), /* @__PURE__ */ React.createElement("span", { className: "who" }, /* @__PURE__ */ React.createElement("b", null, meUser.name), /* @__PURE__ */ React.createElement("span", null, role.label, " \xB7 v", BUILD))), !rail && /* @__PURE__ */ React.createElement("button", { className: "signout", onClick: onSignOut, title: "Sign out", "aria-label": "Sign out" }, /* @__PURE__ */ React.createElement(LogOut, { size: 15 })), !tablet && /* @__PURE__ */ React.createElement(
       "button",
       {
-        className: cx("sb-head", g.k && view === g.k && "on"),
-        title: g.g,
-        "data-k": g.k || void 0,
-        onClick: (e) => g.k ? pick(g.k) : rail ? openFly(g, e.currentTarget) : toggle(g.g),
-        onMouseEnter: (e) => openFly(g, e.currentTarget),
-        "aria-expanded": g.k ? void 0 : open
+        className: cx("collapse", !mini && "pinned"),
+        onClick: () => {
+          setMini((v) => !v);
+          setPeek(false);
+        },
+        title: mini ? "Keep the menu open" : "Fold the menu \u2014 it opens when you point at it",
+        "aria-label": mini ? "Keep the menu open" : "Fold the menu",
+        "aria-pressed": !mini
       },
-      /* @__PURE__ */ React.createElement("span", { className: "ic" }, /* @__PURE__ */ React.createElement(g.i, { size: 18, strokeWidth: 1.8 })),
-      /* @__PURE__ */ React.createElement("span", { className: "lbl" }, g.g),
-      !g.k && /* @__PURE__ */ React.createElement(ChevronRight, { size: 14, strokeWidth: 2.2, className: "cv" })
-    ), open && tree(g));
-  }), !visible.length && /* @__PURE__ */ React.createElement("div", { className: "sb-none" }, "No section matches \u201C", q, "\u201D.")), fly && rail && ReactDOM.createPortal((() => {
-    const g = visible.find((x) => x.g === fly.g);
-    if (!g) return null;
-    return /* @__PURE__ */ React.createElement("div", { className: "sb-fly mz-fly", style: { top: fly.top, left: fly.left }, onMouseEnter: () => clearTimeout(flyT.current), onMouseLeave: closeFly }, /* @__PURE__ */ React.createElement("div", { className: "sb-fly-h" }, /* @__PURE__ */ React.createElement(g.i, { size: 15, strokeWidth: 1.9 }), g.g), g.items.map((x) => x.s ? /* @__PURE__ */ React.createElement("div", { key: x.s, className: "sb-fly-grp" }, /* @__PURE__ */ React.createElement("div", { className: "sb-fly-s" }, x.s), x.items.map(flyItem)) : flyItem(x)));
-  })(), document.querySelector(".mz") || document.body), /* @__PURE__ */ React.createElement("div", { className: "sb-foot" }, /* @__PURE__ */ React.createElement("button", { className: "who-btn", onClick: onSwitchUser, title: "Switch user", "aria-label": `Signed in as ${meUser.name}. Switch user` }, /* @__PURE__ */ React.createElement("span", { className: "av" }, initials(meUser.name)), /* @__PURE__ */ React.createElement("span", { className: "who" }, /* @__PURE__ */ React.createElement("b", null, meUser.name), /* @__PURE__ */ React.createElement("span", null, role.label, " \xB7 v", BUILD))), !mini && /* @__PURE__ */ React.createElement("button", { className: "signout", onClick: onSignOut, title: "Sign out", "aria-label": "Sign out" }, /* @__PURE__ */ React.createElement(LogOut, { size: 15 })), /* @__PURE__ */ React.createElement("button", { className: "collapse", onClick: () => setMini((v) => !v), title: mini ? "Expand sidebar" : "Collapse sidebar", "aria-label": mini ? "Expand sidebar" : "Collapse sidebar" }, mini ? /* @__PURE__ */ React.createElement(ChevronsRight, { size: 15 }) : /* @__PURE__ */ React.createElement(ChevronsLeft, { size: 15 }))));
+      mini ? /* @__PURE__ */ React.createElement(Pin, { size: 15 }) : /* @__PURE__ */ React.createElement(ChevronsLeft, { size: 15 })
+    ))
+  );
   function flyItem(it) {
     return /* @__PURE__ */ React.createElement("div", { key: it.k, className: cx("sb-fly-row", view === it.k && "on") }, /* @__PURE__ */ React.createElement("button", { className: "sb-link", title: it.l, onClick: () => pick(it.k) }, /* @__PURE__ */ React.createElement(it.i, { size: 15, strokeWidth: 1.8 }), /* @__PURE__ */ React.createElement("span", { className: "lbl" }, it.l), counts[it.k] > 0 && /* @__PURE__ */ React.createElement("span", { className: "ct" }, counts[it.k])), it.add && canAdd(it.k) && /* @__PURE__ */ React.createElement("button", { className: "sb-add", title: `New \u2014 ${it.l}`, "aria-label": `Create new: ${it.l}`, onClick: () => add(it.k) }, /* @__PURE__ */ React.createElement(Plus, { size: 13, strokeWidth: 2.4 })));
   }
@@ -9585,8 +9694,12 @@ const SIDEBAR_CSS = `
 .sb-foot .collapse{display:grid;place-items:center;width:30px;height:30px;border-radius:8px;color:var(--sb-dim)}
 .sb-foot .collapse:hover{background:var(--sb-hover);color:#fff}
 
-/* Collapsed rail */
+/* Collapsed rail; while folded the menu slides open over the page on hover */
 .sbar.rail{--sb-w:76px}
+.sbar.folded{transition:width .22s var(--ease),flex-basis .22s var(--ease),margin .22s var(--ease),box-shadow .22s}
+.sbar.folded.peek{margin-right:calc(76px - var(--sb-w));box-shadow:28px 0 60px rgba(8,12,24,.38),inset -1px 0 0 rgba(255,255,255,.08)}
+.sbar.folded.peek .sb-scroll{animation:sbfly .18s var(--ease)}
+.sb-foot .collapse.pinned{color:var(--sb-acc)}
 .sbar.rail .sb-lockup,.sbar.rail .sb-co,.sbar.rail .sb-search,.sbar.rail .sb-head .lbl,.sbar.rail .sb-head .cv,.sbar.rail .sb-foot .who{display:none}
 .sbar.rail .sb-mark{display:block}
 .sbar.rail .sb-brand{justify-content:center;padding:18px 0 14px}
@@ -9614,6 +9727,7 @@ const SIDEBAR_CSS = `
   .sb-head{height:44px}
   .sb-add{width:30px;height:30px;flex-basis:30px}
   .sb-foot .collapse{display:none}
+  .sbar.folded.peek{margin-right:0}
 }
 @media print{.sbar{display:none}}
 `;
@@ -10570,13 +10684,25 @@ const REPORTS_CSS = `
 @media (max-width:700px){.rpt-viz{padding:14px 12px 4px}.kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}.kt-value{font-size:18px}.hb-row{grid-template-columns:minmax(90px,40%) minmax(0,1fr) auto;gap:8px}.rf-ic{display:none}}
 @media print{.rpt-viz{background:#fff}.viz-table,.viz-tip{display:none}.kpi-tile,.viz-card{box-shadow:none;break-inside:avoid}}
 `;
-function PnlVisuals({ books, r, p, c, q }) {
+function PnlVisuals({ books, r, p, c, q, st, sc }) {
   const prev = q || {}, cmp = !!q, vs = cmp ? `vs ${c.dates}` : null, dt = cmp ? `Compared with ${c.dates}` : void 0;
+  const i0 = sc ? sc.cols.findIndex((x) => x.key === "c0") : 0, i1 = sc ? sc.cols.findIndex((x) => x.key === "c1") : -1;
+  const op = st ? st.op[i0] : r.net, opPrev = st && i1 >= 0 ? st.op[i1] : null, net = st ? st.net[i0] : r.net, netPrev = st && i1 >= 0 ? st.net[i1] : prev.net;
+  const trend = sc && sc.cols.length >= 3 ? sc.cols.map((x, i) => ({ x, i })).sort((a, b) => a.x.from < b.x.from ? -1 : 1).map(({ x, i }) => ({ label: x.title, full: x.sub, revenue: st.revenue[i], op: st.op[i], profit: st.net[i] })) : null;
   const dl2 = (v, w) => cmp ? deltaPct(v, w) : null;
   const ser = useMemo(() => periodSeries(books.flat, p.from, p.to), [books, p.from, p.to]);
   const costs = [...r.cos, ...r.exp].map((x) => ({ key: x.acc.code, label: x.acc.name, sub: x.acc.code, value: x.amount, extra: r.revenue ? (x.amount / r.revenue * 100).toFixed(1) + "% of sales" : null })).filter((x) => x.value > 4e-3).sort((a, b) => b.value - a.value);
   const unit = { day: "day", week: "week", month: "month" }[ser.g];
-  return /* @__PURE__ */ React.createElement("div", { className: "rpt-viz" }, /* @__PURE__ */ React.createElement(KpiRow, null, /* @__PURE__ */ React.createElement(KpiTile, { label: "Revenue", value: r.revenue, icon: TrendingUp, delta: dl2(r.revenue, prev.revenue), deltaTitle: dt, sub: cmp ? `was ${money(prev.revenue, false)}` : "this period", spark: ser.rows.map((x) => x.revenue) }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Gross profit", value: r.gross, icon: Layers, tone: "t3", delta: dl2(r.gross, prev.gross), deltaTitle: dt, sub: cmp ? `${r.gm.toFixed(1)}% margin \xB7 was ${prev.gm.toFixed(1)}%` : `${r.gm.toFixed(1)}% gross margin` }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Operating expenses", value: r.expense, icon: Wallet, tone: "t2", goodUp: false, delta: dl2(r.expense, prev.expense), deltaTitle: dt, sub: cmp ? `was ${money(prev.expense, false)}` : r.revenue ? `${(r.expense / r.revenue * 100).toFixed(1)}% of revenue` : "running costs" }), /* @__PURE__ */ React.createElement(KpiTile, { label: r.net >= 0 ? "Net profit" : "Net loss", value: r.net, icon: r.net >= 0 ? TrendingUp : TrendingDown, tone: r.net >= 0 ? "pos" : "neg", delta: dl2(r.net, prev.net), deltaTitle: dt, sub: cmp ? `was ${money(prev.net, false)}` : `${r.nm.toFixed(1)}% net margin`, spark: ser.rows.map((x) => x.profit) })), cmp && /* @__PURE__ */ React.createElement(PnlCompareViz, { r, q, c }), /* @__PURE__ */ React.createElement("div", { className: "rpt-grid" }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "rpt-viz" }, /* @__PURE__ */ React.createElement(KpiRow, null, /* @__PURE__ */ React.createElement(KpiTile, { label: "Revenue", value: r.revenue, icon: TrendingUp, delta: dl2(r.revenue, prev.revenue), deltaTitle: dt, sub: cmp ? `was ${money(prev.revenue, false)}` : "this period", spark: ser.rows.map((x) => x.revenue) }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Gross profit", value: r.gross, icon: Layers, tone: "t3", delta: dl2(r.gross, prev.gross), deltaTitle: dt, sub: cmp ? `${r.gm.toFixed(1)}% margin \xB7 was ${prev.gm.toFixed(1)}%` : `${r.gm.toFixed(1)}% gross margin` }), /* @__PURE__ */ React.createElement(KpiTile, { label: "Operating profit", value: op, icon: Layers, tone: op >= 0 ? "t2" : "neg", delta: cmp && opPrev != null ? deltaPct(op, opPrev) : null, deltaTitle: dt, sub: cmp && opPrev != null ? `was ${money(opPrev, false)}` : "IFRS 18 subtotal" }), /* @__PURE__ */ React.createElement(KpiTile, { label: net >= 0 ? "Profit for the period" : "Loss for the period", value: net, icon: net >= 0 ? TrendingUp : TrendingDown, tone: net >= 0 ? "pos" : "neg", delta: cmp ? deltaPct(net, netPrev) : null, deltaTitle: dt, sub: cmp ? `was ${money(netPrev, false)}` : `${r.revenue ? (net / r.revenue * 100).toFixed(1) : "0.0"}% net margin`, spark: ser.rows.map((x) => x.profit) })), trend && /* @__PURE__ */ React.createElement(
+    VizCard,
+    {
+      title: "Across the compared periods",
+      sub: "Revenue and operating profit per period \xB7 profit for the period as a line \xB7 AED",
+      legend: [{ name: "Revenue", color: "var(--s1)" }, { name: "Operating profit", color: "var(--s2)" }, { name: "Profit for the period", color: "var(--s3)", line: true }]
+    },
+    /* @__PURE__ */ React.createElement(ColumnChart, { data: trend, series: [{ key: "revenue", name: "Revenue", color: "var(--s1)" }, { key: "op", name: "Operating profit", color: "var(--s2)" }], line: { key: "profit", name: "Profit for the period", color: "var(--s3)" }, height: 230, ariaLabel: "Revenue and profit across the compared periods" }),
+    /* @__PURE__ */ React.createElement(VizTable, { caption: "Across the compared periods", cols: ["Period", "Revenue", "Operating profit", "Profit for the period"], rows: trend.map((x) => [x.full, money(x.revenue, false), money(x.op, false), money(x.profit, false)]) })
+  ), cmp && /* @__PURE__ */ React.createElement(PnlCompareViz, { r, q, c }), /* @__PURE__ */ React.createElement("div", { className: "rpt-grid" }, /* @__PURE__ */ React.createElement(
     VizCard,
     {
       title: `Revenue, costs and profit by ${unit}`,
@@ -11001,11 +11127,11 @@ const cmpDefaults = () => {
     s = JSON.parse(localStorage.getItem(CMP_STORE) || "{}") || {};
   } catch (e) {
   }
-  return { cmp: s.cmp || "prev", bsCmp: s.bsCmp || "ye" };
+  return { cmp: s.cmp || "prev", bsCmp: s.bsCmp || "ye", cmpN: Math.max(1, Math.min(12, +s.cmpN || 1)), cmpOrder: s.cmpOrder === "asc" ? "asc" : "desc" };
 };
 const saveCmp = (p) => {
   try {
-    localStorage.setItem(CMP_STORE, JSON.stringify({ cmp: p.cmp, bsCmp: p.bsCmp }));
+    localStorage.setItem(CMP_STORE, JSON.stringify({ cmp: p.cmp, bsCmp: p.bsCmp, cmpN: p.cmpN, cmpOrder: p.cmpOrder }));
   } catch (e) {
   }
 };
@@ -11100,17 +11226,24 @@ function CompareBar({ p, setP, mode = "range" }) {
     }
     setOpen((v) => !v);
   };
-  const apply = (patch) => {
-    const np = { ...p, ...patch };
+  const apply = (patch2) => {
+    const np = { ...p, ...patch2 };
     setP(np);
     saveCmp(np);
     setOpen(false);
   };
+  const patch = (x) => {
+    const np = { ...p, ...x };
+    setP(np);
+    saveCmp(np);
+  };
+  const n = Math.max(1, Math.min(12, +p.cmpN || 1)), multi = ["prev", "yoy", "pm", "ye"].includes(cur) && n > 1;
+  const many = { prev: "previous periods", yoy: "years", pm: "month-ends", ye: "year-ends" }[cur];
   const preview = (k) => {
     const c = asOf ? cmpAsOf(p, k) : cmpRange(p, k);
     return k === "off" ? "Show this period only" : k === "custom" ? p[key] === "custom" && now ? now.dates : "Pick the dates" : c ? (asOf ? "As at " : "") + c.dates : "";
   };
-  return /* @__PURE__ */ React.createElement("div", { style: { position: "relative" }, className: "noprint" }, /* @__PURE__ */ React.createElement("button", { className: cx("btn cmp-btn", cur !== "off" && "on"), ref: btnRef, onClick: toggle, "aria-haspopup": "dialog", "aria-expanded": open }, /* @__PURE__ */ React.createElement(ArrowLeftRight, { size: 14 }), cur === "off" ? "Compare" : /* @__PURE__ */ React.createElement(React.Fragment, null, "Compare: ", /* @__PURE__ */ React.createElement("b", null, (opts.find((o) => o[0] === cur) || [])[1])), /* @__PURE__ */ React.createElement(ChevronDown, { size: 13, strokeWidth: 2, style: { opacity: 0.55, marginLeft: 1 } })), open && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pop-scrim", onMouseDown: () => setOpen(false) }), /* @__PURE__ */ React.createElement("div", { className: "rangepop cmp-pop", role: "dialog", "aria-label": "Compare with", style: { top: at.top, left: at.left } }, /* @__PURE__ */ React.createElement("div", { className: "cmp-pop-h" }, /* @__PURE__ */ React.createElement("b", null, "Compare with"), /* @__PURE__ */ React.createElement("span", null, asOf ? `Balances as at ${dmy(p.asOf)}` : `This period: ${span(p.from, p.to)}`)), /* @__PURE__ */ React.createElement("div", { className: "cmp-opts" }, opts.map(([k, label]) => /* @__PURE__ */ React.createElement("button", { key: k, className: cx("cmp-opt", sel === k && "on"), "aria-pressed": sel === k, onClick: () => k === "custom" ? setSel("custom") : apply({ [key]: k }) }, /* @__PURE__ */ React.createElement("span", { className: "cmp-radio" }), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, label), /* @__PURE__ */ React.createElement("small", null, preview(k)))))), sel === "custom" && /* @__PURE__ */ React.createElement("div", { className: "cmp-custom" }, asOf ? /* @__PURE__ */ React.createElement(Field, { label: "Compare with balances as at" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.asOf, onChange: (e) => setD({ ...d, asOf: e.target.value }) })) : /* @__PURE__ */ React.createElement("div", { className: "cmp-dates" }, /* @__PURE__ */ React.createElement(Field, { label: "From" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.from, onChange: (e) => setD({ ...d, from: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "To" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.to, onChange: (e) => setD({ ...d, to: e.target.value }) }))), /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { style: { position: "relative" }, className: "noprint" }, /* @__PURE__ */ React.createElement("button", { className: cx("btn cmp-btn", cur !== "off" && "on"), ref: btnRef, onClick: toggle, "aria-haspopup": "dialog", "aria-expanded": open }, /* @__PURE__ */ React.createElement(ArrowLeftRight, { size: 14 }), cur === "off" ? "Compare" : /* @__PURE__ */ React.createElement(React.Fragment, null, "Compare: ", /* @__PURE__ */ React.createElement("b", null, multi ? `${n} ${many}` : (opts.find((o) => o[0] === cur) || [])[1])), /* @__PURE__ */ React.createElement(ChevronDown, { size: 13, strokeWidth: 2, style: { opacity: 0.55, marginLeft: 1 } })), open && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pop-scrim", onMouseDown: () => setOpen(false) }), /* @__PURE__ */ React.createElement("div", { className: "rangepop cmp-pop", role: "dialog", "aria-label": "Compare with", style: { top: at.top, left: at.left } }, /* @__PURE__ */ React.createElement("div", { className: "cmp-pop-h" }, /* @__PURE__ */ React.createElement("b", null, "Compare with"), /* @__PURE__ */ React.createElement("span", null, asOf ? `Balances as at ${dmy(p.asOf)}` : `This period: ${span(p.from, p.to)}`)), /* @__PURE__ */ React.createElement("div", { className: "cmp-opts" }, opts.map(([k, label]) => /* @__PURE__ */ React.createElement("button", { key: k, className: cx("cmp-opt", sel === k && "on"), "aria-pressed": sel === k, onClick: () => k === "custom" ? setSel("custom") : apply({ [key]: k }) }, /* @__PURE__ */ React.createElement("span", { className: "cmp-radio" }), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, label), /* @__PURE__ */ React.createElement("small", null, preview(k)))))), sel === "custom" && /* @__PURE__ */ React.createElement("div", { className: "cmp-custom" }, asOf ? /* @__PURE__ */ React.createElement(Field, { label: "Compare with balances as at" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.asOf, onChange: (e) => setD({ ...d, asOf: e.target.value }) })) : /* @__PURE__ */ React.createElement("div", { className: "cmp-dates" }, /* @__PURE__ */ React.createElement(Field, { label: "From" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.from, onChange: (e) => setD({ ...d, from: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "To" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.to, onChange: (e) => setD({ ...d, to: e.target.value }) }))), /* @__PURE__ */ React.createElement(
     Btn,
     {
       kind: "pri",
@@ -11119,7 +11252,7 @@ function CompareBar({ p, setP, mode = "range" }) {
       disabled: asOf ? !d.asOf : !d.from || !d.to
     },
     "Compare"
-  )))));
+  )), ["prev", "yoy", "pm", "ye"].includes(sel) && sel === cur && /* @__PURE__ */ React.createElement("div", { className: "cmp-more" }, /* @__PURE__ */ React.createElement("div", { className: "cmp-n" }, /* @__PURE__ */ React.createElement("span", null, "Number of periods", /* @__PURE__ */ React.createElement("small", null, "Columns side by side, like a monthly report")), /* @__PURE__ */ React.createElement("div", { className: "stepper" }, /* @__PURE__ */ React.createElement("button", { "aria-label": "Fewer periods", disabled: n <= 1, onClick: () => patch({ cmpN: n - 1 }) }, "\u2212"), /* @__PURE__ */ React.createElement("b", { "aria-live": "polite" }, n), /* @__PURE__ */ React.createElement("button", { "aria-label": "More periods", disabled: n >= 12, onClick: () => patch({ cmpN: n + 1 }) }, "+"))), /* @__PURE__ */ React.createElement("div", { className: "cmp-n" }, /* @__PURE__ */ React.createElement("span", null, "Column order"), /* @__PURE__ */ React.createElement("div", { className: "seg" }, /* @__PURE__ */ React.createElement("button", { className: p.cmpOrder !== "asc" ? "on" : "", onClick: () => patch({ cmpOrder: "desc" }) }, "Newest first"), /* @__PURE__ */ React.createElement("button", { className: p.cmpOrder === "asc" ? "on" : "", onClick: () => patch({ cmpOrder: "asc" }) }, "Oldest first")))))));
 }
 const SUGGEST = [["qtd", "This quarter vs last quarter"], ["mtd", "This month vs last month"], ["lastq", "Last quarter vs the one before"], ["lastm", "Last month vs the month before"], ["d30", "Last 30 days vs the 30 before"]];
 function CompareNote({ x, p, setP, asOf }) {
@@ -11209,6 +11342,13 @@ const COMPARE_CSS = `
 .cmp-opt.on{background:var(--brand-50)}.cmp-opt.on .cmp-radio{border-color:var(--brand)}.cmp-opt.on .cmp-radio::after{content:"";width:8px;height:8px;border-radius:50%;background:var(--brand)}
 .cmp-custom{padding:4px 16px 16px;border-top:1px solid var(--line-2);margin-top:2px;padding-top:12px}
 .cmp-dates{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cmp-more{border-top:1px solid var(--line-2);padding:10px 16px 14px;display:grid;gap:10px;background:var(--surface-2)}
+.cmp-n{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.cmp-n small{display:block;font-size:11px;font-weight:400;color:var(--ink-4)}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:9px;background:var(--surface);overflow:hidden}
+.stepper button{width:30px;height:30px;font-size:16px;font-weight:600;color:var(--ink-2)}.stepper button:disabled{opacity:.35}
+.stepper button:hover:not(:disabled){background:var(--brand-50);color:var(--brand)}
+.stepper b{min-width:28px;text-align:center;font-variant-numeric:tabular-nums}
 .rf-chips span.cmp{background:var(--surface-2);border-style:dashed;color:var(--ink-2);font-weight:600}
 .cmp-note{display:flex;gap:12px;align-items:flex-start;margin:14px 24px 0;padding:12px 14px;border-radius:12px;font-size:12.5px;line-height:1.5}
 .cmp-note.partial{align-items:center;background:var(--warn-50);color:var(--ink-2);border:1px solid color-mix(in srgb,var(--warn) 25%,transparent)}
@@ -11404,6 +11544,559 @@ const USERS_CSS = `
 .si-note svg{margin-top:2px;flex:0 0 auto}
 .si-theme{position:absolute;top:16px;right:16px;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:#fff;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2)}
 @media (prefers-reduced-motion:reduce){.si-glow,.si-card{animation:none!important}}
+`;
+const IFRS_CATS = [["operating", "Operating"], ["investing", "Investing"], ["financing", "Financing"], ["tax", "Income taxes"]];
+const IFRS_HELP = {
+  operating: "Income and expenses from the main business activities: sales, cost of sales and running costs.",
+  investing: "Returns from investments and assets held separately from the main business, such as interest or dividends received.",
+  financing: "Costs of raising finance, such as interest on loans and finance charges.",
+  tax: "Corporate income tax charged on the profit for the period."
+};
+const BS_SECTIONS = [["assets", "Assets"], ["equity", "Equity"], ["liabilities", "Liabilities"]];
+const PL_SECTIONS = [
+  ["revenue", "Revenue"],
+  ["cost_of_sales", "Cost of sales"],
+  ["other_income", "Other operating income"],
+  ["operating_expenses", "Operating expenses"],
+  ["investing", "Investing income and expenses"],
+  ["financing", "Finance costs and income"],
+  ["income_tax", "Income tax expense"]
+];
+const SECTION_LABEL = Object.fromEntries([...BS_SECTIONS, ...PL_SECTIONS]);
+const SECTION_TYPES = {
+  assets: ["bank", "receivable", "inventory", "casset", "fasset"],
+  liabilities: ["payable", "cliab", "ncliab"],
+  equity: ["equity"],
+  revenue: ["income"],
+  other_income: ["income"],
+  cost_of_sales: ["cogs"],
+  operating_expenses: ["expense"],
+  investing: ["income", "expense"],
+  financing: ["income", "expense"],
+  income_tax: ["expense"]
+};
+function defaultIfrs(a) {
+  if (!a || !IS_PL(a.type)) return null;
+  const n = (a.name || "").toLowerCase();
+  if (/corporate tax|income tax|deferred tax/.test(n)) return "tax";
+  if (a.type === "income" && /interest income|dividend|investment income|share of (profit|loss)/.test(n)) return "investing";
+  if (a.type !== "income" && /interest|finance (charge|cost)|loan|borrowing cost/.test(n)) return "financing";
+  return "operating";
+}
+const ifrsOf = (a, state) => a && state && state.ifrs && state.ifrs[a.code] || defaultIfrs(a);
+function sectionOf(a, state) {
+  if (!a) return null;
+  const t = a.type;
+  if (SECTION_TYPES.assets.includes(t)) return "assets";
+  if (SECTION_TYPES.liabilities.includes(t)) return "liabilities";
+  if (t === "equity") return "equity";
+  const c = ifrsOf(a, state);
+  if (c === "investing") return "investing";
+  if (c === "financing") return "financing";
+  if (c === "tax") return "income_tax";
+  if (t === "cogs") return "cost_of_sales";
+  if (t === "income") return /other income|gain|discount received|miscellaneous|sundry/i.test(a.name) ? "other_income" : "revenue";
+  return "operating_expenses";
+}
+function seedGroups(state) {
+  const used = /* @__PURE__ */ new Set(), out = [];
+  const acc = ACCOUNTS;
+  const add = (id, name, section, parent, test) => {
+    const accounts = test ? acc.filter((a) => sectionOf(a, state) === section && !used.has(a.code) && test(a)).map((a) => a.code) : [];
+    accounts.forEach((c) => used.add(c));
+    out.push({ id, name, section, parent, accounts });
+  };
+  const nm = (re) => (a) => re.test(a.name);
+  add("g_nca", "Non-current assets", "assets", null);
+  add("g_ppe", "Property, plant and equipment", "assets", "g_nca", (a) => a.type === "fasset");
+  add("g_ca", "Current assets", "assets", null);
+  add("g_inv", "Inventories", "assets", "g_ca", (a) => a.type === "inventory");
+  add("g_rec", "Trade and other receivables", "assets", "g_ca", (a) => a.type === "receivable" || a.type === "casset" && /receivab|advance|deposit|prepaid|cheque/i.test(a.name));
+  add("g_oca", "Other current assets", "assets", "g_ca", (a) => a.type === "casset");
+  add("g_cash", "Cash and cash equivalents", "assets", "g_ca", (a) => a.type === "bank");
+  add("g_ncl", "Non-current liabilities", "liabilities", null);
+  add("g_borr", "Borrowings", "liabilities", "g_ncl", (a) => a.type === "ncliab" && /loan|borrowing|facility/i.test(a.name));
+  add("g_emp", "Employee benefit obligations", "liabilities", "g_ncl", (a) => a.type === "ncliab" && /gratuity|end-of-service|employee/i.test(a.name));
+  add("g_ncl_o", "Other non-current liabilities", "liabilities", "g_ncl", (a) => a.type === "ncliab");
+  add("g_cl", "Current liabilities", "liabilities", null);
+  add("g_pay", "Trade and other payables", "liabilities", "g_cl", (a) => a.type === "payable" || a.type === "cliab" && !/vat|tax/i.test(a.name));
+  add("g_taxl", "Tax liabilities", "liabilities", "g_cl", (a) => a.type === "cliab");
+  add("g_staff", "Employee benefits", "operating_expenses", null, nm(/salar|wage|staff|gratuity|commission|incentive|visa|labour|medical|employee/i));
+  add("g_prem", "Premises and utilities", "operating_expenses", null, nm(/rent|utilit|dewa|cooling|telecom|etisalat|internet/i));
+  add("g_sell", "Selling and distribution", "operating_expenses", null, nm(/marketing|advertis|freight|customs|courier|postage|clearing/i));
+  add("g_depr", "Depreciation and amortisation", "operating_expenses", null, nm(/depreciation|amortis/i));
+  add("g_admin", "Administrative and other expenses", "operating_expenses", null, () => true);
+  return out.filter((g) => g.accounts.length || out.some((x) => x.parent === g.id));
+}
+const groupsOf = (state) => Array.isArray(state.accountGroups) ? state.accountGroups : seedGroups(state);
+function plValues(flat, cols) {
+  return cols.map((c) => {
+    const m = {};
+    flat.forEach((l) => {
+      if (l.date >= c.from && l.date <= c.to && ACC[l.acc] && IS_PL(ACC[l.acc].type)) m[l.acc] = R2((m[l.acc] || 0) + l.credit - l.debit);
+    });
+    return m;
+  });
+}
+function bsValues(flat, cols) {
+  return cols.map((c) => {
+    const m = {}, fy = c.asOf.slice(0, 4) + "-01-01";
+    let cy = 0, py = 0;
+    flat.forEach((l) => {
+      if (l.date > c.asOf || !ACC[l.acc]) return;
+      const a = ACC[l.acc];
+      if (IS_PL(a.type)) {
+        if (l.date < fy) py = R2(py + l.credit - l.debit);
+        else cy = R2(cy + l.credit - l.debit);
+        return;
+      }
+      const v = SECTION_TYPES.assets.includes(a.type) ? l.debit - l.credit : l.credit - l.debit;
+      m[l.acc] = R2((m[l.acc] || 0) + v);
+    });
+    m.__py = py;
+    m.__cy = cy;
+    return m;
+  });
+}
+const sumVals = (nodes, n) => Array.from({ length: n }, (_, i) => R2(nodes.reduce((s, x) => s + (x.values[i] || 0), 0)));
+const isZero = (vals) => vals.every((v) => Math.abs(v) < 5e-3);
+function sectionTree(section, state, groups, vals, n, goodUp = true) {
+  const gs = groups.filter((g) => g.section === section);
+  const owner = /* @__PURE__ */ new Map();
+  gs.forEach((g) => g.accounts.forEach((c) => owner.set(c, g.id)));
+  const accs = ACCOUNTS.filter((a) => sectionOf(a, state) === section);
+  const accNode = (a) => ({ kind: "account", id: "a" + a.code, acc: a, label: a.name, code: a.code, values: vals.map((m) => m[a.code] || 0), goodUp });
+  const groupNode = (g, seen2) => {
+    if (seen2.has(g.id)) return null;
+    seen2.add(g.id);
+    const kids = [...gs.filter((x) => x.parent === g.id).map((x) => groupNode(x, seen2)).filter(Boolean), ...accs.filter((a) => owner.get(a.code) === g.id).map(accNode)].filter((k) => k.kind === "group" ? k.children.length : !isZero(k.values));
+    return { kind: "group", id: g.id, label: g.name, children: kids, values: sumVals(kids, n), goodUp };
+  };
+  const seen = /* @__PURE__ */ new Set();
+  const roots = gs.filter((g) => !g.parent || !gs.some((x) => x.id === g.parent)).map((g) => groupNode(g, seen)).filter((g) => g && g.children.length);
+  const loose = accs.filter((a) => !owner.has(a.code)).map(accNode).filter((k) => !isZero(k.values));
+  return [...roots, ...loose];
+}
+function plStatement(books, state, cols) {
+  const n = cols.length, vals = plValues(books.flat, cols), groups = groupsOf(state);
+  const sec = (key, label) => {
+    const children = sectionTree(key, state, groups, vals, n);
+    return { kind: "section", id: "s_" + key, key, label, children, values: sumVals(children, n), goodUp: true };
+  };
+  const rev = sec("revenue", "Revenue"), cos = sec("cost_of_sales", "Cost of sales"), oth = sec("other_income", "Other operating income"), opx = sec("operating_expenses", "Operating expenses"), inv = sec("investing", "Investing income and expenses"), fin = sec("financing", "Finance costs and income"), tax = sec("income_tax", "Income tax expense");
+  const add = (...xs) => Array.from({ length: n }, (_, i) => R2(xs.reduce((s, x) => s + x.values[i], 0)));
+  const sub = (id, label, values, help, kind = "subtotal") => ({ kind, id, label, values, help, goodUp: true });
+  const gross = sub("t_gross", "Gross profit", add(rev, cos), "Revenue less the cost of what was sold.");
+  const op = sub("t_op", "Operating profit", add(rev, cos, oth, opx), "IFRS 18 required subtotal: everything from the main business activities, before investing, financing and tax.");
+  const pbfit = sub("t_pbfit", "Profit before financing and income taxes", add(rev, cos, oth, opx, inv), "IFRS 18 required subtotal: operating profit plus the investing category.");
+  const pbt = sub("t_pbt", "Profit before income tax", add(rev, cos, oth, opx, inv, fin), "Profit after finance costs, before corporate tax.");
+  const net = sub("t_net", "Profit for the period", add(rev, cos, oth, opx, inv, fin, tax), "IFRS 18 required total: the result of all categories.", "total");
+  if (net.values[0] < 0) net.label = "Loss for the period";
+  const keep = (s) => s.children.length > 0;
+  const rows = [{ kind: "category", id: "c_op", label: "Operating", help: IFRS_HELP.operating }];
+  rows.push(rev);
+  if (keep(cos)) {
+    rows.push(cos);
+    rows.push(gross);
+  }
+  if (keep(oth)) rows.push(oth);
+  if (keep(opx)) rows.push(opx);
+  rows.push(op);
+  rows.push({ kind: "category", id: "c_inv", label: "Investing", help: IFRS_HELP.investing });
+  if (keep(inv)) rows.push(inv);
+  else rows.push({ kind: "note", id: "n_inv", label: "No investing income or expenses in these periods" });
+  rows.push(pbfit);
+  rows.push({ kind: "category", id: "c_fin", label: "Financing", help: IFRS_HELP.financing });
+  if (keep(fin)) rows.push(fin);
+  else rows.push({ kind: "note", id: "n_fin", label: "No finance costs or income in these periods" });
+  if (keep(tax)) {
+    rows.push(pbt);
+    rows.push({ kind: "category", id: "c_tax", label: "Income taxes", help: IFRS_HELP.tax });
+    rows.push(tax);
+  }
+  rows.push(net);
+  return { rows, revenue: rev.values, op: op.values, net: net.values, gross: gross.values, vals, sections: { rev, cos, oth, opx, inv, fin, tax } };
+}
+function bsStatement(books, state, cols) {
+  const n = cols.length, vals = bsValues(books.flat, cols), groups = groupsOf(state);
+  const a = sectionTree("assets", state, groups, vals, n, true), l = sectionTree("liabilities", state, groups, vals, n, false);
+  const e = sectionTree("equity", state, groups, vals, n, true);
+  const py = vals.map((m) => m.__py), cy = vals.map((m) => m.__cy);
+  if (!isZero(py)) e.push({ kind: "account", id: "a_py", label: "Retained results of earlier years", values: py, goodUp: true, computed: true });
+  e.push({ kind: "account", id: "a_cy", label: "Profit or loss for the current year", values: cy, goodUp: true, computed: true });
+  const ta = sumVals(a, n), tl = sumVals(l, n), te = sumVals(e, n);
+  const rows = [
+    { kind: "heading", id: "h_a", label: "Assets" },
+    ...a,
+    { kind: "subtotal", id: "t_a", label: "Total assets", values: ta, goodUp: true },
+    { kind: "heading", id: "h_e", label: "Equity" },
+    ...e,
+    { kind: "subtotal", id: "t_e", label: "Total equity", values: te, goodUp: true },
+    { kind: "heading", id: "h_l", label: "Liabilities" },
+    ...l,
+    { kind: "subtotal", id: "t_l", label: "Total liabilities", values: tl, goodUp: false },
+    { kind: "total", id: "t_el", label: "Total equity and liabilities", values: Array.from({ length: n }, (_, i) => R2(te[i] + tl[i])), goodUp: true }
+  ];
+  return { rows, ta, tl, te, diff: ta.map((v, i) => R2(v - te[i] - tl[i])) };
+}
+function colTitle(from, to) {
+  if (from === to) return dmy(from);
+  const m = (s) => MONTHS[+s.slice(5, 7) - 1] + " " + s.slice(0, 4);
+  if (from === som(from) && to === eom(to) && from.slice(0, 7) === to.slice(0, 7)) return m(from);
+  if (from.endsWith("-01-01") && to.endsWith("-12-31") && from.slice(0, 4) === to.slice(0, 4)) return "FY " + from.slice(0, 4);
+  if (from === som(from) && from.slice(0, 7) === to.slice(0, 7)) return `${m(from)} (1\u2013${+to.slice(8)})`;
+  if (from.endsWith("-01-01") && from.slice(0, 4) === to.slice(0, 4)) return `YTD ${dmy(to).slice(0, 6)} ${to.slice(0, 4)}`;
+  return `${dmy(from).slice(0, 6)} \u2013 ${dmy(to)}`;
+}
+function statementCols(books, p, asOf) {
+  const nWant = Math.max(1, Math.min(12, +p.cmpN || 1)), start = books.flat.reduce((m, l) => l.date < m ? l.date : m, "9999-12-31");
+  const base = asOf ? { key: "c0", asOf: p.asOf, title: `${dmy(p.asOf)}`, sub: "As at" } : { key: "c0", from: p.from, to: p.to, title: colTitle(p.from, p.to), sub: span(p.from, p.to) };
+  const out = [base];
+  let dropped = 0;
+  const mode = asOf ? p.bsCmp || "ye" : p.cmp || "prev";
+  if (mode !== "off") {
+    let prev = asOf ? { ...p } : { preset: p.preset, from: p.from, to: p.to, cmpFrom: p.cmpFrom, cmpTo: p.cmpTo, cmpAsOf: p.cmpAsOf };
+    const n = mode === "custom" ? 1 : nWant;
+    for (let i = 0; i < n; i++) {
+      const c = asOf ? cmpAsOf(prev, mode) : cmpRange(prev, mode);
+      if (!c) break;
+      if (start === "9999-12-31" || c.to < start) dropped++;
+      else out.push(asOf ? { key: "c" + (i + 1), asOf: c.asOf, title: dmy(c.asOf), sub: "As at" } : { key: "c" + (i + 1), from: c.from, to: c.to, title: colTitle(c.from, c.to), sub: c.dates });
+      prev = asOf ? { ...prev, asOf: c.asOf } : { preset: p.preset, from: c.from, to: c.to };
+    }
+  }
+  return { cols: p.cmpOrder === "asc" ? out.slice().reverse() : out, dropped, cur: base };
+}
+function FinTable({ cols, rows, onDrill, pctBase, asOf, caption }) {
+  const [shut, setShut] = useState({});
+  const ci = cols.findIndex((c) => c.key === "c0"), cj = cols.length === 2 ? 1 - ci : -1;
+  const change = cols.length === 2;
+  const toggle = (id) => setShut((s) => ({ ...s, [id]: !s[id] }));
+  const all = (open) => {
+    const m = {};
+    const walk2 = (xs) => xs.forEach((x) => {
+      if (x.children) {
+        m[x.id] = !open;
+        walk2(x.children);
+      }
+    });
+    walk2(rows);
+    setShut(m);
+  };
+  const out = [];
+  const valCells = (x, drill) => cols.map((c, i) => {
+    const v = x.values[i];
+    return /* @__PURE__ */ React.createElement("td", { key: c.key, className: cx("n", c.key !== "c0" && "cmp-prev", c.key === "c0" && cols.length > 1 && "cmp-cur") }, drill ? /* @__PURE__ */ React.createElement("button", { className: "fin-v", onClick: () => drill(i), title: `Open the transactions behind ${money(v, false)}` }, money(v)) : money(v));
+  });
+  const chgCells = (x) => {
+    if (!change) return null;
+    const c = chg(x.values[ci], x.values[cj], x.goodUp !== false), t = c.good === true ? "up" : c.good === false ? "down" : "";
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("td", { className: cx("n cmp-d", t) }, dText(c)), /* @__PURE__ */ React.createElement("td", { className: cx("n cmp-p", t) }, c.dir !== 0 && /* @__PURE__ */ React.createElement("i", { "aria-hidden": "true" }, c.dir > 0 ? "\u25B2" : "\u25BC"), pctText(c, x.values[ci])));
+  };
+  const pctCell = (x) => pctBase ? /* @__PURE__ */ React.createElement("td", { className: "n muted fin-pct" }, Math.abs(pctBase[0]) > 4e-3 ? ((x.kind === "subtotal" || x.kind === "total" ? x.values[0] : Math.abs(x.values[0])) / Math.abs(pctBase[0]) * 100).toFixed(1) + "%" : "\u2014") : null;
+  const walk = (xs, depth) => xs.forEach((x) => {
+    if (x.kind === "category") {
+      out.push(/* @__PURE__ */ React.createElement("tr", { key: x.id, className: "fin-cat" }, /* @__PURE__ */ React.createElement("td", { colSpan: 1 + cols.length + (change ? 3 : 0) + (pctBase ? 1 : 0) }, /* @__PURE__ */ React.createElement("span", null, x.label), x.help && /* @__PURE__ */ React.createElement("small", null, x.help))));
+      return;
+    }
+    if (x.kind === "heading") {
+      out.push(/* @__PURE__ */ React.createElement("tr", { key: x.id, className: "fin-head" }, /* @__PURE__ */ React.createElement("td", { colSpan: 1 + cols.length + (change ? 3 : 0) + (pctBase ? 1 : 0) }, x.label)));
+      return;
+    }
+    if (x.kind === "note") {
+      out.push(/* @__PURE__ */ React.createElement("tr", { key: x.id, className: "fin-note" }, /* @__PURE__ */ React.createElement("td", { colSpan: 1 + cols.length + (change ? 3 : 0) + (pctBase ? 1 : 0) }, x.label)));
+      return;
+    }
+    if (x.kind === "subtotal" || x.kind === "total") {
+      out.push(/* @__PURE__ */ React.createElement("tr", { key: x.id, className: cx("fin-sub", x.kind === "total" && "fin-total") }, /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: "fin-lbl", title: x.help }, x.label, x.help && /* @__PURE__ */ React.createElement(Info, { size: 12, className: "fin-i" }))), valCells(x), pctCell(x), chgCells(x)));
+      return;
+    }
+    if (x.kind === "account") {
+      const drill = x.acc && onDrill ? (i) => onDrill(x.acc, cols[i]) : null;
+      out.push(/* @__PURE__ */ React.createElement("tr", { key: x.id, className: "fin-acc", style: { "--d": depth } }, /* @__PURE__ */ React.createElement("td", null, drill ? /* @__PURE__ */ React.createElement("button", { className: "fin-name", onClick: () => drill(ci) }, /* @__PURE__ */ React.createElement("span", { className: "mono" }, x.code), x.label, /* @__PURE__ */ React.createElement(ArrowUpRight, { size: 12, className: "fin-go" })) : /* @__PURE__ */ React.createElement("span", { className: "fin-name static" }, x.code && /* @__PURE__ */ React.createElement("span", { className: "mono" }, x.code), x.label)), valCells(x, drill), pctCell(x), chgCells(x)));
+      return;
+    }
+    const open = !shut[x.id];
+    out.push(/* @__PURE__ */ React.createElement("tr", { key: x.id, className: cx("fin-grp", x.kind === "section" && "fin-sec", !open && "shut"), style: { "--d": depth } }, /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("button", { className: "fin-tog", onClick: () => toggle(x.id), "aria-expanded": open }, /* @__PURE__ */ React.createElement(ChevronRight, { size: 13, className: "cv" }), x.label, !open && /* @__PURE__ */ React.createElement("span", { className: "fin-cnt" }, x.children.length))), valCells(x), pctCell(x), chgCells(x)));
+    if (open) walk(x.children, depth + 1);
+  });
+  walk(rows, 0);
+  return /* @__PURE__ */ React.createElement("div", { className: "fin-wrap" }, /* @__PURE__ */ React.createElement("div", { className: "fin-tools noprint" }, /* @__PURE__ */ React.createElement("button", { onClick: () => all(true) }, "Expand all"), /* @__PURE__ */ React.createElement("button", { onClick: () => all(false) }, "Collapse all"), onDrill && /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement(ArrowUpRight, { size: 12 }), " Click any account or amount to see its transactions")), /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap fin-scroll" }, /* @__PURE__ */ React.createElement("table", { className: cx("tbl fin-tbl cmp-tbl", cols.length > 3 && "many"), "aria-label": caption }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, asOf ? "Line item / account" : "Line item / account"), cols.map((c) => /* @__PURE__ */ React.createElement("th", { key: c.key, className: cx("n", c.key !== "c0" && "cmp-prev", c.key === "c0" && cols.length > 1 && "cmp-cur") }, c.title, " ", /* @__PURE__ */ React.createElement("span", { className: "th-d" }, c.sub))), pctBase && /* @__PURE__ */ React.createElement("th", { className: "n fin-pct", style: { width: 74 } }, "% rev."), change && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("th", { className: "n" }, "Change ", /* @__PURE__ */ React.createElement("span", { className: "th-d" }, "AED")), /* @__PURE__ */ React.createElement("th", { className: "n", style: { width: 92 } }, "Change ", /* @__PURE__ */ React.createElement("span", { className: "th-d" }, "%"))))), /* @__PURE__ */ React.createElement("tbody", null, out))));
+}
+function IfrsNotes({ st, cols }) {
+  const S = st.sections, n = cols.length;
+  const pick = (re, secs) => {
+    const v = Array(n).fill(0);
+    secs.forEach((s) => {
+      const walk = (xs) => xs.forEach((x) => {
+        if (x.kind === "account" && re.test(x.label)) x.values.forEach((y, i) => v[i] = R2(v[i] - y));
+        if (x.children) walk(x.children);
+      });
+      walk(s.children);
+    });
+    return v;
+  };
+  const dep = pick(/depreciation|amortis/i, [S.opx, S.cos]);
+  const staff = pick(/salar|wage|staff|gratuity|commission|incentive|employee|medical|visa|labour/i, [S.opx, S.cos]);
+  const write = pick(/stock adjust|shrinkage|write.?down|obsolete/i, [S.opx, S.cos]);
+  const bad = pick(/bad debt|impairment|expected credit/i, [S.opx]);
+  const ebitda = st.op.map((v, i) => R2(v + dep[i]));
+  const head = /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Item"), cols.map((c) => /* @__PURE__ */ React.createElement("th", { key: c.key, className: "n" }, c.title)));
+  const row = (label, v, cls) => /* @__PURE__ */ React.createElement("tr", { className: cls }, /* @__PURE__ */ React.createElement("td", null, label), v.map((x, i) => /* @__PURE__ */ React.createElement("td", { key: i, className: "n" }, money(x))));
+  return /* @__PURE__ */ React.createElement("div", { className: "ifrs-notes" }, /* @__PURE__ */ React.createElement("div", { className: "ifrs-note-card" }, /* @__PURE__ */ React.createElement("h4", null, /* @__PURE__ */ React.createElement("span", null, "A"), "How this statement is organised"), /* @__PURE__ */ React.createElement("p", null, "Under IFRS 18 every income and expense line sits in a category. ", /* @__PURE__ */ React.createElement("b", null, "Operating"), " covers the main business; ", /* @__PURE__ */ React.createElement("b", null, "investing"), " covers returns on investments held apart from it; ", /* @__PURE__ */ React.createElement("b", null, "financing"), " covers the cost of borrowing; ", /* @__PURE__ */ React.createElement("b", null, "income taxes"), " covers corporate tax. Three subtotals are required: ", /* @__PURE__ */ React.createElement("b", null, "operating profit"), ", ", /* @__PURE__ */ React.createElement("b", null, "profit before financing and income taxes"), ", and ", /* @__PURE__ */ React.createElement("b", null, "profit for the period"), ". You choose each account's category in Account groups.")), /* @__PURE__ */ React.createElement("div", { className: "ifrs-note-card" }, /* @__PURE__ */ React.createElement("h4", null, /* @__PURE__ */ React.createElement("span", null, "B"), "Management-defined performance measure \u2014 EBITDA"), /* @__PURE__ */ React.createElement("p", null, "EBITDA is not defined by IFRS. It is shown here because management uses it to judge operating performance, and it is reconciled to operating profit."), /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl ifrs-tbl" }, /* @__PURE__ */ React.createElement("thead", null, head), /* @__PURE__ */ React.createElement("tbody", null, row("Operating profit (IFRS 18 subtotal)", st.op), row("Add back: depreciation and amortisation", dep), row("EBITDA", ebitda, "fin-sub"))))), /* @__PURE__ */ React.createElement("div", { className: "ifrs-note-card" }, /* @__PURE__ */ React.createElement("h4", null, /* @__PURE__ */ React.createElement("span", null, "C"), "Specified expenses by nature"), /* @__PURE__ */ React.createElement("p", null, "Amounts included in the lines above."), /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl ifrs-tbl" }, /* @__PURE__ */ React.createElement("thead", null, head), /* @__PURE__ */ React.createElement("tbody", null, row("Employee benefits", staff), row("Depreciation and amortisation", dep), row("Inventory write-downs and stock adjustments", write), row("Impairment of receivables (bad debts)", bad))))));
+}
+function EntryModal({ entry, close, drill }) {
+  const lines = entry.lines || [], d = R2(lines.reduce((s, l) => s + l.debit, 0)), c = R2(lines.reduce((s, l) => s + l.credit, 0));
+  const src = { doc: "Document", payment: "Receipt or payment", manual: "Journal entry", pdc: "Post-dated cheque", stock: "Stock adjustment" }[entry.source] || "Entry";
+  const open = entry.source === "doc" && entry.docId ? () => {
+    close();
+    drill(LIST_OF[entry.docType], entry.docId, entry.number);
+  } : entry.source === "payment" ? () => {
+    close();
+    drill("payments", null, "Receipts & payments");
+  } : entry.source === "pdc" ? () => {
+    close();
+    drill("pdc", null, "Post-dated cheques");
+  } : entry.source === "manual" ? () => {
+    close();
+    drill("journal", null, "Journal entries");
+  } : entry.source === "stock" ? () => {
+    close();
+    drill("stock_count", null, "Stock counts");
+  } : null;
+  return /* @__PURE__ */ React.createElement(StudioModal, { wide: true, title: entry.number, sub: `${src} \xB7 ${dmy(entry.date)} \xB7 ${entry.journal || ""}${entry.ref ? " \xB7 " + entry.ref : ""}`, close }, /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Account"), /* @__PURE__ */ React.createElement("th", null, "Label"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Debit"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Credit"))), /* @__PURE__ */ React.createElement("tbody", null, lines.map((l, i) => /* @__PURE__ */ React.createElement("tr", { key: i }, /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("span", { className: "mono muted" }, l.acc), " ", ACC[l.acc] ? ACC[l.acc].name : ""), /* @__PURE__ */ React.createElement("td", { className: "muted" }, l.label, l.partner && PMAP[l.partner] ? ` \u2014 ${PMAP[l.partner].name}` : ""), /* @__PURE__ */ React.createElement("td", { className: "n" }, l.debit ? money(l.debit) : ""), /* @__PURE__ */ React.createElement("td", { className: "n" }, l.credit ? money(l.credit) : "")))), /* @__PURE__ */ React.createElement("tfoot", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 2 }, "Totals ", Math.abs(d - c) < 0.01 ? "\xB7 balanced" : ""), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(d)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(c)))))), /* @__PURE__ */ React.createElement("footer", { className: "modal-actions" }, /* @__PURE__ */ React.createElement(Btn, { onClick: close }, "Close"), open && /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: ArrowUpRight, onClick: open }, entry.source === "doc" ? `Open ${entry.number}` : `Go to ${{ payment: "receipts & payments", pdc: "post-dated cheques", manual: "journal entries", stock: "stock adjustments" }[entry.source]}`)));
+}
+function AccountGroupsScreen({ state, setState, books, toast, go }) {
+  const [tab, setTab] = useState("bs"), [shut, setShut] = useState({}), [ed, setEd] = useState(null), [pick, setPick] = useState(null), [nacc, setNacc] = useState(null);
+  const groups = groupsOf(state), custom = Array.isArray(state.accountGroups);
+  const save = (next, msg) => {
+    setState((s) => ({ ...s, accountGroups: next }));
+    if (msg) toast(msg);
+  };
+  const bal = useMemo(() => {
+    const m = {};
+    books.flat.forEach((l) => {
+      if (!ACC[l.acc]) return;
+      const a = ACC[l.acc];
+      if (IS_PL(a.type)) {
+        if (l.date >= TODAY.slice(0, 4) + "-01-01" && l.date <= TODAY) m[l.acc] = R2((m[l.acc] || 0) + (a.type === "income" ? l.credit - l.debit : l.debit - l.credit));
+      } else m[l.acc] = R2((m[l.acc] || 0) + (SECTION_TYPES.assets.includes(a.type) ? l.debit - l.credit : l.credit - l.debit));
+    });
+    return m;
+  }, [books]);
+  const sections = tab === "bs" ? BS_SECTIONS : PL_SECTIONS;
+  const kids = (sec, parent) => groups.filter((g) => g.section === sec && (g.parent || null) === parent);
+  const owner = /* @__PURE__ */ new Map();
+  groups.forEach((g) => g.accounts.forEach((c) => owner.set(c, g.id)));
+  const accsOf = (sec) => ACCOUNTS.filter((a) => sectionOf(a, state) === sec);
+  const total = (g) => R2(g.accounts.reduce((s, c) => s + (bal[c] || 0), 0) + groups.filter((x) => x.parent === g.id).reduce((s, x) => s + total(x), 0));
+  const descendants = (id) => {
+    const out = [id];
+    groups.filter((x) => x.parent === id).forEach((x) => out.push(...descendants(x.id)));
+    return out;
+  };
+  const indentOpts = (sec, skip) => {
+    const out = [];
+    const walk = (parent, d) => kids(sec, parent).forEach((g) => {
+      if (skip && skip.includes(g.id)) return;
+      out.push({ id: g.id, label: "\xA0\xA0".repeat(d * 2) + g.name });
+      walk(g.id, d + 1);
+    });
+    walk(null, 0);
+    return out;
+  };
+  const moveAcc = (code, gid) => save(
+    groups.map((g) => ({ ...g, accounts: g.id === gid ? [...g.accounts.filter((c) => c !== code), code] : g.accounts.filter((c) => c !== code) })),
+    gid ? `${code} moved to ${groups.find((g) => g.id === gid).name}` : `${code} is no longer in a group`
+  );
+  const reorder = (g, dir) => {
+    const sib = groups.filter((x) => x.section === g.section && (x.parent || null) === (g.parent || null));
+    const i = sib.findIndex((x) => x.id === g.id), j = i + dir;
+    if (j < 0 || j >= sib.length) return;
+    const a = groups.indexOf(sib[i]), b = groups.indexOf(sib[j]);
+    const next = groups.slice();
+    [next[a], next[b]] = [next[b], next[a]];
+    save(next);
+  };
+  const remove = (g) => {
+    if (!window.confirm(`Delete the group \u201C${g.name}\u201D? Its accounts and sub-groups move up one level.`)) return;
+    save(groups.filter((x) => x.id !== g.id).map((x) => x.parent === g.id ? { ...x, parent: g.parent || null } : x.id === g.parent ? { ...x, accounts: [...x.accounts, ...g.accounts] } : x), `Group \u201C${g.name}\u201D deleted`);
+  };
+  const saveEd = () => {
+    const name = ed.name.trim();
+    if (!name) return;
+    if (ed.id) save(groups.map((g) => g.id === ed.id ? { ...g, name, parent: ed.parent || null } : g), `Group renamed to \u201C${name}\u201D`);
+    else save([...groups, { id: uid("grp"), name, section: ed.section, parent: ed.parent || null, accounts: [] }], `Group \u201C${name}\u201D added`);
+    setEd(null);
+  };
+  const setCat = (code, cat) => {
+    setState((s) => ({ ...s, ifrs: { ...s.ifrs || {}, [code]: cat }, accountGroups: groups.map((g) => ({ ...g, accounts: g.accounts.filter((c) => c !== code) })) }));
+    toast(`${code} now in the ${IFRS_CATS.find((x) => x[0] === cat)[1].toLowerCase()} category`);
+  };
+  const createAcc = () => {
+    const code = nacc.code.trim(), name = nacc.name.trim();
+    if (!/^\d{3,6}$/.test(code) || ACC[code] || name.length < 2) return;
+    setState((s) => ({
+      ...s,
+      accounts: [...s.accounts || [], { id: code, code, name, type: nacc.type, custom: true }],
+      ...nacc.cat ? { ifrs: { ...s.ifrs || {}, [code]: nacc.cat } } : {},
+      accountGroups: groupsOf(s).map((g) => g.id === nacc.group ? { ...g, accounts: [...g.accounts, code] } : g)
+    }));
+    toast(`Account ${code} ${name} created in ${groups.find((g) => g.id === nacc.group).name}`);
+    setNacc(null);
+  };
+  const accRow = (a, depth, sec) => /* @__PURE__ */ React.createElement("div", { key: a.code, className: "agp-row acc", style: { "--d": depth } }, /* @__PURE__ */ React.createElement("span", { className: "agp-name" }, /* @__PURE__ */ React.createElement("span", { className: "mono" }, a.code), a.name), tab === "pl" && /* @__PURE__ */ React.createElement("select", { className: "agp-sel cat", "aria-label": `IFRS 18 category of ${a.code}`, value: ifrsOf(a, state), onChange: (e) => setCat(a.code, e.target.value) }, IFRS_CATS.map(([k, l]) => /* @__PURE__ */ React.createElement("option", { key: k, value: k }, l))), /* @__PURE__ */ React.createElement("select", { className: "agp-sel", "aria-label": `Group of ${a.code}`, value: owner.get(a.code) || "", onChange: (e) => moveAcc(a.code, e.target.value || null) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u2014 Not in a group \u2014"), indentOpts(sec).map((o) => /* @__PURE__ */ React.createElement("option", { key: o.id, value: o.id }, o.label))), /* @__PURE__ */ React.createElement("b", { className: "agp-bal" }, money(bal[a.code] || 0, false)));
+  const groupRow = (g, depth, sec) => {
+    const open = !shut[g.id], sub = kids(sec, g.id), accs = accsOf(sec).filter((a) => owner.get(a.code) === g.id);
+    return /* @__PURE__ */ React.createElement("div", { key: g.id, className: "agp-group" }, /* @__PURE__ */ React.createElement("div", { className: cx("agp-row grp", depth === 0 && "top"), style: { "--d": depth } }, /* @__PURE__ */ React.createElement("button", { className: "agp-tog", onClick: () => setShut((s) => ({ ...s, [g.id]: !s[g.id] })), "aria-expanded": open }, /* @__PURE__ */ React.createElement(ChevronRight, { size: 14, className: "cv" }), /* @__PURE__ */ React.createElement("b", null, g.name), /* @__PURE__ */ React.createElement("span", { className: "agp-meta" }, accs.length, " account", accs.length === 1 ? "" : "s", sub.length ? ` \xB7 ${sub.length} sub-group${sub.length === 1 ? "" : "s"}` : "")), /* @__PURE__ */ React.createElement("span", { className: "agp-acts" }, /* @__PURE__ */ React.createElement("button", { title: "Add a sub-group", onClick: () => setEd({ section: sec, parent: g.id, name: "" }) }, /* @__PURE__ */ React.createElement(Plus, { size: 14 }), "Sub-group"), /* @__PURE__ */ React.createElement("button", { title: "Choose accounts for this group", onClick: () => setPick({ group: g.id, sec, sel: new Set(accs.map((a) => a.code)) }) }, /* @__PURE__ */ React.createElement(ListChecks, { size: 14 }), "Accounts"), /* @__PURE__ */ React.createElement("button", { title: "Create a new account in this group", onClick: () => setNacc({ group: g.id, sec, code: "", name: "", type: SECTION_TYPES[sec][0], cat: ["investing", "financing"].includes(sec) ? sec : sec === "income_tax" ? "tax" : null }) }, /* @__PURE__ */ React.createElement(BookPlus, { size: 14 }), "New account"), /* @__PURE__ */ React.createElement("button", { title: "Rename or move", onClick: () => setEd({ id: g.id, section: sec, parent: g.parent || "", name: g.name }) }, /* @__PURE__ */ React.createElement(Pencil, { size: 13 })), /* @__PURE__ */ React.createElement("button", { title: "Move up", onClick: () => reorder(g, -1) }, /* @__PURE__ */ React.createElement(ChevronUp, { size: 14 })), /* @__PURE__ */ React.createElement("button", { title: "Move down", onClick: () => reorder(g, 1) }, /* @__PURE__ */ React.createElement(ChevronDown, { size: 14 })), /* @__PURE__ */ React.createElement("button", { title: "Delete group", className: "del", onClick: () => remove(g) }, /* @__PURE__ */ React.createElement(Trash2, { size: 13 }))), /* @__PURE__ */ React.createElement("b", { className: "agp-bal" }, money(total(g), false))), open && /* @__PURE__ */ React.createElement(React.Fragment, null, sub.map((x) => groupRow(x, depth + 1, sec)), accs.map((a) => accRow(a, depth + 1, sec)), !sub.length && !accs.length && /* @__PURE__ */ React.createElement("div", { className: "agp-empty", style: { "--d": depth + 1 } }, "Empty \u2014 add accounts or a sub-group.")));
+  };
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(PageHead, { eyebrow: "Accounts master", title: "Account groups", sub: "Build the structure of your reports. Groups can hold accounts and other groups \u2014 for example Assets \u203A Current assets \u203A Cash and cash equivalents \u203A Petty cash and Head office cash. The balance sheet and profit or loss follow this tree." }, custom && /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
+    if (window.confirm("Go back to the suggested groups? Your own groups will be removed.")) {
+      setState((s) => {
+        const x = { ...s };
+        delete x.accountGroups;
+        return x;
+      });
+      toast("Suggested groups restored", "warn");
+    }
+  } }, "Reset to suggested"), /* @__PURE__ */ React.createElement(Btn, { icon: BarChart3, onClick: () => go(tab === "bs" ? "r_bs" : "r_pnl") }, "Open ", tab === "bs" ? "balance sheet" : "profit or loss")), /* @__PURE__ */ React.createElement("div", { className: "agp-tabs seg" }, /* @__PURE__ */ React.createElement("button", { className: tab === "bs" ? "on" : "", onClick: () => setTab("bs") }, "Statement of financial position"), /* @__PURE__ */ React.createElement("button", { className: tab === "pl" ? "on" : "", onClick: () => setTab("pl") }, "Statement of profit or loss")), !custom && /* @__PURE__ */ React.createElement("div", { className: "agp-tip" }, /* @__PURE__ */ React.createElement(Lightbulb, { size: 16 }), /* @__PURE__ */ React.createElement("span", null, "These are suggested groups based on IFRS line items. Change anything \u2014 the first edit saves them as your own.")), tab === "pl" && /* @__PURE__ */ React.createElement("div", { className: "agp-tip" }, /* @__PURE__ */ React.createElement(Info, { size: 16 }), /* @__PURE__ */ React.createElement("span", null, "IFRS 18: pick each account's category \u2014 ", /* @__PURE__ */ React.createElement("b", null, "Operating"), ", ", /* @__PURE__ */ React.createElement("b", null, "Investing"), ", ", /* @__PURE__ */ React.createElement("b", null, "Financing"), " or ", /* @__PURE__ */ React.createElement("b", null, "Income taxes"), ". Changing the category moves the account to that part of the statement.")), sections.map(([sec, label]) => {
+    const loose = accsOf(sec).filter((a) => !owner.has(a.code) || !groups.some((g) => g.id === owner.get(a.code)));
+    const tot = R2(accsOf(sec).reduce((s, a) => s + (bal[a.code] || 0), 0));
+    return /* @__PURE__ */ React.createElement(
+      Card,
+      {
+        key: sec,
+        className: "agp-card",
+        title: label,
+        sub: `${accsOf(sec).length} accounts \xB7 ${tab === "bs" ? "as at " + dmy(TODAY) : "year to date"} AED ${money(tot, false)}`,
+        right: /* @__PURE__ */ React.createElement(Btn, { size: "sm", icon: Plus, onClick: () => setEd({ section: sec, parent: "", name: "" }) }, "Add group"),
+        pad: false
+      },
+      /* @__PURE__ */ React.createElement("div", { className: "agp-tree" }, kids(sec, null).map((g) => groupRow(g, 0, sec)), loose.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "agp-loose" }, /* @__PURE__ */ React.createElement("div", { className: "agp-loose-h" }, "Not in a group ", /* @__PURE__ */ React.createElement("span", null, loose.length)), loose.map((a) => accRow(a, 0, sec))), !kids(sec, null).length && !loose.length && /* @__PURE__ */ React.createElement("div", { className: "agp-empty", style: { "--d": 0 } }, "No accounts in this part of the statement."))
+    );
+  }), ed && /* @__PURE__ */ React.createElement(StudioModal, { title: ed.id ? "Edit group" : "New group", sub: SECTION_LABEL[ed.section], close: () => setEd(null) }, /* @__PURE__ */ React.createElement("div", { className: "studio-form" }, /* @__PURE__ */ React.createElement(Field, { label: "Group name" }, /* @__PURE__ */ React.createElement(Input, { autoFocus: true, value: ed.name, placeholder: "e.g. Cash and cash equivalents", onChange: (e) => setEd({ ...ed, name: e.target.value }), onKeyDown: (e) => {
+    if (e.key === "Enter") saveEd();
+  } })), /* @__PURE__ */ React.createElement(Field, { label: "Inside" }, /* @__PURE__ */ React.createElement("select", { className: "inp", value: ed.parent || "", onChange: (e) => setEd({ ...ed, parent: e.target.value }) }, /* @__PURE__ */ React.createElement("option", { value: "" }, SECTION_LABEL[ed.section], " (top level)"), indentOpts(ed.section, ed.id ? descendants(ed.id) : null).map((o) => /* @__PURE__ */ React.createElement("option", { key: o.id, value: o.id }, o.label))))), /* @__PURE__ */ React.createElement("footer", { className: "modal-actions" }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => setEd(null) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Check, disabled: !ed.name.trim(), onClick: saveEd }, ed.id ? "Save" : "Add group"))), pick && /* @__PURE__ */ React.createElement(StudioModal, { title: `Accounts in ${groups.find((g) => g.id === pick.group).name}`, sub: "Tick the accounts that belong in this group. An account sits in one group at a time.", close: () => setPick(null) }, /* @__PURE__ */ React.createElement("div", { className: "agp-pick" }, accsOf(pick.sec).map((a) => {
+    const on = pick.sel.has(a.code), other = owner.get(a.code) && owner.get(a.code) !== pick.group ? groups.find((g) => g.id === owner.get(a.code)) : null;
+    return /* @__PURE__ */ React.createElement("label", { key: a.code, className: cx("agp-pick-row", on && "on") }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: on, onChange: () => {
+      const s = new Set(pick.sel);
+      on ? s.delete(a.code) : s.add(a.code);
+      setPick({ ...pick, sel: s });
+    } }), /* @__PURE__ */ React.createElement("span", { className: "mono" }, a.code), /* @__PURE__ */ React.createElement("span", { className: "nm" }, a.name, other && /* @__PURE__ */ React.createElement("small", null, "now in ", other.name)), /* @__PURE__ */ React.createElement("b", null, money(bal[a.code] || 0, false)));
+  })), /* @__PURE__ */ React.createElement("footer", { className: "modal-actions" }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => setPick(null) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Check, onClick: () => {
+    save(groups.map((g) => g.id === pick.group ? { ...g, accounts: accsOf(pick.sec).filter((a) => pick.sel.has(a.code)).map((a) => a.code) } : { ...g, accounts: g.accounts.filter((c) => !pick.sel.has(c)) }), `${pick.sel.size} account${pick.sel.size === 1 ? "" : "s"} in ${groups.find((g) => g.id === pick.group).name}`);
+    setPick(null);
+  } }, "Save accounts"))), nacc && /* @__PURE__ */ React.createElement(StudioModal, { title: "New account", sub: `In ${groups.find((g) => g.id === nacc.group).name}`, close: () => setNacc(null) }, /* @__PURE__ */ React.createElement("div", { className: "studio-form" }, /* @__PURE__ */ React.createElement(Field, { label: "Code" }, /* @__PURE__ */ React.createElement(Input, { autoFocus: true, value: nacc.code, placeholder: "e.g. 1115", onChange: (e) => setNacc({ ...nacc, code: e.target.value.replace(/\D/g, "") }) }), ACC[nacc.code.trim()] && /* @__PURE__ */ React.createElement("div", { className: "form-error" }, "Code ", nacc.code, " is already used by ", ACC[nacc.code.trim()].name)), /* @__PURE__ */ React.createElement(Field, { label: "Account name" }, /* @__PURE__ */ React.createElement(Input, { value: nacc.name, placeholder: "e.g. Petty cash \u2014 Head office", onChange: (e) => setNacc({ ...nacc, name: e.target.value }) })), SECTION_TYPES[nacc.sec].length > 1 && /* @__PURE__ */ React.createElement(Field, { label: "Account type" }, /* @__PURE__ */ React.createElement("select", { className: "inp", value: nacc.type, onChange: (e) => setNacc({ ...nacc, type: e.target.value }) }, SECTION_TYPES[nacc.sec].map((t) => /* @__PURE__ */ React.createElement("option", { key: t, value: t }, AT[t].label))))), /* @__PURE__ */ React.createElement("footer", { className: "modal-actions" }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => setNacc(null) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Check, disabled: !/^\d{3,6}$/.test(nacc.code.trim()) || !!ACC[nacc.code.trim()] || nacc.name.trim().length < 2, onClick: createAcc }, "Create account"))));
+}
+const IFRS_CSS = `
+/* 3.9 tighter pages and forms */
+.mz .page-head{padding-top:16px;padding-bottom:12px;margin-bottom:6px}
+.mz .doc-head{padding-top:8px;padding-bottom:10px;margin-bottom:4px}
+.mz .doc-head .doc-back{height:28px;padding:0 8px;margin:0 0 2px -8px;font-size:12.5px}
+.mz .doc-head .micro{margin-top:0}
+.mz .doc-workspace{gap:12px}
+.mz .document-toolbar{margin-top:0}
+.mz .document-dock{padding:8px 14px}
+.mz .document-dock>span{font-size:12px}
+
+/* drill trail */
+.drill-trail{position:sticky;top:0;z-index:7;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:10px 0 0;padding:7px 10px;border-radius:12px;background:color-mix(in srgb,var(--brand-50) 85%,var(--surface));border:1px solid var(--brand-100);font-size:12.5px;box-shadow:0 6px 18px rgba(19,26,43,.06)}
+.drill-trail .back{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;border-radius:8px;background:var(--surface);border:1px solid var(--line);font-weight:600;color:var(--ink)}
+.drill-trail .crumb{color:var(--brand-600);font-weight:600;padding:3px 6px;border-radius:6px}.drill-trail .crumb:hover{background:var(--surface)}
+.drill-trail .sep{color:var(--ink-4)}.drill-trail .here{color:var(--ink-2);font-weight:600}
+.drill-trail+.page-head,.drill-trail+.view>.page-head{padding-top:10px}
+
+/* statement table */
+.fin-wrap{margin-top:2px}
+.fin-tools{display:flex;align-items:center;gap:6px;padding:10px 24px 6px;font-size:12px;color:var(--ink-3)}
+.fin-tools button{height:28px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-weight:600;color:var(--ink-2)}
+.fin-tools button:hover{border-color:var(--brand-100);color:var(--brand-600)}
+.fin-tools span{margin-left:auto;display:inline-flex;align-items:center;gap:5px}
+.mz .tbl.fin-tbl td{padding-top:7px;padding-bottom:7px}
+.mz .tbl.fin-tbl td:first-child{padding-left:calc(18px + var(--d,0) * 20px)}
+.fin-tog{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--ink);text-align:left}
+.fin-tog .cv{color:var(--ink-4);transform:rotate(90deg);transition:transform .15s}
+.fin-grp.shut .fin-tog .cv{transform:none}
+.fin-cnt{font-size:10.5px;font-weight:600;color:var(--ink-4);background:var(--surface-3);padding:0 6px;border-radius:10px}
+.mz .tbl.fin-tbl tr.fin-sec td{background:var(--surface-2);font-weight:700}
+.mz .tbl.fin-tbl tr.fin-sec .fin-tog{font-size:13.5px}
+.mz .tbl.fin-tbl tr.fin-grp:not(.fin-sec) td{font-weight:600}
+.fin-name{display:inline-flex;align-items:center;gap:8px;text-align:left;color:var(--ink-2)}
+.fin-name .mono{font-size:11px;color:var(--ink-4);min-width:34px}
+.fin-name:not(.static):hover{color:var(--brand)}
+.fin-go{opacity:0;color:var(--brand);transition:opacity .15s}
+.fin-acc:hover .fin-go{opacity:1}
+.fin-v{font:inherit;color:inherit;border-radius:5px;padding:1px 4px;margin:-1px -4px}
+.fin-v:hover{background:var(--brand-50);color:var(--brand-600);text-decoration:underline;text-underline-offset:2px}
+.mz .tbl.fin-tbl tr.fin-cat td{padding-top:16px;padding-bottom:6px;padding-left:18px;background:transparent;border-bottom:1px solid var(--line-2)}
+.fin-cat span{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--brand-600)}
+.fin-cat small{display:block;font-size:11.5px;color:var(--ink-4);margin-top:2px;text-transform:none;letter-spacing:0;font-weight:400}
+.mz .tbl.fin-tbl tr.fin-head td{padding-top:16px;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-600);box-shadow:inset 3px 0 0 var(--brand)}
+.mz .tbl.fin-tbl tr.fin-note td{font-size:12px;color:var(--ink-4);font-style:italic}
+.mz .tbl.fin-tbl tr.fin-sub td{font-weight:700;border-top:1.5px solid var(--ink-4);background:color-mix(in srgb,var(--brand-50) 55%,var(--surface))}
+.mz .tbl.fin-tbl tr.fin-total td{font-size:14px;border-top:2px solid var(--ink-2);border-bottom:3px double var(--ink-3);background:color-mix(in srgb,var(--brand-50) 80%,var(--surface))}
+.fin-lbl{display:inline-flex;align-items:center;gap:6px}.fin-i{color:var(--ink-4)}
+.fin-scroll{overflow-x:auto}
+.mz .tbl.fin-tbl td:first-child,.mz .tbl.fin-tbl th:first-child{min-width:260px}
+.mz .tbl.fin-tbl.many td,.mz .tbl.fin-tbl.many th{padding-left:10px;padding-right:10px;font-size:12px;white-space:nowrap}
+.mz .tbl.fin-tbl.many td:first-child,.mz .tbl.fin-tbl.many th:first-child{position:sticky;left:0;z-index:1;background:var(--surface);max-width:300px;overflow:hidden;text-overflow:ellipsis;box-shadow:1px 0 0 var(--line-2)}
+.mz .tbl.fin-tbl.many td:first-child{padding-left:calc(14px + var(--d,0) * 16px)}
+.mz .tbl.fin-tbl.many tr.fin-sec td:first-child{background:var(--surface-2)}
+.mz .tbl.fin-tbl.many tr.fin-sub td:first-child{background:color-mix(in srgb,var(--brand-50) 55%,var(--surface))}
+.mz .tbl.fin-tbl.many tr.fin-cat td:first-child,.mz .tbl.fin-tbl.many tr.fin-head td:first-child,.mz .tbl.fin-tbl.many tr.fin-note td:first-child{position:static;max-width:none;box-shadow:none;background:transparent}
+.mz .tbl.fin-tbl.many .fin-name,.mz .tbl.fin-tbl.many .fin-tog{white-space:nowrap}
+.ifrs-notes{display:grid;gap:12px;padding:6px 24px 22px}
+.ifrs-note-card{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--surface)}
+.ifrs-note-card h4{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:650;color:var(--ink)}
+.ifrs-note-card h4 span{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;background:linear-gradient(140deg,var(--pri-a),var(--pri-b))}
+.ifrs-note-card p{font-size:12.5px;color:var(--ink-3);line-height:1.55;margin:6px 0 8px}
+.ifrs-note-card .tbl-wrap{border:1px solid var(--line-2);border-radius:10px}
+.ifrs-badge{display:inline-flex;align-items:center;gap:5px}
+.gl-row{cursor:pointer}.gl-row td:first-child{white-space:nowrap}
+.mz .tbl.gl-tbl tbody tr.gl-row:hover td{background:var(--brand-50)}
+.gl-row:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
+.gl-doc{display:inline-flex;align-items:center;gap:6px;color:var(--brand-600);font-weight:600;white-space:nowrap}
+.gl-doc .mono{font-size:12.5px}
+.gl-pt{display:block;font-weight:600;color:var(--ink);font-size:12.5px}
+.fin-foot{padding:8px 24px 4px;font-size:12px;color:var(--ink-3)}
+
+/* account groups */
+.agp-tabs{margin:0 0 12px}
+.agp-tip{display:flex;gap:9px;align-items:flex-start;margin:0 0 12px;padding:10px 14px;border-radius:12px;background:var(--brand-50);border:1px solid var(--brand-100);font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.agp-tip svg{color:var(--brand);flex:0 0 auto;margin-top:1px}
+.agp-card{margin-bottom:14px}
+.agp-tree{padding:6px 8px 10px}
+.agp-row{display:flex;align-items:center;gap:8px;min-height:38px;padding:4px 10px 4px calc(10px + var(--d,0) * 22px);border-radius:10px}
+.agp-row:hover{background:var(--surface-2)}
+.agp-row.grp.top{margin-top:4px}
+.agp-tog{display:inline-flex;align-items:center;gap:7px;flex:1;min-width:0;text-align:left;color:var(--ink)}
+.agp-tog .cv{color:var(--ink-4);transform:rotate(90deg);transition:transform .15s}
+.agp-tog[aria-expanded="false"] .cv{transform:none}
+.agp-tog b{font-size:13px;font-weight:650}
+.agp-meta{font-size:11.5px;color:var(--ink-4);white-space:nowrap}
+.agp-acts{display:flex;gap:2px;opacity:.35;transition:opacity .15s}
+.agp-row:hover .agp-acts,.agp-row:focus-within .agp-acts{opacity:1}
+.agp-acts button{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 8px;border-radius:8px;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+.agp-acts button:hover{background:var(--surface);color:var(--brand);box-shadow:0 0 0 1px var(--line)}
+.agp-acts button.del:hover{color:var(--neg)}
+.agp-bal{width:120px;text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.agp-row.acc .agp-name{flex:1;min-width:0;display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agp-row.acc .agp-name .mono{font-size:11px;color:var(--ink-4);min-width:36px}
+.agp-sel{height:30px;max-width:220px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink-2);font-size:12px;padding:0 8px}
+.agp-sel.cat{max-width:130px;color:var(--brand-600);font-weight:600}
+.agp-empty{padding:6px 10px 8px calc(34px + var(--d,0) * 22px);font-size:12px;color:var(--ink-4);font-style:italic}
+.agp-loose{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
+.agp-loose-h{padding:6px 10px;font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--warn)}
+.agp-loose-h span{margin-left:6px;padding:1px 7px;border-radius:10px;background:var(--warn-50)}
+.agp-pick{display:grid;gap:4px;max-height:52vh;overflow:auto}
+.agp-pick-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);cursor:pointer}
+.agp-pick-row.on{border-color:var(--brand-100);background:var(--brand-50)}
+.agp-pick-row .mono{font-size:11.5px;color:var(--ink-4)}
+.agp-pick-row .nm{flex:1;font-size:12.5px}.agp-pick-row .nm small{display:block;font-size:11px;color:var(--warn)}
+.agp-pick-row b{font-size:12px;font-variant-numeric:tabular-nums}
+@media (max-width:760px){.mz .tbl.fin-tbl td:first-child,.mz .tbl.fin-tbl th:first-child{min-width:140px;max-width:180px}.mz .tbl.fin-tbl td,.mz .tbl.fin-tbl th{padding-left:8px;padding-right:8px;font-size:12px}.mz .tbl.fin-tbl td:first-child{padding-left:calc(8px + var(--d,0) * 10px)}.fin-name .mono{display:none}.fin-pct{display:none}
+  .agp-acts{opacity:1;flex-wrap:wrap}.agp-row{flex-wrap:wrap}.agp-bal{width:auto}.agp-sel{max-width:100%}.fin-tools span{display:none}.ifrs-notes{padding:6px 12px 16px}}
+@media print{.fin-tools,.drill-trail{display:none}.mz .tbl.fin-tbl tr.fin-sub td,.mz .tbl.fin-tbl tr.fin-total td,.mz .tbl.fin-tbl tr.fin-sec td{background:none}}
 `;
 
 window.__Invoeez=Invoeez;</script>

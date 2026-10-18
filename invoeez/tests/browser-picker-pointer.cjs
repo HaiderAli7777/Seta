@@ -3,7 +3,7 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright');const pa
 (async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const fx=fs.readFileSync(path.join(__dirname,'fixture.json'),'utf8');
 let fails=0,res=[];
 for(const y of [360,400,440,480,520,560,600,640]){const p=await (await b.newContext({viewport:{width:1440,height:900}})).newPage();
-await p.addInitScript((fx)=>{try{if(!sessionStorage.getItem('x')){localStorage.clear();localStorage.setItem('mizan.books.v2',fx);sessionStorage.setItem('x','1');}}catch(e){}},fx);
+await p.addInitScript((fx)=>{try{if(!sessionStorage.getItem('x')){localStorage.clear();localStorage.setItem('mizan.sidebar','pinned');localStorage.setItem('mizan.books.v2',fx);sessionStorage.setItem('x','1');}}catch(e){}},fx);
 await p.goto('file://'+path.resolve(__dirname,'../invoeez.html'));await p.waitForTimeout(1000);
 await p.locator('.sbar [data-k="invoices"]').click();await p.waitForTimeout(300);await p.getByRole('button',{name:'New invoice'}).first().click();await p.waitForTimeout(400);
 await p.mouse.move(520,y);

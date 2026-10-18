@@ -4,7 +4,7 @@ const HTML=process.env.HTML||path.resolve(__dirname,'../invoeez.html'),fx=fs.rea
 const num=(t)=>+String(t).replace(/[^\d.-]/g,'');
 (async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const errs=[],ok=[];const check=(c,m)=>(c?ok:errs).push(m);
 const open=async(opts={})=>{const p=await (await b.newContext({viewport:{width:1440,height:1000},...opts})).newPage();p.on('pageerror',e=>errs.push('PAGE '+e.message));
- await p.addInitScript((fx)=>{try{if(!sessionStorage.getItem('x')){localStorage.clear();localStorage.setItem('mizan.navgroups','{}');localStorage.setItem('mizan.books.v2',fx);sessionStorage.setItem('x','1');}}catch(e){}},fx);
+ await p.addInitScript((fx)=>{try{if(!sessionStorage.getItem('x')){localStorage.clear();localStorage.setItem('mizan.sidebar','pinned');localStorage.setItem('mizan.navgroups','{}');localStorage.setItem('mizan.books.v2',fx);sessionStorage.setItem('x','1');}}catch(e){}},fx);
  await p.goto('file://'+HTML);await p.waitForTimeout(2600);return p;};
 const names=['dashRise','barGrow','barGrowX','lineDraw','reveal'];
 const running=(p)=>p.evaluate((names)=>document.getAnimations().filter(a=>names.includes(a.animationName)&&a.playState==='running').length,names);

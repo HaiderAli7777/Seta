@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.8.2";
+const BUILD = "3.9.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -398,7 +398,7 @@ function deriveBooks(state) {
   entries.sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number));
   const flat = [];
   entries.forEach((e) => e.lines.forEach((l, i) =>
-    flat.push({ ...l, entryId: e.id, date: e.date, number: e.number, ref: e.ref, journal: e.journal, docId: e.docId, key: e.id + "_" + i })));
+    flat.push({ ...l, entryId: e.id, date: e.date, number: e.number, ref: e.ref, journal: e.journal, docId: e.docId, source: e.source, key: e.id + "_" + i })));
   const totalD = R2(flat.reduce((s, l) => s + l.debit, 0));
   const totalC = R2(flat.reduce((s, l) => s + l.credit, 0));
   return { entries, flat, stock, moves, totalD, totalC, method, balanced: Math.abs(totalD - totalC) < 0.01 };
@@ -430,8 +430,10 @@ function trialBalance(flat, from, to) {
 function generalLedger(flat, accId, from, to) {
   let open = 0;
   const rows = [];
+  /* Income and expense accounts start every financial year at zero; earlier years sit in retained results. */
+  const fy = from && ACC[accId] && IS_PL(ACC[accId].type) ? from.slice(0, 4) + "-01-01" : "";
   flat.filter((l) => l.acc === accId).forEach((l) => {
-    if (from && l.date < from) open = R2(open + l.debit - l.credit);
+    if (from && l.date < from) { if (l.date >= fy) open = R2(open + l.debit - l.credit); }
     else if (inRange(l.date, from, to)) rows.push(l);
   });
   let run = open;
@@ -2548,9 +2550,9 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   const [print, setPrint] = useState(false);
   const [activeLine,setActiveLine]=useState(null);
   const [tab,setTab]=useState('items'),[quick,setQuick]=useState(null),[showCost,setShowCost]=useState(false),[showAccounts,setShowAccounts]=useState(false),[historyLine,setHistoryLine]=useState(null),[historyProduct,setHistoryProduct]=useState('');
-  const [lineView,setLineView]=useState(()=>{try{return localStorage.getItem('mizan.lineView')||'compact';}catch{return 'compact';}});
+  const lineView='compact';
   const [expandedLines,setExpandedLines]=useState({});
-  React.useEffect(()=>{try{localStorage.setItem('mizan.lineView',lineView);}catch{}},[lineView]);
+
   const pendingLine=React.useRef(null);
   React.useEffect(()=>{scrollPageTop();},[initial.id]);
   React.useEffect(()=>{if(pendingLine.current){const id=pendingLine.current;pendingLine.current=null;requestAnimationFrame(()=>{const row=document.querySelector('[data-line-id="'+id+'"]');row?.scrollIntoView({block:'center',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});row?.querySelector('input[role="combobox"]')?.focus({preventScroll:true});});}},[d.lines.length]);
@@ -2711,12 +2713,12 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   return (
     <div>
       {print && <PrintDoc d={d} close={() => setPrint(false)} fta={fta} toast={toast} />}
-      <div className="page-head">
+      <div className="page-head doc-head">
         <div>
-          <button className="btn ghost" style={{ marginBottom: 9, marginLeft: -9 }} onClick={close}>
+          <button className="btn ghost doc-back" onClick={close}>
             <ArrowLeft size={14} /> All {meta.short.toLowerCase()}s</button>
-          <div className="micro">{meta.label} · {meta.journal} journal</div>
-          <h1 style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 11 }}>
+          <div className="micro">{meta.label}{meta.journal && meta.journal !== "—" ? ` · ${meta.journal} journal` : ""}</div>
+          <h1 style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 11 }}>
             {d.number}
             {(() => { const st = isQuote ? (QUOTE_STATES[d.state] || QUOTE_STATES.draft) : docStatus(d, outstanding, d.type);
               return <Pill tone={st.tone} dot>{st.label}</Pill>; })()}
@@ -2780,7 +2782,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
             <Field span={sale?2:1} label={sale?'Customer purchase order':'Supplier invoice number'}><Input value={d.ref} disabled={locked} onChange={e=>set('ref',e.target.value)} placeholder="Optional reference"/></Field>
           </div>
         </Card>
-        <div className="document-toolbar"><div className="doc-tabs" role="tablist" aria-label="Document views">{[['items','Line items',Layers],...(!isQuote?[['journal','Journal entry',BookOpen]]:[]),['history','Price history',Clock],['status','Activity',CircleCheck]].map(([k,label,I])=><button role="tab" aria-selected={tab===k} key={k} className={tab===k?'on':''} onClick={()=>setTab(k)}><I size={15}/>{label}{k==='items'&&<span>{d.lines.length}</span>}</button>)}</div><div className="acts">{tab==='items'&&<><div className="seg line-view-switch" aria-label="Line layout"><button className={lineView==='compact'?'on':''} onClick={()=>setLineView('compact')}>Compact</button><button className={lineView==='detail'?'on':''} onClick={()=>setLineView('detail')}>Detailed</button></div><Btn size="sm" aria-pressed={showAccounts} onClick={()=>setShowAccounts(x=>!x)}>{showAccounts?'Hide accounts':'Show accounts'}</Btn><Btn size="sm" aria-pressed={showCost} onClick={()=>setShowCost(x=>!x)}>{showCost?'Hide cost':'Show cost'}</Btn>{!locked&&<Btn size="sm" onClick={()=>changePricing({},true)}>Reapply pricing</Btn>}</>}</div></div>
+        <div className="document-toolbar"><div className="doc-tabs" role="tablist" aria-label="Document views">{[['items','Line items',Layers],...(!isQuote?[['journal','Journal entry',BookOpen]]:[]),['history','Price history',Clock],['status','Activity',CircleCheck]].map(([k,label,I])=><button role="tab" aria-selected={tab===k} key={k} className={tab===k?'on':''} onClick={()=>setTab(k)}><I size={15}/>{label}{k==='items'&&<span>{d.lines.length}</span>}</button>)}</div><div className="acts">{tab==='items'&&<><Btn size="sm" aria-pressed={showAccounts} onClick={()=>setShowAccounts(x=>!x)}>{showAccounts?'Hide accounts':'Show accounts'}</Btn><Btn size="sm" aria-pressed={showCost} onClick={()=>setShowCost(x=>!x)}>{showCost?'Hide cost':'Show cost'}</Btn>{!locked&&<Btn size="sm" onClick={()=>changePricing({},true)}>Reapply pricing</Btn>}</>}</div></div>
         {tab==='items'&&<>
           {lineView!=='compact'&&<div className="line-section-head"><div><h2>Products & services</h2><p>Search by name, code or barcode. Select a product to fill the line.</p></div>{!locked&&<Btn icon={Plus} kind="pri" onClick={addLine}>Add line</Btn>}</div>}
           {!d.lines.length&&lineView!=='compact'&&<Card><EmptyState icon={Package} title="Start with your first product">Add a blank line, then search or scan a product.</EmptyState>{!locked&&<div className="center"><Btn kind="pri" icon={Plus} onClick={addLine}>Add first line</Btn></div>}</Card>}
@@ -2830,7 +2832,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
               {p&&<div className="line-insights"><button className="line-detail-toggle" aria-expanded={!!expandedLines[l.id]} onClick={()=>setExpandedLines(x=>({...x,[l.id]:!x[l.id]}))}><ChevronDown size={13}/>{expandedLines[l.id]?"Hide description":"Description"}</button><span className="price-source">{l.manualPricing?'Manual price':l.priceSource||'Product price'}</span><span>{last?<>Last {sale?'sold':'purchased'}: <b>AED {money(last.unitNet,false)}</b> / {p.uom.toLowerCase()} · {dmy(last.date)} · Qty {last.qty}</>:<>No previous {sale?'sale to this customer':'purchase from this vendor'}</>}</span><button onClick={()=>setHistoryLine(l)}><Clock size={13}/>View history</button>{showCost&&<div className="runtime-cost"><span>Cost price <b>{money(p.cost,false)}</b></span><span>Current unit cost ({(books.method||'avco').toUpperCase()}) <b>{money(cost,false)}</b></span>{sale&&<span>Est. margin / unit <b className={l.price*(1-(l.disc||0)/100)-cost<0?'neg':'pos'}>{money(l.price*(1-(l.disc||0)/100)-cost,false)}</b></span>}<small>Current costs · AED · before VAT</small></div>}{showAccounts&&<div className="runtime-account"><Field label="Account">{p?.kind==='goods'&&!sale?<div className="readonly">{def} · {ACC[def]?.name}</div>:<Select aria-label={'Account on line '+(i+1)} value={l.account||def||''} disabled={locked||!p} onChange={e=>setLine(l.id,'account',e.target.value)}><option value="">Select product first</option>{accounts.map(a=><option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}</Select>}</Field><span className="account-source">{p.kind==='goods'&&!sale?'Inventory account from product category':l.account?'Line account override':'Default from product category'}</span>{!locked&&l.account&&!(p.kind==='goods'&&!sale)&&<button onClick={()=>setLine(l.id,'account',null)}><RotateCcw size={13}/>Use category default</button>}</div>}</div>}
             </article>;})}</div>}
           <Card><div className="document-bottom"><Field label="Internal note"><textarea className="inp" rows={3} value={d.note} disabled={locked} placeholder="Delivery terms, references or notes…" onChange={e=>set('note',e.target.value)}/></Field><div className="sumbox"><div className="sumrow"><span className="k">Subtotal before discount</span><span className="v">{money(d.lines.reduce((s,l)=>s+R2(l.qty*l.price),0),false)}</span></div><div className="sumrow"><span className="k">Line discounts</span><span className="v">{money(d.lines.reduce((s,l)=>s+R2(l.qty*l.price),0)-am.net,false)}</span></div><div className="sumrow"><span className="k">Subtotal excluding VAT</span><span className="v">{money(am.net,false)}</span></div><div className="sumrow"><span className="k">VAT charged</span><span className="v">{money(am.vat,false)}</span></div>{am.rcm>0&&<div className="sumrow"><span>Reverse charge</span><span>{money(am.rcm,false)}</span></div>}<div className="sumrow total"><span className="k">Total · AED</span><span className="v">{money(am.total,false)}</span></div></div></div></Card>
-          {!locked&&<div className="document-dock"><Btn icon={Plus} onClick={addLine}>Add line</Btn><span>{d.lines.length} items</span><div><small>Total · AED</small><b>{money(am.total,false)}</b></div><Btn onClick={save}>Save {isQuote?'quotation':'draft'}</Btn></div>}
+          {!locked&&<div className="document-dock"><span>{d.lines.length} {d.lines.length===1?'line':'lines'}</span><div><small>Total · AED</small><b>{money(am.total,false)}</b></div><Btn onClick={save}>Save {isQuote?'quotation':'draft'}</Btn></div>}
         </>}
         {tab==='journal'&&<div className="journal-tab"><div className="info-strip"><BookOpen size={20}/><span><b>{locked?'Posted journal entry':'Journal preview'}</b><br/>{locked?'The ledger entry for this document.':'This preview updates as you edit. Posting creates the ledger entry.'}</span></div><PostingPreview lines={preview} title={locked?'Posted journal entry':'Journal preview · AED'}/></div>}
         {tab==='history'&&<Card title={sale?'Price history for this customer':'Price history for this vendor'} sub={`Every product on this document${d.partner?' for '+(PMAP[d.partner]?.name||''):''} — or search any other product.`}><div className="history-pick"><SmartPicker items={productOptions(books)} value={historyProduct} label="History product" placeholder="Search any product…" onChange={setHistoryProduct}/>{historyProduct&&<Btn size="sm" onClick={()=>setHistoryProduct('')}>Products on this document</Btn>}</div>{historyProduct?<HistoryTable key={historyProduct+d.partner} title={PROD[historyProduct]?.name} state={state} product={historyProduct} side={meta.side} partner={d.partner} exclude={d.id} date={d.date}/>
@@ -3806,7 +3808,7 @@ function csv(rows, name) {
   return saveText(body, name, "text/csv;charset=utf-8");
 }
 
-function TrialBalance({ books, p, setP , toast }) {
+function TrialBalance({ books, p, setP, toast, drill }) {
   const tb = trialBalance(books.flat, p.from, p.to);
   let group = "";
   return (
@@ -3827,7 +3829,7 @@ function TrialBalance({ books, p, setP , toast }) {
         <tbody>{tb.rows.map((r) => { const g = AT[r.acc.type].group, head = g !== group; group = g;
           return (<React.Fragment key={r.acc.code}>
             {head && <tr className="sec"><td colSpan={8}>{g}</td></tr>}
-            <tr><td className="mono">{r.acc.code}</td><td>{r.acc.name}</td>
+            <tr className="fin-acc"><td className="mono">{r.acc.code}</td><td>{drill ? <button className="fin-name" title="Open this account's transactions" onClick={() => drill("r_gl", { acc: r.acc.code, from: p.from, to: p.to }, `${r.acc.code} · ${r.acc.name}`, "Trial balance")}>{r.acc.name}<ArrowUpRight size={12} className="fin-go" /></button> : r.acc.name}</td>
               <DrCr v={r.open} />
               <td className="n">{r.d ? money(r.d) : ""}</td><td className="n">{r.c ? money(r.c) : ""}</td>
               <DrCr v={r.close} /></tr></React.Fragment>); })}
@@ -3841,34 +3843,47 @@ function TrialBalance({ books, p, setP , toast }) {
   );
 }
 
-function GeneralLedger({ books, p, setP, param , toast }) {
-  const [acc, setAcc] = useState(param || A.AR);
-  React.useEffect(() => { if (param) setAcc(param); }, [param]);
-  const g = generalLedger(books.flat, acc, p.from, p.to);
+function GeneralLedger({ books, p, setP, param, toast, drill }) {
+  const prm = param && typeof param === "object" ? param : null;
+  const [acc, setAcc] = useState((prm && prm.acc) || (typeof param === "string" && ACC[param] ? param : A.AR));
+  const [lp, setLp] = useState(prm && prm.from ? { ...p, preset: "custom", from: prm.from, to: prm.to } : null);
+  React.useEffect(() => {
+    if (prm) { setAcc(prm.acc); setLp(prm.from ? { ...p, preset: "custom", from: prm.from, to: prm.to } : null); }
+    else if (typeof param === "string" && ACC[param]) { setAcc(param); setLp(null); }
+  }, [param]);
+  const pp = lp || p, setPP = (np) => (lp ? setLp(np) : setP(np));
+  const [entry, setEntry] = useState(null);
+  const g = generalLedger(books.flat, acc, pp.from, pp.to);
+  const ents = useMemo(() => Object.fromEntries((books.entries || []).map((e) => [e.id, e])), [books]);
+  const SRC = { doc: ["Document", FileText], payment: ["Payment", Banknote], manual: ["Journal", BookOpen], pdc: ["Cheque", CalendarClock], stock: ["Stock", Boxes] };
+  const open = (l) => { const e = ents[l.entryId]; if (!e) return;
+    if (e.source === "doc" && e.docId && LIST_OF[e.docType]) drill(LIST_OF[e.docType], e.docId, e.number, `${ACC[acc].code} · ${ACC[acc].name}`); else setEntry(e); };
   return (
-    <ReportFrame toast={toast} title="General Ledger" meta={`${ACC[acc].code} — ${ACC[acc].name} · ${dmy(p.from)} to ${dmy(p.to)}`} icon={BookOpen}
-      chips={[`${ACC[acc].code} · ${ACC[acc].name}`, `${dmy(p.from)} – ${dmy(p.to)}`, `${g.rows.length} postings`]}
+    <ReportFrame toast={toast} title="Account transactions" meta={`${ACC[acc].code} — ${ACC[acc].name} · ${dmy(pp.from)} to ${dmy(pp.to)}`} icon={BookOpen}
+      chips={[`${ACC[acc].code} · ${ACC[acc].name}`, `${dmy(pp.from)} – ${dmy(pp.to)}`, `${g.rows.length} postings`]}
       right={<><Field label="Account"><Select value={acc} onChange={(e) => setAcc(e.target.value)} style={{ width: 268 }}>
         {ACCOUNTS.map((a) => <option key={a.code} value={a.code}>{a.code} — {a.name}</option>)}</Select></Field>
-        <PeriodBar p={p} setP={setP} /></>}>
+        <PeriodBar p={pp} setP={setPP} /></>}>
+      {entry && <EntryModal entry={entry} close={() => setEntry(null)} drill={drill} />}
       <LedgerVisuals g={g} title={`${ACC[acc].code} — ${ACC[acc].name}`} />
-      <SectionTitle>Postings</SectionTitle>
-      <div className="tbl-wrap"><table className="tbl">
-        <thead><tr><th style={{ width: 104 }}>Date</th><th style={{ width: 148 }}>Entry</th><th>Narration</th>
-          <th style={{ width: 128 }}>Journal</th><th className="n">Debit</th><th className="n">Credit</th><th className="n">Balance</th></tr></thead>
+      <SectionTitle>Transactions · click one to open its invoice, bill or journal entry</SectionTitle>
+      <div className="tbl-wrap"><table className="tbl gl-tbl">
+        <thead><tr><th style={{ width: 100 }}>Date</th><th style={{ width: 160 }}>Document</th><th>Partner / narration</th>
+          <th style={{ width: 120 }}>Journal</th><th className="n">Debit</th><th className="n">Credit</th><th className="n">Balance</th></tr></thead>
         <tbody>
-          <tr className="sub"><td colSpan={4}>Opening balance carried forward</td><td /><td /><td className="n">{money(g.open)}</td></tr>
+          <tr className="sub"><td colSpan={4}>Opening balance on {dmy(pp.from)}</td><td /><td /><td className="n">{money(g.open)}</td></tr>
           {g.rows.length === 0 && <tr><td colSpan={7}><EmptyState icon={BookOpen} title="No movement in this period">Widen the date range or pick another account.</EmptyState></td></tr>}
-          {g.rows.map((l) => (
-            <tr key={l.key}><td className="muted">{dmy(l.date)}</td>
-              <td className="mono" style={{ fontSize: 12.5 }}>{l.number}</td>
-              <td>{l.label}{l.partner ? <span className="muted"> — {PMAP[l.partner].name}</span> : ""}</td>
-              <td className="muted" style={{ fontSize: 12.5 }}>{l.journal}</td>
+          {g.rows.map((l) => { const e = ents[l.entryId] || {}, [srcL, SrcI] = SRC[e.source] || ["Entry", BookOpen];
+            return <tr key={l.key} className="gl-row" onClick={() => open(l)} tabIndex={0} onKeyDown={(ev) => { if (ev.key === "Enter") open(l); }} title={`Open ${l.number}`}>
+              <td className="muted">{dmy(l.date)}</td>
+              <td><span className="gl-doc"><SrcI size={13} /><span className="mono">{l.number}</span></span></td>
+              <td>{l.partner && PMAP[l.partner] ? <b className="gl-pt">{PMAP[l.partner].name}</b> : null}<span className="muted">{l.label}</span></td>
+              <td className="muted" style={{ fontSize: 12.5 }}>{l.journal || srcL}</td>
               <td className="n" style={{ color: l.debit ? "var(--pos)" : undefined }}>{l.debit ? money(l.debit) : ""}</td>
               <td className="n" style={{ color: l.credit ? "var(--neg)" : undefined }}>{l.credit ? money(l.credit) : ""}</td>
-              <td className="n">{money(l.run)}</td></tr>))}
+              <td className="n">{money(l.run)}</td></tr>; })}
         </tbody>
-        <tfoot><tr><td colSpan={4}>Closing balance</td><td className="n">{money(g.d)}</td>
+        <tfoot><tr><td colSpan={4}>Closing balance on {dmy(pp.to)} · {g.rows.length} transactions</td><td className="n">{money(g.d)}</td>
           <td className="n">{money(g.c)}</td><td className="n">{money(g.close)}</td></tr></tfoot>
       </table></div>
     </ReportFrame>
@@ -3959,89 +3974,57 @@ function Aged({ state, kind, p, setP , toast }) {
   );
 }
 
-function ProfitLoss({ books, p, setP , toast }) {
+function ProfitLoss({ books, p, setP, toast, state, drill, go }) {
   const r = pnl(books.flat, p.from, p.to);
   const x = useCompare(books, p), q = x.on ? pnl(books.flat, x.c.from, x.c.to) : null;
+  const sc = useMemo(() => statementCols(books, p, false), [books, p]);
+  const st = useMemo(() => plStatement(books, state, sc.cols), [books, state, sc]);
+  const i0 = sc.cols.findIndex((c) => c.key === "c0"), i1 = sc.cols.findIndex((c) => c.key === "c1");
+  const op = st.op[i0], net = st.net[i0];
   const moved = (cur, prev, word) => { const c = chg(cur, prev); return c.pct == null ? null : <>{word} {c.dir > 0 ? "up" : c.dir < 0 ? "down" : "unchanged"}{c.dir ? <> <b className={c.dir > 0 ? "pos" : "neg"}>{Math.abs(c.pct) >= 1000 ? ">999" : Math.abs(c.pct).toFixed(1)}%</b></> : ""}</>; };
-  const share = (v) => (r.revenue ? ((v / r.revenue) * 100).toFixed(1) + "%" : "—");
-  const Line = ({ a }) => (<tr><td className="mono muted" style={{ width: 80 }}>{a.acc.code}</td>
-    <td>{a.acc.name}</td><td className="n">{money(a.amount)}</td>
-    <td className="n muted" style={{ width: 92 }}>{share(a.amount)}</td></tr>);
+  const onDrill = (acc, col) => drill("r_gl", { acc: acc.code, from: col.from, to: col.to }, `${acc.code} · ${acc.name}`, "Profit or loss");
   return (
-    <ReportFrame toast={toast} title="Statement of Profit or Loss" meta={`${dmy(p.from)} to ${dmy(p.to)}${x.on ? ` compared with ${x.c.dates}` : ""} · AED`} icon={BarChart3}
-      chips={[`${dmy(p.from)} – ${dmy(p.to)}`, cmpChip(x), "Accrual basis", "AED"]} right={<><PeriodBar p={p} setP={setP} /><CompareBar p={p} setP={setP} /></>}>
+    <ReportFrame toast={toast} title="Statement of Profit or Loss" meta={`${dmy(p.from)} to ${dmy(p.to)}${sc.cols.length > 1 ? ` with ${sc.cols.length - 1} comparison period${sc.cols.length > 2 ? "s" : ""}` : ""} · IFRS 18 · AED`} icon={BarChart3}
+      chips={[`${dmy(p.from)} – ${dmy(p.to)}`, cmpChip(x), "IFRS 18", "Accrual basis", "AED"]} right={<><PeriodBar p={p} setP={setP} /><CompareBar p={p} setP={setP} /></>}>
       <CompareNote x={x} p={p} setP={setP} />
-      <Insight tone={r.net < 0 ? "warn" : ""}>{r.revenue || r.expense || r.cost
-        ? <>From {dmy(p.from)} to {dmy(p.to)} you sold <b>{aed(r.revenue)}</b>. The goods and services you sold cost <b>{aed(r.cost)}</b>, leaving a gross profit of <b>{aed(r.gross)}</b> ({r.gm.toFixed(1)}%).
-          After <b>{aed(r.expense)}</b> of running costs, the business made a <b className={r.net >= 0 ? "pos" : "neg"}>{r.net >= 0 ? "profit" : "loss"} of {aed(Math.abs(r.net))}</b>.
-          {q && (q.revenue || q.net) ? <> Compared with {x.c.dates}, {moved(r.revenue, q.revenue, "sales are") || <>sales were nil before</>}{q.net ? <> and {moved(r.net, q.net, "profit is")}</> : ""} (profit then: {aed(q.net)}).</> : null}</>
+      {sc.dropped > 0 && x.on && <div className="cmp-note partial noprint"><Info size={15} /><span>{sc.dropped} earlier period{sc.dropped === 1 ? " is" : "s are"} before your books start, so {sc.dropped === 1 ? "it is" : "they are"} left out.</span></div>}
+      <Insight tone={net < 0 ? "warn" : ""}>{r.revenue || r.expense || r.cost
+        ? <>From {dmy(p.from)} to {dmy(p.to)} you sold <b>{aed(r.revenue)}</b> and kept a gross profit of <b>{aed(r.gross)}</b> ({r.gm.toFixed(1)}%). After running costs the <b>operating profit</b> is <b className={op >= 0 ? "pos" : "neg"}>{aed(op)}</b>,
+          and after investing, financing and tax the business made a <b className={net >= 0 ? "pos" : "neg"}>{net >= 0 ? "profit" : "loss"} of {aed(Math.abs(net))}</b>.
+          {q && (q.revenue || q.net) ? <> Compared with {x.c.dates}, {moved(r.revenue, q.revenue, "sales are") || <>sales were nil before</>}{q.net ? <> and {moved(net, st.net[i1] != null ? st.net[i1] : q.net, "profit is")}</> : ""}.</> : null}</>
         : <>No sales or costs were recorded between {dmy(p.from)} and {dmy(p.to)}. Pick another period above.</>}</Insight>
-      <PnlVisuals books={books} r={r} p={p} c={x.on ? x.c : null} q={q} />
-      <SectionTitle>{q ? `Statement detail · compared with ${x.c.dates}` : "Statement detail"}</SectionTitle>
-      {q ? <PnlCompareTable r={r} q={q} p={p} c={x.c} /> : <div className="tbl-wrap"><table className="tbl">
-        <thead><tr><th style={{ width: 80 }}>Code</th><th>Account</th><th className="n">Amount</th><th className="n" style={{ width: 92 }}>% revenue</th></tr></thead>
-        <tbody>
-          <tr className="sec"><td colSpan={4}>Revenue</td></tr>
-          {r.rev.map((x) => <Line key={x.acc.code} a={x} />)}
-          <tr className="sub rule"><td /><td>Total revenue</td><td className="n">{money(r.revenue)}</td><td className="n muted">100.0%</td></tr>
-          <tr className="sec"><td colSpan={4}>Cost of sales</td></tr>
-          {r.cos.map((x) => <Line key={x.acc.code} a={x} />)}
-          <tr className="sub rule"><td /><td>Gross profit</td><td className="n">{money(r.gross)}</td><td className="n muted">{r.gm.toFixed(1)}%</td></tr>
-          <tr className="sec"><td colSpan={4}>Operating expenses</td></tr>
-          {r.exp.map((x) => <Line key={x.acc.code} a={x} />)}
-          <tr className="sub rule"><td /><td>Total operating expenses</td><td className="n">{money(r.expense)}</td><td className="n muted">{share(r.expense)}</td></tr>
-        </tbody>
-        <tfoot><tr className="grand"><td /><td>{r.net >= 0 ? "Profit for the period" : "Loss for the period"}</td>
-          <td className="n" style={{ color: r.net >= 0 ? "var(--pos)" : "var(--neg)" }}>{money(r.net)}</td>
-          <td className="n muted">{r.nm.toFixed(1)}%</td></tr></tfoot>
-      </table></div>}
+      <PnlVisuals books={books} r={r} p={p} c={x.on ? x.c : null} q={q} st={st} sc={sc} />
+      <SectionTitle>Statement of profit or loss · by IFRS 18 category</SectionTitle>
+      <FinTable cols={sc.cols} rows={st.rows} onDrill={onDrill} pctBase={sc.cols.length === 1 ? st.revenue : null} caption="Statement of profit or loss" />
+      <div className="fin-foot noprint"><span>Group accounts your way and choose each account's IFRS 18 category in <button className="linkish" onClick={() => go("acct_groups")}>Account groups</button>.</span></div>
+      <SectionTitle>Notes</SectionTitle>
+      <IfrsNotes st={st} cols={sc.cols} />
     </ReportFrame>
   );
 }
 
-function BalanceSheetRep({ books, p, setP , toast }) {
+function BalanceSheetRep({ books, p, setP, toast, state, drill, go }) {
   const b = balanceSheet(books.flat, p.asOf, p.asOf.slice(0, 4) + "-01-01");
   const x = useCompare(books, p, true), q = x.on ? balanceSheet(books.flat, x.c.asOf, x.c.asOf.slice(0, 4) + "-01-01") : null;
-  const Block = ({ title, groups, rows, total, label }) => (
-    <table className="tbl">
-      <tbody>
-        <tr className="sec"><td colSpan={3}>{title}</td></tr>
-        {groups && groups.map((g) => (<React.Fragment key={g.name}>
-          <tr className="sub"><td colSpan={3} style={{ paddingTop: 14 }}>{g.name}</td></tr>
-          {g.rows.map((x) => (<tr key={x.acc.code}><td className="mono muted" style={{ width: 78 }}>{x.acc.code}</td>
-            <td>{x.acc.name}</td><td className="n">{money(x.amount)}</td></tr>))}
-          <tr className="sub rule"><td /><td>Total {g.name.toLowerCase()}</td><td className="n">{money(g.total)}</td></tr>
-        </React.Fragment>))}
-        {rows && rows.map((x) => (<tr key={x.acc.code}><td className="mono muted" style={{ width: 78 }}>{x.acc.code}</td>
-          <td>{x.acc.name}</td><td className="n">{money(x.amount)}</td></tr>))}
-      </tbody>
-      <tfoot><tr><td /><td>{label}</td><td className="n">{money(total)}</td></tr></tfoot>
-    </table>
-  );
-  const balanced = Math.abs(b.diff) < 0.01;
+  const sc = useMemo(() => statementCols(books, p, true), [books, p]);
+  const st = useMemo(() => bsStatement(books, state, sc.cols), [books, state, sc]);
+  const balanced = st.diff.every((d) => Math.abs(d) < 0.01);
+  const onDrill = (acc, col) => drill("r_gl", { acc: acc.code, from: col.asOf.slice(0, 4) + "-01-01", to: col.asOf }, `${acc.code} · ${acc.name}`, "Financial position");
   return (
-    <ReportFrame toast={toast} title="Statement of Financial Position" meta={`As at ${dmy(p.asOf)}${x.on ? ` compared with ${x.c.dates}` : ""} · AED`} icon={Scale}
+    <ReportFrame toast={toast} title="Statement of Financial Position" meta={`As at ${dmy(p.asOf)}${sc.cols.length > 1 ? ` with ${sc.cols.length - 1} comparison date${sc.cols.length > 2 ? "s" : ""}` : ""} · AED`} icon={Scale}
       chips={[`As at ${dmy(p.asOf)}`, cmpChip(x), balanced ? "Balanced" : "Out of balance", "AED"]} right={<><PeriodBar p={p} setP={setP} mode="asOf" /><CompareBar p={p} setP={setP} mode="asOf" /></>}>
       <CompareNote x={x} p={p} setP={setP} asOf />
       <Insight>On {dmy(p.asOf)} the business owns <b>{aed(b.totA)}</b> (cash, stock, money due from customers and equipment) and owes <b>{aed(b.totL)}</b> (vendors, VAT, loans and other liabilities),
-        so it is worth <b className={b.totE >= 0 ? "pos" : "neg"}>{aed(b.totE)}</b> to its owners.{Math.abs(b.diff) < 0.01 ? " Both sides agree." : ""}
+        so it is worth <b className={b.totE >= 0 ? "pos" : "neg"}>{aed(b.totE)}</b> to its owners.{balanced ? " Both sides agree." : ""}
         {q ? <> On {x.c.dates} it was worth <b>{aed(q.totE)}</b> — {b.totE >= q.totE ? "an increase" : "a decrease"} of <b className={b.totE >= q.totE ? "pos" : "neg"}>{aed(Math.abs(R2(b.totE - q.totE)))}</b>.</> : null}</Insight>
       <BsVisuals b={b} books={books} p={p} q={q} c={x.on ? x.c : null} />
-      <SectionTitle>{q ? `Statement detail · as at ${dmy(p.asOf)} and ${x.c.dates}` : "Statement detail"}</SectionTitle>
-      {q ? <BsCompareTable b={b} q={q} p={p} c={x.c} /> : <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 0 }}>
-        <div style={{ borderRight: "1px solid var(--line)" }}>
-          <Block title="Assets" groups={b.assets} total={b.totA} label="Total assets" /></div>
-        <div>
-          <Block title="Liabilities" groups={b.liab} total={b.totL} label="Total liabilities" />
-          <Block title="Equity" rows={b.eqRows} total={b.totE} label="Total equity" />
-          <table className="tbl"><tfoot><tr className="grand"><td /><td>Total liabilities and equity</td>
-            <td className="n">{money(R2(b.totL + b.totE))}</td></tr></tfoot></table>
-        </div>
-      </div>}
-      <div style={{ padding: "14px 18px", borderTop: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 9,
+      <SectionTitle>Statement of financial position</SectionTitle>
+      <FinTable cols={sc.cols} rows={st.rows} onDrill={onDrill} asOf caption="Statement of financial position" />
+      <div className="fin-foot noprint"><span>Build groups such as Current assets › Cash and cash equivalents in <button className="linkish" onClick={() => go("acct_groups")}>Account groups</button>.</span></div>
+      <div style={{ padding: "12px 18px", borderTop: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 9,
         fontSize: 12.5, color: balanced ? "var(--pos)" : "var(--neg)", background: balanced ? "var(--pos-50)" : "var(--neg-50)" }}>
         {balanced ? <Check size={15} strokeWidth={2.3} /> : <AlertTriangle size={15} strokeWidth={2.1} />}
-        {balanced ? "Assets equal liabilities plus equity. The statement balances." : `Out of balance by ${money(b.diff)}.`}
+        {balanced ? "Assets equal equity plus liabilities on every date shown. The statement balances." : `Out of balance by ${money(st.diff.find((d) => Math.abs(d) >= 0.01))}.`}
       </div>
     </ReportFrame>
   );
@@ -5739,7 +5722,7 @@ const SCREEN_PERM = {
   categories:"master",pricelists:"master",salespeople:"master",stock_count:"journal",scrap:"journal",
   dash: "view", quotes: "sell", invoices: "sell", credit_notes: "sell", partners: "master", bills: "buy", debit_notes: "buy",
   banking: "bank", expenses: "buy", assets: "bank", payments: "buy", products: "master", methods: "bank", r_method: "reports", r_stmt: "reports",
-  accounts: "master", journal: "journal", r_stock: "reports", r_pnl: "reports", r_bs: "reports",
+  accounts: "master", acct_groups: "master", journal: "journal", r_stock: "reports", r_pnl: "reports", r_bs: "reports",
   r_tb: "reports", r_gl: "reports", r_partner: "reports", r_aged_ar: "reports", r_aged_ap: "reports",
   r_prod: "reports", r_cust: "reports", r_vat: "tax", fta: "tax", settings: "settings", users: "settings", setup: "master",
   customers: "master", vendors: "master", reports: "reports", opening: "master", pdc: "bank",
@@ -6125,7 +6108,7 @@ function SettingsScreen({ accent, setAccent, company, setCompany, theme, setThem
 const NAV = [
  { g: "Dashboard", i: LayoutDashboard, k: "dash" },
  { g: "Master", i: Database, items: [
-   { s: "Accounts master", items: [{ k: "accounts", l: "Chart of accounts", i: BookOpen, add: 1 }, { k: "customers", l: "Customers", i: Users, add: 1 }, { k: "vendors", l: "Vendors", i: Truck, add: 1 }] },
+   { s: "Accounts master", items: [{ k: "accounts", l: "Chart of accounts", i: BookOpen, add: 1 }, { k: "acct_groups", l: "Account groups", i: Layers }, { k: "customers", l: "Customers", i: Users, add: 1 }, { k: "vendors", l: "Vendors", i: Truck, add: 1 }] },
    { s: "Inventory master", items: [{ k: "products", l: "Products & services", i: Package, add: 1 }, { k: "categories", l: "Product categories", i: Layers, add: 1 }] },
    { s: "Rate master", items: [{ k: "pricelists", l: "Price lists", i: Tag, add: 1 }] },
    { s: "Other master", items: [{ k: "salespeople", l: "Sales team", i: Users, add: 1 }, { k: "methods", l: "Payment methods", i: CreditCard, add: 1 }] },
@@ -6189,7 +6172,8 @@ function Invoeez() {
   const [toasts, setToasts] = useState([]);
   const [cmdk, setCmdk] = useState(false);
   const [create, setCreate] = useState(null);
-  const [mini, setMini] = useState(false);
+  const [mini, setMini] = useState(() => { try { return window.localStorage.getItem("mizan.sidebar") !== "pinned"; } catch (e) { return true; } });
+  React.useEffect(() => { try { window.localStorage.setItem("mizan.sidebar", mini ? "folded" : "pinned"); } catch (e) {} }, [mini]);
   const [menu, setMenu] = useState(false);
   const [newMenu, setNewMenu] = useState(false);
   const [newAt, setNewAt] = useState({ top: 0, left: 0 });
@@ -6280,7 +6264,15 @@ function Invoeez() {
     setToasts((t) => [...t, { id, msg, tone }]);
     window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3400);
   };
-  const go = (k, p) => {
+  /* Drill-down keeps a trail (Profit or loss › 6100 Salaries › INV/…) so you can step back; ordinary navigation clears it. */
+  const [trail, setTrail] = useState([]), [crumb, setCrumb] = useState(null);
+  const go = (k, p) => { setTrail([]); setCrumb(null); navTo(k, p); };
+  const drill = (k, p, label, fromLabel) => {
+    setTrail((t) => [...t, { k: view, p: param, label: crumb || fromLabel || (NAV_FLAT.find((i) => i.k === view) || { l: "Back" }).l }].slice(-8));
+    setCrumb(label); navTo(k, p);
+  };
+  const backTo = (i) => { const t = trail[i]; if (!t) return; setTrail(trail.slice(0, i)); setCrumb(i > 0 ? t.label : null); navTo(t.k, t.p); };
+  const navTo = (k, p) => {
     if (k === "partners") k = p && PMAP[p] && PMAP[p].role === "vendor" ? "vendors" : "customers";
     scrollPageTop();
     const f = NAV_FLAT.find((i) => i.k === k); if (f && f.g !== f.l) setClosed((c) => ({ ...c, [f.g]: false, ...(f.sg ? { [f.sg]: false } : {}) }));
@@ -6405,13 +6397,14 @@ function Invoeez() {
       case "settings": return <SettingsScreen accent={accent} setAccent={setAccent} setCosting={(k) => setState((x) => ({ ...x, costing: k }))} setSettings={(patch) => setState((x) => ({ ...x, settings: { ...(x.settings || {}), ...patch } }))} fta={fta} setFta={setFta} company={company} setCompany={setCompany} theme={theme} setTheme={setTheme}
         density={density} setDensity={setDensity} backup={backup} restore={restore} reset={reset} startCompany={startCompany} go={go}
         toast={toast} books={books} state={state} />;
-      case "r_tb": return <TrialBalance books={books} p={period} setP={setPeriod} toast={toast} />;
-      case "r_gl": return <GeneralLedger books={books} p={period} setP={setPeriod} toast={toast} param={param} />;
+      case "r_tb": return <TrialBalance books={books} p={period} setP={setPeriod} toast={toast} drill={drill} />;
+      case "r_gl": return <GeneralLedger books={books} p={period} setP={setPeriod} toast={toast} param={param} drill={drill} />;
+      case "acct_groups": return <AccountGroupsScreen state={state} setState={setState} books={books} toast={toast} go={go} />;
       case "r_partner": return <PartnerLedgerRep books={books} p={period} setP={setPeriod} toast={toast} param={param} />;
       case "r_aged_ar": return <Aged state={state} kind="receivable" p={period} setP={setPeriod} toast={toast} />;
       case "r_aged_ap": return <Aged state={state} kind="payable" p={period} setP={setPeriod} toast={toast} />;
-      case "r_pnl": return <ProfitLoss books={books} p={period} setP={setPeriod} toast={toast} />;
-      case "r_bs": return <BalanceSheetRep books={books} p={period} setP={setPeriod} toast={toast} />;
+      case "r_pnl": return <ProfitLoss books={books} p={period} setP={setPeriod} toast={toast} state={state} drill={drill} go={go} />;
+      case "r_bs": return <BalanceSheetRep books={books} p={period} setP={setPeriod} toast={toast} state={state} drill={drill} go={go} />;
       case "r_prod": return <ProfitReport state={state} books={books} p={period} setP={setPeriod} by="product" toast={toast} />;
       case "r_cust": return <ProfitReport state={state} books={books} p={period} setP={setPeriod} by="customer" toast={toast} />;
       case "r_vat": return <VatReturn state={state} p={period} setP={setPeriod} toast={toast} />;
@@ -6420,7 +6413,7 @@ function Invoeez() {
     }
   };
 
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS;
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS;
   /* Nobody signed in in this tab: show the sign-in screen. */
   if (!meFound) return (
     <ThemeCtx.Provider value={palette}>
@@ -6556,6 +6549,10 @@ function Invoeez() {
           </div>
         </div>
         <div className="page"><div className="view" key={view}>
+          {trail.length > 0 && <nav className="drill-trail noprint" aria-label="Drill-down path">
+            <button className="back" onClick={() => backTo(trail.length - 1)}><ArrowLeft size={14} />Back</button>
+            {trail.map((t, i) => <React.Fragment key={i}><button className="crumb" onClick={() => backTo(i)}>{t.label}</button><ChevronRight size={13} className="sep" /></React.Fragment>)}
+            <span className="here">{crumb}</span></nav>}
           {state.sample && !bannerHidden && view !== "setup" && <SampleBanner onStart={startCompany} onHide={() => setBannerHidden(true)} />}
           {body()}</div></div>
       </div>

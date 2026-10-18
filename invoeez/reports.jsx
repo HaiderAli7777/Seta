@@ -296,8 +296,12 @@ const REPORTS_CSS = `
 `;
 
 /* ===================================================== report visuals ==== */
-function PnlVisuals({ books, r, p, c, q }) {
+function PnlVisuals({ books, r, p, c, q, st, sc }) {
   const prev = q || {}, cmp = !!q, vs = cmp ? `vs ${c.dates}` : null, dt = cmp ? `Compared with ${c.dates}` : undefined;
+  const i0 = sc ? sc.cols.findIndex((x) => x.key === "c0") : 0, i1 = sc ? sc.cols.findIndex((x) => x.key === "c1") : -1;
+  const op = st ? st.op[i0] : r.net, opPrev = st && i1 >= 0 ? st.op[i1] : null, net = st ? st.net[i0] : r.net, netPrev = st && i1 >= 0 ? st.net[i1] : prev.net;
+  const trend = sc && sc.cols.length >= 3 ? sc.cols.map((x, i) => ({ x, i })).sort((a, b) => (a.x.from < b.x.from ? -1 : 1))
+    .map(({ x, i }) => ({ label: x.title, full: x.sub, revenue: st.revenue[i], op: st.op[i], profit: st.net[i] })) : null;
   const dl = (v, w) => (cmp ? deltaPct(v, w) : null);
   const ser = useMemo(() => periodSeries(books.flat, p.from, p.to), [books, p.from, p.to]);
   const costs = [...r.cos, ...r.exp].map((x) => ({ key: x.acc.code, label: x.acc.name, sub: x.acc.code, value: x.amount, extra: r.revenue ? ((x.amount / r.revenue) * 100).toFixed(1) + "% of sales" : null }))
@@ -307,9 +311,14 @@ function PnlVisuals({ books, r, p, c, q }) {
     <KpiRow>
       <KpiTile label="Revenue" value={r.revenue} icon={TrendingUp} delta={dl(r.revenue, prev.revenue)} deltaTitle={dt} sub={cmp ? `was ${money(prev.revenue, false)}` : "this period"} spark={ser.rows.map((x) => x.revenue)} />
       <KpiTile label="Gross profit" value={r.gross} icon={Layers} tone="t3" delta={dl(r.gross, prev.gross)} deltaTitle={dt} sub={cmp ? `${r.gm.toFixed(1)}% margin · was ${prev.gm.toFixed(1)}%` : `${r.gm.toFixed(1)}% gross margin`} />
-      <KpiTile label="Operating expenses" value={r.expense} icon={Wallet} tone="t2" goodUp={false} delta={dl(r.expense, prev.expense)} deltaTitle={dt} sub={cmp ? `was ${money(prev.expense, false)}` : r.revenue ? `${((r.expense / r.revenue) * 100).toFixed(1)}% of revenue` : "running costs"} />
-      <KpiTile label={r.net >= 0 ? "Net profit" : "Net loss"} value={r.net} icon={r.net >= 0 ? TrendingUp : TrendingDown} tone={r.net >= 0 ? "pos" : "neg"} delta={dl(r.net, prev.net)} deltaTitle={dt} sub={cmp ? `was ${money(prev.net, false)}` : `${r.nm.toFixed(1)}% net margin`} spark={ser.rows.map((x) => x.profit)} />
+      <KpiTile label="Operating profit" value={op} icon={Layers} tone={op >= 0 ? "t2" : "neg"} delta={cmp && opPrev != null ? deltaPct(op, opPrev) : null} deltaTitle={dt} sub={cmp && opPrev != null ? `was ${money(opPrev, false)}` : "IFRS 18 subtotal"} />
+      <KpiTile label={net >= 0 ? "Profit for the period" : "Loss for the period"} value={net} icon={net >= 0 ? TrendingUp : TrendingDown} tone={net >= 0 ? "pos" : "neg"} delta={cmp ? deltaPct(net, netPrev) : null} deltaTitle={dt} sub={cmp ? `was ${money(netPrev, false)}` : `${r.revenue ? ((net / r.revenue) * 100).toFixed(1) : "0.0"}% net margin`} spark={ser.rows.map((x) => x.profit)} />
     </KpiRow>
+    {trend && <VizCard title="Across the compared periods" sub="Revenue and operating profit per period · profit for the period as a line · AED"
+      legend={[{ name: "Revenue", color: "var(--s1)" }, { name: "Operating profit", color: "var(--s2)" }, { name: "Profit for the period", color: "var(--s3)", line: true }]}>
+      <ColumnChart data={trend} series={[{ key: "revenue", name: "Revenue", color: "var(--s1)" }, { key: "op", name: "Operating profit", color: "var(--s2)" }]} line={{ key: "profit", name: "Profit for the period", color: "var(--s3)" }} height={230} ariaLabel="Revenue and profit across the compared periods" />
+      <VizTable caption="Across the compared periods" cols={["Period", "Revenue", "Operating profit", "Profit for the period"]} rows={trend.map((x) => [x.full, money(x.revenue, false), money(x.op, false), money(x.profit, false)])} />
+    </VizCard>}
     {cmp && <PnlCompareViz r={r} q={q} c={c} />}
     <div className="rpt-grid">
       <VizCard title={`Revenue, costs and profit by ${unit}`} sub={`${dmy(p.from)} – ${dmy(p.to)} · AED · hover a ${unit} for the figures`}

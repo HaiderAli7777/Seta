@@ -11,7 +11,7 @@ async function open(b, { w = 1440, h = 900, theme = 'light', books = null, compa
   const p = await ctx.newPage(); p.errs = [];
   p.on('pageerror', (e) => p.errs.push(e.message)); p.on('console', (m) => { if (m.type() === 'error') p.errs.push('console: ' + m.text().slice(0, 160)); });
   p.on('dialog', (d) => d.accept());
-  await p.addInitScript(([t, bk, co, ex]) => { try { if (!sessionStorage.getItem('x')) { localStorage.clear(); localStorage.setItem('mizan.navgroups', '{}'); localStorage.setItem('mizan.theme', t);
+  await p.addInitScript(([t, bk, co, ex]) => { try { if (!sessionStorage.getItem('x')) { localStorage.clear();localStorage.setItem('mizan.sidebar','pinned'); localStorage.setItem('mizan.navgroups', '{}'); localStorage.setItem('mizan.theme', t);
     if (bk) localStorage.setItem('mizan.books.v2', bk); if (co) localStorage.setItem('mizan.company', co); if (ex) Object.entries(ex).forEach(([k, v]) => localStorage.setItem(k, v)); sessionStorage.setItem('x', '1'); } } catch (e) {} }, [theme, books, company, extra]);
   await p.goto(HTML); await p.waitForTimeout(1300); return p;
 }

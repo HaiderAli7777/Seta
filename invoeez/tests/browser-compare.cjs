@@ -7,7 +7,7 @@ const iso=(d)=>{const m=/(\d\d) (\w{3}) (\d{4})/.exec(d);return `${m[3]}-${Strin
 const dmy=(dt)=>`${String(dt.getUTCDate()).padStart(2,'0')} ${M[dt.getUTCMonth()]} ${dt.getUTCFullYear()}`;
 (async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const errs=[],ok=[];const check=(c,m)=>(c?ok:errs).push(m);
 const p=await (await b.newContext({viewport:{width:1440,height:1000}})).newPage();p.on('pageerror',e=>errs.push('PAGE '+e.message));
-await p.addInitScript((fx)=>{try{if(!sessionStorage.getItem('x')){localStorage.clear();localStorage.setItem('mizan.navgroups','{}');localStorage.setItem('mizan.books.v2',fx);sessionStorage.setItem('x','1');}}catch(e){}},fx);
+await p.addInitScript((fx)=>{try{if(!sessionStorage.getItem('x')){localStorage.clear();localStorage.setItem('mizan.sidebar','pinned');localStorage.setItem('mizan.navgroups','{}');localStorage.setItem('mizan.books.v2',fx);sessionStorage.setItem('x','1');}}catch(e){}},fx);
 await p.goto('file://'+HTML);await p.waitForTimeout(1500);
 const nav=async(k)=>{await p.locator(`.sbar [data-k="${k}"]`).first().click();await p.waitForTimeout(1300);};
 const chip=async()=>(await p.locator('.rf-chips span.cmp').count())?(await p.locator('.rf-chips span.cmp').innerText()).trim():'';
@@ -20,30 +20,30 @@ check(await p.locator('.cmp-btn').count()===1&&/Previous period/.test(await p.lo
 const note=await p.locator('.cmp-note.none').innerText().catch(()=>'');
 check(/Nothing to compare with yet/.test(note)&&/01 Nov 2025/.test(note),'explains that the comparison period predates the books');
 check(await p.locator('.cmp-ideas button').count()>=1,'offers periods the books cover');
-check(await p.locator('.cmp-tbl').count()===0&&await p.locator('.kt-delta').count()===0,'no empty comparison columns');
+check(await p.locator('.fin-tbl thead th.cmp-prev').count()===0&&await p.locator('.kt-delta').count()===0,'no empty comparison columns');
 
 // 2. one click: this quarter vs last quarter
 await p.locator('.cmp-ideas button',{hasText:'This quarter vs last quarter'}).click();await p.waitForTimeout(1300);
 const c1=await chip();check(/^vs 01 \w{3} \d{4} – \d\d \w{3} \d{4}$/.test(c1),'comparison chip in the heading ('+c1+')');
-check(await p.locator('.cmp-tbl').count()===1,'comparative statement table');
+check(await p.locator('.fin-tbl').count()===1&&await p.locator('.fin-tbl thead th.cmp-prev').count()===1,'comparative statement table');
 check(await p.locator('.kt-delta').count()>=4,'KPI tiles show the change');
 check(await p.locator('.viz-card h3',{hasText:'This period vs comparison'}).count()===1&&await p.locator('.pair-row').count()===5,'this period vs comparison bars');
 check(await p.locator('.viz-card h3',{hasText:'Biggest changes'}).count()===1,'biggest changes card');
 check(/Compared with/.test(await p.locator('.insight, .rframe').first().innerText()),'plain-English comparison in the summary');
-const tr=await rowCells('.cmp-tbl tr.sub','Total revenue');
-check(Math.abs(num(tr[2])-num(tr[4])-num(tr[5]))<0.011,'revenue change = this period − comparison ('+tr.slice(2,7).join(' | ')+')');
-const gp=await rowCells('.cmp-tbl tfoot tr.grand','for the period');
-check(Math.abs(num(gp[2])-num(gp[4])-num(gp[5]))<0.011,'profit change adds up');
-const head=await p.evaluate(()=>document.querySelector('table.cmp-tbl thead').textContent.replace(/\s+/g,' '));
-check(/Comparison/.test(head)&&head.includes(c1.replace('vs ','')),'export headers carry both periods');
+const tr=await rowCells('.fin-tbl tr.fin-sec','Revenue');
+check(Math.abs(num(tr[1])-num(tr[2])-num(tr[3]))<0.011,'revenue change = this period − comparison ('+tr.slice(1,5).join(' | ')+')');
+const gp=await rowCells('.fin-tbl tr.fin-total','for the period');
+check(Math.abs(num(gp[1])-num(gp[2])-num(gp[3]))<0.011,'profit change adds up');
+const head=await p.evaluate(()=>document.querySelector('table.fin-tbl thead').textContent.replace(/\s+/g,' '));
+check(head.includes(c1.replace('vs ','')),'export headers carry both periods');
 
 // 3. the comparison column equals the plain report for those dates
-const [cf,ct]=c1.replace('vs ','').split(' – ');const prevRevenue=num(tr[4]);
+const [cf,ct]=c1.replace('vs ','').split(' – ');const prevRevenue=num(tr[2]);
 await pick("Don't compare");
-check((await chip())===''&&await p.locator('.cmp-tbl').count()===0,"Don't compare shows the period alone");
+check((await chip())===''&&await p.locator('.fin-tbl thead th.cmp-prev').count()===0,"Don't compare shows the period alone");
 await p.locator('.rframe .acts .btn',{hasText:/This quarter|Year to date|—/}).first().click();await p.waitForTimeout(200);
 const di=p.locator('.rangepop .rp-custom input[type=date]');await di.nth(0).fill(iso(cf));await di.nth(1).fill(iso(ct));await p.locator('.rangepop .btn.pri',{hasText:'Apply'}).click();await p.waitForTimeout(1200);
-const plain=(await rowCells('table.tbl tr.sub','Total revenue'))[2];
+const plain=(await rowCells('.fin-tbl tr.fin-sec','Revenue'))[1];
 check(Math.abs(num(plain)-prevRevenue)<0.011,'comparison column matches the P&L for '+cf+' – '+ct+' ('+plain+')');
 check(JSON.parse(await p.evaluate(()=>localStorage.getItem('mizan.compare'))).cmp==='off','choice remembered');
 
@@ -51,19 +51,19 @@ check(JSON.parse(await p.evaluate(()=>localStorage.getItem('mizan.compare'))).cm
 await p.reload();await p.waitForTimeout(1500);await nav('r_pnl');
 check(!/:/.test(await p.locator('.cmp-btn').innerText()),'remembered after reload (off)');
 await pick('Same period last year');
-check(new RegExp('01 Jan '+(new Date().getFullYear()-1)).test(await p.locator('.cmp-note.none').innerText().catch(()=>''))&&(await chip())==='','same period last year before the books → explained, no empty columns');
+check(new RegExp('01 Jan '+(new Date().getFullYear()-1)).test(await p.locator('.cmp-note.none').innerText().catch(()=>''))&&(await chip())===''&&await p.locator('.fin-tbl thead th.cmp-prev').count()===0,'same period last year before the books → explained, no empty columns');
 await p.locator('.cmp-btn').click();await p.waitForTimeout(200);await p.locator('.cmp-opt',{hasText:'Custom period'}).click();await p.waitForTimeout(200);
 let ci=p.locator('.cmp-custom input[type=date]');await ci.nth(0).fill('2025-11-01');await ci.nth(1).fill('2025-12-31');await p.locator('.cmp-custom .btn.pri').click();await p.waitForTimeout(1200);
-check((await chip())==='vs 01 Nov 2025 – 31 Dec 2025'&&await p.locator('.cmp-tbl').count()===1&&await p.locator('.cmp-note').count()===0,'custom comparison period');
+check((await chip())==='vs 01 Nov 2025 – 31 Dec 2025'&&await p.locator('.fin-tbl thead th.cmp-prev').count()===1&&await p.locator('.cmp-note').count()===0,'custom comparison period');
 await p.locator('.cmp-btn').click();await p.waitForTimeout(200);await p.locator('.cmp-opt',{hasText:'Custom period'}).click();
 ci=p.locator('.cmp-custom input[type=date]');await ci.nth(0).fill('2025-10-01');await ci.nth(1).fill('2025-12-31');await p.locator('.cmp-custom .btn.pri').click();await p.waitForTimeout(1200);
-check(await p.locator('.cmp-note.partial').count()===1&&await p.locator('.cmp-tbl').count()===1,'partly covered comparison is flagged');
+check(await p.locator('.cmp-note.partial').count()===1&&await p.locator('.fin-tbl thead th.cmp-prev').count()===1,'partly covered comparison is flagged');
 
 // 5. balance sheet: last year-end by default, previous month-end, both sides balance
 await nav('r_bs');
-check((await chip())==='vs 31 Dec 2025'&&await p.locator('.cmp-tbl').count()===1,'balance sheet compares with last year-end');
-const ta=await rowCells('.cmp-tbl tr.cmp-total','Total assets'),tle=await rowCells('.cmp-tbl tfoot tr.grand','Total liabilities and equity');
-check(Math.abs(num(ta[3])-num(tle[3]))<0.011&&Math.abs(num(ta[2])-num(tle[2]))<0.011,'both dates balance (assets = liabilities + equity)');
+check((await chip())==='vs 31 Dec 2025'&&await p.locator('.fin-tbl thead th.cmp-prev').count()===1,'balance sheet compares with last year-end');
+const ta=await rowCells('.fin-tbl tr.fin-sub','Total assets'),tle=await rowCells('.fin-tbl tr.fin-total','Total equity and liabilities');
+check(Math.abs(num(ta[1])-num(tle[1]))<0.011&&Math.abs(num(ta[2])-num(tle[2]))<0.011,'both dates balance (assets = equity + liabilities)');
 await pick('Previous month-end');
 const t=new Date();const pm=dmy(new Date(Date.UTC(t.getFullYear(),t.getMonth(),0)));
 check((await chip())==='vs '+pm,'previous month-end ('+pm+')');

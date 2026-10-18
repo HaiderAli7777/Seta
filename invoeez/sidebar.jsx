@@ -31,7 +31,14 @@ function navFlat() {
 
 function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini, setMini, drawer, company, meUser, role, canAdd, onSwitchUser, onSignOut }) {
   const tablet = useMedia("(min-width:901px) and (max-width:1024px)");
-  const rail = (mini || tablet) && !drawer;
+  /* Folded by default: a slim rail that slides open over the page while the pointer (or keyboard focus) is on it. */
+  const [peek, setPeek] = useState(false), peekT = React.useRef(0);
+  const folded = (mini || tablet) && !drawer;
+  const enter = () => { if (!folded) return; clearTimeout(peekT.current); peekT.current = setTimeout(() => setPeek(true), 70); };
+  const leave = () => { clearTimeout(peekT.current); peekT.current = setTimeout(() => setPeek(false), 240); };
+  React.useEffect(() => () => clearTimeout(peekT.current), []);
+  React.useEffect(() => { if (!folded) setPeek(false); }, [folded]);
+  const rail = folded && !peek;
   const [q, setQ] = useState("");
   const [fly, setFly] = useState(null);
   const flyT = React.useRef(0), search = React.useRef(null);
@@ -77,7 +84,9 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
     </div>);
 
   return (
-    <nav className={cx("sbar", rail && "rail", drawer && "open")} aria-label="Main navigation">
+    <nav className={cx("sbar", rail && "rail", folded && "folded", folded && peek && "peek", drawer && "open")} aria-label="Main navigation"
+      onMouseEnter={enter} onMouseLeave={leave} onFocus={() => { if (folded) { clearTimeout(peekT.current); setPeek(true); } }}
+      onBlur={(e) => { if (folded && !e.currentTarget.contains(e.relatedTarget)) leave(); }}>
       <div className="sb-brand">
         <img className="sb-lockup" src={BRAND_LOCKUP} alt="InvoEez — Invoice Made Easy" />
         <img className="sb-mark" src={BRAND_MARK} alt="InvoEez" />
@@ -117,9 +126,10 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
         <button className="who-btn" onClick={onSwitchUser} title="Switch user" aria-label={`Signed in as ${meUser.name}. Switch user`}>
           <span className="av">{initials(meUser.name)}</span>
           <span className="who"><b>{meUser.name}</b><span>{role.label} · v{BUILD}</span></span></button>
-        {!mini && <button className="signout" onClick={onSignOut} title="Sign out" aria-label="Sign out"><LogOut size={15} /></button>}
-        <button className="collapse" onClick={() => setMini((v) => !v)} title={mini ? "Expand sidebar" : "Collapse sidebar"} aria-label={mini ? "Expand sidebar" : "Collapse sidebar"}>
-          {mini ? <ChevronsRight size={15} /> : <ChevronsLeft size={15} />}</button>
+        {!rail && <button className="signout" onClick={onSignOut} title="Sign out" aria-label="Sign out"><LogOut size={15} /></button>}
+        {!tablet && <button className={cx("collapse", !mini && "pinned")} onClick={() => { setMini((v) => !v); setPeek(false); }}
+          title={mini ? "Keep the menu open" : "Fold the menu — it opens when you point at it"} aria-label={mini ? "Keep the menu open" : "Fold the menu"} aria-pressed={!mini}>
+          {mini ? <Pin size={15} /> : <ChevronsLeft size={15} />}</button>}
       </div>
     </nav>);
   function flyItem(it) {
@@ -215,8 +225,12 @@ const SIDEBAR_CSS = `
 .sb-foot .collapse{display:grid;place-items:center;width:30px;height:30px;border-radius:8px;color:var(--sb-dim)}
 .sb-foot .collapse:hover{background:var(--sb-hover);color:#fff}
 
-/* Collapsed rail */
+/* Collapsed rail; while folded the menu slides open over the page on hover */
 .sbar.rail{--sb-w:76px}
+.sbar.folded{transition:width .22s var(--ease),flex-basis .22s var(--ease),margin .22s var(--ease),box-shadow .22s}
+.sbar.folded.peek{margin-right:calc(76px - var(--sb-w));box-shadow:28px 0 60px rgba(8,12,24,.38),inset -1px 0 0 rgba(255,255,255,.08)}
+.sbar.folded.peek .sb-scroll{animation:sbfly .18s var(--ease)}
+.sb-foot .collapse.pinned{color:var(--sb-acc)}
 .sbar.rail .sb-lockup,.sbar.rail .sb-co,.sbar.rail .sb-search,.sbar.rail .sb-head .lbl,.sbar.rail .sb-head .cv,.sbar.rail .sb-foot .who{display:none}
 .sbar.rail .sb-mark{display:block}
 .sbar.rail .sb-brand{justify-content:center;padding:18px 0 14px}
@@ -244,6 +258,7 @@ const SIDEBAR_CSS = `
   .sb-head{height:44px}
   .sb-add{width:30px;height:30px;flex-basis:30px}
   .sb-foot .collapse{display:none}
+  .sbar.folded.peek{margin-right:0}
 }
 @media print{.sbar{display:none}}
 `;

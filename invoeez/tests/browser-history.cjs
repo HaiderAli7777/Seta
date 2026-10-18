@@ -3,7 +3,7 @@ const { chromium } = require('/opt/node-tools/node_modules/playwright');const pa
 (async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const p=await (await b.newContext({viewport:{width:1440,height:900}})).newPage();
 const errs=[];p.on('pageerror',e=>errs.push(e.message));
 const fx=fs.readFileSync(path.join(__dirname,'fixture.json'),'utf8');
-await p.addInitScript((fx)=>{try{if(!sessionStorage.getItem('x')){localStorage.clear();localStorage.setItem('mizan.navgroups','{}');localStorage.setItem('mizan.books.v2',fx);sessionStorage.setItem('x','1');}}catch(e){}},fx);
+await p.addInitScript((fx)=>{try{if(!sessionStorage.getItem('x')){localStorage.clear();localStorage.setItem('mizan.sidebar','pinned');localStorage.setItem('mizan.navgroups','{}');localStorage.setItem('mizan.books.v2',fx);sessionStorage.setItem('x','1');}}catch(e){}},fx);
 await p.goto('file://'+path.resolve(__dirname,'../invoeez.html'));await p.waitForTimeout(1300);
 const pair=await p.evaluate(()=>{const s=JSON.parse(localStorage.getItem('mizan.books.v2'));const d=s.docs.find(d=>d.type==='invoice'&&d.state==='posted');const pa=s.partners.find(x=>x.id===d.partner);const pr=s.products.find(x=>x.id===d.lines[0].product);return {cust:pa.name,prod:pr.code||pr.name};});
 console.log(pair);
