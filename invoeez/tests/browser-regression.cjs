@@ -81,7 +81,7 @@ const books = (p) => p.evaluate(() => JSON.parse(localStorage.getItem('mizan.boo
   ok('invoice paid from its own page is listed as Paid', rows.some((r) => /0002/.test(r) && /Paid/.test(r)) && rows.some((r) => /0001/.test(r) && /Due in/.test(r)), rows.slice(0, 2).join(' / ').replace(/\s+/g, ' '));
   // return 2 of the 5 mice with a credit note typed by hand, then check stock is 80 - 5 + 2
   await p.locator('.doc-list-tbl tbody tr.click').filter({ hasText: '0002' }).click(); await p.waitForTimeout(400);
-  await p.getByRole('button', { name: 'Credit note', exact: true }).click(); await p.waitForTimeout(500);
+  await p.locator('.du-more-btn').click(); await p.getByRole('menuitem', { name: /^Credit note/ }).click(); await p.waitForTimeout(500);
   await p.locator('[data-line-id] input[type=number]').first().fill('2'); await p.waitForTimeout(150);
   await p.getByRole('button', { name: 'Post to ledger' }).click(); await p.waitForTimeout(500);
   const mouse = await p.evaluate(() => { const s = JSON.parse(localStorage.getItem('mizan.books.v2')); const id = s.products.find((x) => x.code === 'A-101').id; return { id, cn: s.docs.filter((d) => d.type === 'credit_note').map((d) => d.lines.map((l) => [typeof l.qty, l.qty])) }; });

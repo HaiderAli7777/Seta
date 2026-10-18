@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.10.0";
+const BUILD = "3.11.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -236,13 +236,14 @@ function amounts(d) {
   lines.forEach((l) => { net += l.amount; if (l.kind === "rcm") rcm += l.taxAmt; else vat += l.taxAmt; });
   return { lines, net: R2(net), vat: R2(vat), rcm: R2(rcm), total: R2(net + vat) };
 }
-const SIGNS = { invoice: 1, credit_note: -1, bill: 1, debit_note: -1, quote: 1 };
+const SIGNS = { invoice: 1, credit_note: -1, bill: 1, debit_note: -1, quote: 1, purchase_order: 1 };
 const DOCMETA = {
   invoice:     { label: "Customer Invoice", short: "Invoice",     journal: "Sales",     side: "sale",     prefix: "INV" },
   credit_note: { label: "Credit Note",      short: "Credit Note", journal: "Sales",     side: "sale",     prefix: "CN" },
   bill:        { label: "Vendor Bill",      short: "Bill",        journal: "Purchases", side: "purchase", prefix: "BILL" },
   debit_note:  { label: "Debit Note",       short: "Debit Note",  journal: "Purchases", side: "purchase", prefix: "DN" },
   quote:       { label: "Quotation",        short: "Quotation",   journal: "—",         side: "sale",     prefix: "QUO", offLedger: true },
+  purchase_order: { label: "Purchase Order", short: "Purchase order", journal: "—",      side: "purchase", prefix: "PO",  offLedger: true },
 };
 const QUOTE_STATES = {
   draft:    { label: "Draft",    tone: "" },
@@ -250,6 +251,15 @@ const QUOTE_STATES = {
   accepted: { label: "Accepted", tone: "ok" },
   declined: { label: "Declined", tone: "bad" },
   invoiced: { label: "Invoiced", tone: "gold" },
+};
+/* A purchase order needs one approval before it can be sent or billed. */
+const PO_STATES = {
+  draft:    { label: "Draft",             tone: "" },
+  pending:  { label: "Awaiting approval", tone: "warn" },
+  approved: { label: "Approved",          tone: "ok" },
+  rejected: { label: "Rejected",          tone: "bad" },
+  sent:     { label: "Sent to vendor",    tone: "info" },
+  billed:   { label: "Billed",            tone: "gold" },
 };
 
 const COSTING = {
@@ -307,7 +317,7 @@ function deriveBooks(state) {
 
   /* Quantities and prices typed into a form can arrive as text; the ledger always works in numbers. */
   const num = (d) => ({ ...d, lines: d.lines.map((l) => ({ ...l, qty: +l.qty || 0, price: +l.price || 0, disc: +l.disc || 0 })) });
-  [...state.docs.filter((d) => d.state === "posted" && d.type !== "quote").map(num), ...(state.stockOps||[]).filter(o=>o.state==='posted').map(o=>({...o,stockOperation:true,type:o.kind}))].sort((a, b) => a.date.localeCompare(b.date) || (a.seq||0) - (b.seq||0)).forEach((d) => {
+  [...state.docs.filter((d) => d.state === "posted" && !(DOCMETA[d.type] || {}).offLedger).map(num), ...(state.stockOps||[]).filter(o=>o.state==='posted').map(o=>({...o,stockOperation:true,type:o.kind}))].sort((a, b) => a.date.localeCompare(b.date) || (a.seq||0) - (b.seq||0)).forEach((d) => {
     if(d.stockOperation){
       const L=[];
       d.lines.forEach(l=>{
@@ -2422,7 +2432,7 @@ function LegacyDashboard({ state, books, go, newDoc, range, setRange, user = { n
 /*  DOCUMENT LIST                                                             */
 /* ========================================================================== */
 
-const LIST_OF = { quote: "quotes", invoice: "invoices", credit_note: "credit_notes", bill: "bills", debit_note: "debit_notes" };
+const LIST_OF = { quote: "quotes", invoice: "invoices", credit_note: "credit_notes", bill: "bills", debit_note: "debit_notes", purchase_order: "purchase_orders" };
 
 function nextNumber(docs, type) {
   const n = docs.filter((d) => d.type === type).reduce((m, d) => Math.max(m, +d.number.split("/").pop() || 0), 0);
@@ -2435,7 +2445,7 @@ function blankDoc(docs, type) {
     ref: "", note: "", state: "draft", seq: 0, emirate: COMPANY.emirate || "Dubai", isNew: true };
 }
 
-function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toast, go, fta }) {
+function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toast, go, fta, user, users, readOnly }) {
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState("");
   const [f, setF] = useState("all");
@@ -2443,11 +2453,14 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
   const [limit, setLimit] = useState(100);
   const meta = DOCMETA[type], sale = meta.side === "sale";
   const payable = type === "invoice" || type === "bill";
+  const isPO = type === "purchase_order", isQ = type === "quote";
+  const mineToApprove = useMemo(() => new Set(isPO ? awaitingMe(state, user).map((d) => d.id) : []), [state, user, isPO]);
 
   React.useEffect(() => {
     if (!openId) return;
     if (openId === "__list__") setEditing(null);
-    else if (openId === "__new__") setEditing(blankDoc(state.docs, type));
+    else if (openId === "__pending__") { setEditing(null); setF("pending"); }
+    else if (openId === "__new__") { if (!readOnly) setEditing(blankDoc(state.docs, type)); }
     else { const d = state.docs.find((x) => x.id === openId); if (d) setEditing(d); }
     clearOpen();
   }, [openId]);
@@ -2460,7 +2473,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
 
   React.useEffect(()=>{scrollPageTop();},[editing?.id]);
   if (editing) return <DocEditor key={editing.id} doc={editing} state={state} setState={setState} books={books}
-    toast={toast} fta={fta} go={go} close={() => setEditing(null)} />;
+    toast={toast} fta={fta} go={go} user={user} users={users} readOnly={readOnly} close={() => setEditing(null)} />;
 
   const filtered = state.docs.filter((d) => d.type === type)
     .filter((d) => f === "all" || (f === "open" ? (openMap[d.id] || 0) > 0.004 : f === "overdue" ? (openMap[d.id] || 0) > 0.004 && d.due < TODAY : d.state === f))
@@ -2475,25 +2488,31 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
     return d[k] || "";
   };
   const list = sortRows(filtered, sort, field);
-  const t = list.filter((d) => (type === "quote" ? d.state !== "declined" : d.state === "posted")).reduce((s, d) => { const a = amounts(d);
+  const live = (d) => (isQ ? d.state !== "declined" : isPO ? !["rejected", "billed"].includes(d.state) : d.state === "posted");
+  const pendingCount = isPO ? state.docs.filter((d) => d.type === type && d.state === "pending").length : 0;
+  const t = list.filter(live).reduce((s, d) => { const a = amounts(d);
     return { net: R2(s.net + a.net), vat: R2(s.vat + a.vat), total: R2(s.total + a.total) }; }, { net: 0, vat: 0, total: 0 });
   const totalOpen = R2(list.reduce((s, d) => s + (openMap[d.id] || 0), 0));
 
   return (
     <div>
       <PageHead eyebrow={sale ? "Sales" : "Purchases"} title={meta.label + "s"}
-        sub={type === "quote"
+        sub={isQ
           ? `${list.length} quotations · ${money(t.total, false)} in play · nothing posts until one is converted`
+          : isPO
+          ? `${list.length} purchase orders · ${pendingCount} awaiting approval · ${money(t.total, false)} on order · nothing posts until one becomes a bill`
           : `${list.length} documents · ${money(t.total, false)} posted${totalOpen > 0.004 ? ` · ${money(totalOpen, false)} outstanding` : ""}`}>
-        <Btn kind="pri" icon={Plus} onClick={() => setEditing(blankDoc(state.docs, type))}>New {meta.short.toLowerCase()}</Btn>
+        {!readOnly && <Btn kind="pri" icon={Plus} onClick={() => setEditing(blankDoc(state.docs, type))}>New {meta.short.toLowerCase()}</Btn>}
       </PageHead>
 
       <Card pad={false}>
         <div className="toolbar">
           <SearchBox value={q} onChange={setQ} width={300}
             placeholder={`Search number, ${sale ? "customer" : "vendor"}, TRN, product or reference`} />
-          <div className="seg">{(type === "quote"
+          <div className="seg">{(isQ
             ? [["all", "All"], ["draft", "Draft"], ["sent", "Sent"], ["accepted", "Accepted"], ["invoiced", "Invoiced"]]
+            : isPO
+            ? [["all", "All"], ["draft", "Draft"], ["pending", `Awaiting approval${pendingCount ? " · " + pendingCount : ""}`], ["approved", "Approved"], ["billed", "Billed"], ["rejected", "Rejected"]]
             : [["all", "All"], ["posted", "Posted"], ["draft", "Draft"], ...(payable ? [["open", "Unpaid"], ["overdue", "Overdue"]] : [])]).map(([k, l]) => (
             <button key={k} className={cx(f === k && "on")} onClick={() => { setF(k); setLimit(100); }}>{l}</button>))}</div>
           <span style={{ marginLeft: "auto", fontSize: 12.5, color: "var(--ink-3)" }}>{list.length} of {state.docs.filter((d) => d.type === type).length}</span>
@@ -2503,7 +2522,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
             <SortTh id="number" sort={sort} setSort={setSort}>Number</SortTh>
             <SortTh id="partner" sort={sort} setSort={setSort}>{sale ? "Customer" : "Vendor"}</SortTh>
             <SortTh id="date" sort={sort} setSort={setSort}>Date</SortTh>
-            <SortTh id="due" sort={sort} setSort={setSort}>{type === "quote" ? "Valid until" : "Due"}</SortTh>
+            <SortTh id="due" sort={sort} setSort={setSort}>{isQ ? "Valid until" : isPO ? "Deliver by" : "Due"}</SortTh>
             <SortTh id="ref" sort={sort} setSort={setSort} className="hide-narrow">Reference</SortTh>
             <SortTh id="total" sort={sort} setSort={setSort} className="n">Total</SortTh>
             {payable && <SortTh id="open" sort={sort} setSort={setSort} className="n">Balance due</SortTh>}
@@ -2512,10 +2531,11 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
           <tbody>
             {list.length === 0 && <tr><td colSpan={9}>
               <EmptyState icon={FileText} title={q || f !== "all" ? "Nothing matches this filter" : `No ${meta.label.toLowerCase()}s yet`}>
-                {q || f !== "all" ? "Clear the search or switch back to All." : `Create the first ${meta.short.toLowerCase()} to start posting to the ledger.`}
+                {q || f !== "all" ? "Clear the search or switch back to All." : isPO ? "Raise an order for your vendor. Once it is approved, convert it to a bill when their invoice arrives." : `Create the first ${meta.short.toLowerCase()} to start posting to the ledger.`}
               </EmptyState></td></tr>}
             {list.slice(0, limit).map((d) => { const a = amounts(d); const op = openMap[d.id] || 0;
               const late = d.state === "posted" && op > 0.004 && d.due < TODAY;
+              const waits = isPO && d.state === "pending" ? userName(users, d.requestedBy) : "";
               return (
                 <tr key={d.id} className="click" onClick={() => setEditing(d)}>
                   <td className="mono nowrap c-no" style={{ fontSize: 12.5 }}>{d.number}</td>
@@ -2527,13 +2547,14 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
                   <td className="n total-cell c-total" style={{ fontWeight: 600 }}>{money(a.total)}
                     <small>{a.vat ? `incl. VAT ${money(a.vat, false)}` : "no VAT"}{a.rcm > 0 ? " · reverse charge" : ""}</small></td>
                   {payable && <td className="n c-bal" style={{ fontWeight: 600, color: late ? "var(--neg)" : undefined }}>{d.state !== "posted" ? "—" : op > 0.004 ? money(op) : <span className="pos">0.00</span>}</td>}
-                  <td className="c-status">{(() => { const st = type === "quote" ? (QUOTE_STATES[d.state] || QUOTE_STATES.draft) : docStatus(d, op, type);
-                    return <span className="status-pill"><Pill tone={st.tone} dot>{st.label}</Pill></span>; })()}</td>
+                  <td className="c-status">{(() => { const st = docStatus(d, op, type);
+                    return <span className="status-pill"><Pill tone={st.tone} dot>{st.label}</Pill>
+                      {mineToApprove.has(d.id) ? <small className="po-mine">Needs your approval</small> : waits ? <small className="po-mine" style={{ color: "var(--ink-3)", fontWeight: 500 }}>Raised by {waits}</small> : null}</span>; })()}</td>
                 </tr>); })}
           </tbody>
           {list.length > limit && <tbody><tr><td colSpan={9} className="show-more">
             <Btn onClick={() => setLimit((n) => n + 200)}>Show {Math.min(200, list.length - limit)} more · {list.length - limit} not shown</Btn></td></tr></tbody>}
-          {list.length > 0 && <tfoot><tr><td colSpan={4}>{type === "quote" ? "Live quotations" : "Posted totals"}</td><td className="hide-narrow" />
+          {list.length > 0 && <tfoot><tr><td colSpan={4}>{isQ ? "Live quotations" : isPO ? "Open orders" : "Posted totals"}</td><td className="hide-narrow" />
             <td className="n">{money(t.total)}</td>{payable && <td className="n">{money(totalOpen)}</td>}<td /></tr></tfoot>}
         </table></div>
       </Card>
@@ -2545,7 +2566,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
 /*  DOCUMENT EDITOR                                                           */
 /* ========================================================================== */
 
-function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go }) {
+function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go, user, users, readOnly }) {
   const [d, setD] = useState(initial);
   const [print, setPrint] = useState(false);
   const [activeLine,setActiveLine]=useState(null);
@@ -2558,8 +2579,9 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   React.useEffect(()=>{if(pendingLine.current){const id=pendingLine.current;pendingLine.current=null;requestAnimationFrame(()=>{const row=document.querySelector('[data-line-id="'+id+'"]');row?.scrollIntoView({block:'center',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});row?.querySelector('input[role="combobox"]')?.focus({preventScroll:true});});}},[d.lines.length]);
   const CO = useCo();
   const meta = DOCMETA[d.type], sale = meta.side === "sale";
-  const isQuote = d.type === "quote";
-  const locked = isQuote ? d.state === "invoiced" : d.state === "posted";
+  const isQuote = d.type === "quote", isPO = d.type === "purchase_order", off = !!meta.offLedger;
+  /* An approver whose role cannot raise purchases may only approve or reject. */
+  const locked = !!readOnly || (isQuote ? d.state === "invoiced" : isPO ? !["draft", "rejected"].includes(d.state) : d.state === "posted");
   const am = amounts(d);
 
   const preview = useMemo(() => {
@@ -2635,15 +2657,16 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     const docs = exists ? s.docs.map((x) => (x.id === d.id ? clean : x)) : [...s.docs, clean];
     return { ...s, docs, products: clean.type === "bill" && clean.state === "posted" ? learnPurchasePrices(s, clean) : s.products };
   });
-  const save = () => { const err=validate();if(err)return warn(err);commit(d); toast(`${d.number} saved as draft`); close(); };
+  const save = () => { const err=validate();if(err)return warn(err);commit(isPO&&d.state==='rejected'?poLog({...d,state:'draft'},'revised',user):d); toast(`${d.number} saved as draft`); close(); };
 
-  const spawn = (type, lines, ref, note) => {
+  const spawn = (type, lines, ref, note, extra) => {
     const nd = { id: uid("d"), type, number: nextNumber(state.docs, type), partner: d.partner,salesman:d.salesman||"",pricelist:d.pricelist||"",
       date: TODAY, due: addDays(TODAY, PMAP[d.partner].terms), lines, ref: ref || "", note: note || "",
-      state: "draft", seq: 0, emirate: d.emirate };
+      state: "draft", seq: 0, emirate: d.emirate, ...(extra || {}) };
     setState((x) => ({ ...x, docs: [...x.docs, nd] }));
     toast(`${nd.number} created as a draft`);
     go(LIST_OF[type], nd.id);
+    return nd;
   };
   const duplicate = () => spawn(d.type, d.lines.map((l) => ({ ...l, accounts:undefined, id: uid("l") })), d.ref,
     `Duplicated from ${d.number}`);
@@ -2708,6 +2731,107 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   const unpost = () => { if(state.stockOps.some(o=>(o.date>d.date||(o.date===d.date&&(o.seq||0)>(d.seq||0)))&&o.lines.some(x=>d.lines.some(l=>l.product===x.product))))return toast("A stock adjustment follows this document. Use a return or correcting document to preserve the count history.","warn");const n = { ...d, state: "draft", seq: 0,lines:d.lines.map(l=>({...l,accounts:undefined})) }; setD(n); commit(n); toast(`${d.number} reset to draft`, "warn"); };
   const remove = () => { setState((s) => ({ ...s, docs: s.docs.filter((x) => x.id !== d.id) })); toast(`${d.number} deleted`, "warn"); close(); };
 
+  /* ---- quotation status and purchase-order approval ---- */
+  const rights = isPO ? poRights(["draft", "rejected"].includes(d.state) ? { ...d, requestedBy: null } : d, user, users) : null;
+  const [rejecting, setRejecting] = useState(false);
+  const vendorName = (PMAP[d.partner] || {}).name || "the vendor";
+  const poMove = (st, act, note, extra) => { const n = poLog({ ...d, ...(extra || {}), state: st }, act, user, note); setD(n); commit(n); return n; };
+  const submitPO = () => {
+    const err = validate(true); if (err) return warn(err);
+    const me = { requestedBy: (user && user.id) || null };
+    if (rights.directly) {
+      poMove("approved", rights.none ? "confirmed" : "approved", rights.none ? "" : "Raised by the only approver", me);
+      toast(rights.none ? `${d.number} confirmed — no purchase approver is set up` : `${d.number} approved`); return; }
+    poMove("pending", "submitted", "", me);
+    toast(`${d.number} sent for approval to ${orList(rights.waitingOn.map((u) => u.name))}`);
+  };
+  const approvePO = () => { if (!rights.canApprove) return toast("Another purchase approver needs to approve this order", "warn");
+    poMove("approved", "approved"); toast(`${d.number} approved`); };
+  const rejectPO = (why) => { poMove("rejected", "rejected", why); setRejecting(false); toast(`${d.number} rejected`, "warn"); };
+  const withdrawPO = () => { poMove("draft", "withdrawn"); toast(`${d.number} withdrawn — you can change it and submit again`, "warn"); };
+  const revisePO = () => { poMove("draft", "revised"); toast(`${d.number} reopened — it needs approval again`, "warn"); };
+  const sentPO = () => { poMove("sent", "sent"); toast(`${d.number} marked as sent to ${vendorName}`); };
+  const billPO = () => {
+    const nd = spawn("bill", d.lines.map((l) => ({ ...l, accounts: undefined, id: uid("l") })), "", `Raised from purchase order ${d.number}`,
+      { origin: { id: d.id, number: d.number, type: d.type } });
+    commit(poLog({ ...d, state: "billed", billId: nd.id }, "billed", user, nd.number));
+  };
+  const convertQuote = () => {
+    const err = validate(true); if (err) return warn(err);
+    const nd = spawn("invoice", d.lines.map((l) => ({ ...l, id: uid("l") })), d.number, `Raised from quotation ${d.number}`,
+      { origin: { id: d.id, number: d.number, type: d.type } });
+    commit({ ...d, state: "invoiced", invoiceId: nd.id });
+  };
+  const setQuoteState = (k) => {
+    if (d.state === k) return;
+    const n = { ...d, state: k }; setD(n); commit(n);
+    toast(k === "sent" ? `${d.number} marked as sent` : k === "accepted" ? `${d.number} accepted by the customer`
+      : k === "declined" ? `${d.number} declined` : `${d.number} back to draft`, k === "declined" ? "warn" : "");
+  };
+
+  /* ---- the header bar: progress on the left, actions on the right ---- */
+  const isInvBill = d.type === "invoice" || d.type === "bill";
+  const origin = d.origin && state.docs.find((x) => x.id === d.origin.id);
+  const linked = isQuote && d.invoiceId ? state.docs.find((x) => x.id === d.invoiceId) : isPO && d.billId ? state.docs.find((x) => x.id === d.billId) : null;
+  const openLinked = linked && <Btn kind="pri" icon={ArrowUpRight} onClick={() => go(LIST_OF[linked.type], linked.id)}>Open {linked.number}</Btn>;
+  const paidAny = !!(settle && settle.paid > 0.004);
+  const poIx = isPO ? ({ draft: 0, pending: 1, rejected: 1, approved: 2, sent: 2, billed: 3 }[d.state] || 0) : 0;
+  const steps = isQuote ? [{ label: "Quoted", state: "done" }, { label: "Invoiced", state: "done" }]
+    : isPO ? [
+      { label: "Draft", state: poIx > 0 ? "done" : "now" },
+      { label: d.state === "rejected" ? "Rejected" : poIx >= 2 ? "Approved" : poIx === 1 ? "Awaiting approval" : "Approval",
+        state: d.state === "rejected" ? "bad" : poIx >= 2 ? "done" : poIx === 1 ? "wait" : "todo" },
+      { label: d.state === "approved" ? "Send to vendor" : d.state === "sent" ? "Sent to vendor" : "Ordered", state: poIx === 3 || d.state === "sent" ? "done" : poIx === 2 ? "now" : "todo" },
+      { label: "Billed", state: poIx === 3 ? "done" : "todo" }]
+    : [{ label: "Draft", state: locked ? "done" : "now" },
+      { label: "Posted", state: locked ? "done" : "todo" },
+      ...(isInvBill ? [{ label: !locked || outstanding <= 0.004 ? "Paid" : paidAny ? "Part paid" : "Awaiting payment",
+        state: !locked ? "todo" : outstanding <= 0.004 ? "done" : paidAny ? "wait" : "now" }] : [])];
+  const progress = isQuote && !locked
+    ? <><span className="du-seg-l">Status</span><div className="seg du-seg" role="group" aria-label="Quotation status">
+        {["draft", "sent", "accepted", "declined"].map((k) => <button key={k} className={cx(k, d.state === k && "on")} aria-pressed={d.state === k}
+          onClick={() => setQuoteState(k)}><i />{QUOTE_STATES[k].label}</button>)}</div></>
+    : <DocSteps steps={steps} />;
+  const canPrint = sale || (isPO && ["approved", "sent", "billed"].includes(d.state));
+  const primary = isQuote
+    ? (!locked ? <Btn kind="pri" icon={ArrowRight} disabled={!d.lines.length} onClick={convertQuote}>Convert to invoice</Btn> : openLinked)
+    : isPO
+    ? (readOnly ? (d.state === "pending" && rights.canApprove ? <Btn kind="pri" icon={Check} onClick={approvePO}>Approve</Btn> : null)
+        : ["draft", "rejected"].includes(d.state)
+        ? <Btn kind="pri" icon={rights.directly ? Check : Send} disabled={!d.lines.length} onClick={submitPO}>
+            {rights.none ? "Confirm order" : rights.directly ? "Approve order" : d.state === "rejected" ? "Resubmit for approval" : "Submit for approval"}</Btn>
+        : d.state === "pending" ? (rights.canApprove ? <Btn kind="pri" icon={Check} onClick={approvePO}>Approve</Btn> : null)
+        : ["approved", "sent"].includes(d.state) ? <Btn kind="pri" icon={ArrowRight} onClick={billPO}>Convert to bill</Btn>
+        : openLinked)
+    : !locked ? <Btn kind="pri" icon={Check} onClick={post} disabled={!d.lines.length}>Post to ledger</Btn>
+    : outstanding > 0.004 ? <Btn kind="pri" icon={Wallet} onClick={() => setPayOpen((v) => !v)}>Record payment</Btn> : null;
+  const secondary = <>
+    {isPO && d.state === "pending" && rights.canApprove && <Btn kind="danger" icon={X} onClick={() => setRejecting(true)}>Reject</Btn>}
+    {isPO && d.state === "pending" && rights.own && !rights.canApprove && <Btn icon={Undo2} onClick={withdrawPO}>Withdraw</Btn>}
+    {!locked && <Btn onClick={save}>{isQuote ? "Save quotation" : "Save draft"}</Btn>}
+    {canPrint && <Btn icon={Send} onClick={() => setPrint(true)}>Print / send</Btn>}
+  </>;
+  const more = readOnly ? [] : [
+    isPO && d.state === "approved" && { label: "Mark as sent to vendor", icon: Send, onClick: sentPO, hint: `Once the order has gone to ${vendorName}` },
+    isPO && d.state === "pending" && rights.own && rights.canApprove && { label: "Withdraw", icon: Undo2, onClick: withdrawPO, hint: "Back to draft to make changes" },
+    isPO && ["approved", "sent"].includes(d.state) && { label: "Reopen for changes", icon: Pencil, onClick: revisePO, hint: "The order then needs approval again" },
+    isPO && d.state === "billed" && !linked && { label: "Reopen for changes", icon: Pencil, onClick: revisePO, hint: "Its bill was deleted; the order needs approval again" },
+    locked && outstanding > 0.004 && isInvBill && { label: "Post-dated cheque", icon: CalendarClock, onClick: () => setPdcOpen(true), hint: sale ? "Receive a cheque dated in the future" : "Issue a cheque dated in the future" },
+    locked && isInvBill && { label: d.type === "invoice" ? "Credit note" : "Debit note", icon: FileMinus, onClick: reverseDoc, hint: `Reverses ${d.number}; adjust lines for a partial` },
+    !d.isNew && { label: "Duplicate", icon: Copy, onClick: duplicate, hint: "A new draft with the same lines" },
+    locked && !off && { label: "Reset to draft", icon: RotateCcw, onClick: unpost, hint: "Takes it back out of the ledger" },
+    !locked && !d.isNew && { sep: true },
+    !locked && !d.isNew && { label: "Delete", icon: Trash2, onClick: remove, danger: true, hint: "Removes this draft for good" },
+  ];
+  const activity = isQuote
+    ? ['draft','sent','accepted','invoiced'].map(k=>({t:QUOTE_STATES[k].label,done:['draft','sent','accepted','invoiced'].indexOf(d.state)>=['draft','sent','accepted','invoiced'].indexOf(k)}))
+    : isPO
+    ? [{ t: "Created", s: dmy(d.date), done: true },
+      ...(d.history || []).map((h) => ({ t: PO_ACT[h.act] || h.act, done: true, bad: h.act === "rejected",
+        s: [h.name, h.day && dmy(h.day), h.note && (h.act === "billed" ? h.note : `“${h.note}”`)].filter(Boolean).join(" · ") })),
+      ...(d.state === "pending" ? [{ t: "Waiting for approval", s: orList(rights.waitingOn.map((u) => u.name)), done: false }] : [])]
+    : timeline;
+
   const partners = PARTNERS.filter((p) => (sale ? p.role === "customer" : p.role === "vendor"));
   const taxes = TAXES.filter((t) => t.scope === "both" || t.scope === meta.side);
   const accounts = ACCOUNTS.filter((a) => (sale ? a.type === "income" : ["expense", "cogs", "casset", "fasset"].includes(a.type)));
@@ -2715,76 +2839,53 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   return (
     <div>
       {print && <PrintDoc d={d} settle={settle} close={() => setPrint(false)} fta={fta} toast={toast} />}
-      <div className="page-head doc-head">
-        <div>
-          <button className="btn ghost doc-back" onClick={close}>
-            <ArrowLeft size={14} /> All {meta.short.toLowerCase()}s</button>
-          <div className="micro">{meta.label}{meta.journal && meta.journal !== "—" ? ` · ${meta.journal} journal` : ""}</div>
-          <h1 style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 11 }}>
-            {d.number}
-            {(() => { const st = isQuote ? (QUOTE_STATES[d.state] || QUOTE_STATES.draft) : docStatus(d, outstanding, d.type);
-              return <Pill tone={st.tone} dot>{st.label}</Pill>; })()}
-            {sale && state.einv && state.einv[d.id] &&
-              <Pill tone={EINV_STATES[state.einv[d.id].status].tone} dot>
-                {EINV_STATES[state.einv[d.id].status].label}</Pill>}</h1>
-        </div>
-        <div className="acts">
-          {isQuote && !locked && <Btn icon={Send} onClick={() => { const n = { ...d, state: "sent" }; setD(n); commit(n);
-            toast(`${d.number} marked as sent`); }}>Mark sent</Btn>}
-          {isQuote && !locked && <Btn icon={Check} onClick={() => { const n = { ...d, state: "accepted" }; setD(n); commit(n);
-            toast(`${d.number} accepted by the customer`); }}>Accepted</Btn>}
-          {isQuote && !locked && <Btn kind="danger" icon={X} onClick={() => { const n = { ...d, state: "declined" }; setD(n); commit(n);
-            toast(`${d.number} declined`, "warn"); }}>Declined</Btn>}
-          {isQuote && <Btn kind="pri" icon={ArrowRight} disabled={!d.lines.length || locked}
-            onClick={() => { const err=validate(true);if(err)return warn(err);commit({ ...d, state: "invoiced" });
-              spawn("invoice", d.lines.map((l) => ({ ...l, id: uid("l") })), d.number,
-                `Raised from quotation ${d.number}`); }}>Convert to invoice</Btn>}
-          {!d.isNew && <Btn icon={Copy} onClick={duplicate}>Duplicate</Btn>}
-          {locked && (d.type === "invoice" || d.type === "bill") &&
-            <Btn icon={FileMinus} onClick={reverseDoc}>{d.type === "invoice" ? "Credit note" : "Debit note"}</Btn>}
-          {locked && outstanding > 0.004 &&
-            <Btn icon={Wallet} onClick={() => setPayOpen((v) => !v)}>Record payment</Btn>}
-          {locked && outstanding > 0.004 && (d.type === "invoice" || d.type === "bill") &&
-            <Btn icon={CalendarClock} onClick={() => setPdcOpen(true)}>Post-dated cheque</Btn>}
-          {sale && <Btn icon={Send} onClick={() => setPrint(true)}>Print / send</Btn>}
-          {!locked && !d.isNew && <Btn kind="danger" icon={Trash2} onClick={remove}>Delete</Btn>}
-          {locked && !isQuote && <Btn icon={RotateCcw} onClick={unpost}>Reset to draft</Btn>}
-          {!locked && <Btn onClick={save}>{isQuote ? "Save quotation" : "Save draft"}</Btn>}
-          {!locked && !isQuote && <Btn kind="pri" icon={Check} onClick={post} disabled={!d.lines.length}>Post to ledger</Btn>}
-        </div>
-      </div>
-
-      {payOpen && (
-        <Card title={`Settle ${d.number}`} sub={`${money(outstanding, false)} outstanding · clears the oldest open document first`}
-          style={{ marginBottom: 16 }}
-          right={<><Btn onClick={() => setPayOpen(false)}>Cancel</Btn>
-            <Btn kind="pri" icon={Check} disabled={!(+payAmt > 0)} onClick={recordPayment}>Record</Btn></>}>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14 }}>
-            <Field label="Amount · AED">
-              <Input n type="number" step="0.01" value={payAmt} onChange={(e) => setPayAmt(e.target.value)} /></Field>
-            <MethodPicker dir={d.type === "invoice" ? "in" : "out"} value={payMethod}
-              onChange={setPayMethod} refValue={payRef} onRef={setPayRef} />
-            <Field label="Quick fill">
-              <div style={{ display: "flex", gap: 8 }}>
-                <Btn onClick={() => setPayAmt(outstanding)}>Full {money(outstanding, false)}</Btn>
-                <Btn onClick={() => setPayAmt(R2(outstanding / 2))}>Half</Btn></div></Field>
-          </div>
-        </Card>)}
-
       <div className="doc-workspace">
-        <Card title="Document details" sub={sale?'Customer, ownership and pricing':'Vendor and purchase terms'}>
+        <DocUnit back={close} backLabel={`All ${meta.short.toLowerCase()}s`}
+          kind={`${meta.label} · ${meta.journal && meta.journal !== "—" ? `${meta.journal} journal` : sale ? "Sales" : "Purchases"}`}
+          number={d.number}
+          status={(() => { const st = docStatus(d, outstanding, d.type); return <Pill tone={st.tone} dot>{st.label}</Pill>; })()}
+          pills={sale && state.einv && state.einv[d.id] &&
+            <Pill tone={EINV_STATES[state.einv[d.id].status].tone} dot>{EINV_STATES[state.einv[d.id].status].label}</Pill>}
+          sub={<>
+            <span>{sale ? <Users size={13} /> : <Truck size={13} />}{PMAP[d.partner] ? <b>{PMAP[d.partner].name}</b> : <>No {sale ? "customer" : "vendor"} chosen yet</>}</span>
+            <span><Layers size={13} />{d.lines.length} {d.lines.length === 1 ? "line" : "lines"}</span>
+            {isPO && d.requestedBy && <span><ClipboardCheck size={13} />Raised by <b>{userName(users, d.requestedBy)}</b></span>}
+            {d.origin && <span><ArrowLeftRight size={13} />From {origin ? <button className="linkish" onClick={() => go(LIST_OF[origin.type], origin.id)}>{d.origin.number}</button> : d.origin.number}</span>}
+          </>}
+          totalLabel="Total · AED" total={money(am.total, false)}
+          totalSub={settle ? (settle.open <= 0.004 ? "Paid in full" : `Balance due ${money(settle.open, false)}`) : am.vat ? `incl. VAT ${money(am.vat, false)}` : "No VAT"}
+          totalTone={settle ? (settle.open <= 0.004 ? "paid" : "due") : ""}
+          progress={progress}
+          actions={<>{secondary}<MoreMenu items={more} />{primary}</>}
+          note={isPO && <PoNote d={d} rights={rights} users={users} go={go} />}>
           <div className={cx("document-fields",sale&&"sales-document-fields")}>
             <Field label={sale?'Customer':'Vendor'} span={2}><SmartPicker items={partnerOptions(meta.side)} value={d.partner} disabled={locked} autoFocus={!!d.isNew&&!d.partner} onChange={pickPartner} label={sale?'Select customer':'Select vendor'} placeholder={'Search '+(sale?'customers':'vendors')+'…'} onCreate={!locked?name=>setQuick({kind:sale?'customer':'vendor',record:{...newPartner(sale?'customer':'vendor'),name}}):undefined}/></Field>
             <Field label="Counterparty TRN"><div className="readonly">{PMAP[d.partner]?.trn||'Not registered'}</div></Field>
             {sale&&<Field label="Salesperson"><CreatableSelect value={d.salesman} disabled={locked} onChange={v=>set('salesman',v)} options={(state.salespeople||[]).filter(p=>p.active!==false||p.id===d.salesman).map(p=>({value:p.id,label:p.name+(p.active===false?' (inactive)':'')}))} placeholder="Unassigned" createLabel="New salesperson" onCreate={addSalesperson(setState)} ariaLabel="Salesperson"/></Field>}
             <Field label="Price list"><Select value={d.pricelist||''} disabled={locked} onChange={e=>changePricing({pricelist:e.target.value},true)}><option value="">Product {sale?'sales prices':'costs'}</option>{state.priceLists.filter(x=>x.side===meta.side).map(x=><option key={x.id} value={x.id}>{x.name}{x.active?'':' (inactive)'}</option>)}</Select></Field>
-            <Field label={isQuote?'Quotation date':sale?'Invoice date':'Bill date'}><Input type="date" value={d.date} disabled={locked} onChange={e=>changePricing({date:e.target.value})}/></Field>
-            <Field label="Payment due"><Input type="date" value={d.due} disabled={locked} onChange={e=>set('due',e.target.value)}/></Field>
+            <Field label={isPO?'Order date':isQuote?'Quotation date':sale?'Invoice date':'Bill date'}><Input type="date" value={d.date} disabled={locked} onChange={e=>changePricing({date:e.target.value})}/></Field>
+            <Field label={isQuote?'Valid until':isPO?'Deliver by':'Payment due'}><Input type="date" value={d.due} disabled={locked} onChange={e=>set('due',e.target.value)}/></Field>
             <Field label="Place of supply"><Select value={d.emirate} disabled={locked} onChange={e=>set('emirate',e.target.value)}>{[...EMIRATES,'Export','Import'].map(x=><option key={x}>{x}</option>)}</Select></Field>
-            <Field span={sale?2:1} label={sale?'Customer purchase order':'Supplier invoice number'}><Input value={d.ref} disabled={locked} onChange={e=>set('ref',e.target.value)} placeholder="Optional reference"/></Field>
+            <Field span={sale?2:1} label={sale?'Customer purchase order':isPO?'Vendor quotation ref.':'Supplier invoice number'}><Input value={d.ref} disabled={locked} onChange={e=>set('ref',e.target.value)} placeholder="Optional reference"/></Field>
           </div>
-        </Card>
-        <div className="document-toolbar"><div className="doc-tabs" role="tablist" aria-label="Document views">{[['items','Line items',Layers],...(!isQuote?[['journal','Journal entry',BookOpen]]:[]),['history','Price history',Clock],['status','Activity',CircleCheck]].map(([k,label,I])=><button role="tab" aria-selected={tab===k} key={k} className={tab===k?'on':''} onClick={()=>setTab(k)}><I size={15}/>{label}{k==='items'&&<span>{d.lines.length}</span>}</button>)}</div><div className="acts">{tab==='items'&&<><Btn size="sm" aria-pressed={showAccounts} onClick={()=>setShowAccounts(x=>!x)}>{showAccounts?'Hide accounts':'Show accounts'}</Btn><Btn size="sm" aria-pressed={showCost} onClick={()=>setShowCost(x=>!x)}>{showCost?'Hide cost':'Show cost'}</Btn>{!locked&&<Btn size="sm" onClick={()=>changePricing({},true)}>Reapply pricing</Btn>}</>}</div></div>
+        </DocUnit>
+
+        {payOpen && (
+          <Card title={`Settle ${d.number}`} sub={`${money(outstanding, false)} outstanding · clears the oldest open document first`}
+            right={<><Btn onClick={() => setPayOpen(false)}>Cancel</Btn>
+              <Btn kind="pri" icon={Check} disabled={!(+payAmt > 0)} onClick={recordPayment}>Record</Btn></>}>
+            <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14 }}>
+              <Field label="Amount · AED">
+                <Input n type="number" step="0.01" value={payAmt} onChange={(e) => setPayAmt(e.target.value)} /></Field>
+              <MethodPicker dir={d.type === "invoice" ? "in" : "out"} value={payMethod}
+                onChange={setPayMethod} refValue={payRef} onRef={setPayRef} />
+              <Field label="Quick fill">
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Btn onClick={() => setPayAmt(outstanding)}>Full {money(outstanding, false)}</Btn>
+                  <Btn onClick={() => setPayAmt(R2(outstanding / 2))}>Half</Btn></div></Field>
+            </div>
+          </Card>)}
+        <div className="document-toolbar"><div className="doc-tabs" role="tablist" aria-label="Document views">{[['items','Line items',Layers],...(!off?[['journal','Journal entry',BookOpen]]:[]),['history','Price history',Clock],['status',isPO?'Approval & activity':'Activity',CircleCheck]].map(([k,label,I])=><button role="tab" aria-selected={tab===k} key={k} className={tab===k?'on':''} onClick={()=>setTab(k)}><I size={15}/>{label}{k==='items'&&<span>{d.lines.length}</span>}</button>)}</div><div className="acts">{tab==='items'&&<><Btn size="sm" aria-pressed={showAccounts} onClick={()=>setShowAccounts(x=>!x)}>{showAccounts?'Hide accounts':'Show accounts'}</Btn><Btn size="sm" aria-pressed={showCost} onClick={()=>setShowCost(x=>!x)}>{showCost?'Hide cost':'Show cost'}</Btn>{!locked&&<Btn size="sm" onClick={()=>changePricing({},true)}>Reapply pricing</Btn>}</>}</div></div>
         {tab==='items'&&<>
           {lineView!=='compact'&&<div className="line-section-head"><div><h2>Products & services</h2><p>Search by name, code or barcode. Select a product to fill the line.</p></div>{!locked&&<Btn icon={Plus} kind="pri" onClick={addLine}>Add line</Btn>}</div>}
           {!d.lines.length&&lineView!=='compact'&&<Card><EmptyState icon={Package} title="Start with your first product">Add a blank line, then search or scan a product.</EmptyState>{!locked&&<div className="center"><Btn kind="pri" icon={Plus} onClick={addLine}>Add first line</Btn></div>}</Card>}
@@ -2841,8 +2942,9 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
         {tab==='history'&&<Card title={sale?'Price history for this customer':'Price history for this vendor'} sub={`Every product on this document${d.partner?' for '+(PMAP[d.partner]?.name||''):''} — or search any other product.`}><div className="history-pick"><SmartPicker items={productOptions(books)} value={historyProduct} label="History product" placeholder="Search any product…" onChange={setHistoryProduct}/>{historyProduct&&<Btn size="sm" onClick={()=>setHistoryProduct('')}>Products on this document</Btn>}</div>{historyProduct?<HistoryTable key={historyProduct+d.partner} title={PROD[historyProduct]?.name} state={state} product={historyProduct} side={meta.side} partner={d.partner} exclude={d.id} date={d.date}/>
           :[...new Set(d.lines.map(l=>l.product).filter(pid=>PROD[pid]))].length?[...new Set(d.lines.map(l=>l.product).filter(pid=>PROD[pid]))].map(pid=><HistoryTable key={pid+d.partner} title={PROD[pid].name} state={state} product={pid} side={meta.side} partner={d.partner} exclude={d.id} date={d.date}/>)
           :<EmptyState icon={Clock} title="Add a product or choose one above">Every product on this document shows its posted prices to this {sale?'customer':'vendor'} here.</EmptyState>}</Card>}
-        {tab==='status'&&<Card title={isQuote?'Quotation progress':'Document activity'}><div className="tl">{(isQuote?['draft','sent','accepted','invoiced'].map(k=>({t:QUOTE_STATES[k].label,done:['draft','sent','accepted','invoiced'].indexOf(d.state)>=['draft','sent','accepted','invoiced'].indexOf(k)})):timeline).map((t,i)=><div key={i} className={cx('tl-row',t.done?'done':'pending')}><span className="dot"><i/></span><span className="tt"><b>{t.t}</b>{t.s&&<span>{t.s}</span>}</span></div>)}</div></Card>}
+        {tab==='status'&&<Card title={isQuote?'Quotation progress':isPO?'Approval and activity':'Document activity'}><div className="tl">{activity.map((t,i)=><div key={i} className={cx('tl-row',t.done?'done':'pending',t.bad&&'bad')}><span className="dot"><i/></span><span className="tt"><b>{t.t}</b>{t.s&&<span>{t.s}</span>}</span></div>)}</div></Card>}
       </div>
+      {rejecting&&<RejectDialog d={d} close={()=>setRejecting(false)} reject={rejectPO}/>}
       {pdcOpen&&<PdcDialog state={state} setState={setState} toast={toast} init={{kind:sale?'in':'out',partner:d.partner,doc:d.id,amount:R2(outstanding)}} close={()=>setPdcOpen(false)}/>}
       {quick&&<MasterModal kind={quick.kind} initial={quick.record} state={state} setState={setState} books={books} toast={toast} close={()=>setQuick(null)} onSaved={rec=>{if(quick.kind==='product')pickProduct(quick.line,rec.id);else pickPartner(rec.id);}}/>}
       {historyLine&&<StudioModal wide title={PROD[historyLine.product]?.name||'Product history'} sub={sale?'Previous prices charged to your customer':'Previous prices charged by your vendor'} close={()=>setHistoryLine(null)}><HistoryTable state={state} product={historyLine.product} side={meta.side} partner={d.partner} exclude={d.id} date={d.date} apply={!locked?l=>{setD(s=>({...s,lines:s.lines.map(x=>x.id===historyLine.id?{...x,price:l.price,disc:l.disc||0,manualPricing:true}:x)}));setHistoryLine(null);toast('Historical price and discount applied');}:undefined}/></StudioModal>}
@@ -2935,6 +3037,15 @@ function PrintDoc({ d, close, fta, toast, settle }) {
   const paidSoFar = settle && settle.paid > 0.004 && !(d.type === "credit_note") ? settle : null;
   const CO = useCo();
   const am = amounts(d), p = PMAP[d.partner], isCN = d.type === "credit_note";
+  /* A purchase order is issued by us to a vendor; a quotation is an offer, not a tax invoice. */
+  const isPO = d.type === "purchase_order", isQ = d.type === "quote";
+  const okBy = isPO ? (lastAct(d, "approved") || lastAct(d, "confirmed")) : null;
+  const dueK = isPO ? "Deliver by" : isQ ? "Valid until" : "Due";
+  const totalK = isCN ? "TOTAL CREDITED" : isPO ? "ORDER TOTAL" : isQ ? "TOTAL" : "TOTAL PAYABLE";
+  const sides = isPO ? [["Buyer", "BUYER"], ["Vendor", "VENDOR"]] : [["Supplier", "SUPPLIER"], [isQ ? "Quoted to" : "Billed to", "RECIPIENT"]];
+  const legal = isPO ? `Please quote ${d.number} on your invoice and delivery note. Goods are accepted subject to inspection. All amounts in ${CO.currency}.`
+    : isQ ? `This quotation is valid until ${dmy(d.due)} and is not a tax invoice. All amounts in ${CO.currency}.`
+    : `Issued under Federal Decree-Law No. 8 of 2017 on Value Added Tax and its Executive Regulations. All amounts in ${CO.currency}.`;
   const words = (n) => {
     const a = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
     const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
@@ -2945,7 +3056,7 @@ function PrintDoc({ d, close, fta, toast, settle }) {
     const whole = Math.floor(n), fils = Math.round((n - whole) * 100);
     return `${w(whole) || "Zero"} Dirhams${fils ? ` and ${w(fils)} Fils` : ""} only`;
   };
-  const title = isCN ? "Tax Credit Note" : "Tax Invoice";
+  const title = isCN ? "Tax Credit Note" : isPO ? "Purchase Order" : isQ ? "Quotation" : "Tax Invoice";
   const bi = isBilingual(CO), T = (en, ar) => biLabel(bi, en, ar);
   const msg = (fta.waTemplate || DEFAULT_WA)
     .replace(/{customer}/g, p.name).replace(/{document}/g, d.number).replace(/{title}/g, title)
@@ -2979,14 +3090,14 @@ function PrintDoc({ d, close, fta, toast, settle }) {
     doc.setFont("courier", "normal"); doc.setFontSize(11); doc.setTextColor(226, 229, 233);
     doc.text(d.number, W - 40, ry, { align: "right" });
     doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...SILVER);
-    [["Issued", dmy(d.date)], ["Due", dmy(d.due)], ["Place of supply", d.emirate]].forEach(([k, v], n) => {
+    [["Issued", dmy(d.date)], [dueK, dmy(d.due)], ["Place of supply", d.emirate]].forEach(([k, v], n) => {
       const y = ry + 16 + n * 12; doc.text(`${k}: ${v}`, W - 40, y, { align: "right" });
       if (bi) pdfAr(doc, AR[k], W - 46 - doc.getTextWidth(`${k}: ${v}`), y, 7.5, "#AEB4BC", "right");
     });
     let py = head + 30;
     doc.setTextColor(...MUTE); doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
-    doc.text("SUPPLIER", 40, py); doc.text("RECIPIENT", W / 2, py);
-    if (bi) { pdfAr(doc, AR.Supplier, 40 + doc.getTextWidth("SUPPLIER") + 6, py, 7.5, "#626973"); pdfAr(doc, AR.Recipient, W / 2 + doc.getTextWidth("RECIPIENT") + 6, py, 7.5, "#626973"); }
+    doc.text(sides[0][1], 40, py); doc.text(sides[1][1], W / 2, py);
+    if (bi) { pdfAr(doc, AR[sides[0][0]], 40 + doc.getTextWidth(sides[0][1]) + 6, py, 7.5, "#626973"); pdfAr(doc, AR[isPO || isQ ? sides[1][0] : "Recipient"], W / 2 + doc.getTextWidth(sides[1][1]) + 6, py, 7.5, "#626973"); }
     const party = (x, name, nameAr, lines) => {
       let y = py + 15; doc.setTextColor(...INK); doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.text(name, x, y);
       if (bi && nameAr) { y += pdfAr(doc, nameAr, x, y + 13, 9.5, "#16191D") - 3; }
@@ -3026,7 +3137,7 @@ function PrintDoc({ d, close, fta, toast, settle }) {
     doc.setDrawColor(201, 206, 212); doc.line(W - 236, ly, W - 54, ly);
     doc.setFillColor(...S1); doc.roundedRect(W - 244, ly + 6, 198, bi ? 32 : 26, 4, 4, "F");
     doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(255, 255, 255);
-    const tl = isCN ? "TOTAL CREDITED" : "TOTAL PAYABLE";
+    const tl = totalK;
     doc.text(`${tl} AED`, W - 236, ly + 23);
     if (bi) pdfAr(doc, AR[tl], W - 236, ly + 33, 6.5, "#C9CED4");
     doc.text(money(am.total, false), W - 54, ly + 23, { align: "right" });
@@ -3047,14 +3158,15 @@ function PrintDoc({ d, close, fta, toast, settle }) {
     if (bi) pdfAr(doc, AR["Amount in words"], 40 + doc.getTextWidth("AMOUNT IN WORDS") + 6, fy + 2, 7.5, "#626973");
     doc.setFontSize(8.5); doc.setTextColor(...INK);
     doc.text(doc.splitTextToSize(words(am.total), W / 2 - 40), 40, fy + 16);
+    if (okBy) { doc.setFontSize(8); doc.setTextColor(18, 128, 74); doc.text(`${okBy.act === "confirmed" ? "Confirmed" : "Approved"} by ${okBy.name || "approver"}${okBy.day ? " on " + dmy(okBy.day) : ""}`, 40, fy + 46); }
     const sy = Math.max(ly + 80 + extra, fy + 90);
     if (sy < H - 90) { doc.setDrawColor(201, 206, 212); doc.line(W - 220, sy, W - 54, sy); doc.setFontSize(7.5); doc.setTextColor(...MUTE);
       doc.text("Authorised signatory", W - 54, sy + 11, { align: "right" }); if (bi) pdfAr(doc, AR["Authorised signatory"], W - 54, sy + 23, 7, "#8A9099", "right"); }
     doc.setFillColor(201, 206, 212); doc.rect(40, H - 70, W - 80, 0.8, "F");
     doc.setFontSize(7); doc.setTextColor(140, 147, 156);
-    doc.text(doc.splitTextToSize(`Issued under Federal Decree-Law No. 8 of 2017 on Value Added Tax and its Executive Regulations. All amounts in ${CO.currency}.${CO.licence ? ` Trade licence ${CO.licence}.` : ""}`, W - 80),
+    doc.text(doc.splitTextToSize(`${legal}${CO.licence ? ` Trade licence ${CO.licence}.` : ""}`, W - 80),
       40, H - 56);
-    if (bi) pdfAr(doc, AR.legal, W - 40, H - 40, 7, "#8C939C", "right");
+    if (bi && !isPO && !isQ) pdfAr(doc, AR.legal, W - 40, H - 40, 7, "#8C939C", "right");
     return doc;
   };
   const fileName = `${d.number.replace(/\//g, "-")}.pdf`;
@@ -3138,15 +3250,15 @@ function PrintDoc({ d, close, fta, toast, settle }) {
               <div className="doc">
                 <span className="badge">{title}{bi && <span className="ar" lang="ar" dir="rtl">{AR[title]}</span>}</span>
                 <div className="no">{d.number}</div>
-                <div className="dt">{[["Issued", dmy(d.date)], ["Due", dmy(d.due)], ["Place of supply", d.emirate]].map(([k, v]) =>
+                <div className="dt">{[["Issued", dmy(d.date)], [dueK, dmy(d.due)], ["Place of supply", d.emirate]].map(([k, v]) =>
                   <div key={k} className="kv">{bi && <span className="ar" lang="ar" dir="rtl">{AR[k]}</span>}<span>{k}: <b>{v}</b></span></div>)}</div>
               </div>
             </div>
           </div>
           <div className="sheet-body">
             <div className="sheet-parties">
-              {[["Supplier", CO.name, CO.nameAr, [addrText(CO), CO.city].filter(Boolean).join(", "), CO.trn],
-                ["Billed to", p.name, p.nameAr, addrText(p), p.trn]].map(([t, n, nAr, ad, trn]) => (
+              {[[sides[0][0], CO.name, CO.nameAr, [addrText(CO), CO.city].filter(Boolean).join(", "), CO.trn],
+                [sides[1][0], p.name, p.nameAr, addrText(p), p.trn]].map(([t, n, nAr, ad, trn]) => (
                 <div className="blk" key={t}>
                   <div className="lb">{T(t)}</div><div className="nm">{n}</div>
                   {bi && nAr && <div className="nm-ar" lang="ar" dir="rtl">{nAr}</div>}
@@ -3154,9 +3266,9 @@ function PrintDoc({ d, close, fta, toast, settle }) {
                   <div className="trn">{T("TRN")} {trn || <span style={{ color: "#9AA0A8" }}>not registered</span>}</div>
                 </div>))}
               <div className="blk" style={{ flex: "0 0 168px" }}>
-                <div className="lb">{T("Payment terms")}</div>
+                <div className="lb">{T(isPO ? "Deliver by" : isQ ? "Valid until" : "Payment terms")}</div>
                 <div className="ad" style={{ marginTop: 7 }}>
-                  Net {daysBetween(d.date, d.due)} days<br />Due {dmy(d.due)}
+                  {isPO || isQ ? dmy(d.due) : <>Net {daysBetween(d.date, d.due)} days<br />Due {dmy(d.due)}</>}
                   {d.ref && <><br />Your ref: {d.ref}</>}</div>
               </div>
             </div>
@@ -3183,17 +3295,23 @@ function PrintDoc({ d, close, fta, toast, settle }) {
                     <div style={{ fontSize: 12.5, marginTop: 7, lineHeight: 1.6 }}>{words(am.total)}</div></div>
                 </div>
                 {d.note && <div className="payblk" style={{ marginTop: 16 }}>{d.note}</div>}
-                <div className="payblk" style={{ marginTop: 16 }}>
+                {isPO ? <div className="payblk" style={{ marginTop: 16 }}>
+                  <b style={{ color: "#16191D" }}>{T("Approval")}</b><br />
+                  {okBy ? <>{okBy.act === "confirmed" ? "Confirmed" : "Approved"} by {okBy.name || "approver"}{okBy.day ? ` on ${dmy(okBy.day)}` : ""}</> : "Not yet approved — do not send to the vendor"}<br />Quote {d.number} on your invoice.
+                </div> : isQ ? <div className="payblk" style={{ marginTop: 16 }}>
+                  <b style={{ color: "#16191D" }}>{T("Validity")}</b><br />
+                  This offer is valid until {dmy(d.due)}.<br />Quote {d.number} when you confirm the order.
+                </div> : <div className="payblk" style={{ marginTop: 16 }}>
                   <b style={{ color: "#16191D" }}>{T("Payment")}</b><br />
                   Bank transfer to {CO.name}<br />Quote {d.number} as the payment reference.
-                </div>
+                </div>}
               </div>
               <div style={{ flex: "0 0 288px" }}>
                 <div className="totbox">
                   <div className="sumrow"><span className="k">{T("Taxable amount")}</span><span className="v">{money(am.net, false)}</span></div>
                   <div className="sumrow"><span className="k">{T("VAT")}</span><span className="v">{money(am.vat, false)}</span></div>
                   {am.rcm > 0 && <div className="sumrow"><span className="k">{T("Reverse charge")}</span><span className="v">{money(am.rcm, false)}</span></div>}
-                  <div className="grand"><b>{T(isCN ? "TOTAL CREDITED" : "TOTAL PAYABLE")} <small>AED</small></b><span>{money(am.total, false)}</span></div>
+                  <div className="grand"><b>{T(totalK)} <small>AED</small></b><span>{money(am.total, false)}</span></div>
                   {paidSoFar && <><div className="sumrow paid"><span className="k">Less: received to date</span><span className="v">({money(paidSoFar.paid, false)})</span></div>
                     <div className="baldue"><span>{paidSoFar.open <= 0.004 ? "PAID IN FULL" : "BALANCE DUE"} <small>AED</small></span><span>{money(paidSoFar.open, false)}</span></div>
                     <div style={{ fontSize: 10.5, color: "#626973", marginTop: 6 }}>{paidSoFar.items.map((x) => `${x.number} · ${dmy(x.date)} · ${money(x.amount, false)}`).join("  |  ")}</div></>}
@@ -3202,9 +3320,8 @@ function PrintDoc({ d, close, fta, toast, settle }) {
               </div>
             </div>
             <div className="foot">
-              <span style={{ flex: "1 1 340px" }}>Issued under Federal Decree-Law No. 8 of 2017 on Value Added Tax
-                and its Executive Regulations. All amounts in {CO.currency}.{CO.licence ? ` Trade licence ${CO.licence}.` : ""}
-                {bi && <span className="foot-ar" lang="ar" dir="rtl">{AR.legal}</span>}</span>
+              <span style={{ flex: "1 1 340px" }}>{legal}{CO.licence ? ` Trade licence ${CO.licence}.` : ""}
+                {bi && !isPO && !isQ && <span className="foot-ar" lang="ar" dir="rtl">{AR.legal}</span>}</span>
               <span>{CO.name}{CO.trn ? ` · TRN ${CO.trn}` : ""}</span>
             </div>
           </div>
@@ -5739,7 +5856,7 @@ const SEED_USERS = [
 ];
 const SCREEN_PERM = {
   categories:"master",pricelists:"master",salespeople:"master",stock_count:"journal",scrap:"journal",
-  dash: "view", quotes: "sell", invoices: "sell", credit_notes: "sell", partners: "master", bills: "buy", debit_notes: "buy",
+  dash: "view", quotes: "sell", invoices: "sell", credit_notes: "sell", partners: "master", bills: "buy", debit_notes: "buy", purchase_orders: "buy",
   banking: "bank", expenses: "buy", assets: "bank", payments: "buy", products: "master", methods: "bank", r_method: "reports", r_stmt: "reports",
   accounts: "master", acct_groups: "master", journal: "journal", r_stock: "reports", r_pnl: "reports", r_bs: "reports",
   r_tb: "reports", r_gl: "reports", r_partner: "reports", r_aged_ar: "reports", r_aged_ap: "reports",
@@ -5765,7 +5882,8 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
     delete rec.newPin; delete rec.clearPin;
     setState((x) => { const l = x.users || SEED_USERS;
       return { ...x, users: l.some((u) => u.id === rec.id) ? l.map((u) => (u.id === rec.id ? rec : u)) : [...l, rec] }; });
-    toast(`${rec.name} saved as ${ROLES[rec.role].label}`); setEd(null);
+    if (!rec.approver) delete rec.approver;
+    toast(`${rec.name} saved as ${ROLES[rec.role].label}${rec.approver ? " · purchase approver" : ""}`); setEd(null);
   };
   const toggle = (u) => {
     if (u.id === me) { toast("You cannot deactivate the account you are signed in as", "warn"); return; }
@@ -5808,6 +5926,7 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
                 : ed.pinHash && !ed.clearPin ? <button className="linkish" style={{ fontSize: 11.5, marginTop: 5 }} onClick={() => setEd({ ...ed, clearPin: true, newPin: "" })}>Remove PIN</button>
                 : <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 5 }}>Asked when someone switches to this user</div>}</Field>
           </div>
+          <ApproverToggle value={ed.approver} onChange={(v) => setEd({ ...ed, approver: v })} />
           <div className="micro" style={{ marginBottom: 11 }}>Role</div>
           <div className="picks" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", marginBottom: 16 }}>
             {Object.entries(ROLES).map(([k, r]) => (
@@ -5825,7 +5944,7 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
         </Card>)}
 
       <div className="grid" style={{ gridTemplateColumns: "minmax(0,1fr)" }}>
-        <Card title="People" pad={false} sub={`${users.filter((u) => u.active).length} active of ${users.length}`}
+        <Card title="People" pad={false} sub={`${users.filter((u) => u.active).length} active of ${users.length} · ${activeApprovers(users).length ? `${activeApprovers(users).length} purchase ${activeApprovers(users).length === 1 ? "approver" : "approvers"}` : "no purchase approver yet"}`}
           right={<SearchBox value={q} onChange={setQ} placeholder="Search name, email or role" width={250} />}>
           <div className="tbl-wrap"><table className="tbl">
             <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th className="n">Permissions</th>
@@ -5836,7 +5955,7 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
                 <tr key={u.id} style={u.active ? undefined : { opacity: .55 }}>
                   <td><Party name={u.name} meta={u.id === me ? "Signed in as this user" : ""} /></td>
                   <td className="muted">{u.email}</td>
-                  <td><Pill tone={u.role === "admin" ? "gold" : u.role === "viewer" ? "" : "info"}>{ROLES[u.role].label}</Pill>{u.pinHash && <span className="su-lock" style={{ marginLeft: 6 }} title="Switching to this user asks for a PIN"><Lock size={12} />PIN</span>}</td>
+                  <td><Pill tone={u.role === "admin" ? "gold" : u.role === "viewer" ? "" : "info"}>{ROLES[u.role].label}</Pill>{u.pinHash && <span className="su-lock" style={{ marginLeft: 6 }} title="Switching to this user asks for a PIN"><Lock size={12} />PIN</span>}{u.approver && <span className="su-appr" title="Can approve purchase orders"><ClipboardCheck size={12} />Approver</span>}</td>
                   <td><Pill tone={u.active ? "ok" : "bad"} dot>{u.active ? "Active" : "Suspended"}</Pill></td>
                   <td className="n">{ROLES[u.role].perms.length} of {PERMS.length}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
@@ -6133,7 +6252,7 @@ const NAV = [
    { s: "Other master", items: [{ k: "salespeople", l: "Sales team", i: Users, add: 1 }, { k: "methods", l: "Payment methods", i: CreditCard, add: 1 }] },
    { k: "opening", l: "Opening balances", i: Scale }] },
  { g: "Sale", i: ShoppingBag, items: [{ k: "quotes", l: "Quotations", i: FileText, add: 1 }, { k: "invoices", l: "Invoices", i: Receipt, add: 1 }, { k: "credit_notes", l: "Credit notes", i: FileMinus, add: 1 }] },
- { g: "Purchase", i: ShoppingCart, items: [{ k: "bills", l: "Vendor bills", i: ShoppingCart, add: 1 }, { k: "debit_notes", l: "Debit notes", i: FilePlus, add: 1 }, { k: "expenses", l: "Expenses", i: Wallet, add: 1 }] },
+ { g: "Purchase", i: ShoppingCart, items: [{ k: "purchase_orders", l: "Purchase orders", i: ClipboardCheck, add: 1 }, { k: "bills", l: "Vendor bills", i: ShoppingCart, add: 1 }, { k: "debit_notes", l: "Debit notes", i: FilePlus, add: 1 }, { k: "expenses", l: "Expenses", i: Wallet, add: 1 }] },
  { g: "Banking", i: Landmark, items: [{ k: "payments", l: "Receipts & payments", i: ArrowDownLeft, add: 1 }, { k: "pdc", l: "Post-dated cheques", i: CalendarClock, add: 1 }, { k: "banking", l: "Bank & cash", i: Landmark, add: 1 }] },
  { g: "Accounting trans.", i: Calculator, items: [{ k: "journal", l: "Journal entries", i: BookOpen, add: 1 }, { k: "assets", l: "Fixed assets", i: Layers, add: 1 }] },
  { g: "Stock management", i: Warehouse, items: [{ k: "stock_count", l: "Stock counts & adjustments", i: Boxes, add: 1 }, { k: "scrap", l: "Damage & scrap", i: Trash2, add: 1 }, { k: "r_stock", l: "Inventory valuation", i: Package }] },
@@ -6155,7 +6274,7 @@ const NAV = [
 ];
 const NAV_FLAT = navFlat();
 
-const DOC_VIEWS = { quotes: "quote", invoices: "invoice", credit_notes: "credit_note", bills: "bill", debit_notes: "debit_note" };
+const DOC_VIEWS = { quotes: "quote", invoices: "invoice", credit_notes: "credit_note", bills: "bill", debit_notes: "debit_note", purchase_orders: "purchase_order" };
 const STORE_KEY = "mizan.books.v2";
 const THEME_KEY = "mizan.theme";
 const CO_KEY = "mizan.company";
@@ -6336,6 +6455,7 @@ function Invoeez() {
     bills: state.docs.filter((d) => d.type === "bill").length,
     credit_notes: state.docs.filter((d) => d.type === "credit_note").length,
     debit_notes: state.docs.filter((d) => d.type === "debit_note").length,
+    purchase_orders: state.docs.filter((d) => d.type === "purchase_order" && !["billed", "rejected"].includes(d.state)).length,
     payments: state.payments.length,
     pdc: (state.pdcs || []).filter(pdcOpen).length,
   };
@@ -6345,7 +6465,8 @@ function Invoeez() {
   const role = ROLES[meUser.role] || ROLES.viewer;
   const signOut = () => { setSwitching(false); setMenu(false); setMe(null); setView("dash"); };
   const can = (p) => role.perms.indexOf(p) >= 0;
-  const allowed = (k) => !SCREEN_PERM[k] || can(SCREEN_PERM[k]);
+  /* Approvers reach purchase orders even when their role does not raise purchases. */
+  const allowed = (k) => !SCREEN_PERM[k] || can(SCREEN_PERM[k]) || (k === "purchase_orders" && !!meUser.approver);
   React.useEffect(() => { if (!allowed(view)) setView("dash"); }, [me, view]);
   const here = NAV_FLAT.find((i) => i.k === view) || { l: "Dashboard", g: "Dashboard" };
   const alerts = useMemo(() => {
@@ -6353,13 +6474,15 @@ function Invoeez() {
     const a = aging(state, "receivable", TODAY);
     if (a.rows.some((r) => r.items.some((i) => daysBetween(i.due, TODAY) > 0))) n++;
     if (PRODUCTS.some((p) => p.kind === "goods" && (books.stock[p.id] || { qty: 0 }).qty < 0)) n++;
+    if (awaitingMe(state, meUser).length) n++;
     return n;
-  }, [state, books]);
+  }, [state, books, meUser]);
 
   const cmdItems = useMemo(() => [
     ...NAV_FLAT.map((i) => ({ key: i.k, label: i.l, hint: i.sg ? i.g + " · " + i.sg : i.g, icon: i.i, act: () => go(i.k) })),
     { key: "new_inv", label: "Create a new invoice", hint: "Action", icon: Plus, act: () => newDoc("invoice") },
     { key: "new_bill", label: "Create a new vendor bill", hint: "Action", icon: Plus, act: () => newDoc("bill") },
+    { key: "new_po", label: "Create a new purchase order", hint: "Action", icon: Plus, act: () => newDoc("purchase_order") },
     { key: "backup", label: "Back up the books to JSON", hint: "Action", icon: Download, act: backup },
     { key: "start_company", label: state.sample ? "Start my company (clear the sample data)" : "Start a new company", hint: "Action", icon: Rocket, act: startCompany },
     { key: "setup_guide", label: "Setup guide — import products, customers, opening balances", hint: "Action", icon: ListChecks, act: () => go("setup") },
@@ -6383,7 +6506,8 @@ function Invoeez() {
         </Card>
       </div>);
     if (DOC_VIEWS[view]) return <DocumentsScreen key={view} type={DOC_VIEWS[view]} state={state} setState={setState}
-      books={books} openId={param} clearOpen={() => setParam(null)} toast={toast} go={go} fta={fta} />;
+      books={books} openId={param} clearOpen={() => setParam(null)} toast={toast} go={go} fta={fta} user={meUser} users={users}
+      readOnly={!!SCREEN_PERM[view] && !can(SCREEN_PERM[view])} />;
     switch (view) {
       case "dash": return <Dashboard state={state} books={books} go={go} newDoc={newDoc} range={range} setRange={setRange} user={meUser}
         setup={!state.sample && !(state.setup && state.setup.hidden) && <SetupProgress state={state} company={company} go={go} />} />;
@@ -6432,7 +6556,7 @@ function Invoeez() {
     }
   };
 
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS;
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS;
   /* Nobody signed in in this tab: show the sign-in screen. */
   if (!meFound) return (
     <ThemeCtx.Provider value={palette}>
@@ -6458,7 +6582,7 @@ function Invoeez() {
         onClick={() => setDrawer(false)} role="presentation" />}
       <Sidebar view={view} go={go} quickAdd={quickAdd} allowed={allowed} counts={counts} closed={closed} setClosed={setClosed}
         mini={mini} setMini={setMini} drawer={drawer} company={company} meUser={meUser} role={role}
-        canAdd={(k) => allowed(k)} onSwitchUser={() => setSwitching(true)} onSignOut={signOut} />
+        canAdd={(k) => !SCREEN_PERM[k] || can(SCREEN_PERM[k])} onSwitchUser={() => setSwitching(true)} onSignOut={signOut} />
       {switching && <SwitchUserDialog users={users} me={me} isAdmin={can("settings")} go={go} close={() => setSwitching(false)} onSignOut={signOut}
         onSwitch={(id) => { setMe(id); setSwitching(false); const u = users.find((x) => x.id === id); toast(`Signed in as ${u ? u.name : "user"}`); }} />}
 
@@ -6522,7 +6646,7 @@ function Invoeez() {
                   <I size={15} strokeWidth={1.8} />{l}</button>))}
               </>}
               {can("buy") && <div className="gl">Purchases</div>}
-              {can("buy") && <>{[["bill", "Vendor bill", ShoppingCart], ["debit_note", "Debit note", FilePlus]].map(([t, l, I]) => (
+              {can("buy") && <>{[["purchase_order", "Purchase order", ClipboardCheck], ["bill", "Vendor bill", ShoppingCart], ["debit_note", "Debit note", FilePlus]].map(([t, l, I]) => (
                 <button key={t} onClick={() => { setNewMenu(false); newDoc(t); }}>
                   <I size={15} strokeWidth={1.8} />{l}</button>))}</>}
               {(can("journal") || can("master")) && <div className="gl">Records</div>}

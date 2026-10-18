@@ -31,6 +31,7 @@ function Dashboard({state,books,go,newDoc,range,setRange,user,setup}){
  const bar=(pct,tone)=><div className={'kt-meter '+(tone||'')}><i style={{width:Math.max(0,Math.min(100,pct))+'%'}}/></div>;
  return <div className="studio-dashboard dash2">
  <DashHero user={user} company={company} range={range} setRange={setRange} mode={mode} setMode={setMode} P={P} prior={prior} comparable={pastStart>=firstDate} cash={cash} cashSeries={series.map(x=>x.cash)} movement={movement} newDoc={newDoc} go={go} label={label} drafts={drafts.length} low={lowCount} invoices={invoicesIssued}/>
+ <ApprovalInbox state={state} user={user} go={go}/>
  {setup}
  <PdcReminder state={state} go={go}/>
  <PlainSummary state={state} books={books} from={from} to={to} label={label}/>

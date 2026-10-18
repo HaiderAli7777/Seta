@@ -12,7 +12,8 @@ const Insight = ({ children, tone }) => (
 
 /* What a reader wants to know about an invoice or bill: is it paid? */
 function docStatus(d, open, type) {
-  if (type === "quote") return null;
+  if (type === "quote") return QUOTE_STATES[d.state] || QUOTE_STATES.draft;
+  if (type === "purchase_order") return PO_STATES[d.state] || PO_STATES.draft;
   if (d.state !== "posted") return { label: "Draft", tone: "" };
   if (type !== "invoice" && type !== "bill") return { label: "Issued", tone: "info" };
   const total = amounts(d).total;

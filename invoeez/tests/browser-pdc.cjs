@@ -16,7 +16,7 @@ await p.keyboard.type('Delta');await p.locator('.picker-pop [role=option]').firs
 const row=i=>p.locator('.line-grid tbody tr[data-line-id]').nth(i);
 await row(0).locator('input[role=combobox]').click();await p.keyboard.type('Router');await p.locator('.picker-pop [role=option]').first().waitFor();await p.keyboard.press('Enter');await p.waitForTimeout(250);
 await p.keyboard.type('2');await p.getByRole('button',{name:'Post to ledger'}).click();await p.waitForTimeout(500);
-await p.getByRole('button',{name:'Post-dated cheque',exact:true}).click();await p.waitForTimeout(300);
+await p.locator('.du-more-btn').click();await p.getByRole('menuitem',{name:/^Post-dated cheque/}).click();await p.waitForTimeout(300);
 const modal=p.locator('.studio-modal').last();
 check(await modal.getByLabel('Amount · AED').inputValue()==='2100','amount prefilled with outstanding: '+await modal.getByLabel('Amount · AED').inputValue());
 await modal.getByLabel('Cheque number').fill('000245');await modal.getByLabel('Drawn on bank').fill('Emirates NBD');
@@ -24,7 +24,7 @@ const future=await p.evaluate(()=>{const d=new Date();d.setDate(d.getDate()+20);
 await modal.getByLabel('Cheque date (maturity)').fill(future);await p.screenshot({path:require('path').join(require('os').tmpdir(),'invoeez-pdc-dialog.png')});
 await modal.getByRole('button',{name:'Record cheque'}).click();await p.waitForTimeout(400);
 let s=await books();check((s.pdcs||[]).length===1&&s.pdcs[0].number.startsWith('PDCR/'),'pdc recorded from invoice');
-check(await p.getByRole('button',{name:'Post-dated cheque',exact:true}).count()===0,'invoice settled, no more pdc button');
+await p.locator('.du-more-btn').click();await p.waitForTimeout(150);check(await p.getByRole('menuitem',{name:/^Post-dated cheque/}).count()===0,'invoice settled, no more pdc button');await p.keyboard.press('Escape');
 await nav('pdc');await p.waitForTimeout(300);
 check(await p.locator('.pdc-tbl tbody tr.click').count()===1,'pdc listed');
 await p.screenshot({path:require('path').join(require('os').tmpdir(),'invoeez-pdc-screen.png')});

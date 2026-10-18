@@ -106,6 +106,9 @@ const AR = {
   "TOTAL PAYABLE": "الإجمالي المستحق", "TOTAL CREDITED": "إجمالي المبلغ الدائن", "Authorised signatory": "التوقيع المعتمد",
   "Issued": "تاريخ الإصدار", "Due": "تاريخ الاستحقاق", "Place of supply": "مكان التوريد", "TRN": "الرقم الضريبي",
   "not registered": "غير مسجل", "Your ref": "مرجعكم", "Net": "صافي", "days": "يوم",
+  "Quotation": "عرض سعر", "Purchase Order": "أمر شراء", "Buyer": "المشتري", "Vendor": "المورد", "Quoted to": "مقدم إلى",
+  "Deliver by": "تاريخ التسليم", "Valid until": "صالح حتى", "ORDER TOTAL": "إجمالي الطلب", "TOTAL": "الإجمالي",
+  "Approval": "الاعتماد", "Validity": "الصلاحية",
   "legal": "صادرة بموجب المرسوم بقانون اتحادي رقم 8 لسنة 2017 في شأن ضريبة القيمة المضافة ولائحته التنفيذية.",
 };
 const isBilingual = (co) => (co && co.invoiceLang) === "en_ar";

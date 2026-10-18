@@ -31,9 +31,9 @@ p=await open();
 await p.locator('.sb-row:has([data-k="quotes"]) .sb-add').click();await p.waitForTimeout(900);
 check(await p.locator('.line-view-switch').count()===0,'Compact / Detailed switch removed');
 check(await p.locator('.document-dock button',{hasText:'Add line'}).count()===0&&await p.locator('button',{hasText:'Add a line'}).count()===1,'only one Add line, in the grid');
-const gap=await p.evaluate(()=>{const h=document.querySelector('.doc-head'),c=document.querySelector('.doc-workspace');return {top:parseFloat(getComputedStyle(h).paddingTop),gap:c.getBoundingClientRect().top-h.querySelector('h1').getBoundingClientRect().bottom};});
-check(gap.top<=12&&gap.gap<40,'tight header ('+JSON.stringify(gap)+')');
-check(!/— journal/i.test(await p.locator('.doc-head .micro').innerText()),'no empty journal label on quotations');
+const gap=await p.evaluate(()=>{const h=document.querySelector('.doc-unit'),t=h.querySelector('h1').getBoundingClientRect(),f=h.querySelector('.document-fields').getBoundingClientRect();return {top:Math.round(t.top-h.getBoundingClientRect().top),gap:Math.round(f.top-t.bottom)};});
+check(gap.top<=60&&gap.gap<=130,'tight header ('+JSON.stringify(gap)+')');
+check(!/— journal/i.test(await p.locator('.doc-unit .du-kind').innerText()),'no empty journal label on quotations');
 await p.context().close();
 
 // 3. IFRS 18 statement of profit or loss
@@ -62,7 +62,7 @@ const glFoot=(await p.locator('.gl-tbl tfoot td').allInnerTexts()).map(s=>s.trim
 check(Math.abs(num(glFoot[2])-num(glFoot[1])-revGoods)<0.011,'transactions add up to the amount clicked ('+revGoods+')');
 const firstDoc=(await p.locator('.gl-row .gl-doc .mono').first().innerText()).trim();
 await p.locator('.gl-row').first().click();await p.waitForTimeout(1300);
-check((await p.locator('.doc-head h1').innerText()).includes(firstDoc),'a transaction opens its invoice ('+firstDoc+')');
+check((await p.locator('.doc-unit h1').innerText()).includes(firstDoc),'a transaction opens its invoice ('+firstDoc+')');
 check(await p.locator('.drill-trail .crumb').count()===2,'trail: report › account › document');
 await p.locator('.drill-trail .crumb',{hasText:'Profit or loss'}).click();await p.waitForTimeout(1200);
 check(await p.locator('.fin-tbl').count()===1&&await p.locator('.drill-trail').count()===0,'back to the statement');
