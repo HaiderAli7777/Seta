@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <template id="customer_report_template">
+        <t t-call="web.html_container">
+            <t t-call="web.basic_layout">
+                <style>
+                    .article { margin-top: 0 !important; padding-top: 0 !important; }
+                    body, html { margin-top: 0 !important; padding-top: 0 !important; }
+                    table.no-border, table.no-border tr, table.no-border td, table.no-border th {
+                        border: none !important;
+                        border-color: transparent !important;
+                        border-width: 0 !important;
+                        border-style: hidden !important;
+                        outline: none !important;
+                        box-shadow: none !important;
+                    }
+                </style>
+                <div style="font-family: Arial, sans-serif; font-size: 11pt; padding: 0 15px;">
+
+                    <!-- Header Image -->
+                    <div style="text-align:center; margin: 0;">
+                        <img src="/tk_customer_statements/static/img/header.jpeg" style="width:100%; display:block;"/>
+                    </div>
+
+                    <!-- Spacer between header and To (wkhtmltopdf-safe) -->
+                    <div style="height:40px; line-height:40px;">&#160;</div>
+
+                    <!-- To + Logo Row -->
+                    <table class="no-border" style="width:100%; border:none !important; border-collapse:collapse; margin:0 0 6px 0;">
+                        <tr>
+                            <td style="border:none !important; vertical-align:top; width:100%; padding:0;">
+                                <p style="margin:0 0 2px 0;"><strong>To</strong></p>
+                                <p style="margin:2px 0;" t-if="partner_name"><strong><t t-esc="partner_name"/></strong></p>
+                                <p style="margin:2px 0;" t-if="partner_street"><t t-esc="partner_street"/></p>
+                                <p style="margin:2px 0;" t-if="partner_street2"><t t-esc="partner_street2"/></p>
+                                <p style="margin:2px 0;" t-if="partner_city or partner_zip">
+                                    <t t-if="partner_city" t-esc="partner_city"/>
+                                    <t t-if="partner_city and partner_zip">, </t>
+                                    <t t-if="partner_zip" t-esc="partner_zip"/>
+                                </p>
+                                <p style="margin:2px 0;" t-if="partner_state_id"><t t-esc="partner_state_id"/></p>
+                                <p style="margin:2px 0;" t-if="partner_country_id"><t t-esc="partner_country_id"/></p>
+                                <p style="margin:2px 0;" t-if="vat"><strong>TRN: </strong><t t-esc="vat"/></p>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- Date -->
+                    <p style="margin:4px 0;">Date – <t t-esc="today_date"/></p>
+
+                    <!-- Subject -->
+                    <p style="margin:6px 0;">
+                        <strong>Subject : </strong>
+                        Accounts confirmation from <t t-esc="start_date"/> to <t t-esc="end_date"/>.
+                    </p>
+
+                    <!-- Salutation + Body -->
+                    <p style="margin:8px 0;">Dear Sir,</p>
+                    <p style="margin:4px 0;">Given below is the details of your Accounts as standing in my/our books of Accounts.</p>
+                    <p style="margin:4px 0;">
+                        Your Account Balance is <t t-esc="currency"/> <t t-esc="total_balance"/>.
+                        Please make payment of the total balance by the stated due date.
+                        Make all checks payable to Company Name.
+                    </p>
+
+                    <!-- Invoice Table -->
+                    <table style="width:100%; border-collapse:collapse; margin-top:12px; font-size:10pt;">
+                        <thead>
+                            <tr style="background-color:#f2f2f2;">
+                                <th style="border:1px solid #ccc; padding:6px; text-align:center;">Invoice Date</th>
+                                <th style="border:1px solid #ccc; padding:6px; text-align:center;">Due Date</th>
+                                <th style="border:1px solid #ccc; padding:6px; text-align:center;">Invoice</th>
+                                <th style="border:1px solid #ccc; padding:6px; text-align:right;">Invoice Amount</th>
+                                <th style="border:1px solid #ccc; padding:6px; text-align:right;">Payment Amount</th>
+                                <th style="border:1px solid #ccc; padding:6px; text-align:right;">Balance Due</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-foreach="docs" t-as="invoice">
+                                <tr>
+                                    <td style="border:1px solid #ccc; padding:5px; text-align:center;"><t t-esc="invoice['invoice_date']"/></td>
+                                    <td style="border:1px solid #ccc; padding:5px; text-align:center;"><t t-esc="invoice['due_date']"/></td>
+                                    <td style="border:1px solid #ccc; padding:5px; text-align:center;"><t t-esc="invoice['invoice_id']"/></td>
+                                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><t t-esc="currency"/> <t t-esc="invoice['amount']"/></td>
+                                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><t t-esc="currency"/> <t t-esc="invoice['payment_amount']"/></td>
+                                    <td style="border:1px solid #ccc; padding:5px; text-align:right;"><t t-esc="currency"/> <t t-esc="invoice['balance_due']"/></td>
+                                </tr>
+                            </t>
+                            <!-- Total Row -->
+                            <tr style="font-weight:bold;">
+                                <td colspan="3" style="border:1px solid #ccc; padding:5px; text-align:right;">Total</td>
+                                <td style="border:1px solid #ccc; padding:5px; text-align:right;"><t t-esc="currency"/> <t t-esc="total_amount"/></td>
+                                <td style="border:1px solid #ccc; padding:5px; text-align:right;"><t t-esc="currency"/> <t t-esc="total_payment"/></td>
+                                <td style="border:1px solid #ccc; padding:5px; text-align:right;"><t t-esc="currency"/> <t t-esc="total_balance"/></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Payment Terms -->
+                    <div style="margin-top:16px;">
+                        <p style="margin:4px 0;"><strong>Payment Terms</strong></p>
+                        <p style="margin:3px 0;">&#160;&#160;&#160;Please make the payment via bank transfer or cheque within 30 days from the statement date.</p>
+                        <p style="margin:3px 0;">&#160;&#160;&#160;To ensure proper credit please enclosed a copy of this statement along with your cheque.</p>
+                        <p style="margin:3px 0;">&#160;&#160;&#160;Make the cheque in favor of the company name mentioned below or via Bank Transfer, details follow.</p>
+                    </div>
+
+                    <!-- Bank Details + Stamp Row -->
+                    <table class="no-border" style="width:100%; border:none !important; border-collapse:collapse; margin-top:14px;">
+                        <tr>
+                            <td style="border:none !important; vertical-align:top; width:65%;">
+                                <p style="margin:3px 0;"><strong><u>Bank Details:-</u></strong></p>
+                                <p style="margin:3px 0;">&#160;&#160;&#160;Bank Name&#160;&#160;&#160;:&#160;&#160; Bank of Baroda</p>
+                                <p style="margin:3px 0;">&#160;&#160;&#160;Account Name :&#160;&#160; Hearty Mart Overseas General Trading L.L.C</p>
+                                <p style="margin:3px 0;">&#160;&#160;&#160;Account No.&#160;&#160;&#160;:&#160;&#160; 90030200022621</p>
+                                <p style="margin:3px 0;">&#160;&#160;&#160;Account IBAN :&#160;&#160; AE640110090030200022621</p>
+                                <p style="margin:3px 0;">&#160;&#160;&#160;Branch&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;:&#160;&#160; Deira Dubai U.A.E</p>
+                            </td>
+                            <td style="border:none !important; vertical-align:top; text-align:center; width:35%;">
+                                <p style="margin:3px 0; font-weight:bold;">For Hearty Mart Overseas General Trading L.L.C</p>
+                                <img src="/tk_customer_statements/static/img/stamp.jpeg" style="height:110px; margin-top:6px;"/>
+                                <p style="margin:3px 0;">(Authorised Signatory)</p>
+                            </td>
+                        </tr>
+                    </table>
+
+
+                </div>
+            </t>
+        </t>
+    </template>
+
+    <!-- Paper format with zero top margin -->
+    <record id="paperformat_customer_statement" model="report.paperformat">
+        <field name="name">Customer Statement A4</field>
+        <field name="format">A4</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">2</field>
+        <field name="margin_bottom">10</field>
+        <field name="margin_left">0</field>
+        <field name="margin_right">0</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+        <field name="dpi">90</field>
+        <field name="css_margins" eval="False"/>
+    </record>
+
+    <!-- Report Action -->
+    <record id="customer_report_template_action" model="ir.actions.report">
+        <field name="name">Customer Statement Report</field>
+        <field name="model">customer.statement.wizard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">tk_customer_statements.customer_report_template</field>
+        <field name="report_file">tk_customer_statements.customer_report_template</field>
+        <field name="paperformat_id" ref="paperformat_customer_statement"/>
+        <field name="binding_model_id" ref="model_customer_statement_wizard"/>
+        <field name="binding_type">report</field>
+    </record>
+</odoo>
