@@ -219,6 +219,41 @@ const APPROVAL_CSS = `
 .du-body{padding:14px 20px 16px}
 .mz .doc-unit .document-fields{gap:9px 14px!important}
 
+/* the whole document is one form: header, tabs, lines, totals and the save bar */
+.mz .doc-form{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh-1);min-width:0;max-width:100%;position:relative;margin-top:8px}
+.mz .doc-form>.doc-unit{border:0;box-shadow:none;border-radius:16px 16px 0 0;margin:0;background:transparent}
+.mz .doc-form>.card{margin:0!important;border:0;border-radius:0;box-shadow:none;border-top:1px solid var(--line-2);overflow:visible}
+.mz .doc-form>.card.df-pay{background:color-mix(in srgb,var(--brand-50) 50%,var(--surface))}
+.mz .doc-form>.card.df-pay .card-h{padding:14px 20px 0}
+.mz .doc-form>.card.df-pay .card-b{padding:12px 20px 16px}
+.mz .doc-form>.document-toolbar{padding:0 20px;margin:0;border-top:1px solid var(--line-2);border-bottom:1px solid var(--line-2);background:var(--surface)}
+.mz .doc-form>.document-toolbar .doc-tabs button{padding:13px 1px}
+.mz .doc-form>.line-grid-wrap{border:0;border-radius:0;box-shadow:none;margin:0;background:transparent}
+.mz .doc-form .line-grid th:first-child,.mz .doc-form .line-grid td:first-child{padding-left:20px}
+.mz .doc-form .line-grid th:last-child,.mz .doc-form .line-grid td:last-child{padding-right:16px}
+.mz .doc-form>.df-foot{border-top:1px solid var(--line-2);padding:16px 20px 18px}
+.mz .doc-form>.df-foot .document-bottom{gap:24px!important}
+.mz .doc-form>.journal-tab{padding:16px 20px 18px}
+.mz .doc-form>.card.df-tab .card-h{padding:16px 20px 0}
+.mz .doc-form>.card.df-tab .card-b{padding:14px 20px 18px}
+.mz .doc-form>.document-dock{margin:0;border:0;border-top:1px solid var(--line);border-radius:0 0 16px 16px;box-shadow:0 -12px 24px -20px rgba(15,23,42,.45);bottom:0;padding:10px 20px}
+.mz .doc-form>.document-dock .btn{height:38px}
+.dk-dirty{display:inline-flex;align-items:center;gap:7px;font-size:12px!important;font-weight:600;color:var(--gold)!important}
+.dk-dirty i{width:8px;height:8px;border-radius:50%;background:var(--gold);animation:dkPulse 1.8s ease-out infinite}
+.dk-dirty kbd{font-family:var(--sans);font-size:10.5px;font-weight:600;color:var(--ink-3);padding:2px 6px;border-radius:5px;border:1px solid var(--line);background:var(--surface-2);margin-left:4px}
+.dk-saved{font-size:12px}
+@keyframes dkPulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--gold) 55%,transparent)}100%{box-shadow:0 0 0 7px transparent}}
+@media (prefers-reduced-motion:reduce){.dk-dirty i{animation:none}}
+.mz .doc-form:not(.editing)>:last-child{border-bottom-left-radius:16px;border-bottom-right-radius:16px}
+@media(max-width:650px){
+  .mz .doc-form>.document-toolbar{padding:0 14px}
+  .mz .doc-form>.df-foot{padding:14px}
+  .mz .doc-form .line-grid th:first-child,.mz .doc-form .line-grid td:first-child{padding-left:12px}
+  .mz .doc-form>.document-dock{padding:9px 14px;bottom:0}
+  .mz .doc-form>.document-dock>.dk-dirty{display:inline-flex}
+  .dk-dirty kbd{display:none}
+}
+
 /* progress */
 .du-steps{display:flex;align-items:center;list-style:none;margin:0;padding:0;overflow-x:auto;scrollbar-width:none}
 .du-steps::-webkit-scrollbar{display:none}

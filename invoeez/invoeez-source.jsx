@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.11.0";
+const BUILD = "3.12.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -2658,6 +2658,20 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     return { ...s, docs, products: clean.type === "bill" && clean.state === "posted" ? learnPurchasePrices(s, clean) : s.products };
   });
   const save = () => { const err=validate();if(err)return warn(err);commit(isPO&&d.state==='rejected'?poLog({...d,state:'draft'},'revised',user):d); toast(`${d.number} saved as draft`); close(); };
+  /* Unsaved changes: shown in the save bar, Ctrl+S saves in place, leaving asks first. */
+  const snapOf = (x) => JSON.stringify({ ...x, isNew: undefined, seq: undefined, lines: x.lines.map((l) => ({ ...l, qty: +l.qty || 0, price: +l.price || 0, disc: +l.disc || 0 })) });
+  const savedSnap = React.useRef(snapOf(initial));
+  const dirty = !locked && (d.isNew ? !!d.partner || d.lines.some((l) => l.product) : snapOf(d) !== savedSnap.current);
+  const saveHere = () => { if (locked) return; const err = validate(); if (err) return warn(err);
+    const n = isPO && d.state === "rejected" ? poLog({ ...d, state: "draft" }, "revised", user) : d;
+    commit(n); const kept = { ...n, isNew: undefined }; setD(kept); savedSnap.current = snapOf(kept); toast(`${d.number} saved`); };
+  const saveRef = React.useRef(saveHere); saveRef.current = saveHere;
+  React.useEffect(() => {
+    const onKey = (e) => { if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "s") { e.preventDefault(); saveRef.current(); } };
+    window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  const [leaveAsk, setLeaveAsk] = useState(false);
+  const leave = () => (dirty ? setLeaveAsk(true) : close());
 
   const spawn = (type, lines, ref, note, extra) => {
     const nd = { id: uid("d"), type, number: nextNumber(state.docs, type), partner: d.partner,salesman:d.salesman||"",pricelist:d.pricelist||"",
@@ -2840,7 +2854,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     <div>
       {print && <PrintDoc d={d} settle={settle} close={() => setPrint(false)} fta={fta} toast={toast} />}
       <div className="doc-workspace">
-        <DocUnit back={close} backLabel={`All ${meta.short.toLowerCase()}s`}
+        <section className={cx("doc-form", !locked && "editing")}>
+        <DocUnit back={leave} backLabel={`All ${meta.short.toLowerCase()}s`}
           kind={`${meta.label} · ${meta.journal && meta.journal !== "—" ? `${meta.journal} journal` : sale ? "Sales" : "Purchases"}`}
           number={d.number}
           status={(() => { const st = docStatus(d, outstanding, d.type); return <Pill tone={st.tone} dot>{st.label}</Pill>; })()}
@@ -2871,7 +2886,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
         </DocUnit>
 
         {payOpen && (
-          <Card title={`Settle ${d.number}`} sub={`${money(outstanding, false)} outstanding · clears the oldest open document first`}
+          <Card className="df-pay" title={`Settle ${d.number}`} sub={`${money(outstanding, false)} outstanding · clears the oldest open document first`}
             right={<><Btn onClick={() => setPayOpen(false)}>Cancel</Btn>
               <Btn kind="pri" icon={Check} disabled={!(+payAmt > 0)} onClick={recordPayment}>Record</Btn></>}>
             <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14 }}>
@@ -2934,16 +2949,20 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
               {askPrice(l)&&<table className="price-ask-card"><tbody>{priceAskRow(l,1)}</tbody></table>}
               {p&&<div className="line-insights"><button className="line-detail-toggle" aria-expanded={!!expandedLines[l.id]} onClick={()=>setExpandedLines(x=>({...x,[l.id]:!x[l.id]}))}><ChevronDown size={13}/>{expandedLines[l.id]?"Hide description":"Description"}</button><span className="price-source">{l.manualPricing?'Manual price':l.priceSource||'Product price'}</span><span>{last?<>Last {sale?'sold':'purchased'}: <b>AED {money(last.unitNet,false)}</b> / {p.uom.toLowerCase()} · {dmy(last.date)} · Qty {last.qty}</>:<>No previous {sale?'sale to this customer':'purchase from this vendor'}</>}</span><button onClick={()=>setHistoryLine(l)}><Clock size={13}/>View history</button>{showCost&&<div className="runtime-cost"><span>Cost price <b>{money(p.cost,false)}</b></span><span>Current unit cost ({(books.method||'avco').toUpperCase()}) <b>{money(cost,false)}</b></span>{sale&&<span>Est. margin / unit <b className={l.price*(1-(l.disc||0)/100)-cost<0?'neg':'pos'}>{money(l.price*(1-(l.disc||0)/100)-cost,false)}</b></span>}<small>Current costs · AED · before VAT</small></div>}{showAccounts&&<div className="runtime-account"><Field label="Account">{p?.kind==='goods'&&!sale?<div className="readonly">{def} · {ACC[def]?.name}</div>:<Select aria-label={'Account on line '+(i+1)} value={l.account||def||''} disabled={locked||!p} onChange={e=>setLine(l.id,'account',e.target.value)}><option value="">Select product first</option>{accounts.map(a=><option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}</Select>}</Field><span className="account-source">{p.kind==='goods'&&!sale?'Inventory account from product category':l.account?'Line account override':'Default from product category'}</span>{!locked&&l.account&&!(p.kind==='goods'&&!sale)&&<button onClick={()=>setLine(l.id,'account',null)}><RotateCcw size={13}/>Use category default</button>}</div>}</div>}
             </article>;})}</div>}
-          <Card><div className="document-bottom"><Field label="Internal note"><textarea className="inp" rows={3} value={d.note} disabled={locked} placeholder="Delivery terms, references or notes…" onChange={e=>set('note',e.target.value)}/></Field><div className="sumbox"><div className="sumrow"><span className="k">Subtotal before discount</span><span className="v">{money(d.lines.reduce((s,l)=>s+R2(l.qty*l.price),0),false)}</span></div><div className="sumrow"><span className="k">Line discounts</span><span className="v">{money(d.lines.reduce((s,l)=>s+R2(l.qty*l.price),0)-am.net,false)}</span></div><div className="sumrow"><span className="k">Subtotal excluding VAT</span><span className="v">{money(am.net,false)}</span></div><div className="sumrow"><span className="k">VAT charged</span><span className="v">{money(am.vat,false)}</span></div>{am.rcm>0&&<div className="sumrow"><span>Reverse charge</span><span>{money(am.rcm,false)}</span></div>}<div className="sumrow total"><span className="k">Total · AED</span><span className="v">{money(am.total,false)}</span></div>{settle&&<><div className="sumrow paid"><span className="k">{d.type==='invoice'?'Received':'Paid'}{settle.items.length?` · ${settle.items.length} ${settle.items.length===1?'payment':'payments'}`:''}</span><span className="v">{settle.paid>0.004?'('+money(settle.paid,false)+')':money(0,false)}</span></div><div className={cx('sumrow balance',settle.open<=0.004&&'zero')}><span className="k">{settle.open<=0.004?'Paid in full':d.type==='invoice'?'Balance receivable':'Balance payable'}</span><span className="v">{money(settle.open,false)}</span></div></>}</div></div></Card>
-          {settle&&<PaymentsPanel s={settle} d={d} onRecord={settle.open>0.004?()=>{setPayAmt(settle.open);setPayOpen(true);scrollPageTop();}:null} drill={drillTo} />}
-          {!locked&&<div className="document-dock"><span>{d.lines.length} {d.lines.length===1?'line':'lines'}</span><div><small>Total · AED</small><b>{money(am.total,false)}</b></div><Btn onClick={save}>Save {isQuote?'quotation':'draft'}</Btn></div>}
+          <div className="df-foot"><div className="document-bottom"><Field label="Internal note"><textarea className="inp" rows={3} value={d.note} disabled={locked} placeholder="Delivery terms, references or notes…" onChange={e=>set('note',e.target.value)}/></Field><div className="sumbox"><div className="sumrow"><span className="k">Subtotal before discount</span><span className="v">{money(d.lines.reduce((s,l)=>s+R2(l.qty*l.price),0),false)}</span></div><div className="sumrow"><span className="k">Line discounts</span><span className="v">{money(d.lines.reduce((s,l)=>s+R2(l.qty*l.price),0)-am.net,false)}</span></div><div className="sumrow"><span className="k">Subtotal excluding VAT</span><span className="v">{money(am.net,false)}</span></div><div className="sumrow"><span className="k">VAT charged</span><span className="v">{money(am.vat,false)}</span></div>{am.rcm>0&&<div className="sumrow"><span>Reverse charge</span><span>{money(am.rcm,false)}</span></div>}<div className="sumrow total"><span className="k">Total · AED</span><span className="v">{money(am.total,false)}</span></div>{settle&&<><div className="sumrow paid"><span className="k">{d.type==='invoice'?'Received':'Paid'}{settle.items.length?` · ${settle.items.length} ${settle.items.length===1?'payment':'payments'}`:''}</span><span className="v">{settle.paid>0.004?'('+money(settle.paid,false)+')':money(0,false)}</span></div><div className={cx('sumrow balance',settle.open<=0.004&&'zero')}><span className="k">{settle.open<=0.004?'Paid in full':d.type==='invoice'?'Balance receivable':'Balance payable'}</span><span className="v">{money(settle.open,false)}</span></div></>}</div></div></div>
         </>}
         {tab==='journal'&&<div className="journal-tab"><div className="info-strip"><BookOpen size={20}/><span><b>{locked?'Posted journal entry':'Journal preview'}</b><br/>{locked?'The ledger entry for this document.':'This preview updates as you edit. Posting creates the ledger entry.'}</span></div><PostingPreview lines={preview} title={locked?'Posted journal entry':'Journal preview · AED'}/></div>}
-        {tab==='history'&&<Card title={sale?'Price history for this customer':'Price history for this vendor'} sub={`Every product on this document${d.partner?' for '+(PMAP[d.partner]?.name||''):''} — or search any other product.`}><div className="history-pick"><SmartPicker items={productOptions(books)} value={historyProduct} label="History product" placeholder="Search any product…" onChange={setHistoryProduct}/>{historyProduct&&<Btn size="sm" onClick={()=>setHistoryProduct('')}>Products on this document</Btn>}</div>{historyProduct?<HistoryTable key={historyProduct+d.partner} title={PROD[historyProduct]?.name} state={state} product={historyProduct} side={meta.side} partner={d.partner} exclude={d.id} date={d.date}/>
+        {tab==='history'&&<Card className="df-tab" title={sale?'Price history for this customer':'Price history for this vendor'} sub={`Every product on this document${d.partner?' for '+(PMAP[d.partner]?.name||''):''} — or search any other product.`}><div className="history-pick"><SmartPicker items={productOptions(books)} value={historyProduct} label="History product" placeholder="Search any product…" onChange={setHistoryProduct}/>{historyProduct&&<Btn size="sm" onClick={()=>setHistoryProduct('')}>Products on this document</Btn>}</div>{historyProduct?<HistoryTable key={historyProduct+d.partner} title={PROD[historyProduct]?.name} state={state} product={historyProduct} side={meta.side} partner={d.partner} exclude={d.id} date={d.date}/>
           :[...new Set(d.lines.map(l=>l.product).filter(pid=>PROD[pid]))].length?[...new Set(d.lines.map(l=>l.product).filter(pid=>PROD[pid]))].map(pid=><HistoryTable key={pid+d.partner} title={PROD[pid].name} state={state} product={pid} side={meta.side} partner={d.partner} exclude={d.id} date={d.date}/>)
           :<EmptyState icon={Clock} title="Add a product or choose one above">Every product on this document shows its posted prices to this {sale?'customer':'vendor'} here.</EmptyState>}</Card>}
-        {tab==='status'&&<Card title={isQuote?'Quotation progress':isPO?'Approval and activity':'Document activity'}><div className="tl">{activity.map((t,i)=><div key={i} className={cx('tl-row',t.done?'done':'pending',t.bad&&'bad')}><span className="dot"><i/></span><span className="tt"><b>{t.t}</b>{t.s&&<span>{t.s}</span>}</span></div>)}</div></Card>}
+        {tab==='status'&&<Card className="df-tab" title={isQuote?'Quotation progress':isPO?'Approval and activity':'Document activity'}><div className="tl">{activity.map((t,i)=><div key={i} className={cx('tl-row',t.done?'done':'pending',t.bad&&'bad')}><span className="dot"><i/></span><span className="tt"><b>{t.t}</b>{t.s&&<span>{t.s}</span>}</span></div>)}</div></Card>}
+        {!locked&&<div className="document-dock">{dirty?<span className="dk-dirty"><i/>Unsaved changes<kbd>Ctrl S</kbd></span>:<span className="dk-saved">{d.lines.length} {d.lines.length===1?'line':'lines'}{d.lines.some(l=>!PROD[l.product])?' · finish the empty line':d.isNew?'':' · all changes saved'}</span>}<div><small>Total · AED</small><b>{money(am.total,false)}</b></div><Btn onClick={save}>Save {isQuote?'quotation':'draft'}</Btn></div>}
+        </section>
+        {tab==='items'&&settle&&<PaymentsPanel s={settle} d={d} onRecord={settle.open>0.004?()=>{setPayAmt(settle.open);setPayOpen(true);scrollPageTop();}:null} drill={drillTo} />}
       </div>
+      {leaveAsk&&<StudioModal title={`Save changes to ${d.number}?`} sub="You have changes that are not saved yet." close={()=>setLeaveAsk(false)}>
+        <div className="du-dlg-acts"><Btn onClick={()=>setLeaveAsk(false)}>Keep editing</Btn><Btn kind="danger" onClick={()=>{setLeaveAsk(false);close();}}>Discard changes</Btn><Btn kind="pri" icon={Check} onClick={()=>{setLeaveAsk(false);save();}}>Save and leave</Btn></div>
+      </StudioModal>}
       {rejecting&&<RejectDialog d={d} close={()=>setRejecting(false)} reject={rejectPO}/>}
       {pdcOpen&&<PdcDialog state={state} setState={setState} toast={toast} init={{kind:sale?'in':'out',partner:d.partner,doc:d.id,amount:R2(outstanding)}} close={()=>setPdcOpen(false)}/>}
       {quick&&<MasterModal kind={quick.kind} initial={quick.record} state={state} setState={setState} books={books} toast={toast} close={()=>setQuick(null)} onSaved={rec=>{if(quick.kind==='product')pickProduct(quick.line,rec.id);else pickPartner(rec.id);}}/>}
