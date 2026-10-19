@@ -1114,7 +1114,7 @@ const addDays = (iso, n) => {
   return d.toISOString().slice(0, 10);
 };
 const daysBetween = (a, b) => Math.round((/* @__PURE__ */ new Date(b + "T00:00:00Z") - /* @__PURE__ */ new Date(a + "T00:00:00Z")) / 864e5);
-const BUILD = "3.12.0";
+const BUILD = "3.13.0";
 const TODAY = (() => {
   const d = /* @__PURE__ */ new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -3033,7 +3033,6 @@ const ReportFrame = ({ title, meta, right, children, toast, icon: Ic = BarChart3
   const frameRef = React.useRef(null);
   return /* @__PURE__ */ React.createElement("div", { className: "card rframe", ref: frameRef }, /* @__PURE__ */ React.createElement("div", { className: "rframe-h", style: { display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { className: "rf-title" }, /* @__PURE__ */ React.createElement("span", { className: "rf-ic noprint" }, /* @__PURE__ */ React.createElement(Ic, { size: 21 })), /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, CO.logo && /* @__PURE__ */ React.createElement("img", { src: CO.logo, alt: "", style: { maxHeight: 34, maxWidth: 150, objectFit: "contain", display: "block", marginBottom: 9 } }), /* @__PURE__ */ React.createElement("div", { className: "micro" }, CO.name, CO.trn ? ` \xB7 TRN ${CO.trn}` : ""), /* @__PURE__ */ React.createElement("h2", null, title), /* @__PURE__ */ React.createElement("div", { className: "rf-chips" }, (chips || [meta]).filter(Boolean).map((c, i) => c.cmp ? /* @__PURE__ */ React.createElement("span", { key: i, className: "cmp" }, c.cmp) : /* @__PURE__ */ React.createElement("span", { key: i, className: i === 0 ? "acc" : "" }, c))))), /* @__PURE__ */ React.createElement("div", { className: "acts noprint", style: { marginLeft: "auto", display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" } }, right, /* @__PURE__ */ React.createElement(ExportBar, { frameRef, title, meta, toast }))), children);
 };
-const Toasts = ({ items }) => /* @__PURE__ */ React.createElement("div", { className: "toasts noprint" }, items.map((t) => /* @__PURE__ */ React.createElement("div", { className: cx("toast", t.tone), key: t.id }, /* @__PURE__ */ React.createElement("span", { className: "tico" }, t.tone === "warn" ? /* @__PURE__ */ React.createElement(AlertTriangle, { size: 12, strokeWidth: 2.2 }) : /* @__PURE__ */ React.createElement(Check, { size: 13, strokeWidth: 2.6 })), t.msg)));
 function CommandPalette({ items, close, run }) {
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(0);
@@ -3502,6 +3501,9 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
     else if (openId === "__pending__") {
       setEditing(null);
       setF("pending");
+    } else if (openId.startsWith("__f:")) {
+      setEditing(null);
+      setF(openId.slice(4));
     } else if (openId === "__new__") {
       if (!readOnly) setEditing(blankDoc(state.docs, type));
     } else {
@@ -3537,7 +3539,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
       close: () => setEditing(null)
     }
   );
-  const filtered = state.docs.filter((d) => d.type === type).filter((d) => f === "all" || (f === "open" ? (openMap[d.id] || 0) > 4e-3 : f === "overdue" ? (openMap[d.id] || 0) > 4e-3 && d.due < TODAY : d.state === f)).filter((d) => hits(
+  const filtered = state.docs.filter((d) => d.type === type).filter((d) => f === "all" || (f === "open" ? (openMap[d.id] || 0) > 4e-3 : f === "overdue" ? (openMap[d.id] || 0) > 4e-3 && d.due < TODAY : f === "soon" ? (openMap[d.id] || 0) > 4e-3 && d.due >= TODAY && d.due <= addDays(TODAY, 7) : f === "approved" && isPO ? ["approved", "sent"].includes(d.state) : d.state === f)).filter((d) => hits(
     q,
     d.number,
     PMAP[d.partner].name,
@@ -3562,6 +3564,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
     return { net: R2(s.net + a.net), vat: R2(s.vat + a.vat), total: R2(s.total + a.total) };
   }, { net: 0, vat: 0, total: 0 });
   const totalOpen = R2(list.reduce((s, d) => s + (openMap[d.id] || 0), 0));
+  const tiles = summaryTiles(type, state.docs.filter((d) => d.type === type), openMap);
   return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(
     PageHead,
     {
@@ -3570,7 +3573,10 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
       sub: isQ ? `${list.length} quotations \xB7 ${money(t.total, false)} in play \xB7 nothing posts until one is converted` : isPO ? `${list.length} purchase orders \xB7 ${pendingCount} awaiting approval \xB7 ${money(t.total, false)} on order \xB7 nothing posts until one becomes a bill` : `${list.length} documents \xB7 ${money(t.total, false)} posted${totalOpen > 4e-3 ? ` \xB7 ${money(totalOpen, false)} outstanding` : ""}`
     },
     !readOnly && /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Plus, onClick: () => setEditing(blankDoc(state.docs, type)) }, "New ", meta.short.toLowerCase())
-  ), /* @__PURE__ */ React.createElement(Card, { pad: false }, /* @__PURE__ */ React.createElement("div", { className: "toolbar" }, /* @__PURE__ */ React.createElement(
+  ), tiles && /* @__PURE__ */ React.createElement(DocSummary, { tiles, f, setF: (v) => {
+    setF(v);
+    setLimit(100);
+  } }), /* @__PURE__ */ React.createElement(Card, { pad: false }, /* @__PURE__ */ React.createElement("div", { className: "toolbar" }, /* @__PURE__ */ React.createElement(
     SearchBox,
     {
       value: q,
@@ -3853,8 +3859,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     toast(`${d.number} reset to draft`, "warn");
   };
   const remove = () => {
-    setState((s) => ({ ...s, docs: s.docs.filter((x) => x.id !== d.id) }));
-    toast(`${d.number} deleted`, "warn");
+    const saved = state.docs.find((x) => x.id === d.id) || d;
+    removeWithUndo({ setState, toast, key: "docs", rec: saved, label: d.number });
     close();
   };
   const rights = isPO ? poRights(["draft", "rejected"].includes(d.state) ? { ...d, requestedBy: null } : d, user, users) : null;
@@ -4513,22 +4519,21 @@ function PaymentsScreen({ state, setState, toast, create }) {
         onChange: (e) => setNw({ ...nw, memo: e.target.value })
       }
     )))
-  ), /* @__PURE__ */ React.createElement(Card, { pad: false }, /* @__PURE__ */ React.createElement("div", { className: "toolbar" }, /* @__PURE__ */ React.createElement(SearchBox, { value: q, onChange: setQ, placeholder: "Search number, counterparty, memo or amount", width: 310 }), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 12.5, color: "var(--ink-3)" } }, list.length, " of ", state.payments.length)), /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Number"), /* @__PURE__ */ React.createElement("th", null, "Direction"), /* @__PURE__ */ React.createElement("th", null, "Counterparty"), /* @__PURE__ */ React.createElement("th", null, "Date"), /* @__PURE__ */ React.createElement("th", null, "Method"), /* @__PURE__ */ React.createElement("th", null, "Account"), /* @__PURE__ */ React.createElement("th", null, "Memo"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Amount"), /* @__PURE__ */ React.createElement("th", { style: { width: 44 } }))), /* @__PURE__ */ React.createElement("tbody", null, list.length === 0 && /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 9 }, /* @__PURE__ */ React.createElement(EmptyState, { icon: Wallet, title: `Nothing matches \u201C${q}\u201D` }))), list.slice(0, limit).map((p) => /* @__PURE__ */ React.createElement("tr", { key: p.id }, /* @__PURE__ */ React.createElement("td", { className: "mono", style: { fontSize: 12.5 } }, p.number), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(Pill, { tone: p.kind === "in" ? "ok" : "info", dot: true }, p.kind === "in" ? "Received" : "Paid")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(Party, { name: PMAP[p.partner].name })), /* @__PURE__ */ React.createElement("td", { className: "muted" }, dmy(p.date)), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement(Card, { pad: false }, /* @__PURE__ */ React.createElement("div", { className: "toolbar" }, /* @__PURE__ */ React.createElement(SearchBox, { value: q, onChange: setQ, placeholder: "Search number, counterparty, memo or amount", width: 310 }), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 12.5, color: "var(--ink-3)" } }, list.length, " of ", state.payments.length)), /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl pay-list" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Number"), /* @__PURE__ */ React.createElement("th", null, "Direction"), /* @__PURE__ */ React.createElement("th", null, "Counterparty"), /* @__PURE__ */ React.createElement("th", null, "Date"), /* @__PURE__ */ React.createElement("th", null, "Method \xB7 account"), /* @__PURE__ */ React.createElement("th", null, "Memo"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Amount"), /* @__PURE__ */ React.createElement("th", { style: { width: 44 } }))), /* @__PURE__ */ React.createElement("tbody", null, list.length === 0 && /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 9 }, /* @__PURE__ */ React.createElement(EmptyState, { icon: Wallet, title: `Nothing matches \u201C${q}\u201D` }))), list.slice(0, limit).map((p) => /* @__PURE__ */ React.createElement("tr", { key: p.id }, /* @__PURE__ */ React.createElement("td", { className: "mono nowrap", style: { fontSize: 12.5 } }, p.number), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(Pill, { tone: p.kind === "in" ? "ok" : "info", dot: true }, p.kind === "in" ? "Received" : "Paid")), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(Party, { name: PMAP[p.partner].name })), /* @__PURE__ */ React.createElement("td", { className: "muted nowrap" }, dmy(p.date)), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { className: "pay-method" }, /* @__PURE__ */ React.createElement(
     "span",
     {
       className: cx("gt sm", MET[p.method] ? METHOD_KINDS[MET[p.method].kind].grad : "g1"),
       style: { width: 26, height: 26, flexBasis: 26, borderRadius: 8 }
     },
     /* @__PURE__ */ React.createElement(Banknote, { size: 13, strokeWidth: 1.9 })
-  ), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12.5 } }, methodName(p.method)))), /* @__PURE__ */ React.createElement("td", { className: "muted", style: { fontSize: 12.5 } }, ACC[p.account].code, " ", ACC[p.account].name), /* @__PURE__ */ React.createElement("td", { className: "muted", style: { fontSize: 12.5 } }, p.memo || "\u2014"), /* @__PURE__ */ React.createElement("td", { className: "n", style: { fontWeight: 600, color: p.kind === "in" ? "var(--pos)" : void 0 } }, money(p.amount)), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("span", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("b", null, methodName(p.method)), /* @__PURE__ */ React.createElement("small", { title: `${ACC[p.account].code} ${ACC[p.account].name}` }, ACC[p.account].code, " \xB7 ", ACC[p.account].name)))), /* @__PURE__ */ React.createElement("td", { className: "muted", style: { fontSize: 12.5 } }, /* @__PURE__ */ React.createElement("div", { className: "memo-cell", title: p.memo || "" }, p.memo || "\u2014")), /* @__PURE__ */ React.createElement("td", { className: "n", style: { fontWeight: 600, color: p.kind === "in" ? "var(--pos)" : void 0 } }, money(p.amount)), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "icon-btn",
       style: { width: 28, height: 28 },
-      onClick: () => {
-        setState((s) => ({ ...s, payments: s.payments.filter((x) => x.id !== p.id) }));
-        toast(`${p.number} deleted`, "warn");
-      }
+      title: `Delete ${p.number}`,
+      "aria-label": `Delete ${p.number}`,
+      onClick: () => removeWithUndo({ setState, toast, key: "payments", rec: p, label: p.number })
     },
     /* @__PURE__ */ React.createElement(Trash2, { size: 14 })
   ))))), list.length > limit && /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 9, className: "show-more" }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => setLimit((n) => n + 200) }, "Show ", Math.min(200, list.length - limit), " more \xB7 ", list.length - limit, " older"))))))));
@@ -4578,8 +4583,7 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed, creat
       toast(`${p.name} has documents and cannot be deleted`, "warn");
       return;
     }
-    setState((x) => ({ ...x, partners: (x.partners || []).filter((q2) => q2.id !== p.id) }));
-    toast(`${p.name} removed`, "warn");
+    removeWithUndo({ setState, toast, key: "partners", rec: (state.partners || []).find((q2) => q2.id === p.id) || p, label: p.name, verb: "removed" });
   };
   const ar = useMemo(() => aging(state, "receivable", TODAY), [state]);
   const ap = useMemo(() => aging(state, "payable", TODAY), [state]);
@@ -4695,8 +4699,7 @@ function LegacyProductsScreen({ books, state, setState, toast }) {
       toast(`${p.code} is used on documents and cannot be deleted`, "warn");
       return;
     }
-    setState((x) => ({ ...x, products: (x.products || []).filter((q2) => q2.id !== p.id) }));
-    toast(`${p.code} removed`, "warn");
+    removeWithUndo({ setState, toast, key: "products", rec: (state.products || []).find((q2) => q2.id === p.id) || p, label: p.code, verb: "removed" });
   };
   const rows = PRODUCTS.filter((p) => kind === "all" || p.kind === kind).filter((p) => hits(q, p.code, p.name, p.uom)).map((p) => {
     const s = books.stock[p.id] || { qty: 0, value: 0 };
@@ -4791,9 +4794,9 @@ function AccountsScreen({ books, go, state, setState, toast, create }) {
       toast("That account is in use by postings, a category, a payment method or an asset", "warn");
       return;
     }
-    if (!window.confirm(`Delete account ${code} ${ACC[code] ? ACC[code].name : ""}?`)) return;
-    setState((x) => ({ ...x, accounts: (x.accounts || []).filter((a) => a.code !== code) }));
-    toast(`Account ${code} removed`, "warn");
+    const rec = (state.accounts || []).find((a) => a.code === code);
+    if (!rec) return;
+    removeWithUndo({ setState, toast, key: "accounts", rec, idKey: "code", label: `Account ${code}`, verb: "removed" });
   };
   return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(
     PageHead,
@@ -5352,10 +5355,9 @@ function AssetsScreen({ state, setState, books, toast, create }) {
       {
         className: "icon-btn",
         style: { width: 27, height: 27, display: "inline-grid", verticalAlign: "-8px" },
-        onClick: () => {
-          setState((x) => ({ ...x, assets: (x.assets || []).filter((q2) => q2.id !== a.id) }));
-          toast(`${a.name} removed`, "warn");
-        }
+        title: `Delete ${a.name}`,
+        "aria-label": `Delete ${a.name}`,
+        onClick: () => removeWithUndo({ setState, toast, key: "assets", rec: a, label: a.name, verb: "removed" })
       },
       /* @__PURE__ */ React.createElement(Trash2, { size: 13 })
     )))))))
@@ -5399,8 +5401,7 @@ function MethodsScreen({ state, setState, books, toast, create }) {
       toast("Standard methods can be edited or deactivated, not deleted", "warn");
       return;
     }
-    setState((x) => ({ ...x, methods: (x.methods || []).filter((y) => y.id !== m.id) }));
-    toast(`${m.name} removed`, "warn");
+    removeWithUndo({ setState, toast, key: "methods", rec: m, label: m.name, verb: "removed" });
   };
   const toggle = (m) => {
     const rec = { ...m, active: !m.active };
@@ -6847,8 +6848,7 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
       toast("You cannot delete the account you are signed in as", "warn");
       return;
     }
-    setState((x) => ({ ...x, users: (x.users || SEED_USERS).filter((y) => y.id !== u.id) }));
-    toast(`${u.name} removed`, "warn");
+    removeWithUndo({ setState, toast, key: "users", rec: u, label: u.name, fallback: SEED_USERS, verb: "removed" });
   };
   return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(
     PageHead,
@@ -7312,10 +7312,11 @@ function Invoeez() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
-  const toast = (msg, tone) => {
-    const id = ++_tid;
-    setToasts((t) => [...t, { id, msg, tone }]);
-    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3400);
+  const dismissToast = (id) => setToasts((t) => t.filter((x) => x.id !== id));
+  const toast = (msg, tone, opts) => {
+    const id = ++_tid, undo = opts && opts.undo, life = undo ? 7e3 : 3400;
+    setToasts((t) => [...t.slice(-3), { id, msg, tone, undo, life }]);
+    window.setTimeout(() => dismissToast(id), life);
   };
   const [trail, setTrail] = useState([]), [crumb, setCrumb] = useState(null);
   const go = (k, p) => {
@@ -7425,14 +7426,12 @@ function Invoeez() {
     if (!allowed(view)) setView("dash");
   }, [me, view]);
   const here = NAV_FLAT.find((i) => i.k === view) || { l: "Dashboard", g: "Dashboard" };
-  const alerts = useMemo(() => {
-    let n = state.docs.filter((d) => d.state === "draft").length ? 1 : 0;
-    const a = aging(state, "receivable", TODAY);
-    if (a.rows.some((r) => r.items.some((i) => daysBetween(i.due, TODAY) > 0))) n++;
-    if (PRODUCTS.some((p) => p.kind === "goods" && (books.stock[p.id] || { qty: 0 }).qty < 0)) n++;
-    if (awaitingMe(state, meUser).length) n++;
-    return n;
-  }, [state, books, meUser]);
+  const canAdd = (k) => !SCREEN_PERM[k] || can(SCREEN_PERM[k]);
+  const attention = useMemo(() => attentionItems({ state, books, user: meUser, can, allowed, backup }), [state, books, meUser]);
+  const alerts = attention.length;
+  const [notif, setNotif] = useState(false);
+  const [keysOpen, setKeysOpen] = useState(false);
+  const chord = useShortcuts({ enabled: !!meFound, allowed, canAdd, go, newDoc, toast, openHelp: () => setKeysOpen(true), openSearch: () => setCmdk(true) });
   const cmdItems = useMemo(() => [
     ...NAV_FLAT.map((i) => ({ key: i.k, label: i.l, hint: i.sg ? i.g + " \xB7 " + i.sg : i.g, icon: i.i, act: () => go(i.k) })),
     { key: "new_inv", label: "Create a new invoice", hint: "Action", icon: Plus, act: () => newDoc("invoice") },
@@ -7641,8 +7640,8 @@ function Invoeez() {
         return null;
     }
   };
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS;
-  if (!meFound) return /* @__PURE__ */ React.createElement(ThemeCtx.Provider, { value: palette }, /* @__PURE__ */ React.createElement(CompanyCtx.Provider, { value: company }, /* @__PURE__ */ React.createElement("div", { className: "mz", "data-theme": theme, "data-accent": accent, "data-density": density }, /* @__PURE__ */ React.createElement("style", null, ALL_CSS), /* @__PURE__ */ React.createElement(Toasts, { items: toasts }), /* @__PURE__ */ React.createElement(
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS;
+  if (!meFound) return /* @__PURE__ */ React.createElement(ThemeCtx.Provider, { value: palette }, /* @__PURE__ */ React.createElement(CompanyCtx.Provider, { value: company }, /* @__PURE__ */ React.createElement("div", { className: "mz", "data-theme": theme, "data-accent": accent, "data-density": density }, /* @__PURE__ */ React.createElement("style", null, ALL_CSS), /* @__PURE__ */ React.createElement(Toasts, { items: toasts, dismiss: dismissToast }), /* @__PURE__ */ React.createElement(
     SignInScreen,
     {
       users,
@@ -7657,7 +7656,7 @@ function Invoeez() {
       }
     }
   ))));
-  return /* @__PURE__ */ React.createElement(ThemeCtx.Provider, { value: palette }, /* @__PURE__ */ React.createElement(CompanyCtx.Provider, { value: company }, /* @__PURE__ */ React.createElement("div", { className: "mz", "data-theme": theme, "data-accent": accent, "data-density": density, style: { height: "100vh" } }, /* @__PURE__ */ React.createElement("style", null, ALL_CSS), starting && /* @__PURE__ */ React.createElement(StartCompanyDialog, { state, company, backup, close: () => setStarting(false), onDone: companyStarted }), cmdk && /* @__PURE__ */ React.createElement(CommandPalette, { items: cmdItems, close: () => setCmdk(false), run: (i) => i.act() }), /* @__PURE__ */ React.createElement(Toasts, { items: toasts }), drawer && /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement(ThemeCtx.Provider, { value: palette }, /* @__PURE__ */ React.createElement(CompanyCtx.Provider, { value: company }, /* @__PURE__ */ React.createElement("div", { className: "mz", "data-theme": theme, "data-accent": accent, "data-density": density, style: { height: "100vh" } }, /* @__PURE__ */ React.createElement("style", null, ALL_CSS), starting && /* @__PURE__ */ React.createElement(StartCompanyDialog, { state, company, backup, close: () => setStarting(false), onDone: companyStarted }), cmdk && /* @__PURE__ */ React.createElement(CommandPalette, { items: cmdItems, close: () => setCmdk(false), run: (i) => i.act() }), /* @__PURE__ */ React.createElement(Toasts, { items: toasts, dismiss: dismissToast }), drawer && /* @__PURE__ */ React.createElement(
     "div",
     {
       className: "side-scrim",
@@ -7681,11 +7680,11 @@ function Invoeez() {
       company,
       meUser,
       role,
-      canAdd: (k) => !SCREEN_PERM[k] || can(SCREEN_PERM[k]),
+      canAdd,
       onSwitchUser: () => setSwitching(true),
       onSignOut: signOut
     }
-  ), switching && /* @__PURE__ */ React.createElement(
+  ), keysOpen && /* @__PURE__ */ React.createElement(ShortcutSheet, { allowed, canAdd, close: () => setKeysOpen(false) }), /* @__PURE__ */ React.createElement(ChordHint, { chord, allowed, canAdd }), switching && /* @__PURE__ */ React.createElement(
     SwitchUserDialog,
     {
       users,
@@ -7709,14 +7708,14 @@ function Invoeez() {
     },
     /* @__PURE__ */ React.createElement(Scale, { size: 13, strokeWidth: 1.9 }),
     /* @__PURE__ */ React.createElement("span", { className: "lbl" }, books.balanced ? "Balanced" : `Out by ${money(books.totalD - books.totalC)}`)
-  )), /* @__PURE__ */ React.createElement("button", { className: "omni", onClick: () => setCmdk(true) }, /* @__PURE__ */ React.createElement("span", { className: "oi" }, /* @__PURE__ */ React.createElement(Search, { size: 15, strokeWidth: 2.2 })), /* @__PURE__ */ React.createElement("span", { className: "ot" }, "Search products, barcode, invoices\u2026"), /* @__PURE__ */ React.createElement("kbd", null, "\u2318K")), /* @__PURE__ */ React.createElement("div", { className: "tb-r" }, /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("button", { className: "btn pri", ref: newRef, onClick: () => {
+  )), /* @__PURE__ */ React.createElement("button", { className: "omni", onClick: () => setCmdk(true) }, /* @__PURE__ */ React.createElement("span", { className: "oi" }, /* @__PURE__ */ React.createElement(Search, { size: 15, strokeWidth: 2.2 })), /* @__PURE__ */ React.createElement("span", { className: "ot" }, "Search products, barcode, invoices\u2026"), /* @__PURE__ */ React.createElement("kbd", null, MOD === "\u2318" ? "\u2318K" : "Ctrl K")), /* @__PURE__ */ React.createElement("div", { className: "tb-r" }, /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("button", { className: "btn pri", ref: newRef, onClick: () => {
     const el = newRef.current;
     if (el && el.getBoundingClientRect) {
       const r = el.getBoundingClientRect();
       setNewAt({ top: Math.round(r.bottom + 8), left: Math.round(Math.max(8, r.right - 250)) });
     }
     setNewMenu((v) => !v);
-  } }, /* @__PURE__ */ React.createElement(Plus, { size: 15, strokeWidth: 2.1 }), "New")), /* @__PURE__ */ React.createElement("span", { className: "tb-div" }), /* @__PURE__ */ React.createElement("div", { className: "tb-icons" }, /* @__PURE__ */ React.createElement("button", { className: "icon-btn bell", onClick: () => go("dash"), title: "Items needing attention" }, /* @__PURE__ */ React.createElement(Bell, { size: 17, strokeWidth: 1.9 }), alerts > 0 && /* @__PURE__ */ React.createElement("span", { className: "dot" }, alerts)), /* @__PURE__ */ React.createElement("button", { className: "icon-btn", onClick: () => go("r_vat"), title: "Filing calendar" }, /* @__PURE__ */ React.createElement(Calendar, { size: 17, strokeWidth: 1.9 })), /* @__PURE__ */ React.createElement(
+  } }, /* @__PURE__ */ React.createElement(Plus, { size: 15, strokeWidth: 2.1 }), "New")), /* @__PURE__ */ React.createElement("span", { className: "tb-div" }), /* @__PURE__ */ React.createElement("div", { className: "tb-icons" }, /* @__PURE__ */ React.createElement("div", { className: "nt-wrap" }, /* @__PURE__ */ React.createElement("button", { className: cx("icon-btn bell", notif && "on"), onClick: () => setNotif((v) => !v), title: "Needs attention", "aria-haspopup": "dialog", "aria-expanded": notif }, /* @__PURE__ */ React.createElement(Bell, { size: 17, strokeWidth: 1.9 }), alerts > 0 && /* @__PURE__ */ React.createElement("span", { className: "dot" }, alerts)), notif && /* @__PURE__ */ React.createElement(NotificationCenter, { items: attention, go, close: () => setNotif(false) })), /* @__PURE__ */ React.createElement("button", { className: "icon-btn", onClick: () => go("r_vat"), title: "Filing calendar" }, /* @__PURE__ */ React.createElement(Calendar, { size: 17, strokeWidth: 1.9 })), /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "icon-btn",
@@ -7728,13 +7727,13 @@ function Invoeez() {
   )), /* @__PURE__ */ React.createElement("span", { className: "tb-div" }), /* @__PURE__ */ React.createElement("button", { className: "coswitch", onClick: () => go("settings"), title: "Company profile" }, company.logo ? /* @__PURE__ */ React.createElement("img", { src: company.logo, alt: "", style: { width: 26, height: 26, borderRadius: 7, objectFit: "contain", background: "#fff" } }) : /* @__PURE__ */ React.createElement("span", { className: "gt sm", style: { width: 26, height: 26, flexBasis: 26, borderRadius: 7 } }, /* @__PURE__ */ React.createElement(Building2, { size: 14, strokeWidth: 2 })), /* @__PURE__ */ React.createElement("span", { className: "cx" }, /* @__PURE__ */ React.createElement("b", null, company.name), /* @__PURE__ */ React.createElement("span", null, "Company")), /* @__PURE__ */ React.createElement(ChevronDown, { size: 14, strokeWidth: 2, style: { opacity: 0.55 } })), /* @__PURE__ */ React.createElement("button", { className: "userchip", onClick: () => setMenu(true), "aria-label": "Account menu" }, /* @__PURE__ */ React.createElement("span", { className: "me" }, initials(meUser.name)), /* @__PURE__ */ React.createElement("span", { className: "ux" }, /* @__PURE__ */ React.createElement("b", null, meUser.name), /* @__PURE__ */ React.createElement("span", null, role.label)), /* @__PURE__ */ React.createElement(ChevronDown, { size: 14, strokeWidth: 2, style: { opacity: 0.55 } })), newMenu && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pop-scrim", onMouseDown: () => setNewMenu(false) }), /* @__PURE__ */ React.createElement("div", { className: "newpop", style: { top: newAt.top, left: newAt.left } }, can("sell") && /* @__PURE__ */ React.createElement("div", { className: "gl" }, "Sales"), can("sell") && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { onClick: () => {
     setNewMenu(false);
     newDoc("quote");
-  } }, /* @__PURE__ */ React.createElement(FileText, { size: 15, strokeWidth: 1.8 }), "Quotation"), [["invoice", "Customer invoice", FileText], ["credit_note", "Credit note", FileMinus]].map(([t, l, I]) => /* @__PURE__ */ React.createElement("button", { key: t, onClick: () => {
+  } }, /* @__PURE__ */ React.createElement(FileText, { size: 15, strokeWidth: 1.8 }), "Quotation", /* @__PURE__ */ React.createElement("span", { className: "nk" }, /* @__PURE__ */ React.createElement("kbd", null, "n"), /* @__PURE__ */ React.createElement("kbd", null, "q"))), [["invoice", "Customer invoice", FileText, "i"], ["credit_note", "Credit note", FileMinus, "c"]].map(([t, l, I, k]) => /* @__PURE__ */ React.createElement("button", { key: t, onClick: () => {
     setNewMenu(false);
     newDoc(t);
-  } }, /* @__PURE__ */ React.createElement(I, { size: 15, strokeWidth: 1.8 }), l))), can("buy") && /* @__PURE__ */ React.createElement("div", { className: "gl" }, "Purchases"), can("buy") && /* @__PURE__ */ React.createElement(React.Fragment, null, [["purchase_order", "Purchase order", ClipboardCheck], ["bill", "Vendor bill", ShoppingCart], ["debit_note", "Debit note", FilePlus]].map(([t, l, I]) => /* @__PURE__ */ React.createElement("button", { key: t, onClick: () => {
+  } }, /* @__PURE__ */ React.createElement(I, { size: 15, strokeWidth: 1.8 }), l, /* @__PURE__ */ React.createElement("span", { className: "nk" }, /* @__PURE__ */ React.createElement("kbd", null, "n"), /* @__PURE__ */ React.createElement("kbd", null, k))))), can("buy") && /* @__PURE__ */ React.createElement("div", { className: "gl" }, "Purchases"), can("buy") && /* @__PURE__ */ React.createElement(React.Fragment, null, [["purchase_order", "Purchase order", ClipboardCheck, "o"], ["bill", "Vendor bill", ShoppingCart, "b"], ["debit_note", "Debit note", FilePlus, ""]].map(([t, l, I, k]) => /* @__PURE__ */ React.createElement("button", { key: t, onClick: () => {
     setNewMenu(false);
     newDoc(t);
-  } }, /* @__PURE__ */ React.createElement(I, { size: 15, strokeWidth: 1.8 }), l))), (can("journal") || can("master")) && /* @__PURE__ */ React.createElement("div", { className: "gl" }, "Records"), can("journal") && /* @__PURE__ */ React.createElement("button", { onClick: () => {
+  } }, /* @__PURE__ */ React.createElement(I, { size: 15, strokeWidth: 1.8 }), l, k && /* @__PURE__ */ React.createElement("span", { className: "nk" }, /* @__PURE__ */ React.createElement("kbd", null, "n"), /* @__PURE__ */ React.createElement("kbd", null, k))))), (can("journal") || can("master")) && /* @__PURE__ */ React.createElement("div", { className: "gl" }, "Records"), can("journal") && /* @__PURE__ */ React.createElement("button", { onClick: () => {
     setNewMenu(false);
     go("journal");
   } }, /* @__PURE__ */ React.createElement(Landmark, { size: 15, strokeWidth: 1.8 }), "Journal entry"), can("master") && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { onClick: () => {
@@ -7758,7 +7757,10 @@ function Invoeez() {
   } }, /* @__PURE__ */ React.createElement(Users, { size: 15, strokeWidth: 1.8 }), "Users & access"), /* @__PURE__ */ React.createElement("button", { className: "pop-item", onClick: () => setTheme(theme === "dark" ? "light" : "dark") }, theme === "dark" ? /* @__PURE__ */ React.createElement(Moon, { size: 15, strokeWidth: 1.8 }) : /* @__PURE__ */ React.createElement(Sun, { size: 15, strokeWidth: 1.8 }), "Dark mode", /* @__PURE__ */ React.createElement(Switch, { on: theme === "dark" })), /* @__PURE__ */ React.createElement("button", { className: "pop-item", onClick: () => {
     setMenu(false);
     go("settings");
-  } }, /* @__PURE__ */ React.createElement(Settings, { size: 15, strokeWidth: 1.8 }), "Settings"), /* @__PURE__ */ React.createElement("div", { className: "pop-sep" }), /* @__PURE__ */ React.createElement("button", { className: "pop-item", onClick: () => {
+  } }, /* @__PURE__ */ React.createElement(Settings, { size: 15, strokeWidth: 1.8 }), "Settings"), /* @__PURE__ */ React.createElement("button", { className: "pop-item", onClick: () => {
+    setMenu(false);
+    setKeysOpen(true);
+  } }, /* @__PURE__ */ React.createElement(Zap, { size: 15, strokeWidth: 1.8 }), "Keyboard shortcuts", /* @__PURE__ */ React.createElement(Kbd, { k: "?" })), /* @__PURE__ */ React.createElement("div", { className: "pop-sep" }), /* @__PURE__ */ React.createElement("button", { className: "pop-item", onClick: () => {
     backup();
     setMenu(false);
   } }, /* @__PURE__ */ React.createElement(Download, { size: 15, strokeWidth: 1.8 }), "Back up the books"), /* @__PURE__ */ React.createElement("label", { className: "pop-item", style: { cursor: "pointer" } }, /* @__PURE__ */ React.createElement(Upload, { size: 15, strokeWidth: 1.8 }), "Restore from backup", /* @__PURE__ */ React.createElement(
@@ -10476,11 +10478,7 @@ function PdcScreen({ state, setState, books, toast, create, go }) {
     const n = daysBetween(TODAY, dte);
     return n === 0 ? "today" : n > 0 ? `in ${n} day${n === 1 ? "" : "s"}` : `${-n} day${n === -1 ? "" : "s"} ago`;
   };
-  const remove = (c) => {
-    if (!window.confirm(`Delete ${c.number}? Its ledger entries are removed too.`)) return;
-    setState((s) => ({ ...s, pdcs: (s.pdcs || []).filter((x) => x.id !== c.id) }));
-    toast(`${c.number} deleted`);
-  };
+  const remove = (c) => removeWithUndo({ setState, toast, key: "pdcs", rec: c, label: c.number });
   const xlsx = () => {
     const head = [["Number", "Cheque no.", "Bank", tab === "in" ? "Customer" : "Vendor", "Against", tab === "in" ? "Received" : "Issued", "Cheque date", "Amount (AED)", "Status", "Status date"]];
     const body = list.map((c) => {
@@ -13268,6 +13266,322 @@ const APPROVAL_CSS = `
   .ai-list svg{display:none}
 }
 @media print{.du-bar,.du-back,.du-note{display:none!important}.mz .doc-unit{box-shadow:none}}
+`;
+const restoreInto = (key, rec, at, idKey = "id") => (s) => {
+  const l = s[key] || [];
+  if (l.some((x) => x[idKey] === rec[idKey])) return s;
+  const n = [...l];
+  n.splice(at < 0 ? n.length : Math.min(at, n.length), 0, rec);
+  return { ...s, [key]: n };
+};
+function removeWithUndo({ setState, toast, key, rec, idKey = "id", label, fallback, verb = "deleted" }) {
+  const box = { at: -1 };
+  setState((s) => {
+    const l = s[key] || fallback || [];
+    box.at = l.findIndex((x) => x[idKey] === rec[idKey]);
+    return { ...s, [key]: l.filter((x) => x[idKey] !== rec[idKey]) };
+  });
+  toast(`${label} ${verb}`, "warn", { undo: () => {
+    setState(restoreInto(key, rec, box.at, idKey));
+    toast(`${label} restored`);
+  } });
+}
+const Toasts = ({ items, dismiss }) => /* @__PURE__ */ React.createElement("div", { className: "toasts noprint", role: "status", "aria-live": "polite" }, items.map((t) => /* @__PURE__ */ React.createElement("div", { className: cx("toast", t.tone, t.undo && "has-act"), key: t.id, style: { "--life": (t.life || 3400) + "ms" } }, /* @__PURE__ */ React.createElement("span", { className: "tico" }, t.tone === "warn" ? /* @__PURE__ */ React.createElement(AlertTriangle, { size: 12, strokeWidth: 2.2 }) : /* @__PURE__ */ React.createElement(Check, { size: 13, strokeWidth: 2.6 })), /* @__PURE__ */ React.createElement("span", { className: "tmsg" }, t.msg), t.undo && /* @__PURE__ */ React.createElement("button", { className: "toast-act", onClick: () => {
+  dismiss && dismiss(t.id);
+  t.undo();
+} }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 13, strokeWidth: 2.2 }), "Undo"), dismiss && /* @__PURE__ */ React.createElement("button", { className: "toast-x", "aria-label": "Dismiss", onClick: () => dismiss(t.id) }, /* @__PURE__ */ React.createElement(X, { size: 13, strokeWidth: 2.2 })), /* @__PURE__ */ React.createElement("i", { className: "toast-life", "aria-hidden": "true" }))));
+function attentionItems({ state, books, user, can, allowed, backup }) {
+  const out = [], aed2 = (v) => "AED " + money(v, false);
+  const mine = awaitingMe(state, user);
+  if (mine.length && allowed("purchase_orders")) out.push({
+    k: "appr",
+    tone: "gold",
+    icon: ClipboardCheck,
+    title: `${mine.length} purchase ${mine.length === 1 ? "order needs" : "orders need"} your approval`,
+    sub: `${aed2(mine.reduce((s, d) => s + amounts(d).total, 0))} in total`,
+    go: ["purchase_orders", "__pending__"]
+  });
+  const late = (kind) => {
+    const a = aging(state, kind, TODAY);
+    let n = 0, v = 0;
+    a.rows.forEach((r) => r.items.forEach((i) => {
+      if (i.open > 4e-3 && i.due < TODAY) {
+        n++;
+        v += i.open;
+      }
+    }));
+    return { n, v: R2(v) };
+  };
+  if (allowed("invoices")) {
+    const o = late("receivable");
+    if (o.n) out.push({ k: "ar", tone: "bad", icon: Receipt, title: `${o.n} overdue ${o.n === 1 ? "invoice" : "invoices"}`, sub: `${aed2(o.v)} to collect`, go: ["invoices", "__f:overdue"] });
+    const dr = state.docs.filter((d) => d.type === "invoice" && d.state === "draft").length;
+    if (dr) out.push({ k: "dinv", tone: "info", icon: FileText, title: `${dr} draft ${dr === 1 ? "invoice" : "invoices"} not posted`, sub: "Post them so they reach the ledger and the VAT return", go: ["invoices", "__f:draft"] });
+  }
+  if (allowed("bills")) {
+    const o = late("payable");
+    if (o.n) out.push({ k: "ap", tone: "warn", icon: ShoppingCart, title: `${o.n} vendor ${o.n === 1 ? "bill is" : "bills are"} overdue`, sub: `${aed2(o.v)} to pay`, go: ["bills", "__f:overdue"] });
+    const dr = state.docs.filter((d) => d.type === "bill" && d.state === "draft").length;
+    if (dr) out.push({ k: "dbill", tone: "info", icon: ShoppingCart, title: `${dr} draft ${dr === 1 ? "bill" : "bills"} not posted`, sub: "Post them to record what you owe", go: ["bills", "__f:draft"] });
+  }
+  if (allowed("pdc")) {
+    const soon = (state.pdcs || []).filter((c) => pdcOpen(c) && c.chequeDate <= addDays(TODAY, 7));
+    if (soon.length) out.push({
+      k: "pdc",
+      tone: "gold",
+      icon: CalendarClock,
+      title: `${soon.length} post-dated ${soon.length === 1 ? "cheque matures" : "cheques mature"} within a week`,
+      sub: `${aed2(soon.reduce((s, c) => s + (+c.amount || 0), 0))} \xB7 deposit or present on the date`,
+      go: ["pdc"]
+    });
+  }
+  if (allowed("products")) {
+    const goods = PRODUCTS.filter((p) => p.kind === "goods");
+    const neg = goods.filter((p) => (books.stock[p.id] || { qty: 0 }).qty < 0).length;
+    const low = goods.filter((p) => {
+      const q = (books.stock[p.id] || { qty: 0 }).qty;
+      return q >= 0 && q <= (p.reorder ?? 5);
+    }).length;
+    if (neg) out.push({ k: "neg", tone: "bad", icon: Package, title: `${neg} ${neg === 1 ? "product is" : "products are"} below zero stock`, sub: "Check the last sales or count the shelf", go: ["products", "__low_stock__"] });
+    else if (low) out.push({ k: "low", tone: "warn", icon: Package, title: `${low} ${low === 1 ? "product is" : "products are"} at or below reorder level`, sub: "Time to raise a purchase order", go: ["products", "__low_stock__"] });
+  }
+  if (can("settings") && !state.sample) {
+    const last = state.setup && state.setup.backup, days = last ? daysBetween(last, TODAY) : null;
+    if (days == null || days > 7) out.push({
+      k: "bak",
+      tone: "info",
+      icon: Download,
+      title: days == null ? "Your books have not been backed up yet" : `Last backup was ${days} days ago`,
+      sub: "Download a backup file to keep a copy safe",
+      run: backup,
+      cta: "Back up now"
+    });
+  }
+  return out;
+}
+function NotificationCenter({ items, go, close }) {
+  React.useEffect(() => {
+    const esc = (e) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, []);
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pop-scrim", onMouseDown: close }), /* @__PURE__ */ React.createElement("div", { className: "notif-pop", role: "dialog", "aria-label": "Needs attention" }, /* @__PURE__ */ React.createElement("header", null, /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, "Needs attention"), /* @__PURE__ */ React.createElement("small", null, items.length ? `${items.length} ${items.length === 1 ? "item" : "items"}` : "Nothing waiting")), /* @__PURE__ */ React.createElement("button", { className: "icon-btn", "aria-label": "Close", onClick: close }, /* @__PURE__ */ React.createElement(X, { size: 15 }))), items.length ? /* @__PURE__ */ React.createElement("div", { className: "nt-list" }, items.map((it, i) => /* @__PURE__ */ React.createElement("button", { key: it.k, className: cx("nt-item", it.tone), style: { "--i": i }, onClick: () => {
+    close();
+    if (it.run) it.run();
+    else go(...it.go);
+  } }, /* @__PURE__ */ React.createElement("span", { className: "nt-ico" }, /* @__PURE__ */ React.createElement(it.icon, { size: 16, strokeWidth: 1.9 })), /* @__PURE__ */ React.createElement("span", { className: "nt-t" }, /* @__PURE__ */ React.createElement("b", null, it.title), /* @__PURE__ */ React.createElement("small", null, it.sub)), it.cta ? /* @__PURE__ */ React.createElement("span", { className: "nt-cta" }, it.cta) : /* @__PURE__ */ React.createElement(ChevronRight, { size: 15, className: "nt-go" })))) : /* @__PURE__ */ React.createElement("div", { className: "nt-empty" }, /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement(CircleCheck, { size: 22, strokeWidth: 1.9 })), /* @__PURE__ */ React.createElement("b", null, "You are all caught up"), /* @__PURE__ */ React.createElement("small", null, "Nothing needs your attention right now.")), /* @__PURE__ */ React.createElement("footer", null, /* @__PURE__ */ React.createElement("button", { className: "linkish", onClick: () => {
+    close();
+    go("dash");
+  } }, "Open the dashboard"), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("kbd", null, "g"), " ", /* @__PURE__ */ React.createElement("kbd", null, "d")))));
+}
+const GO_KEYS = [
+  ["d", "dash", "Dashboard"],
+  ["q", "quotes", "Quotations"],
+  ["i", "invoices", "Invoices"],
+  ["o", "purchase_orders", "Purchase orders"],
+  ["b", "bills", "Vendor bills"],
+  ["e", "expenses", "Expenses"],
+  ["p", "payments", "Receipts & payments"],
+  ["c", "customers", "Customers"],
+  ["v", "vendors", "Vendors"],
+  ["s", "products", "Products & services"],
+  ["j", "journal", "Journal entries"],
+  ["r", "reports", "All reports"],
+  ["l", "r_pnl", "Profit or loss"]
+];
+const NEW_KEYS = [["i", "invoice", "Invoice"], ["q", "quote", "Quotation"], ["o", "purchase_order", "Purchase order"], ["b", "bill", "Vendor bill"], ["c", "credit_note", "Credit note"]];
+const isTyping = (el) => !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+const modalOpen = () => !!document.querySelector(".studio-overlay, .scrim, .cmdk, .notif-pop, .newpop, .pop");
+function useShortcuts({ enabled, allowed, canAdd, go, newDoc, openHelp, openSearch, toast }) {
+  const [chord, setChord] = useState(null);
+  const ref = React.useRef(null);
+  ref.current = { enabled, allowed, canAdd, go, newDoc, openHelp, openSearch, toast, chord, setChord };
+  React.useEffect(() => {
+    let timer = 0;
+    const h = (e) => {
+      const c = ref.current;
+      if (!c.enabled || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || isTyping(document.activeElement)) return;
+      const k = e.key;
+      if (c.chord) {
+        clearTimeout(timer);
+        c.setChord(null);
+        const list = c.chord === "g" ? GO_KEYS : NEW_KEYS, hit = list.find((x) => x[0] === k.toLowerCase());
+        if (!hit) return;
+        e.preventDefault();
+        if (c.chord === "g") {
+          if (c.allowed(hit[1])) c.go(hit[1]);
+          else c.toast(`${hit[2]} is not available on your role`, "warn");
+        } else {
+          if (c.canAdd(LIST_OF[hit[1]])) c.newDoc(hit[1]);
+          else c.toast(`You cannot create a ${hit[2].toLowerCase()} on your role`, "warn");
+        }
+        return;
+      }
+      if (modalOpen()) return;
+      if (k === "?") {
+        e.preventDefault();
+        c.openHelp();
+        return;
+      }
+      if (k === "g" || k === "n") {
+        c.setChord(k);
+        timer = setTimeout(() => ref.current.setChord(null), 1500);
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => {
+      window.removeEventListener("keydown", h);
+      clearTimeout(timer);
+    };
+  }, []);
+  return chord;
+}
+const Kbd = ({ k }) => /* @__PURE__ */ React.createElement("span", { className: "kb" }, k.split(" ").map((x, i) => /* @__PURE__ */ React.createElement("kbd", { key: i }, x)));
+const MOD = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || "") ? "\u2318" : "Ctrl";
+function ShortcutSheet({ close, allowed, canAdd }) {
+  const row = (k, l) => /* @__PURE__ */ React.createElement("div", { className: "ks-row", key: k + l }, /* @__PURE__ */ React.createElement("span", null, l), /* @__PURE__ */ React.createElement(Kbd, { k }));
+  return /* @__PURE__ */ React.createElement(StudioModal, { wide: true, title: "Keyboard shortcuts", sub: "Work without the mouse. Shortcuts pause while you are typing in a field.", close }, /* @__PURE__ */ React.createElement("div", { className: "ks-grid" }, /* @__PURE__ */ React.createElement("section", null, /* @__PURE__ */ React.createElement("h4", null, "Anywhere"), row(`${MOD} K`, "Search everything"), row("/", "Find a screen in the menu"), row("?", "Show these shortcuts"), row("Esc", "Close a window or menu"), /* @__PURE__ */ React.createElement("h4", null, "On a document"), row(`${MOD} S`, "Save the draft and stay on it"), row("Enter", "Next line (in quantity or price)")), /* @__PURE__ */ React.createElement("section", null, /* @__PURE__ */ React.createElement("h4", null, "Go to \u2014 press g, then"), GO_KEYS.filter((x) => allowed(x[1])).map(([k, , l]) => row(`g ${k}`, l))), /* @__PURE__ */ React.createElement("section", null, /* @__PURE__ */ React.createElement("h4", null, "Create \u2014 press n, then"), NEW_KEYS.filter((x) => canAdd(LIST_OF[x[1]])).map(([k, , l]) => row(`n ${k}`, l)))));
+}
+function ChordHint({ chord, allowed, canAdd }) {
+  if (!chord) return null;
+  const list = chord === "g" ? GO_KEYS.filter((x) => allowed(x[1])) : NEW_KEYS.filter((x) => canAdd(LIST_OF[x[1]]));
+  return /* @__PURE__ */ React.createElement("div", { className: "chord-hint noprint", role: "status" }, /* @__PURE__ */ React.createElement("b", null, chord === "g" ? "Go to\u2026" : "Create\u2026"), list.slice(0, 9).map(([k, , l]) => /* @__PURE__ */ React.createElement("span", { key: k }, /* @__PURE__ */ React.createElement("kbd", null, k), l)));
+}
+function DocSummary({ tiles, f, setF }) {
+  return /* @__PURE__ */ React.createElement("div", { className: "doc-sum", role: "group", "aria-label": "Summary and quick filters" }, tiles.map((t, i) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: t.f,
+      className: cx("ds-tile", t.tone, f === t.f && "on"),
+      style: { "--i": i },
+      "aria-pressed": f === t.f,
+      onClick: () => setF(f === t.f ? "all" : t.f)
+    },
+    /* @__PURE__ */ React.createElement("span", { className: "ds-l" }, t.label),
+    /* @__PURE__ */ React.createElement("b", null, t.money != null ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("small", null, "AED"), money(t.money, false)) : t.count),
+    /* @__PURE__ */ React.createElement("span", { className: "ds-s" }, t.sub)
+  )));
+}
+function summaryTiles(type, docs, openMap) {
+  const sum = (l) => R2(l.reduce((s, d) => s + amounts(d).total, 0));
+  const n = (l, w) => `${l.length} ${l.length === 1 ? w : w + "s"}`;
+  if (type === "invoice" || type === "bill") {
+    const open = docs.filter((d) => d.state === "posted" && (openMap[d.id] || 0) > 4e-3), ob = (l) => R2(l.reduce((s, d) => s + (openMap[d.id] || 0), 0));
+    const late = open.filter((d) => d.due < TODAY), soon = open.filter((d) => d.due >= TODAY && d.due <= addDays(TODAY, 7));
+    const drafts = docs.filter((d) => d.state === "draft"), w = type === "invoice" ? "invoice" : "bill";
+    return [
+      { f: "open", label: type === "invoice" ? "To collect" : "To pay", money: ob(open), sub: n(open, w) },
+      { f: "overdue", label: "Overdue", money: ob(late), sub: n(late, w), tone: late.length ? "bad" : "" },
+      { f: "soon", label: "Due in 7 days", money: ob(soon), sub: n(soon, w), tone: soon.length ? "warn" : "" },
+      { f: "draft", label: "Drafts", count: drafts.length, sub: drafts.length ? `${money(sum(drafts), false)} not posted` : "Nothing waiting" }
+    ];
+  }
+  if (type === "quote") {
+    const st = (s) => docs.filter((d) => d.state === s);
+    return [
+      { f: "draft", label: "Drafts", money: sum(st("draft")), sub: n(st("draft"), "quotation") },
+      { f: "sent", label: "Awaiting reply", money: sum(st("sent")), sub: n(st("sent"), "quotation"), tone: st("sent").length ? "info" : "" },
+      { f: "accepted", label: "Accepted \xB7 to invoice", money: sum(st("accepted")), sub: n(st("accepted"), "quotation"), tone: st("accepted").length ? "ok" : "" },
+      { f: "invoiced", label: "Invoiced", money: sum(st("invoiced")), sub: n(st("invoiced"), "quotation") }
+    ];
+  }
+  if (type === "purchase_order") {
+    const st = (...s) => docs.filter((d) => s.includes(d.state));
+    return [
+      { f: "draft", label: "Drafts", money: sum(st("draft")), sub: n(st("draft"), "order") },
+      { f: "pending", label: "Awaiting approval", money: sum(st("pending")), sub: n(st("pending"), "order"), tone: st("pending").length ? "warn" : "" },
+      { f: "approved", label: "Approved \xB7 to bill", money: sum(st("approved", "sent")), sub: n(st("approved", "sent"), "order"), tone: st("approved", "sent").length ? "ok" : "" },
+      { f: "billed", label: "Billed", money: sum(st("billed")), sub: n(st("billed"), "order") }
+    ];
+  }
+  return null;
+}
+const UX_CSS = `
+/* figures: tabular numerals in the interface font, not the code font */
+.mz .tbl td.n,.mz .tbl th.n,.mz .kv,.mz .num,.mz .sumrow .v,.mz .lg-am b,.mz .inp.n,.mz .bar-row .bv,.mz .rank-row .rv,.mz .feed-row .fr b,.mz .tip .tr b,.mz .history-stats b,.mz .lg-c,.mz .document-dock b,.mz .du-amt b{font-family:var(--sans);font-variant-numeric:tabular-nums lining-nums;font-feature-settings:"tnum" 1,"lnum" 1}
+.mz .tbl td.n{letter-spacing:-.005em}
+.mz .kv{letter-spacing:-.02em}
+.sheet .totbox .grand span{font-family:var(--sans)!important;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+.mz .tbl tbody tr{transition:background .12s}
+.mz .tbl td.nowrap,.mz .tbl td.c-date{white-space:nowrap}
+.mz .pay-list .who-cell{max-width:200px}
+.mz .pay-method{display:flex;align-items:center;gap:9px;min-width:0}
+.mz .pay-method b{display:block;font-size:12.5px;font-weight:500;color:var(--ink);white-space:nowrap}
+.mz .pay-method small{display:block;font-size:11.5px;color:var(--ink-4);max-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mz .memo-cell{max-width:200px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+
+/* toasts */
+.mz .toast{position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;padding-right:8px;animation:toastIn .32s var(--ease) both}
+.mz .toast .tmsg{flex:1;min-width:0}
+.toast-act{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:650;color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18);white-space:nowrap}
+.toast-act:hover{background:rgba(255,255,255,.24)}
+.toast-x{display:grid;place-items:center;width:24px;height:24px;border-radius:7px;color:rgba(255,255,255,.6)}
+.toast-x:hover{background:rgba(255,255,255,.12);color:#fff}
+.toast-life{position:absolute;left:0;bottom:0;height:2px;width:100%;background:currentColor;opacity:.28;transform-origin:left;animation:toastLife var(--life) linear forwards}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes toastLife{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+
+/* notification centre */
+.nt-wrap{position:relative}
+.notif-pop{position:absolute;right:-8px;top:calc(100% + 12px);width:min(380px,calc(100vw - 24px));z-index:61;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh-3);overflow:hidden;animation:ntIn .2s var(--ease) both;text-align:left}
+.notif-pop header{display:flex;align-items:center;justify-content:space-between;padding:14px 14px 10px 16px;border-bottom:1px solid var(--line-2)}
+.notif-pop header b{display:block;font-size:14px;color:var(--ink)}
+.notif-pop header small{display:block;font-size:11.5px;color:var(--ink-3);margin-top:1px}
+.nt-list{display:grid;padding:6px;max-height:min(420px,60vh);overflow:auto}
+.mz .nt-item{display:flex;align-items:center;gap:11px;padding:10px;border-radius:11px;text-align:left;width:100%;color:var(--ink);animation:ntRow .3s var(--ease) backwards;animation-delay:calc(var(--i) * 40ms)}
+.mz .nt-item:hover,.mz .nt-item:focus-visible{background:var(--surface-2);outline:0}
+.nt-ico{width:34px;height:34px;flex:0 0 34px;border-radius:10px;display:grid;place-items:center;background:var(--info-50);color:var(--info)}
+.nt-item.bad .nt-ico{background:var(--neg-50);color:var(--neg)}
+.nt-item.warn .nt-ico{background:var(--warn-50);color:var(--warn)}
+.nt-item.gold .nt-ico{background:var(--gold-50);color:var(--gold)}
+.nt-t{flex:1;min-width:0}
+.nt-t b{display:block;font-size:13px;font-weight:600;line-height:1.3}
+.nt-t small{display:block;font-size:11.5px;color:var(--ink-3);margin-top:2px;line-height:1.35}
+.nt-go{color:var(--ink-4);flex:0 0 auto}
+.nt-cta{font-size:11.5px;font-weight:650;color:var(--brand);background:var(--brand-50);padding:4px 9px;border-radius:20px;white-space:nowrap}
+.nt-empty{display:grid;justify-items:center;text-align:center;gap:4px;padding:28px 18px}
+.nt-empty span{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--pos-50);color:var(--pos);margin-bottom:6px}
+.nt-empty b{font-size:14px;color:var(--ink)}
+.nt-empty small{font-size:12px;color:var(--ink-3)}
+.notif-pop footer{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-top:1px solid var(--line-2);background:var(--surface-2);font-size:12px;color:var(--ink-4)}
+.mz .bell.on{background:var(--brand-50);color:var(--brand)}
+@media(max-width:1250px){.mz .topbar .tb-icons .nt-wrap .icon-btn.bell{display:grid}}
+@keyframes ntIn{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes ntRow{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}
+
+/* keyboard */
+.kb{display:inline-flex;gap:4px}
+.mz kbd,.kb kbd{font-family:var(--sans);font-size:11px;font-weight:650;min-width:22px;height:22px;padding:0 6px;display:inline-grid;place-items:center;border-radius:6px;color:var(--ink-2);background:var(--surface);border:1px solid var(--line);box-shadow:0 1px 0 var(--line)}
+.ks-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+.ks-grid h4{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:650;margin:0 0 8px}
+.ks-grid h4:not(:first-child){margin-top:18px}
+.ks-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line-2);font-size:12.5px;color:var(--ink-2)}
+.chord-hint{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:85;display:flex;align-items:center;gap:12px;flex-wrap:wrap;max-width:calc(100vw - 24px);padding:10px 14px;border-radius:14px;background:#141B2D;color:#E6ECF7;box-shadow:0 18px 40px rgba(8,12,24,.35);font-size:12px;animation:toastIn .2s var(--ease) both}
+.chord-hint b{font-size:12.5px;color:#fff}
+.chord-hint span{display:inline-flex;align-items:center;gap:5px;color:#C2CCDD}
+.chord-hint kbd{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:#fff;box-shadow:none}
+.newpop button .nk{margin-left:auto;display:inline-flex;gap:3px;opacity:.75}
+.newpop button .nk kbd{min-width:18px;height:18px;font-size:10px;padding:0 4px}
+.pop-item .kb{margin-left:auto}
+
+/* summary tiles on document lists */
+.doc-sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.mz .ds-tile{position:relative;text-align:left;padding:13px 15px 12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-1);transition:border-color .15s,transform .15s,box-shadow .15s;animation:ntRow .35s var(--ease) backwards;animation-delay:calc(var(--i) * 50ms);color:var(--ink)}
+.mz .ds-tile:hover{border-color:var(--brand-100);transform:translateY(-1px)}
+.mz .ds-tile.on{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-50)}
+.ds-tile:before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;background:var(--line)}
+.ds-tile.bad:before{background:var(--neg)}.ds-tile.warn:before{background:var(--warn)}.ds-tile.ok:before{background:var(--pos)}.ds-tile.info:before{background:var(--info)}.ds-tile.on:before{background:var(--brand)}
+.ds-l{display:block;font-size:11.5px;font-weight:600;color:var(--ink-3)}
+.ds-tile b{display:block;font-size:19px;font-weight:650;letter-spacing:-.02em;margin-top:5px;font-variant-numeric:tabular-nums}
+.ds-tile b small{font-size:10.5px;font-weight:600;color:var(--ink-4);margin-right:5px;letter-spacing:0}
+.ds-tile.bad b{color:var(--neg)}
+.ds-s{display:block;font-size:11.5px;color:var(--ink-4);margin-top:2px}
+@media(max-width:900px){.doc-sum{grid-template-columns:repeat(2,minmax(0,1fr))}.ks-grid{grid-template-columns:1fr}}
+@media(max-width:650px){.ds-tile b{font-size:16px}.chord-hint{bottom:80px}.notif-pop{position:fixed;left:12px;right:12px;top:72px;width:auto}}
+@media (prefers-reduced-motion:reduce){.mz .toast,.toast-life,.notif-pop,.mz .nt-item,.mz .ds-tile,.chord-hint{animation:none!important}}
 `;
 
 window.__Invoeez=Invoeez;</script>

@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.12)
+# InvoEez — Invoice Made Easy (3.13)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -74,6 +74,10 @@ Company profile, theme, user selection and connection settings use their existin
 | Scrap | Record damaged quantities with a reason. Scrap reduces stock at carrying cost and charges the category adjustment account. Quantities cannot exceed on-hand stock. |
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
+
+## Notifications, Undo, shortcuts and list summaries (3.13)
+
+The bell opens a "Needs attention" panel (approvals, overdue invoices and bills, drafts, cheques maturing, stock, backups) that links straight to each filtered list. Deletes offer Undo for seven seconds. Press **?** for keyboard shortcuts — **g** + letter to go somewhere, **n** + letter to create. Invoice, bill, quotation and purchase-order lists open with summary tiles that filter the list. Amounts use tabular numerals in the interface font.
 
 ## Sign-in page and one-form documents (3.12)
 
@@ -184,6 +188,7 @@ npm test
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
 | `dashboard.jsx` | New overview dashboard. |
+| `ux.jsx` | 3.13 notification centre, Undo toasts, keyboard shortcuts and help sheet, summary tiles on document lists, figure typography. |
 | `approval.jsx` | 3.11–3.12 one-form document editor styles, one-piece document header (progress, actions, More menu), purchase-order approval rules, dashboard approval inbox, reject dialog and approver switch. |
 | `pro.jsx` | 3.10 document settlements and payments panel, statement heading, professional PDF and Excel report exports. |
 | `ifrs.jsx` | 3.9 IFRS 18 statements, account groups, statement table with folding groups, drill-down entry view, Account groups screen. |
@@ -196,6 +201,7 @@ npm test
 | `shell.html` | Original standalone shell and bundled libraries/fonts. |
 | `build.mjs` | Reproducible JSX compilation and standalone packaging. |
 | `tests/engine.cjs` | Executable accounting, pricing, migration and inventory regression checks. |
+| `tests/browser-experience.cjs` | 3.13 checks: figure font, summary tiles, notification centre, keyboard shortcuts, Undo on deletes, payments table fit, phone. |
 | `tests/browser-signin-form.cjs` | 3.12 checks: sign-in showcase and animations, user tiles, PIN pad (keypad, wrong PIN, success), reduced motion, phone, dark; document editor as one form, unsaved changes, Ctrl+S, leave prompt. |
 | `tests/browser-approvals.cjs` | 3.11 checks: document header as one card, More menu, quotation status control, approvers, submit / reject / resubmit / approve, no self-approval, reminders, PO printout and PDF, convert to bill, phone layout. |
 | `tests/browser-payments-exports.cjs` | 3.10 checks: payments and balance on invoices and bills, print/PDF balance due, sidebar beside the page, report exports. |

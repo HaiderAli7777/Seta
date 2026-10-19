@@ -78,8 +78,7 @@ function PdcScreen({ state, setState, books, toast, create, go }) {
     .map((w) => ({ ...w, items: open.filter((c) => c.chequeDate >= w.from && c.chequeDate <= w.to) })).map((w) => ({ ...w, amt: sum(w.items) }));
   const peak = Math.max(1, ...weeks.map((w) => w.amt));
   const rel = (dte) => { const n = daysBetween(TODAY, dte); return n === 0 ? "today" : n > 0 ? `in ${n} day${n === 1 ? "" : "s"}` : `${-n} day${n === -1 ? "" : "s"} ago`; };
-  const remove = (c) => { if (!window.confirm(`Delete ${c.number}? Its ledger entries are removed too.`)) return;
-    setState((s) => ({ ...s, pdcs: (s.pdcs || []).filter((x) => x.id !== c.id) })); toast(`${c.number} deleted`); };
+  const remove = (c) => removeWithUndo({ setState, toast, key: "pdcs", rec: c, label: c.number });
   const xlsx = () => {
     const head = [["Number", "Cheque no.", "Bank", tab === "in" ? "Customer" : "Vendor", "Against", tab === "in" ? "Received" : "Issued", "Cheque date", "Amount (AED)", "Status", "Status date"]];
     const body = list.map((c) => { const e = pdcEnd(c) || (c.events || []).slice(-1)[0];

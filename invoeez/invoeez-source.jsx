@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.12.0";
+const BUILD = "3.13.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -1952,12 +1952,6 @@ const ReportFrame = ({ title, meta, right, children, toast, icon: Ic = BarChart3
   </div>);
 };
 
-const Toasts = ({ items }) => (
-  <div className="toasts noprint">{items.map((t) => (
-    <div className={cx("toast", t.tone)} key={t.id}>
-      <span className="tico">{t.tone === "warn" ? <AlertTriangle size={12} strokeWidth={2.2} /> : <Check size={13} strokeWidth={2.6} />}</span>
-      {t.msg}</div>))}</div>
-);
 
 /* -------------------------------------------------------- command palette */
 function CommandPalette({ items, close, run }) {
@@ -2460,6 +2454,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
     if (!openId) return;
     if (openId === "__list__") setEditing(null);
     else if (openId === "__pending__") { setEditing(null); setF("pending"); }
+    else if (openId.startsWith("__f:")) { setEditing(null); setF(openId.slice(4)); }
     else if (openId === "__new__") { if (!readOnly) setEditing(blankDoc(state.docs, type)); }
     else { const d = state.docs.find((x) => x.id === openId); if (d) setEditing(d); }
     clearOpen();
@@ -2476,7 +2471,8 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
     toast={toast} fta={fta} go={go} user={user} users={users} readOnly={readOnly} close={() => setEditing(null)} />;
 
   const filtered = state.docs.filter((d) => d.type === type)
-    .filter((d) => f === "all" || (f === "open" ? (openMap[d.id] || 0) > 0.004 : f === "overdue" ? (openMap[d.id] || 0) > 0.004 && d.due < TODAY : d.state === f))
+    .filter((d) => f === "all" || (f === "open" ? (openMap[d.id] || 0) > 0.004 : f === "overdue" ? (openMap[d.id] || 0) > 0.004 && d.due < TODAY
+      : f === "soon" ? (openMap[d.id] || 0) > 0.004 && d.due >= TODAY && d.due <= addDays(TODAY, 7) : f === "approved" && isPO ? ["approved", "sent"].includes(d.state) : d.state === f))
     .filter((d) => hits(q, d.number, PMAP[d.partner].name, PMAP[d.partner].trn, d.ref, d.emirate,
       d.lines.map((l) => (PROD[l.product] ? productText(PROD[l.product]) : "") + " " + l.desc).join(" ")));
   const field = (d, k) => {
@@ -2493,6 +2489,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
   const t = list.filter(live).reduce((s, d) => { const a = amounts(d);
     return { net: R2(s.net + a.net), vat: R2(s.vat + a.vat), total: R2(s.total + a.total) }; }, { net: 0, vat: 0, total: 0 });
   const totalOpen = R2(list.reduce((s, d) => s + (openMap[d.id] || 0), 0));
+  const tiles = summaryTiles(type, state.docs.filter((d) => d.type === type), openMap);
 
   return (
     <div>
@@ -2505,6 +2502,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
         {!readOnly && <Btn kind="pri" icon={Plus} onClick={() => setEditing(blankDoc(state.docs, type))}>New {meta.short.toLowerCase()}</Btn>}
       </PageHead>
 
+      {tiles && <DocSummary tiles={tiles} f={f} setF={(v) => { setF(v); setLimit(100); }} />}
       <Card pad={false}>
         <div className="toolbar">
           <SearchBox value={q} onChange={setQ} width={300}
@@ -2743,7 +2741,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
       fails.length ? "warn" : "");
   };
   const unpost = () => { if(state.stockOps.some(o=>(o.date>d.date||(o.date===d.date&&(o.seq||0)>(d.seq||0)))&&o.lines.some(x=>d.lines.some(l=>l.product===x.product))))return toast("A stock adjustment follows this document. Use a return or correcting document to preserve the count history.","warn");const n = { ...d, state: "draft", seq: 0,lines:d.lines.map(l=>({...l,accounts:undefined})) }; setD(n); commit(n); toast(`${d.number} reset to draft`, "warn"); };
-  const remove = () => { setState((s) => ({ ...s, docs: s.docs.filter((x) => x.id !== d.id) })); toast(`${d.number} deleted`, "warn"); close(); };
+  const remove = () => { const saved = state.docs.find((x) => x.id === d.id) || d; removeWithUndo({ setState, toast, key: "docs", rec: saved, label: d.number }); close(); };
 
   /* ---- quotation status and purchase-order approval ---- */
   const rights = isPO ? poRights(["draft", "rejected"].includes(d.state) ? { ...d, requestedBy: null } : d, user, users) : null;
@@ -3423,28 +3421,27 @@ function PaymentsScreen({ state, setState, toast, create }) {
           <span style={{ marginLeft: "auto", fontSize: 12.5, color: "var(--ink-3)" }}>
             {list.length} of {state.payments.length}</span>
         </div>
-        <div className="tbl-wrap"><table className="tbl">
-          <thead><tr><th>Number</th><th>Direction</th><th>Counterparty</th><th>Date</th><th>Method</th>
-            <th>Account</th><th>Memo</th><th className="n">Amount</th><th style={{ width: 44 }} /></tr></thead>
+        <div className="tbl-wrap"><table className="tbl pay-list">
+          <thead><tr><th>Number</th><th>Direction</th><th>Counterparty</th><th>Date</th><th>Method · account</th>
+            <th>Memo</th><th className="n">Amount</th><th style={{ width: 44 }} /></tr></thead>
           <tbody>
             {list.length === 0 && <tr><td colSpan={9}>
               <EmptyState icon={Wallet} title={`Nothing matches “${q}”`} /></td></tr>}
             {list.slice(0, limit).map((p) => (
             <tr key={p.id}>
-              <td className="mono" style={{ fontSize: 12.5 }}>{p.number}</td>
+              <td className="mono nowrap" style={{ fontSize: 12.5 }}>{p.number}</td>
               <td><Pill tone={p.kind === "in" ? "ok" : "info"} dot>{p.kind === "in" ? "Received" : "Paid"}</Pill></td>
               <td><Party name={PMAP[p.partner].name} /></td>
-              <td className="muted">{dmy(p.date)}</td>
-              <td><div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <td className="muted nowrap">{dmy(p.date)}</td>
+              <td><div className="pay-method">
                 <span className={cx("gt sm", MET[p.method] ? METHOD_KINDS[MET[p.method].kind].grad : "g1")}
                   style={{ width: 26, height: 26, flexBasis: 26, borderRadius: 8 }}>
                   <Banknote size={13} strokeWidth={1.9} /></span>
-                <span style={{ fontSize: 12.5 }}>{methodName(p.method)}</span></div></td>
-              <td className="muted" style={{ fontSize: 12.5 }}>{ACC[p.account].code} {ACC[p.account].name}</td>
-              <td className="muted" style={{ fontSize: 12.5 }}>{p.memo || "—"}</td>
+                <span style={{ minWidth: 0 }}><b>{methodName(p.method)}</b><small title={`${ACC[p.account].code} ${ACC[p.account].name}`}>{ACC[p.account].code} · {ACC[p.account].name}</small></span></div></td>
+              <td className="muted" style={{ fontSize: 12.5 }}><div className="memo-cell" title={p.memo || ""}>{p.memo || "—"}</div></td>
               <td className="n" style={{ fontWeight: 600, color: p.kind === "in" ? "var(--pos)" : undefined }}>{money(p.amount)}</td>
               <td><button className="icon-btn" style={{ width: 28, height: 28 }}
-                onClick={() => { setState((s) => ({ ...s, payments: s.payments.filter((x) => x.id !== p.id) })); toast(`${p.number} deleted`, "warn"); }}>
+                title={`Delete ${p.number}`} aria-label={`Delete ${p.number}`} onClick={() => removeWithUndo({ setState, toast, key: "payments", rec: p, label: p.number })}>
                 <Trash2 size={14} /></button></td>
             </tr>))}</tbody>
           {list.length > limit && <tbody><tr><td colSpan={9} className="show-more">
@@ -3478,8 +3475,7 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed, creat
   const remove = (p) => {
     if (state.docs.some((d) => d.partner === p.id) || state.payments.some((x) => x.partner === p.id)) {
       toast(`${p.name} has documents and cannot be deleted`, "warn"); return; }
-    setState((x) => ({ ...x, partners: (x.partners || []).filter((q) => q.id !== p.id) }));
-    toast(`${p.name} removed`, "warn");
+    removeWithUndo({ setState, toast, key: "partners", rec: (state.partners || []).find((q) => q.id === p.id) || p, label: p.name, verb: "removed" });
   };
   const ar = useMemo(() => aging(state, "receivable", TODAY), [state]);
   const ap = useMemo(() => aging(state, "payable", TODAY), [state]);
@@ -3610,8 +3606,7 @@ function LegacyProductsScreen({ books, state, setState, toast }) {
   const remove = (p) => {
     if (state.docs.some((doc) => doc.lines.some((l) => l.product === p.id))) {
       toast(`${p.code} is used on documents and cannot be deleted`, "warn"); return; }
-    setState((x) => ({ ...x, products: (x.products || []).filter((q) => q.id !== p.id) }));
-    toast(`${p.code} removed`, "warn");
+    removeWithUndo({ setState, toast, key: "products", rec: (state.products || []).find((q) => q.id === p.id) || p, label: p.code, verb: "removed" });
   };
   const rows = PRODUCTS.filter((p) => kind === "all" || p.kind === kind)
     .filter((p) => hits(q, p.code, p.name, p.uom)).map((p) => {
@@ -3739,9 +3734,8 @@ function AccountsScreen({ books, go, state, setState, toast, create }) {
     || METHODS.some((m) => m.account === code) || (state.assets || []).some((x) => [x.acc, x.accum, x.exp].includes(code));
   const remove = (code) => {
     if (inUse(code)) { toast("That account is in use by postings, a category, a payment method or an asset", "warn"); return; }
-    if (!window.confirm(`Delete account ${code} ${ACC[code] ? ACC[code].name : ""}?`)) return;
-    setState((x) => ({ ...x, accounts: (x.accounts || []).filter((a) => a.code !== code) }));
-    toast(`Account ${code} removed`, "warn");
+    const rec = (state.accounts || []).find((a) => a.code === code); if (!rec) return;
+    removeWithUndo({ setState, toast, key: "accounts", rec, idKey: "code", label: `Account ${code}`, verb: "removed" });
   };
   return (
     <div>
@@ -4403,8 +4397,7 @@ function AssetsScreen({ state, setState, books, toast, create }) {
                   <button className="icon-btn" style={{ width: 27, height: 27, display: "inline-grid", verticalAlign: "-8px" }}
                     onClick={() => setEd({ ...a })}><Pencil size={13} /></button>
                   <button className="icon-btn" style={{ width: 27, height: 27, display: "inline-grid", verticalAlign: "-8px" }}
-                    onClick={() => { setState((x) => ({ ...x, assets: (x.assets || []).filter((q) => q.id !== a.id) }));
-                      toast(`${a.name} removed`, "warn"); }}><Trash2 size={13} /></button></td>
+                    title={`Delete ${a.name}`} aria-label={`Delete ${a.name}`} onClick={() => removeWithUndo({ setState, toast, key: "assets", rec: a, label: a.name, verb: "removed" })}><Trash2 size={13} /></button></td>
               </tr>))}
           </tbody>
         </table></div>
@@ -4432,8 +4425,7 @@ function MethodsScreen({ state, setState, books, toast, create }) {
   const remove = (m) => {
     if (used(m)) { toast(`${m.name} is used on ${used(m)} payments and cannot be deleted`, "warn"); return; }
     if (isSeedMethod(m.id)) { toast("Standard methods can be edited or deactivated, not deleted", "warn"); return; }
-    setState((x) => ({ ...x, methods: (x.methods || []).filter((y) => y.id !== m.id) }));
-    toast(`${m.name} removed`, "warn");
+    removeWithUndo({ setState, toast, key: "methods", rec: m, label: m.name, verb: "removed" });
   };
   const toggle = (m) => {
     const rec = { ...m, active: !m.active };
@@ -5911,8 +5903,7 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
   };
   const remove = (u) => {
     if (u.id === me) { toast("You cannot delete the account you are signed in as", "warn"); return; }
-    setState((x) => ({ ...x, users: (x.users || SEED_USERS).filter((y) => y.id !== u.id) }));
-    toast(`${u.name} removed`, "warn");
+    removeWithUndo({ setState, toast, key: "users", rec: u, label: u.name, fallback: SEED_USERS, verb: "removed" });
   };
 
   return (
@@ -6416,10 +6407,12 @@ function Invoeez() {
     return () => window.removeEventListener("keydown", h);
   }, []);
 
-  const toast = (msg, tone) => {
-    const id = ++_tid;
-    setToasts((t) => [...t, { id, msg, tone }]);
-    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3400);
+  /* A toast can carry Undo; those stay a little longer. */
+  const dismissToast = (id) => setToasts((t) => t.filter((x) => x.id !== id));
+  const toast = (msg, tone, opts) => {
+    const id = ++_tid, undo = opts && opts.undo, life = undo ? 7000 : 3400;
+    setToasts((t) => [...t.slice(-3), { id, msg, tone, undo, life }]);
+    window.setTimeout(() => dismissToast(id), life);
   };
   /* Drill-down keeps a trail (Profit or loss › 6100 Salaries › INV/…) so you can step back; ordinary navigation clears it. */
   const [trail, setTrail] = useState([]), [crumb, setCrumb] = useState(null);
@@ -6488,14 +6481,12 @@ function Invoeez() {
   const allowed = (k) => !SCREEN_PERM[k] || can(SCREEN_PERM[k]) || (k === "purchase_orders" && !!meUser.approver);
   React.useEffect(() => { if (!allowed(view)) setView("dash"); }, [me, view]);
   const here = NAV_FLAT.find((i) => i.k === view) || { l: "Dashboard", g: "Dashboard" };
-  const alerts = useMemo(() => {
-    let n = state.docs.filter((d) => d.state === "draft").length ? 1 : 0;
-    const a = aging(state, "receivable", TODAY);
-    if (a.rows.some((r) => r.items.some((i) => daysBetween(i.due, TODAY) > 0))) n++;
-    if (PRODUCTS.some((p) => p.kind === "goods" && (books.stock[p.id] || { qty: 0 }).qty < 0)) n++;
-    if (awaitingMe(state, meUser).length) n++;
-    return n;
-  }, [state, books, meUser]);
+  const canAdd = (k) => !SCREEN_PERM[k] || can(SCREEN_PERM[k]);
+  const attention = useMemo(() => attentionItems({ state, books, user: meUser, can, allowed, backup }), [state, books, meUser]);
+  const alerts = attention.length;
+  const [notif, setNotif] = useState(false);
+  const [keysOpen, setKeysOpen] = useState(false);
+  const chord = useShortcuts({ enabled: !!meFound, allowed, canAdd, go, newDoc, toast, openHelp: () => setKeysOpen(true), openSearch: () => setCmdk(true) });
 
   const cmdItems = useMemo(() => [
     ...NAV_FLAT.map((i) => ({ key: i.k, label: i.l, hint: i.sg ? i.g + " · " + i.sg : i.g, icon: i.i, act: () => go(i.k) })),
@@ -6575,14 +6566,14 @@ function Invoeez() {
     }
   };
 
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS;
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS;
   /* Nobody signed in in this tab: show the sign-in screen. */
   if (!meFound) return (
     <ThemeCtx.Provider value={palette}>
     <CompanyCtx.Provider value={company}>
     <div className="mz" data-theme={theme} data-accent={accent} data-density={density}>
       <style>{ALL_CSS}</style>
-      <Toasts items={toasts} />
+      <Toasts items={toasts} dismiss={dismissToast} />
       <SignInScreen users={users} company={company} theme={theme} toggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
         onSignIn={(id) => { setMe(id); setView("dash"); const u = users.find((x) => x.id === id); toast(`Welcome, ${u ? u.name.split(" ")[0] : ""}`); }} />
     </div>
@@ -6595,13 +6586,15 @@ function Invoeez() {
       <style>{ALL_CSS}</style>
       {starting && <StartCompanyDialog state={state} company={company} backup={backup} close={() => setStarting(false)} onDone={companyStarted} />}
       {cmdk && <CommandPalette items={cmdItems} close={() => setCmdk(false)} run={(i) => i.act()} />}
-      <Toasts items={toasts} />
+      <Toasts items={toasts} dismiss={dismissToast} />
 
       {drawer && <div className="side-scrim" onMouseDown={() => setDrawer(false)}
         onClick={() => setDrawer(false)} role="presentation" />}
       <Sidebar view={view} go={go} quickAdd={quickAdd} allowed={allowed} counts={counts} closed={closed} setClosed={setClosed}
         mini={mini} setMini={setMini} drawer={drawer} company={company} meUser={meUser} role={role}
-        canAdd={(k) => !SCREEN_PERM[k] || can(SCREEN_PERM[k])} onSwitchUser={() => setSwitching(true)} onSignOut={signOut} />
+        canAdd={canAdd} onSwitchUser={() => setSwitching(true)} onSignOut={signOut} />
+      {keysOpen && <ShortcutSheet allowed={allowed} canAdd={canAdd} close={() => setKeysOpen(false)} />}
+      <ChordHint chord={chord} allowed={allowed} canAdd={canAdd} />
       {switching && <SwitchUserDialog users={users} me={me} isAdmin={can("settings")} go={go} close={() => setSwitching(false)} onSignOut={signOut}
         onSwitch={(id) => { setMe(id); setSwitching(false); const u = users.find((x) => x.id === id); toast(`Signed in as ${u ? u.name : "user"}`); }} />}
 
@@ -6619,7 +6612,7 @@ function Invoeez() {
           </div>
           <button className="omni" onClick={() => setCmdk(true)}>
             <span className="oi"><Search size={15} strokeWidth={2.2} /></span>
-            <span className="ot">Search products, barcode, invoices…</span><kbd>⌘K</kbd></button>
+            <span className="ot">Search products, barcode, invoices…</span><kbd>{MOD === "⌘" ? "⌘K" : "Ctrl K"}</kbd></button>
           <div className="tb-r">
           <div style={{ position: "relative" }}>
             <button className="btn pri" ref={newRef} onClick={() => {
@@ -6631,9 +6624,12 @@ function Invoeez() {
           </div>
           <span className="tb-div" />
           <div className="tb-icons">
-            <button className="icon-btn bell" onClick={() => go("dash")} title="Items needing attention">
+            <div className="nt-wrap">
+            <button className={cx("icon-btn bell", notif && "on")} onClick={() => setNotif((v) => !v)} title="Needs attention" aria-haspopup="dialog" aria-expanded={notif}>
               <Bell size={17} strokeWidth={1.9} />
               {alerts > 0 && <span className="dot">{alerts}</span>}</button>
+            {notif && <NotificationCenter items={attention} go={go} close={() => setNotif(false)} />}
+            </div>
             <button className="icon-btn" onClick={() => go("r_vat")} title="Filing calendar">
               <Calendar size={17} strokeWidth={1.9} /></button>
             <button className="icon-btn" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -6659,15 +6655,15 @@ function Invoeez() {
               {can("sell") && <div className="gl">Sales</div>}
               {can("sell") && <>
               <button onClick={() => { setNewMenu(false); newDoc("quote"); }}>
-                <FileText size={15} strokeWidth={1.8} />Quotation</button>
-              {[["invoice", "Customer invoice", FileText], ["credit_note", "Credit note", FileMinus]].map(([t, l, I]) => (
+                <FileText size={15} strokeWidth={1.8} />Quotation<span className="nk"><kbd>n</kbd><kbd>q</kbd></span></button>
+              {[["invoice", "Customer invoice", FileText, "i"], ["credit_note", "Credit note", FileMinus, "c"]].map(([t, l, I, k]) => (
                 <button key={t} onClick={() => { setNewMenu(false); newDoc(t); }}>
-                  <I size={15} strokeWidth={1.8} />{l}</button>))}
+                  <I size={15} strokeWidth={1.8} />{l}<span className="nk"><kbd>n</kbd><kbd>{k}</kbd></span></button>))}
               </>}
               {can("buy") && <div className="gl">Purchases</div>}
-              {can("buy") && <>{[["purchase_order", "Purchase order", ClipboardCheck], ["bill", "Vendor bill", ShoppingCart], ["debit_note", "Debit note", FilePlus]].map(([t, l, I]) => (
+              {can("buy") && <>{[["purchase_order", "Purchase order", ClipboardCheck, "o"], ["bill", "Vendor bill", ShoppingCart, "b"], ["debit_note", "Debit note", FilePlus, ""]].map(([t, l, I, k]) => (
                 <button key={t} onClick={() => { setNewMenu(false); newDoc(t); }}>
-                  <I size={15} strokeWidth={1.8} />{l}</button>))}</>}
+                  <I size={15} strokeWidth={1.8} />{l}{k && <span className="nk"><kbd>n</kbd><kbd>{k}</kbd></span>}</button>))}</>}
               {(can("journal") || can("master")) && <div className="gl">Records</div>}
               {can("journal") && <button onClick={() => { setNewMenu(false); go("journal"); }}>
                 <Landmark size={15} strokeWidth={1.8} />Journal entry</button>}
@@ -6696,6 +6692,8 @@ function Invoeez() {
                 Dark mode<Switch on={theme === "dark"} /></button>
               <button className="pop-item" onClick={() => { setMenu(false); go("settings"); }}>
                 <Settings size={15} strokeWidth={1.8} />Settings</button>
+              <button className="pop-item" onClick={() => { setMenu(false); setKeysOpen(true); }}>
+                <Zap size={15} strokeWidth={1.8} />Keyboard shortcuts<Kbd k="?" /></button>
               <div className="pop-sep" />
               <button className="pop-item" onClick={() => { backup(); setMenu(false); }}>
                 <Download size={15} strokeWidth={1.8} />Back up the books</button>
