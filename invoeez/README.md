@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.13)
+# InvoEez — Invoice Made Easy (3.14)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -74,6 +74,10 @@ Company profile, theme, user selection and connection settings use their existin
 | Scrap | Record damaged quantities with a reason. Scrap reduces stock at carrying cost and charges the category adjustment account. Quantities cannot exceed on-hand stock. |
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
+
+## Dashboard motion (3.14) and the cloud
+
+Dashboard sections animate as you scroll to them; sales by category is a self-drawing donut, business health shows ring gauges, and the banner has drifting lights and a year-to-date sales pace. **CLOUD.md** explains how to put InvoEez online now (any static host) and the plan for a shared PostgreSQL database with real sign-in, server-side permissions, backups and an audit trail.
 
 ## Notifications, Undo, shortcuts and list summaries (3.13)
 
@@ -164,7 +168,7 @@ Reports retained: profit and loss, balance sheet, trial balance, general ledger,
 
 ## Hosting and source
 
-For a static host, upload **dist/index.html** as the website entry point, or rename a copy of **invoeez.html** to **index.html**. No separate asset directory is required.
+See **CLOUD.md** for hosting options and the cloud database plan. For a static host, upload **dist/index.html** as the website entry point, or rename a copy of **invoeez.html** to **index.html**. No separate asset directory is required.
 
 For source changes:
 
@@ -188,6 +192,7 @@ npm test
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
 | `dashboard.jsx` | New overview dashboard. |
+| `motion.jsx` | 3.14 dashboard motion: scroll-triggered entrances, pointer light, self-drawing donut, ring gauges, banner lights. |
 | `ux.jsx` | 3.13 notification centre, Undo toasts, keyboard shortcuts and help sheet, summary tiles on document lists, figure typography. |
 | `approval.jsx` | 3.11–3.12 one-form document editor styles, one-piece document header (progress, actions, More menu), purchase-order approval rules, dashboard approval inbox, reject dialog and approver switch. |
 | `pro.jsx` | 3.10 document settlements and payments panel, statement heading, professional PDF and Excel report exports. |
@@ -201,6 +206,7 @@ npm test
 | `shell.html` | Original standalone shell and bundled libraries/fonts. |
 | `build.mjs` | Reproducible JSX compilation and standalone packaging. |
 | `tests/engine.cjs` | Executable accounting, pricing, migration and inventory regression checks. |
+| `tests/browser-dashboard-motion.cjs` | 3.14 checks: scroll reveal, count-up on arrival, donut, rings, banner, pointer light, other donuts intact, reduced motion, print, phone. |
 | `tests/browser-experience.cjs` | 3.13 checks: figure font, summary tiles, notification centre, keyboard shortcuts, Undo on deletes, payments table fit, phone. |
 | `tests/browser-signin-form.cjs` | 3.12 checks: sign-in showcase and animations, user tiles, PIN pad (keypad, wrong PIN, success), reduced motion, phone, dark; document editor as one form, unsaved changes, Ctrl+S, leave prompt. |
 | `tests/browser-approvals.cjs` | 3.11 checks: document header as one card, More menu, quotation status control, approvers, submit / reject / resubmit / approve, no self-approval, reminders, PO printout and PDF, convert to bill, phone layout. |

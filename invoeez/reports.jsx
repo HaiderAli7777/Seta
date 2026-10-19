@@ -51,8 +51,8 @@ function MiniSpark({ data, color = "var(--s1)", w = 120, h = 28 }) {
   const pts = data.map((v, i) => [(i / (data.length - 1)) * w, h - 3 - ((v - min) / span) * (h - 6)]);
   const d = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
   return <svg className="kt-spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
-    <path d={d + ` L ${w} ${h} L 0 ${h} Z`} style={{ fill: color, opacity: 0.1 }} />
-    <path d={d} style={{ fill: "none", stroke: color, strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }} vectorEffect="non-scaling-stroke" />
+    <path className="ks-area" d={d + ` L ${w} ${h} L 0 ${h} Z`} style={{ fill: color, opacity: 0.1 }} />
+    <path className="ks-line" pathLength="1" d={d} style={{ fill: "none", stroke: color, strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" }} vectorEffect="non-scaling-stroke" />
   </svg>;
 }
 const KpiRow = ({ children }) => <div className="kpi-row">{children}</div>;
@@ -83,13 +83,16 @@ function ColumnChart({ data, series, line, height = 240, format = (v) => money(v
     return v >= 0 ? `M${x},${y0} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + barW - r},${y} Q${x + barW},${y} ${x + barW},${y + r} L${x + barW},${y0} Z`
       : `M${x},${y0} L${x},${y - r} Q${x},${y} ${x + r},${y} L${x + barW - r},${y} Q${x + barW},${y} ${x + barW},${y - r} L${x + barW},${y0} Z`; };
   const linePts = line ? data.map((d, i) => [cx0(i), Y(+d[line.key] || 0)]) : [];
+  const gid = "cg" + React.useId().replace(/[^a-zA-Z0-9]/g, "");
   return <div className="viz-wrap" onMouseLeave={() => setHi(null)}>
     <svg viewBox={`0 0 ${W} ${H}`} className="viz-svg" role="img" aria-label={ariaLabel || series.map((s) => s.name).join(", ")}>
+      <defs>{series.map((s) => <linearGradient key={s.key} id={gid + s.key} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" style={{ stopColor: s.color }} /><stop offset="1" style={{ stopColor: s.color, stopOpacity: 0.62 }} /></linearGradient>)}</defs>
       {ticks.map((t, i) => <g key={i}><line x1={pad.l} x2={W - pad.r} y1={Y(t)} y2={Y(t)} className={Math.abs(t) < 0.004 ? "viz-base" : "viz-grid"} />
         <text x={pad.l - 8} y={Y(t) + 3.5} textAnchor="end" className="viz-tick">{short(t)}</text></g>)}
       {data.map((d, i) => <g key={i}>
         {hi === i && <rect x={pad.l + bw * i + 1} y={pad.t} width={bw - 2} height={ih} rx="6" className="viz-hover" />}
-        {series.map((s, j) => <path key={s.key} d={bar(cx0(i) - groupW / 2 + j * (barW + 2), +d[s.key] || 0)} style={{ fill: s.color, "--d": i }} className={cx("viz-bar", (+d[s.key] || 0) < 0 && "neg", hi != null && hi !== i && "dim")} />)}
+        {series.map((s, j) => <path key={s.key} d={bar(cx0(i) - groupW / 2 + j * (barW + 2), +d[s.key] || 0)} style={{ fill: `url(#${gid + s.key})`, "--d": i }} className={cx("viz-bar", (+d[s.key] || 0) < 0 && "neg", hi != null && hi !== i && "dim")} />)}
         {(i % every === 0 || i === n - 1) && <text x={cx0(i)} y={H - 10} textAnchor="middle" className="viz-tick">{d.label}</text>}
       </g>)}
       {line && linePts.length > 1 && <path className="viz-line" pathLength="1" d={linePts.map((p, i) => (i ? "L" : "M") + p[0] + " " + p[1]).join(" ")} style={{ fill: "none", stroke: line.color, strokeWidth: 2, strokeLinejoin: "round", strokeLinecap: "round" }} />}
@@ -533,9 +536,11 @@ function DashHealth({ books, P, ar, cash, from, to, go }) {
   const burn = ((P.cost + P.expense) / days) * 30, runway = burn > 0.004 ? cash / burn : null;
   return <VizCard title="Business health" sub={`${dmy(from)} – ${dmy(to)}`} right={<button className="icon-btn" title="Profit & loss" onClick={() => go("r_pnl")}><ArrowUpRight size={18} /></button>}>
     <div className="meters">
-      <Meter label="Gross margin" value={Math.max(0, P.gm)} max={100} text={`${P.gm.toFixed(1)}%`} tone={P.gm < 0 ? "neg" : undefined} note="Kept from each sale after cost of goods" />
-      <Meter label="Net margin" value={Math.max(0, P.nm)} max={100} text={`${P.nm.toFixed(1)}%`} tone={P.nm < 0 ? "neg" : P.nm < 5 ? "warn" : "pos"} note="Kept after every cost" />
-      <Meter label="Receivables on time" value={onTime} max={100} text={`${onTime.toFixed(0)}%`} tone={onTime < 60 ? "neg" : onTime < 80 ? "warn" : "pos"} note={overdue > 0.004 ? `AED ${money(overdue, false)} is overdue` : "Nothing overdue"} />
+      <div className="rings">
+        <RingGauge label="Gross margin" value={P.gm} tone={P.gm < 0 ? "neg" : undefined} note="Kept from each sale after cost of goods" />
+        <RingGauge label="Net margin" value={P.nm} tone={P.nm < 0 ? "neg" : P.nm < 5 ? "warn" : "pos"} note="Kept after every cost" />
+        <RingGauge label="Paid on time" value={onTime} digits={0} tone={onTime < 60 ? "neg" : onTime < 80 ? "warn" : "pos"} note={overdue > 0.004 ? `AED ${short(overdue)} overdue` : "Nothing overdue"} />
+      </div>
       <div className="health-pair">
         <div><span>Days to get paid</span><b>{dso == null ? "—" : `${dso} days`}</b><small>{dso == null ? "No sales yet" : dso > 60 ? "Slow — chase overdue invoices" : dso > 40 ? "Average" : "Quick"}</small></div>
         <div><span>Current ratio</span><b>{ratio == null ? "—" : ratio.toFixed(2) + "×"}</b><small>{ratio == null ? "No short-term debts" : ratio >= 1.5 ? "Comfortable" : ratio >= 1 ? "Just covered" : "Tight"}</small></div>
@@ -560,7 +565,7 @@ function DashAgenda({ state, go }) {
   return <VizCard title="Coming up" sub={`Next 14 days · to ${dmy(end)}`}>
     <div className="agenda-sum"><span className="in">In <b>{money(tot("in"), false)}</b></span><span className="out">Out <b>{money(tot("out"), false)}</b></span>
       {late.length > 0 && <button className="late" onClick={() => go("r_aged_ar")}>{late.length} overdue invoice{late.length === 1 ? "" : "s"} · AED {money(late.reduce((s, i) => s + i.open, 0), false)}</button>}</div>
-    <div className="agenda">{out.slice(0, 7).map((x, i) => <button key={i} className={cx("ag-row", x.kind)} onClick={x.go}>
+    <div className="agenda">{out.slice(0, 7).map((x, i) => <button key={i} className={cx("ag-row", x.kind)} style={{ "--i": i }} onClick={x.go}>
       <span className="ag-date"><b>{+x.date.slice(8)}</b><small>{MONTHS[+x.date.slice(5, 7) - 1]}</small></span>
       <span className="ag-ic"><x.icon size={15} /></span>
       <span className="ag-t"><b>{x.t}</b><small>{x.s}</small></span>
@@ -578,6 +583,7 @@ function DashCategories({ state, from, to, go }) {
   });
   const rows = Object.entries(m).map(([label, value]) => ({ key: label, label, value })).filter((x) => x.value > 0.004).sort((a, b) => b.value - a.value);
   return <VizCard title="Sales by category" sub={`Net sales · ${dmy(from)} – ${dmy(to)}`} right={<button className="icon-btn" title="Profit by product" onClick={() => go("r_prod")}><ArrowUpRight size={18} /></button>}>
-    <ShareBar parts={topN(rows, 6, "Other").map((x, i) => ({ ...x, color: x.other ? OTHER : PARTS[i % PARTS.length] }))} />
+    {rows.length ? <DrawDonut parts={topN(rows, 6, "Other").map((x, i) => ({ ...x, color: x.other ? OTHER : PARTS[i % PARTS.length] }))} total={rows.reduce((s, x) => s + x.value, 0)} label="Net sales" />
+      : <div className="viz-empty" style={{ height: 176 }}>Post an invoice to see sales by category.</div>}
   </VizCard>;
 }

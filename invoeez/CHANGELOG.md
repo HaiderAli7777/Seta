@@ -1,3 +1,13 @@
+# 3.14.0 — A livelier dashboard
+
+- **Animations you actually see**: every dashboard section now waits until you scroll to it, then rises into place — bars grow, lines draw, numbers count up and lists arrive one row at a time. Before, everything below the first screen had finished animating before you got there.
+- **Sales by category** is a donut that draws itself, with the total counting up in the middle; point at a category (on the chart or in the list) to highlight its slice and see its share and amount.
+- **Business health** shows three ring gauges — gross margin, net margin and invoices paid on time — that fill and count up, coloured green, amber or red by how healthy they are.
+- **Banner**: soft lights drift up through it, a slow sheen passes across, the net profit figure catches the light, the cash line draws itself to a glowing point, and on Year to date a new chip shows where sales are heading ("On pace for AED 6M sales in 2026", the year's daily rate carried to 31 December).
+- **Cards** carry a gentle light that follows the pointer, lift slightly on hover, and their icons give a small wiggle; KPI sparklines draw from left to right; chart bars have a soft gradient.
+- Everything stays still with the system's "reduce motion" setting and when printing. Fixed along the way: a new chart name would have replaced the existing donut charts on the Expenses, payment-method and profit screens — they are untouched.
+- **New guide: CLOUD.md** — how to put InvoEez online today, and the plan for a shared cloud database (PostgreSQL), with hosting options, UAE regions, security and a phased plan.
+
 # 3.13.0 — Everyday experience: notifications, Undo, shortcuts, list summaries
 
 - **Notification centre**: the bell now opens a "Needs attention" panel instead of jumping to the dashboard — purchase orders waiting for your approval, overdue invoices (with the amount to collect), overdue vendor bills, draft invoices and bills not yet posted, post-dated cheques maturing within a week, products below zero or at reorder level, and a reminder when the books have not been backed up for a week (with "Back up now"). Each line opens the right list already filtered. Works on tablets and phones too, where the bell was hidden before.

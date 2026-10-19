@@ -16,7 +16,11 @@ function useCountUp(target, ms = 850) {
   }, [target]);
   return v;
 }
-const CountUp = ({ value, format = (x) => money(x, false) }) => { const v = useCountUp(+value || 0); return <span className="countup">{format(Math.abs(v - value) < 0.005 ? value : v)}</span>; };
+/* Counts up once the figure is on screen, so numbers further down still animate when you reach them. */
+const CountUp = ({ value, format = (x) => money(x, false) }) => {
+  const ref = React.useRef(null), seen = useInView(ref, "0px");
+  const v = useCountUp(seen ? +value || 0 : 0);
+  return <span ref={ref} className="countup">{format(seen && Math.abs(v - value) < 0.005 ? value : v)}</span>; };
 
 /* Units sold, value, cover and last sale for every stocked product. */
 function stockMovement(state, books, stock, from, to) {
@@ -111,12 +115,16 @@ function DashHero({ user, company, range, setRange, mode, setMode, P, prior, com
   const cmax = Math.max(1, ...cashSeries.map((x) => Math.abs(x))), W = 260, H = 64;
   const pts = cashSeries.map((v, i) => [(i / Math.max(1, cashSeries.length - 1)) * W, H - 6 - (Math.max(0, v) / cmax) * (H - 14)]);
   const path = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  /* Year to date: where sales are heading if the daily rate holds. */
+  const yr = TODAY.slice(0, 4), elapsed = daysBetween(yr + "-01-01", range.to) + 1, yearDays = daysBetween(yr + "-01-01", yr + "-12-31") + 1;
+  const pace = range.preset === "ytd" && P.revenue > 0.004 && elapsed >= 30 ? (P.revenue / elapsed) * yearDays : null;
   return <section className="dash-hero">
-    <div className="dh-glow g1" /><div className="dh-glow g2" /><div className="dh-grid" />
+    <div className="dh-glow g1" /><div className="dh-glow g2" /><div className="dh-grid" /><HeroParticles /><div className="dh-sheen" />
     <div className="dh-top">
       <div className="dh-status"><span className="dh-live"><i />{dayName}, {dmy(TODAY)} · Live from your books</span>
         {drafts > 0 && <button className="dh-pill" onClick={() => go("invoices")}><b>{drafts}</b> draft{drafts === 1 ? "" : "s"}</button>}
-        {low > 0 && <button className="dh-pill" onClick={() => go("products", "__low_stock__")}><b>{low}</b> low stock</button>}</div>
+        {low > 0 && <button className="dh-pill" onClick={() => go("products", "__low_stock__")}><b>{low}</b> low stock</button>}
+        {pace != null && <span className="dh-pill pace" title="Sales so far this year, carried to the year end at the same daily rate"><TrendingUp size={13} /> On pace for <b>AED {short(pace)}</b> sales in {yr}</span>}</div>
       <div className="dh-ctrl">
         <div className="seg dh-seg" aria-label="Dashboard period">{[["mtd", "Month"], ["qtd", "Quarter"], ["ytd", "Year"], ["d365", "12 months"]].map(([key, l]) =>
           <button key={key} className={range.preset === key ? "on" : ""} onClick={() => { const [f, t] = PRESETS.find((x) => x[0] === key)[2](); setRange({ preset: key, from: f, to: t }); }}>{l}</button>)}</div>
@@ -144,10 +152,13 @@ function DashHero({ user, company, range, setRange, mode, setMode, P, prior, com
       <div className="dh-cash">
         <div className="dc-top"><span className="dc-ic"><Landmark size={17} /></span><span>Cash & bank</span><button onClick={() => go("banking")} title="Open banking"><ArrowUpRight size={16} /></button></div>
         <div className="dc-value"><small>AED</small><CountUp value={cash} /></div>
+        <div className="dc-spark-wrap">
         <svg className="dc-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
           <defs><linearGradient id="dcfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#fff" stopOpacity=".35" /><stop offset="1" stopColor="#fff" stopOpacity="0" /></linearGradient></defs>
-          {pts.length > 1 && <><path d={path + ` L ${W} ${H} L 0 ${H} Z`} fill="url(#dcfill)" /><path d={path} fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /></>}
+          {pts.length > 1 && <><path className="dc-area" d={path + ` L ${W} ${H} L 0 ${H} Z`} fill="url(#dcfill)" /><path className="dc-line" pathLength="1" d={path} fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" /></>}
         </svg>
+        {pts.length > 1 && <i className="dc-dot" style={{ left: `${(pts[pts.length - 1][0] / W) * 100}%`, top: `${(pts[pts.length - 1][1] / H) * 100}%` }} />}
+        </div>
         <div className="dc-flow"><span><i className="in" />In <b>{money(movement.incoming, false)}</b></span><span><i className="out" />Out <b>{money(movement.outgoing, false)}</b></span></div>
       </div>
     </div>
