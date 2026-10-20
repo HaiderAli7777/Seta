@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.14.0";
+const BUILD = "3.15.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -6011,10 +6011,18 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
   );
 }
 
-function SettingsScreen({ accent, setAccent, company, setCompany, theme, setTheme, density, setDensity, backup, restore, reset, startCompany, go, toast, books, state, fta, setFta, setCosting, setSettings }) {
+function SettingsScreen({ accent, setAccent, company, setCompany, theme, setTheme, density, setDensity, backup, restore, reset, startCompany, go, toast, books, state, fta, setFta, setCosting, setSettings, cloud, pwa, param }) {
   const [d, setD] = useState(company);
   const dirty = JSON.stringify(d) !== JSON.stringify(company);
+  /* A profile changed by cloud sync or another window replaces the form, unless you have unsaved edits. */
+  const shown = React.useRef(company);
+  React.useEffect(() => { if (JSON.stringify(d) === JSON.stringify(shown.current)) setD(company); shown.current = company; }, [company]);
   const f = (k) => ({ value: d[k] || "", onChange: (e) => setD({ ...d, [k]: e.target.value }) });
+  React.useEffect(() => {
+    if (param !== "__cloud__") return;
+    const t = setTimeout(() => { const el = document.getElementById("cloud-sync"); if (el) el.closest(".card").scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "start" }); }, 60);
+    return () => clearTimeout(t);
+  }, [param]);
   return (
     <div>
       <PageHead eyebrow="Configuration" title="Settings"
@@ -6148,6 +6156,7 @@ function SettingsScreen({ accent, setAccent, company, setCompany, theme, setThem
         </div>
 
         <div className="grid">
+          {cloud && <CloudSyncCard sync={cloud} pwa={pwa} state={state} toast={toast} backup={backup} startCompany={startCompany} />}
           <Card title="WhatsApp & email delivery" pad={false}
             sub="Send invoices straight from the document view">
             <div className="setsec">
@@ -6211,7 +6220,7 @@ function SettingsScreen({ accent, setAccent, company, setCompany, theme, setThem
             </div>
           </Card>
 
-          <Card title="Data" sub="Everything lives in this browser until the server backend lands" pad={false}>
+          <Card title="Data" sub={cloud && cloud.on ? "Saved on this device and synced to your company's cloud books" : "Saved in this browser — back up regularly, or turn on Cloud sync"} pad={false}>
             <div className="setsec">
               <div className="setrow"><div className="st"><b>Back up the books</b>
                 <span>Downloads every document and payment as JSON</span></div>
@@ -6445,7 +6454,7 @@ function Invoeez() {
     const r = new FileReader();
     r.onload = () => {
       try { const p = JSON.parse(r.result);
-        if (p && Array.isArray(p.docs)) { setState(migrateBooks(p)); toast("Books restored from backup"); }
+        if (p && Array.isArray(p.docs)) { setState(migrateBooks(p)); toast("Books restored from backup"); offCloud(); }
         else toast("That file is not a compatible books backup", "warn");
       } catch (x) { toast("That file could not be read as JSON", "warn"); }
     };
@@ -6453,12 +6462,14 @@ function Invoeez() {
   };
   const reset = () => {
     if (window.confirm("Load the sample company? It replaces your current books — download a backup first if you need them."))
-      { setState(migrateBooks(DEMO())); setCompany(COMPANY); setMe("u1"); setBannerHidden(false); toast("Sample company loaded", "warn"); go("dash"); }
+      { setState(migrateBooks(DEMO())); setCompany(COMPANY); setMe("u1"); setBannerHidden(false); toast("Sample company loaded", "warn"); offCloud(); go("dash"); }
   };
   const startCompany = () => setStarting(true);
+  /* Replacing the books must never be uploaded over the company's cloud copy, so sync switches off. */
+  const offCloud = () => { if (cloudRef.current && cloudRef.current.cfg.enabled) cloudRef.current.disconnect("Cloud sync is off because the books on this device were replaced. Connect again in Settings › Cloud sync to choose which books to keep."); };
   const companyStarted = (books, profile) => {
     setState(books); setCompany(profile); setMe("u1"); setStarting(false);
-    toast(`${profile.name} is ready. Follow the setup guide to add your data.`); go("setup");
+    toast(`${profile.name} is ready. Follow the setup guide to add your data.`); offCloud(); go("setup");
   };
 
   const counts = {
@@ -6487,6 +6498,10 @@ function Invoeez() {
   const [notif, setNotif] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
   const chord = useShortcuts({ enabled: !!meFound, allowed, canAdd, go, newDoc, toast, openHelp: () => setKeysOpen(true), openSearch: () => setCmdk(true) });
+  /* Offline first: the books are saved here, and uploaded to the cloud whenever there is a connection. */
+  const cloud = useCloudSync({ state, setState, company, setCompany, toast, user: meUser });
+  const pwa = usePwa();
+  const cloudRef = React.useRef(null); cloudRef.current = cloud;
 
   const cmdItems = useMemo(() => [
     ...NAV_FLAT.map((i) => ({ key: i.k, label: i.l, hint: i.sg ? i.g + " · " + i.sg : i.g, icon: i.i, act: () => go(i.k) })),
@@ -6549,7 +6564,7 @@ function Invoeez() {
       case "users": return <UsersScreen create={cr("users")} state={state} setState={setState} me={me} setMe={setMe} toast={toast} />;
       case "settings": return <SettingsScreen accent={accent} setAccent={setAccent} setCosting={(k) => setState((x) => ({ ...x, costing: k }))} setSettings={(patch) => setState((x) => ({ ...x, settings: { ...(x.settings || {}), ...patch } }))} fta={fta} setFta={setFta} company={company} setCompany={setCompany} theme={theme} setTheme={setTheme}
         density={density} setDensity={setDensity} backup={backup} restore={restore} reset={reset} startCompany={startCompany} go={go}
-        toast={toast} books={books} state={state} />;
+        toast={toast} books={books} state={state} cloud={cloud} pwa={pwa} param={param} />;
       case "r_tb": return <TrialBalance books={books} p={period} setP={setPeriod} toast={toast} drill={drill} />;
       case "r_gl": return <GeneralLedger books={books} p={period} setP={setPeriod} toast={toast} param={param} drill={drill} />;
       case "acct_groups": return <AccountGroupsScreen state={state} setState={setState} books={books} toast={toast} go={go} />;
@@ -6566,7 +6581,7 @@ function Invoeez() {
     }
   };
 
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS;
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS;
   /* Nobody signed in in this tab: show the sign-in screen. */
   if (!meFound) return (
     <ThemeCtx.Provider value={palette}>
@@ -6614,6 +6629,7 @@ function Invoeez() {
             <span className="oi"><Search size={15} strokeWidth={2.2} /></span>
             <span className="ot">Search products, barcode, invoices…</span><kbd>{MOD === "⌘" ? "⌘K" : "Ctrl K"}</kbd></button>
           <div className="tb-r">
+          <SyncChip sync={cloud} go={go} />
           <div style={{ position: "relative" }}>
             <button className="btn pri" ref={newRef} onClick={() => {
               const el = newRef.current;

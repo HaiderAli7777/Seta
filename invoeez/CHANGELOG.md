@@ -1,3 +1,14 @@
+# 3.15.0 — Works offline, syncs to the cloud
+
+- **Offline first**: every change is saved on the device straight away, so InvoEez keeps working with no internet — create and post invoices, record payments, edit customers. When the app is opened from its web address it also installs an offline copy of itself (a service worker), so it opens even with no connection, and it can be installed like an app (Settings › Cloud sync › Install app, or the browser's Install / Add to Home Screen).
+- **Cloud sync**: Settings › Cloud sync connects a device to the company's books on an InvoEez sync server with the server address and an access key. Changes upload within seconds when there is a connection, the moment the connection comes back, when the window is reopened and every 20 seconds (which also brings in colleagues' changes).
+- **Status in the top bar**: Synced, "Offline · 3 waiting", Syncing…, or a problem. Click it for details (last synced, this device, the server) and **Sync now**.
+- **Several people, several devices**: a new device downloads the company's books when it connects. If a device and the cloud both have books, you choose which to keep (a backup is downloaded first either way).
+- **Safe merging after working offline**: changes are merged record by record against the last synced copy, so different records never clash and deletions carry over. Customers, vendors, products and other master data merge field by field. A document, payment or journal entry changed on two devices at once keeps the cloud version, is listed under **Changed on two devices at once**, and **Use mine** puts your version back.
+- **Numbers stay unique**: an invoice numbered offline that a colleague has used meanwhile takes the next free number (INV/2026/0288 → INV/2026/0289); you are told, the sync notes keep a record, and references to it follow.
+- **Replacing the books switches sync off**: restoring a backup, starting a new company or loading the sample turns sync off on that device, so they are never uploaded over the company's cloud books.
+- **New: the InvoEez sync server** (`server/`): a small Node.js service that keeps each company's books in **PostgreSQL** (or in files for a trial), keeps every saved version, refuses out-of-date saves so nothing is overwritten, and also serves the app. Runs on Azure, AWS, Render, a VPS or Docker; see `server/README.md`.
+
 # 3.14.0 — A livelier dashboard
 
 - **Animations you actually see**: every dashboard section now waits until you scroll to it, then rises into place — bars grow, lines draw, numbers count up and lists arrive one row at a time. Before, everything below the first screen had finished animating before you got there.

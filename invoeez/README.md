@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.14)
+# InvoEez — Invoice Made Easy (3.15)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -74,6 +74,10 @@ Company profile, theme, user selection and connection settings use their existin
 | Scrap | Record damaged quantities with a reason. Scrap reduces stock at carrying cost and charges the category adjustment account. Quantities cannot exceed on-hand stock. |
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
+
+## Offline and cloud sync (3.15)
+
+InvoEez saves every change on the device first, so it works with no internet. Opened from a web address, it also keeps an offline copy of itself and can be installed as an app. **Settings › Cloud sync** connects a device to the company's books on an InvoEez sync server (`server/`, PostgreSQL or files): changes upload as soon as there is a connection and colleagues' changes come in. Records are merged one by one against the last synced copy; master data merges field by field; a document changed on two devices keeps the cloud version and lists yours under "Changed on two devices at once" (**Use mine**); an invoice numbered offline whose number a colleague used takes the next free number. The top bar shows Synced, Offline · N waiting, Syncing… or a problem. Setting up the server: `server/README.md`.
 
 ## Dashboard motion (3.14) and the cloud
 
@@ -178,7 +182,7 @@ npm run build
 npm test
 ```
 
-`npm run build` generates `invoeez.html`, `dist/index.html` and a compatible `mizan.html` entry for existing installations.
+`npm run build` generates `invoeez.html`, `dist/index.html` and a compatible `mizan.html` entry for existing installations. `dist/` also gets `sw.js` (the offline app shell), `manifest.webmanifest` and the app icons, for hosting.
 
 | File | Purpose |
 | --- | --- |
@@ -192,6 +196,9 @@ npm test
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
 | `dashboard.jsx` | New overview dashboard. |
+| `sync.jsx` | 3.15 offline-first cloud sync: record-by-record three-way merge, renumbering, sync engine, top-bar status chip, Settings › Cloud sync, installable app. |
+| `server/` | 3.15 InvoEez sync server (Node.js; PostgreSQL or files): versioned books per company, access keys, also serves the app. See `server/README.md`. |
+| `icons/` | App icons for the installable app (192, 512 and maskable 512 px). |
 | `motion.jsx` | 3.14 dashboard motion: scroll-triggered entrances, pointer light, self-drawing donut, ring gauges, banner lights. |
 | `ux.jsx` | 3.13 notification centre, Undo toasts, keyboard shortcuts and help sheet, summary tiles on document lists, figure typography. |
 | `approval.jsx` | 3.11–3.12 one-form document editor styles, one-piece document header (progress, actions, More menu), purchase-order approval rules, dashboard approval inbox, reject dialog and approver switch. |
@@ -206,6 +213,7 @@ npm test
 | `shell.html` | Original standalone shell and bundled libraries/fonts. |
 | `build.mjs` | Reproducible JSX compilation and standalone packaging. |
 | `tests/engine.cjs` | Executable accounting, pricing, migration and inventory regression checks. |
+| `tests/browser-offline-sync.cjs` | 3.15 checks with the real sync server (files and PostgreSQL): connect and upload, a second device downloads, offline work waiting, renumbering on reconnect, a field changed on two devices and Use mine, deletions, opening with no internet, wrong key, restore switches sync off. |
 | `tests/browser-dashboard-motion.cjs` | 3.14 checks: scroll reveal, count-up on arrival, donut, rings, banner, pointer light, other donuts intact, reduced motion, print, phone. |
 | `tests/browser-experience.cjs` | 3.13 checks: figure font, summary tiles, notification centre, keyboard shortcuts, Undo on deletes, payments table fit, phone. |
 | `tests/browser-signin-form.cjs` | 3.12 checks: sign-in showcase and animations, user tiles, PIN pad (keypad, wrong PIN, success), reduced motion, phone, dark; document editor as one form, unsaved changes, Ctrl+S, leave prompt. |
@@ -228,4 +236,4 @@ Settings › Invoice language: **English only** (default) or **English + Arabic*
 
 Browser checks for 3.3 covered every screen in the sample and in a brand-new company, Start my company, the setup guide, importing a compressed Excel workbook and a semicolon CSV (including invalid and duplicate rows), round-tripping the app's own templates, opening balances, a first invoice with imported stock, Unpaid/Overdue filters and paging, invoice print and PDF download, account rename, reloading the sample, an in-place upgrade from the original 3.2 file, and light, dark and mobile layouts. The 3.2 checks listed in `tests/browser-checks.json` remain part of the record.
 
-This retains the supplied application's browser-local architecture. It does not add a server database, cross-device synchronization or production authentication; the existing role interface is not a server security boundary. External e-invoicing/provider submission and message delivery were not exercised against a live service.
+Books stay on the device first. The optional sync server (3.15) shares one set of books per company between devices and keeps every version; access is by a company access key over HTTPS. Users, roles, PINs and approvals are still enforced by the app, not by the server, so they are not a server security boundary. External e-invoicing/provider submission and message delivery were not exercised against a live service.

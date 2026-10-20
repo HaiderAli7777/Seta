@@ -946,6 +946,9 @@ var ClipboardCheck = __mk('<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/
 var MoreHorizontal = __mk('<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>');
 var Undo2 = __mk('<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>');
 var DeleteKey = __mk('<path d="M10 5a2 2 0 0 0-1.344.519l-6.328 5.74a1 1 0 0 0 0 1.481l6.328 5.741A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/><path d="m12 9 6 6"/><path d="m18 9-6 6"/>');
+var Cloud = __mk('<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>');
+var CloudOff = __mk('<path d="m2 2 20 20"/><path d="M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193"/><path d="M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07"/>');
+var RefreshCw = __mk('<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>');
 function _crc32(buf) {
   var c,
     t = _crc32.t;
@@ -1114,7 +1117,7 @@ const addDays = (iso, n) => {
   return d.toISOString().slice(0, 10);
 };
 const daysBetween = (a, b) => Math.round((/* @__PURE__ */ new Date(b + "T00:00:00Z") - /* @__PURE__ */ new Date(a + "T00:00:00Z")) / 864e5);
-const BUILD = "3.14.0";
+const BUILD = "3.15.0";
 const TODAY = (() => {
   const d = /* @__PURE__ */ new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -3264,13 +3267,13 @@ function LegacyDashboard({ state, books, go, newDoc, range, setRange, user = { n
     return out;
   }, [state, books, ar, q3, CO]);
   const recent = state.docs.slice().sort((a, b) => b.date.localeCompare(a.date) || b.number.localeCompare(a.number)).slice(0, 8);
-  const ago = (iso) => {
+  const ago2 = (iso) => {
     const n = daysBetween(iso, TODAY);
     return n <= 0 ? "today" : n === 1 ? "yesterday" : n < 30 ? `${n} days ago` : dmy(iso);
   };
   const activity = useMemo(() => {
     const docs = state.docs.filter((x) => x.state === "posted").map((x) => ({
-      when: ago(x.date),
+      when: ago2(x.date),
       date: x.date,
       amount: amounts(x).total,
       title: `${DOCMETA[x.type].short} ${x.number}`,
@@ -3279,7 +3282,7 @@ function LegacyDashboard({ state, books, go, newDoc, range, setRange, user = { n
       grad: x.type === "invoice" ? "g1" : x.type === "bill" ? "g4" : "g2"
     }));
     const pays = state.payments.map((p) => ({
-      when: ago(p.date),
+      when: ago2(p.date),
       date: p.date,
       amount: p.amount,
       title: p.kind === "in" ? "Payment received" : "Payment made",
@@ -6946,10 +6949,23 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
     /* @__PURE__ */ React.createElement("div", { className: "savebar" }, /* @__PURE__ */ React.createElement(CircleAlert, { size: 15, strokeWidth: 1.9, style: { color: "var(--warn)" } }), /* @__PURE__ */ React.createElement("span", null, "These rules are applied in the interface. Once the server backend lands they move behind the API, which is the only place they can actually protect data."))
   )));
 }
-function SettingsScreen({ accent, setAccent, company, setCompany, theme, setTheme, density, setDensity, backup, restore, reset, startCompany, go, toast, books, state, fta, setFta, setCosting, setSettings }) {
+function SettingsScreen({ accent, setAccent, company, setCompany, theme, setTheme, density, setDensity, backup, restore, reset, startCompany, go, toast, books, state, fta, setFta, setCosting, setSettings, cloud, pwa, param }) {
   const [d, setD] = useState(company);
   const dirty = JSON.stringify(d) !== JSON.stringify(company);
+  const shown = React.useRef(company);
+  React.useEffect(() => {
+    if (JSON.stringify(d) === JSON.stringify(shown.current)) setD(company);
+    shown.current = company;
+  }, [company]);
   const f = (k) => ({ value: d[k] || "", onChange: (e) => setD({ ...d, [k]: e.target.value }) });
+  React.useEffect(() => {
+    if (param !== "__cloud__") return;
+    const t = setTimeout(() => {
+      const el = document.getElementById("cloud-sync");
+      if (el) el.closest(".card").scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "start" });
+    }, 60);
+    return () => clearTimeout(t);
+  }, [param]);
   return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(
     PageHead,
     {
@@ -7010,7 +7026,7 @@ function SettingsScreen({ accent, setAccent, company, setCompany, theme, setThem
     /* @__PURE__ */ React.createElement("span", { className: "pi" }, /* @__PURE__ */ React.createElement(Layers, { size: 16, strokeWidth: 1.8 })),
     /* @__PURE__ */ React.createElement("span", { className: "pt" }, /* @__PURE__ */ React.createElement("b", null, m.label), /* @__PURE__ */ React.createElement("span", null, m.note)),
     /* @__PURE__ */ React.createElement("span", { className: "chk" }, (state.costing || "avco") === k && /* @__PURE__ */ React.createElement(Check, { size: 11, strokeWidth: 3.2 }))
-  ))))))), /* @__PURE__ */ React.createElement("div", { className: "grid" }, /* @__PURE__ */ React.createElement(
+  ))))))), /* @__PURE__ */ React.createElement("div", { className: "grid" }, cloud && /* @__PURE__ */ React.createElement(CloudSyncCard, { sync: cloud, pwa, state, toast, backup, startCompany }), /* @__PURE__ */ React.createElement(
     Card,
     {
       title: "WhatsApp & email delivery",
@@ -7069,7 +7085,7 @@ function SettingsScreen({ accent, setAccent, company, setCompany, theme, setThem
   ), /* @__PURE__ */ React.createElement(Card, { title: "Appearance", pad: false }, /* @__PURE__ */ React.createElement("div", { className: "setsec" }, /* @__PURE__ */ React.createElement("div", { className: "setrow", style: { display: "block" } }, /* @__PURE__ */ React.createElement("div", { className: "st" }, /* @__PURE__ */ React.createElement("b", null, "Colour theme"), /* @__PURE__ */ React.createElement("span", null, "Sidebar, buttons, highlights and the invoice letterhead follow it")), /* @__PURE__ */ React.createElement("div", { className: "accent-picks", style: { marginTop: 10 } }, Object.entries(ACCENTS).map(([k, a]) => /* @__PURE__ */ React.createElement("button", { key: k, className: cx("accent-pick", accent === k && "on"), onClick: () => {
     setAccent(k);
     toast(`${a.name} colour theme`);
-  }, "aria-pressed": accent === k }, /* @__PURE__ */ React.createElement("span", { className: "sw" }, a.sw.map((c) => /* @__PURE__ */ React.createElement("i", { key: c, style: { background: c } }))), /* @__PURE__ */ React.createElement("b", null, a.name), /* @__PURE__ */ React.createElement("span", null, a.note))))), /* @__PURE__ */ React.createElement("div", { className: "setrow" }, /* @__PURE__ */ React.createElement("div", { className: "st" }, /* @__PURE__ */ React.createElement("b", null, "Theme"), /* @__PURE__ */ React.createElement("span", null, "Follows your system on first run")), /* @__PURE__ */ React.createElement("div", { className: "seg" }, [["light", "Light"], ["dark", "Dark"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, className: cx(theme === k && "on"), onClick: () => setTheme(k) }, l)))), /* @__PURE__ */ React.createElement("div", { className: "setrow" }, /* @__PURE__ */ React.createElement("div", { className: "st" }, /* @__PURE__ */ React.createElement("b", null, "Row density"), /* @__PURE__ */ React.createElement("span", null, "Compact fits roughly a third more rows on screen")), /* @__PURE__ */ React.createElement("div", { className: "seg" }, [["comfortable", "Comfortable"], ["compact", "Compact"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, className: cx(density === k && "on"), onClick: () => setDensity(k) }, l)))))), /* @__PURE__ */ React.createElement(Card, { title: "Data", sub: "Everything lives in this browser until the server backend lands", pad: false }, /* @__PURE__ */ React.createElement("div", { className: "setsec" }, /* @__PURE__ */ React.createElement("div", { className: "setrow" }, /* @__PURE__ */ React.createElement("div", { className: "st" }, /* @__PURE__ */ React.createElement("b", null, "Back up the books"), /* @__PURE__ */ React.createElement("span", null, "Downloads every document and payment as JSON")), /* @__PURE__ */ React.createElement(Btn, { icon: Download, onClick: backup }, "Back up")), /* @__PURE__ */ React.createElement("div", { className: "setrow" }, /* @__PURE__ */ React.createElement("div", { className: "st" }, /* @__PURE__ */ React.createElement("b", null, "Restore"), /* @__PURE__ */ React.createElement("span", null, "Replaces the current books with a backup file")), /* @__PURE__ */ React.createElement("label", { className: "btn", style: { cursor: "pointer" } }, /* @__PURE__ */ React.createElement(Upload, { size: 14, strokeWidth: 1.9 }), "Restore", /* @__PURE__ */ React.createElement("input", { type: "file", accept: "application/json", onChange: restore, style: { display: "none" } }))), /* @__PURE__ */ React.createElement("div", { className: "setrow" }, /* @__PURE__ */ React.createElement("div", { className: "st" }, /* @__PURE__ */ React.createElement("b", null, "Setup guide"), /* @__PURE__ */ React.createElement("span", null, "Step-by-step: company, accounts, products, customers, opening balances")), /* @__PURE__ */ React.createElement(Btn, { icon: ListChecks, onClick: () => go("setup") }, "Open guide")), /* @__PURE__ */ React.createElement("div", { className: "setrow" }, /* @__PURE__ */ React.createElement("div", { className: "st" }, /* @__PURE__ */ React.createElement("b", null, state.sample ? "Start my company" : "Start a new company"), /* @__PURE__ */ React.createElement("span", null, "Clears transactions; keeps the chart of accounts, categories and expense items")), /* @__PURE__ */ React.createElement(Btn, { kind: state.sample ? "pri" : "danger", icon: Rocket, onClick: startCompany }, state.sample ? "Start" : "Start over")))), /* @__PURE__ */ React.createElement(Card, { title: "This ledger" }, /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Build"), /* @__PURE__ */ React.createElement("span", { className: "v", style: { color: "var(--brand)", fontWeight: 600 } }, BUILD)), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Documents"), /* @__PURE__ */ React.createElement("span", { className: "v" }, state.docs.length)), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Journal entries"), /* @__PURE__ */ React.createElement("span", { className: "v" }, books.entries.length)), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Posted lines"), /* @__PURE__ */ React.createElement("span", { className: "v" }, books.flat.length)), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Stock movements"), /* @__PURE__ */ React.createElement("span", { className: "v" }, books.moves.length)), /* @__PURE__ */ React.createElement("div", { className: "sumrow total" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Total debits"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(books.totalD))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 13, paddingTop: 12, borderTop: "1px solid var(--line-2)", fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.6 } }, "If something looks out of date, reload with ", /* @__PURE__ */ React.createElement("b", null, "Ctrl+Shift+R"), " (", /* @__PURE__ */ React.createElement("b", null, "Cmd+Shift+R"), " on a Mac) and check the build number above matches the file you were sent.")))));
+  }, "aria-pressed": accent === k }, /* @__PURE__ */ React.createElement("span", { className: "sw" }, a.sw.map((c) => /* @__PURE__ */ React.createElement("i", { key: c, style: { background: c } }))), /* @__PURE__ */ React.createElement("b", null, a.name), /* @__PURE__ */ React.createElement("span", null, a.note))))), /* @__PURE__ */ React.createElement("div", { className: "setrow" }, /* @__PURE__ */ React.createElement("div", { className: "st" }, /* @__PURE__ */ React.createElement("b", null, "Theme"), /* @__PURE__ */ React.createElement("span", null, "Follows your system on first run")), /* @__PURE__ */ React.createElement("div", { className: "seg" }, [["light", "Light"], ["dark", "Dark"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, className: cx(theme === k && "on"), onClick: () => setTheme(k) }, l)))), /* @__PURE__ */ React.createElement("div", { className: "setrow" }, /* @__PURE__ */ React.createElement("div", { className: "st" }, /* @__PURE__ */ React.createElement("b", null, "Row density"), /* @__PURE__ */ React.createElement("span", null, "Compact fits roughly a third more rows on screen")), /* @__PURE__ */ React.createElement("div", { className: "seg" }, [["comfortable", "Comfortable"], ["compact", "Compact"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, className: cx(density === k && "on"), onClick: () => setDensity(k) }, l)))))), /* @__PURE__ */ React.createElement(Card, { title: "Data", sub: cloud && cloud.on ? "Saved on this device and synced to your company's cloud books" : "Saved in this browser \u2014 back up regularly, or turn on Cloud sync", pad: false }, /* @__PURE__ */ React.createElement("div", { className: "setsec" }, /* @__PURE__ */ React.createElement("div", { className: "setrow" }, /* @__PURE__ */ React.createElement("div", { className: "st" }, /* @__PURE__ */ React.createElement("b", null, "Back up the books"), /* @__PURE__ */ React.createElement("span", null, "Downloads every document and payment as JSON")), /* @__PURE__ */ React.createElement(Btn, { icon: Download, onClick: backup }, "Back up")), /* @__PURE__ */ React.createElement("div", { className: "setrow" }, /* @__PURE__ */ React.createElement("div", { className: "st" }, /* @__PURE__ */ React.createElement("b", null, "Restore"), /* @__PURE__ */ React.createElement("span", null, "Replaces the current books with a backup file")), /* @__PURE__ */ React.createElement("label", { className: "btn", style: { cursor: "pointer" } }, /* @__PURE__ */ React.createElement(Upload, { size: 14, strokeWidth: 1.9 }), "Restore", /* @__PURE__ */ React.createElement("input", { type: "file", accept: "application/json", onChange: restore, style: { display: "none" } }))), /* @__PURE__ */ React.createElement("div", { className: "setrow" }, /* @__PURE__ */ React.createElement("div", { className: "st" }, /* @__PURE__ */ React.createElement("b", null, "Setup guide"), /* @__PURE__ */ React.createElement("span", null, "Step-by-step: company, accounts, products, customers, opening balances")), /* @__PURE__ */ React.createElement(Btn, { icon: ListChecks, onClick: () => go("setup") }, "Open guide")), /* @__PURE__ */ React.createElement("div", { className: "setrow" }, /* @__PURE__ */ React.createElement("div", { className: "st" }, /* @__PURE__ */ React.createElement("b", null, state.sample ? "Start my company" : "Start a new company"), /* @__PURE__ */ React.createElement("span", null, "Clears transactions; keeps the chart of accounts, categories and expense items")), /* @__PURE__ */ React.createElement(Btn, { kind: state.sample ? "pri" : "danger", icon: Rocket, onClick: startCompany }, state.sample ? "Start" : "Start over")))), /* @__PURE__ */ React.createElement(Card, { title: "This ledger" }, /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Build"), /* @__PURE__ */ React.createElement("span", { className: "v", style: { color: "var(--brand)", fontWeight: 600 } }, BUILD)), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Documents"), /* @__PURE__ */ React.createElement("span", { className: "v" }, state.docs.length)), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Journal entries"), /* @__PURE__ */ React.createElement("span", { className: "v" }, books.entries.length)), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Posted lines"), /* @__PURE__ */ React.createElement("span", { className: "v" }, books.flat.length)), /* @__PURE__ */ React.createElement("div", { className: "sumrow" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Stock movements"), /* @__PURE__ */ React.createElement("span", { className: "v" }, books.moves.length)), /* @__PURE__ */ React.createElement("div", { className: "sumrow total" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Total debits"), /* @__PURE__ */ React.createElement("span", { className: "v" }, money(books.totalD))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 13, paddingTop: 12, borderTop: "1px solid var(--line-2)", fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.6 } }, "If something looks out of date, reload with ", /* @__PURE__ */ React.createElement("b", null, "Ctrl+Shift+R"), " (", /* @__PURE__ */ React.createElement("b", null, "Cmd+Shift+R"), " on a Mac) and check the build number above matches the file you were sent.")))));
 }
 const NAV = [
   { g: "Dashboard", i: LayoutDashboard, k: "dash" },
@@ -7373,6 +7389,7 @@ function Invoeez() {
         if (p && Array.isArray(p.docs)) {
           setState(migrateBooks(p));
           toast("Books restored from backup");
+          offCloud();
         } else toast("That file is not a compatible books backup", "warn");
       } catch (x) {
         toast("That file could not be read as JSON", "warn");
@@ -7388,16 +7405,21 @@ function Invoeez() {
       setMe("u1");
       setBannerHidden(false);
       toast("Sample company loaded", "warn");
+      offCloud();
       go("dash");
     }
   };
   const startCompany = () => setStarting(true);
+  const offCloud = () => {
+    if (cloudRef.current && cloudRef.current.cfg.enabled) cloudRef.current.disconnect("Cloud sync is off because the books on this device were replaced. Connect again in Settings \u203A Cloud sync to choose which books to keep.");
+  };
   const companyStarted = (books2, profile) => {
     setState(books2);
     setCompany(profile);
     setMe("u1");
     setStarting(false);
     toast(`${profile.name} is ready. Follow the setup guide to add your data.`);
+    offCloud();
     go("setup");
   };
   const counts = {
@@ -7432,6 +7454,10 @@ function Invoeez() {
   const [notif, setNotif] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
   const chord = useShortcuts({ enabled: !!meFound, allowed, canAdd, go, newDoc, toast, openHelp: () => setKeysOpen(true), openSearch: () => setCmdk(true) });
+  const cloud = useCloudSync({ state, setState, company, setCompany, toast, user: meUser });
+  const pwa = usePwa();
+  const cloudRef = React.useRef(null);
+  cloudRef.current = cloud;
   const cmdItems = useMemo(() => [
     ...NAV_FLAT.map((i) => ({ key: i.k, label: i.l, hint: i.sg ? i.g + " \xB7 " + i.sg : i.g, icon: i.i, act: () => go(i.k) })),
     { key: "new_inv", label: "Create a new invoice", hint: "Action", icon: Plus, act: () => newDoc("invoice") },
@@ -7609,7 +7635,10 @@ function Invoeez() {
             go,
             toast,
             books,
-            state
+            state,
+            cloud,
+            pwa,
+            param
           }
         );
       case "r_tb":
@@ -7640,7 +7669,7 @@ function Invoeez() {
         return null;
     }
   };
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS;
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS;
   if (!meFound) return /* @__PURE__ */ React.createElement(ThemeCtx.Provider, { value: palette }, /* @__PURE__ */ React.createElement(CompanyCtx.Provider, { value: company }, /* @__PURE__ */ React.createElement("div", { className: "mz", "data-theme": theme, "data-accent": accent, "data-density": density }, /* @__PURE__ */ React.createElement("style", null, ALL_CSS), /* @__PURE__ */ React.createElement(Toasts, { items: toasts, dismiss: dismissToast }), /* @__PURE__ */ React.createElement(
     SignInScreen,
     {
@@ -7708,7 +7737,7 @@ function Invoeez() {
     },
     /* @__PURE__ */ React.createElement(Scale, { size: 13, strokeWidth: 1.9 }),
     /* @__PURE__ */ React.createElement("span", { className: "lbl" }, books.balanced ? "Balanced" : `Out by ${money(books.totalD - books.totalC)}`)
-  )), /* @__PURE__ */ React.createElement("button", { className: "omni", onClick: () => setCmdk(true) }, /* @__PURE__ */ React.createElement("span", { className: "oi" }, /* @__PURE__ */ React.createElement(Search, { size: 15, strokeWidth: 2.2 })), /* @__PURE__ */ React.createElement("span", { className: "ot" }, "Search products, barcode, invoices\u2026"), /* @__PURE__ */ React.createElement("kbd", null, MOD === "\u2318" ? "\u2318K" : "Ctrl K")), /* @__PURE__ */ React.createElement("div", { className: "tb-r" }, /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("button", { className: "btn pri", ref: newRef, onClick: () => {
+  )), /* @__PURE__ */ React.createElement("button", { className: "omni", onClick: () => setCmdk(true) }, /* @__PURE__ */ React.createElement("span", { className: "oi" }, /* @__PURE__ */ React.createElement(Search, { size: 15, strokeWidth: 2.2 })), /* @__PURE__ */ React.createElement("span", { className: "ot" }, "Search products, barcode, invoices\u2026"), /* @__PURE__ */ React.createElement("kbd", null, MOD === "\u2318" ? "\u2318K" : "Ctrl K")), /* @__PURE__ */ React.createElement("div", { className: "tb-r" }, /* @__PURE__ */ React.createElement(SyncChip, { sync: cloud, go }), /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("button", { className: "btn pri", ref: newRef, onClick: () => {
     const el = newRef.current;
     if (el && el.getBoundingClientRect) {
       const r = el.getBoundingClientRect();
@@ -13785,6 +13814,620 @@ const MOTION_CSS = `
 @media (prefers-reduced-motion:reduce){.dash2 .rv,.dash2 .rv *,.dh-sparks i,.dh-sheen::after,.dh-main b .countup,.donut,.donut-seg,.dl-row,.ring-val,.kt-spark .ks-line,.kt-spark .ks-area,.dc-spark .dc-line,.dc-spark .dc-area,.dc-dot{animation:none!important;transition:none!important}
   .dash2 .rv{opacity:1}.donut{transform:none;opacity:1}.dh-sparks,.dh-sheen{display:none}}
 @media print{.dash2 .rv{opacity:1!important;animation:none!important}.dh-sparks,.dh-sheen{display:none}.donut{transform:none;opacity:1}}
+`;
+const CLOUD_KEY = "mizan.cloud", CONFLICT_KEY = "mizan.cloud.conflicts", CLOUD_LOG_KEY = "mizan.cloud.log";
+const ATOMIC = /* @__PURE__ */ new Set(["docs", "payments", "pdcs", "stockOps", "manual", "assets"]);
+const NUMBERED = { docs: (d) => d.type || "", payments: (p) => p.kind || "", pdcs: (c) => c.kind || "", stockOps: (o) => o.kind || "", manual: () => "", assets: () => "" };
+const stable = (v) => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => {
+  o[key] = x[key];
+  return o;
+}, {}) : x);
+const isObj = (x) => x !== null && typeof x === "object" && !Array.isArray(x);
+const recId = (r) => isObj(r) ? r.id != null ? "i:" + r.id : r.code != null ? "c:" + r.code : null : null;
+const isRecList = (...ls) => ls.some((l) => Array.isArray(l) && l.length > 0) && ls.every((l) => l == null || Array.isArray(l) && l.every((x) => recId(x) != null));
+const recLabel = (r) => r ? r.number || r.name || r.code || r.id || "" : "";
+function merge3(b, l, r, at, log) {
+  const sb = stable(b), sl = stable(l), sr = stable(r);
+  if (sl === sb) return r;
+  if (sr === sb || sl === sr) return l;
+  if (isRecList(b, l, r)) return mergeList(b || [], l || [], r || [], at, log);
+  if (isObj(l) && isObj(r) && (b == null || isObj(b))) {
+    const out = {}, bb = b || {};
+    for (const k of /* @__PURE__ */ new Set([...Object.keys(r), ...Object.keys(l), ...Object.keys(bb)])) {
+      const v = merge3(bb[k], l[k], r[k], at ? at + "." + k : k, log);
+      if (v !== void 0) out[k] = v;
+    }
+    return out;
+  }
+  log.conflicts.push({ at, local: l, remote: r });
+  return r;
+}
+function mergeList(b, l, r, at, log) {
+  const key = at.split(".").pop();
+  const mb = new Map(b.map((x) => [recId(x), x])), ml = new Map(l.map((x) => [recId(x), x])), mr = new Map(r.map((x) => [recId(x), x]));
+  const ids = [], seen = /* @__PURE__ */ new Set();
+  for (const x of [...r, ...l]) {
+    const id = recId(x);
+    if (!seen.has(id)) {
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  const out = [];
+  for (const id of ids) {
+    const xb = mb.get(id), xl = ml.get(id), xr = mr.get(id);
+    const sb = xb === void 0 ? null : stable(xb), sl = xl === void 0 ? null : stable(xl), sr = xr === void 0 ? null : stable(xr);
+    let v;
+    if (sl === sb) v = xr;
+    else if (sr === sb || sl === sr) v = xl;
+    else if (xl === void 0) v = xr;
+    else if (xr === void 0) v = xl;
+    else if (!ATOMIC.has(key) && isObj(xl) && isObj(xr)) {
+      const sub = { conflicts: [], renamed: [] };
+      v = merge3(xb, xl, xr, at + "." + id, sub);
+      if (sub.conflicts.length) log.conflicts.push({ at, id, label: recLabel(xr), local: xl, remote: xr });
+    } else {
+      v = xr;
+      log.conflicts.push({ at, id, label: recLabel(xr), local: xl, remote: xr });
+    }
+    if (v !== void 0) out.push(v);
+  }
+  return out;
+}
+function renumber(books, localNew, log) {
+  for (const [key, grp] of Object.entries(NUMBERED)) {
+    const list = books[key];
+    if (!Array.isArray(list)) continue;
+    const isNew = (x) => localNew.has(key + ":" + recId(x));
+    const taken = new Set(list.filter((x) => !isNew(x) && x.number).map((x) => grp(x) + "|" + x.number));
+    list.forEach((x, i) => {
+      if (!isNew(x) || !x.number) return;
+      const k = grp(x) + "|" + x.number;
+      if (!taken.has(k)) {
+        taken.add(k);
+        return;
+      }
+      const m = /^(.*?)(\d+)$/.exec(x.number);
+      if (!m) return;
+      const prefix = m[1], width = m[2].length;
+      let max = 0;
+      list.forEach((y) => {
+        if (grp(y) === grp(x) && typeof y.number === "string" && y.number.startsWith(prefix)) {
+          const n = +y.number.slice(prefix.length);
+          if (Number.isFinite(n)) max = Math.max(max, n);
+        }
+      });
+      const to = prefix + String(max + 1).padStart(width, "0");
+      log.renamed.push({ key, kind: grp(x), from: x.number, to });
+      list[i] = { ...x, number: to };
+      taken.add(grp(x) + "|" + to);
+    });
+  }
+  for (const key of ["docs", "stockOps"]) {
+    const list = books[key];
+    if (!Array.isArray(list)) continue;
+    const isNew = (x) => localNew.has(key + ":" + recId(x));
+    const taken = new Set([...books.docs || [], ...books.stockOps || []].filter((x) => !isNew(x) && x.seq).map((x) => x.seq));
+    let top = Math.max(0, ...(books.docs || []).map((x) => x.seq || 0), ...(books.stockOps || []).map((x) => x.seq || 0));
+    list.forEach((x, i) => {
+      if (isNew(x) && x.seq && taken.has(x.seq)) {
+        list[i] = { ...x, seq: ++top };
+        taken.add(top);
+      }
+    });
+  }
+  if (!log.renamed.length) return;
+  for (const key of Object.keys(NUMBERED)) (books[key] || []).forEach((x, i, list) => {
+    if (!localNew.has(key + ":" + recId(x))) return;
+    let y = x;
+    for (const rn of log.renamed) {
+      for (const f of ["ref", "memo", "note"]) if (typeof y[f] === "string" && y[f].includes(rn.from)) y = { ...y, [f]: y[f].split(rn.from).join(rn.to) };
+      if (y.origin && y.origin.number === rn.from) y = { ...y, origin: { ...y.origin, number: rn.to } };
+    }
+    if (y !== x) list[i] = y;
+  });
+}
+function mergePayload(base, local, remote) {
+  const log = { conflicts: [], renamed: [] };
+  const payload = { ...merge3(base, local, remote, "", log) };
+  payload.books = { ...payload.books };
+  const localNew = /* @__PURE__ */ new Set();
+  for (const key of Object.keys(NUMBERED)) {
+    const ids = (l) => new Set((l || []).map(recId));
+    const bi = ids(base.books && base.books[key]), ri = ids(remote.books && remote.books[key]);
+    (local.books && local.books[key] || []).forEach((x) => {
+      const id = recId(x);
+      if (!bi.has(id) && !ri.has(id)) localNew.add(key + ":" + id);
+    });
+    if (Array.isArray(payload.books[key])) payload.books[key] = [...payload.books[key]];
+  }
+  renumber(payload.books, localNew, log);
+  return { payload, ...log };
+}
+function countChanges(base, local) {
+  if (!base) return 0;
+  let n = 0;
+  const bb = base.books || {}, lb = local.books || {};
+  for (const k of /* @__PURE__ */ new Set([...Object.keys(bb), ...Object.keys(lb)])) {
+    const a = bb[k], c = lb[k];
+    if (a === c) continue;
+    if (isRecList(a, c)) {
+      const m = new Map((a || []).map((x) => [recId(x), stable(x)])), seen = /* @__PURE__ */ new Set();
+      (c || []).forEach((x) => {
+        const id = recId(x);
+        seen.add(id);
+        if (m.get(id) !== stable(x)) n++;
+      });
+      m.forEach((_, id) => {
+        if (!seen.has(id)) n++;
+      });
+    } else if (stable(a) !== stable(c)) n++;
+  }
+  if (stable(base.company) !== stable(local.company)) n++;
+  return n;
+}
+const idbKV = /* @__PURE__ */ (() => {
+  let opening = null;
+  const open = () => opening || (opening = new Promise((res, rej) => {
+    if (typeof indexedDB === "undefined") return rej(new Error("IndexedDB is not available"));
+    const r = indexedDB.open("invoeez-sync", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("kv");
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  }));
+  const run = async (mode, fn) => {
+    const db = await open();
+    return new Promise((res, rej) => {
+      const t = db.transaction("kv", mode), req = fn(t.objectStore("kv"));
+      t.oncomplete = () => res(req && req.result);
+      t.onerror = () => rej(t.error);
+      t.onabort = () => rej(t.error);
+    });
+  };
+  return { get: (k) => run("readonly", (s) => s.get(k)), set: (k, v) => run("readwrite", (s) => s.put(v, k)), del: (k) => run("readwrite", (s) => s.delete(k)) };
+})();
+const readLS = (k, d) => {
+  try {
+    const v = window.localStorage.getItem(k);
+    return v ? JSON.parse(v) : d;
+  } catch (e) {
+    return d;
+  }
+};
+const writeLS = (k, v) => {
+  try {
+    window.localStorage.setItem(k, JSON.stringify(v));
+  } catch (e) {
+  }
+};
+const deviceName = () => {
+  const u = typeof navigator !== "undefined" && navigator.userAgent || "";
+  const b = /Edg\//.test(u) ? "Edge" : /Chrome\//.test(u) ? "Chrome" : /Firefox\//.test(u) ? "Firefox" : /Safari\//.test(u) ? "Safari" : "Browser";
+  const o = /Windows/.test(u) ? "Windows" : /Android/.test(u) ? "Android" : /iPhone|iPad/.test(u) ? "iOS" : /Mac OS/.test(u) ? "Mac" : /Linux/.test(u) ? "Linux" : "device";
+  return `${b} on ${o}`;
+};
+const readCloud = () => {
+  const c = readLS(CLOUD_KEY, {}) || {};
+  if (!c.device) {
+    c.device = "dev-" + Math.random().toString(36).slice(2, 10);
+    c.deviceName = deviceName();
+    writeLS(CLOUD_KEY, c);
+  }
+  return c;
+};
+const baseKey = (cfg) => "base:" + String(cfg.key || "").split(".")[0];
+const cleanUrl = (u) => String(u || "").trim().replace(/\/+$/, "");
+const ago = (iso) => {
+  if (!iso) return "never";
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1e3));
+  return s < 10 ? "just now" : s < 60 ? `${s} seconds ago` : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : dmy(new Date(iso).toISOString().slice(0, 10));
+};
+const hasBooks = (b) => !!b && (b.docs || []).length + (b.payments || []).length + (b.manual || []).length + (b.partners || []).length + (b.stockOps || []).length + (b.pdcs || []).length + (b.products || []).filter((p) => !/^EX-/.test(p.code || "")).length > 0;
+async function cloudCall(cfg, method, body, have) {
+  return fetch(cleanUrl(cfg.url) + "/api/books" + (have ? "?have=" + have : ""), {
+    method,
+    cache: "no-store",
+    headers: { Authorization: "Bearer " + cfg.key, ...body ? { "Content-Type": "application/json" } : {} },
+    body: body ? JSON.stringify(body) : void 0
+  });
+}
+class SyncProblem extends Error {
+}
+const problem = async (res) => {
+  let m = "";
+  try {
+    m = (await res.json()).error;
+  } catch (e) {
+  }
+  return new SyncProblem(res.status === 401 ? "The access key was not accepted. Check it in Settings \u203A Cloud sync." : m || `The server answered ${res.status}.`);
+};
+function useCloudSync({ state, setState, company, setCompany, toast, user }) {
+  const [cfg, setCfgRaw] = useState(readCloud);
+  const [status, setStatus] = useState({ phase: "idle", pending: 0, last: readLS(CLOUD_KEY, {}).last || null, error: "" });
+  const [conflicts, setConflictsRaw] = useState(() => readLS(CONFLICT_KEY, []));
+  const [log, setLogRaw] = useState(() => readLS(CLOUD_LOG_KEY, []));
+  const ref = React.useRef({});
+  ref.current = { state, company, cfg, user, setState, setCompany, toast, status };
+  const busy = React.useRef(false), again = React.useRef(false), retryT = React.useRef(0), backoff = React.useRef(0), baseMem = React.useRef(null);
+  const on = !!(cfg.enabled && cfg.url && cfg.key) && !state.sample;
+  const setCfg = (c) => {
+    writeLS(CLOUD_KEY, c);
+    setCfgRaw(c);
+  };
+  const setConflicts = (f) => setConflictsRaw((c) => {
+    const n = (typeof f === "function" ? f(c) : f).slice(-50);
+    writeLS(CONFLICT_KEY, n);
+    return n;
+  });
+  const addLog = (items) => setLogRaw((l) => {
+    const n = [...items.map((x) => ({ ...x, at: (/* @__PURE__ */ new Date()).toISOString() })), ...l].slice(0, 30);
+    writeLS(CLOUD_LOG_KEY, n);
+    return n;
+  });
+  const online = () => typeof navigator === "undefined" || navigator.onLine !== false;
+  const live = () => readLS(CLOUD_KEY, {}).enabled === true;
+  const who = () => ({ user: ref.current.user && ref.current.user.name || "", device: `${ref.current.cfg.deviceName || "Device"} \xB7 ${ref.current.cfg.device}` });
+  const recount = async () => {
+    const c = ref.current.cfg;
+    if (!c.key) return;
+    try {
+      if (!baseMem.current || baseMem.current.k !== baseKey(c)) {
+        const b2 = await idbKV.get(baseKey(c));
+        baseMem.current = { k: baseKey(c), v: b2 };
+      }
+      const b = baseMem.current.v;
+      const n = b ? countChanges(b.payload, { books: ref.current.state, company: ref.current.company }) : 0;
+      setStatus((s) => s.pending === n ? s : { ...s, pending: n });
+    } catch (e) {
+    }
+  };
+  const saveBase = async (c, version, payload) => {
+    const v = { version, payload, at: (/* @__PURE__ */ new Date()).toISOString() };
+    await idbKV.set(baseKey(c), v);
+    baseMem.current = { k: baseKey(c), v };
+  };
+  const apply = (payload, start, force) => {
+    if (!force && !live()) return;
+    const R = ref.current, cur = { books: R.state, company: R.company };
+    let next = payload;
+    if (start && (cur.books !== start.books || cur.company !== start.company)) next = merge3(start, cur, payload, "", { conflicts: [], renamed: [] });
+    if (stable(next.books) !== stable(cur.books)) R.setState(next.books);
+    if (next.company && stable(next.company) !== stable(cur.company)) R.setCompany({ ...COMPANY, ...next.company });
+  };
+  const schedule = (ms) => {
+    clearTimeout(retryT.current);
+    retryT.current = setTimeout(() => run("retry"), ms);
+  };
+  const body = async () => {
+    const c = ref.current.cfg;
+    for (let round = 0; round < 5; round++) {
+      if (!live()) return "off";
+      const baseRec = await idbKV.get(baseKey(c));
+      const start = { books: ref.current.state, company: ref.current.company };
+      const res = await cloudCall(c, "GET", null, baseRec && baseRec.version);
+      if (!res.ok && res.status !== 204) throw await problem(res);
+      const remote = res.status === 204 ? null : await res.json();
+      if (remote && remote.company && (!c.company || c.company.name !== remote.company.name) && live()) setCfg({ ...readCloud(), company: remote.company });
+      if (!remote) {
+        const put2 = await cloudCall(c, "PUT", { baseVersion: 0, payload: start, ...who() });
+        if (put2.status === 409) continue;
+        if (!put2.ok) throw await problem(put2);
+        await saveBase(c, (await put2.json()).version, start);
+        return "uploaded";
+      }
+      if (!baseRec) {
+        setStatus((s) => ({ ...s, phase: "choose" }));
+        return "choose";
+      }
+      const lChanged = stable(start) !== stable(baseRec.payload), rChanged = remote.version !== baseRec.version;
+      if (!lChanged && !rChanged) return "same";
+      if (!lChanged) {
+        apply(remote.payload, start);
+        await saveBase(c, remote.version, remote.payload);
+        return "downloaded";
+      }
+      const m = rChanged ? mergePayload(baseRec.payload, start, remote.payload) : { payload: start, conflicts: [], renamed: [] };
+      if (!live()) return "off";
+      const put = await cloudCall(c, "PUT", { baseVersion: remote.version, payload: m.payload, ...who() });
+      if (put.status === 409) continue;
+      if (!put.ok) throw await problem(put);
+      await saveBase(c, (await put.json()).version, m.payload);
+      if (rChanged) apply(m.payload, start);
+      if (m.conflicts.length) setConflicts((x) => [...x, ...m.conflicts.filter((k) => k.id).map((k) => ({ ...k, key: k.at + ":" + k.id, when: (/* @__PURE__ */ new Date()).toISOString() }))]);
+      if (m.renamed.length) {
+        addLog(m.renamed.map((r) => ({ type: "renumber", text: `${r.from} was renumbered ${r.to} \u2014 a colleague used that number while this device was offline.` })));
+        ref.current.toast(`${m.renamed.length === 1 ? m.renamed[0].from + " is now " + m.renamed[0].to : m.renamed.length + " documents renumbered"} \u2014 a colleague used the number while you were offline`, "warn");
+      }
+      if (m.conflicts.length) ref.current.toast(`${m.conflicts.length} change${m.conflicts.length === 1 ? "" : "s"} also edited by a colleague \u2014 the cloud version was kept. See Cloud sync.`, "warn");
+      return rChanged ? "merged" : "uploaded";
+    }
+    throw new SyncProblem("The cloud kept changing while syncing. It will try again shortly.");
+  };
+  const run = async (why) => {
+    const c = ref.current.cfg;
+    if (!(c.enabled && c.url && c.key) || ref.current.state.sample || !live()) return;
+    if (busy.current) {
+      again.current = true;
+      return;
+    }
+    if (!online()) {
+      setStatus((s) => ({ ...s, phase: "offline" }));
+      recount();
+      return;
+    }
+    const st = ref.current.status, quiet = ["poll", "focus", "start", "change", "retry"].includes(why) && !st.pending && st.phase === "synced";
+    busy.current = true;
+    if (!quiet) setStatus((s) => ({ ...s, phase: "syncing", error: "" }));
+    const exec = async () => {
+      try {
+        const r = await body();
+        if (r === "off") {
+          setStatus((s) => ({ ...s, phase: "idle" }));
+          return;
+        }
+        if (r !== "choose") {
+          backoff.current = 0;
+          const last = (/* @__PURE__ */ new Date()).toISOString();
+          writeLS(CLOUD_KEY, { ...readLS(CLOUD_KEY, {}), last });
+          setStatus((s) => ({ ...s, phase: "synced", last, error: "" }));
+        }
+      } catch (e) {
+        const off = !online() || e instanceof TypeError;
+        setStatus((s) => ({ ...s, phase: off ? "offline" : "error", error: off ? "" : e.message || "Sync failed." }));
+        backoff.current = Math.min(6e4, (backoff.current || 2500) * 2);
+        schedule(backoff.current);
+      }
+    };
+    try {
+      if (typeof navigator !== "undefined" && navigator.locks && navigator.locks.request) await navigator.locks.request("invoeez-cloud-sync", exec);
+      else await exec();
+    } finally {
+      busy.current = false;
+      recount();
+      if (again.current) {
+        again.current = false;
+        schedule(400);
+      }
+    }
+  };
+  React.useEffect(() => {
+    const h = (e) => {
+      if (e.key === CLOUD_KEY) setCfgRaw(readCloud());
+      else if (e.key === CONFLICT_KEY) setConflictsRaw(readLS(CONFLICT_KEY, []));
+    };
+    window.addEventListener("storage", h);
+    return () => window.removeEventListener("storage", h);
+  }, []);
+  React.useEffect(() => {
+    if (!on) return;
+    recount();
+    const t = setTimeout(() => run("change"), 1500);
+    return () => clearTimeout(t);
+  }, [state, company, on]);
+  React.useEffect(() => {
+    if (!on) {
+      setStatus((s) => ({ ...s, phase: "idle" }));
+      return;
+    }
+    const iv = setInterval(() => run("poll"), 2e4);
+    const up = () => {
+      ref.current.toast("Back online \u2014 uploading your changes");
+      run("online");
+    };
+    const down = () => {
+      setStatus((s) => ({ ...s, phase: "offline" }));
+      ref.current.toast("You are offline. Keep working \u2014 your changes are saved here and upload when the connection returns.", "warn");
+    };
+    const vis = () => {
+      if (document.visibilityState === "visible") run("focus");
+    };
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    document.addEventListener("visibilitychange", vis);
+    run("start");
+    return () => {
+      clearInterval(iv);
+      clearTimeout(retryT.current);
+      window.removeEventListener("online", up);
+      window.removeEventListener("offline", down);
+      document.removeEventListener("visibilitychange", vis);
+    };
+  }, [on, cfg.url, cfg.key]);
+  const check = async (url, key) => {
+    url = cleanUrl(url);
+    key = String(key || "").trim();
+    if (!/^https?:\/\/[^\s]+$/.test(url)) return { error: "Enter the server address, starting with https://" };
+    if (!/^[a-f0-9]{12}\.[A-Za-z0-9_-]{20,}$/.test(key)) return { error: "That access key does not look right \u2014 copy it exactly as you were given it." };
+    let res;
+    try {
+      res = await cloudCall({ url, key }, "GET");
+    } catch (e) {
+      return { error: online() ? "Could not reach the server. Check the address." : "You are offline. Connect to the internet to link this device." };
+    }
+    if (!res.ok && res.status !== 204) return { error: (await problem(res)).message };
+    const remote = res.status === 204 ? null : await res.json();
+    return { url, key, remote, localHas: hasBooks(state), remoteHas: !!remote && hasBooks(remote.payload && remote.payload.books) };
+  };
+  const connect = async (ck, mode) => {
+    const next = { ...readCloud(), url: ck.url, key: ck.key, enabled: true, company: ck.remote && ck.remote.company ? ck.remote.company : { id: ck.key.split(".")[0], name: company.name } };
+    if (mode === "download") {
+      apply(ck.remote.payload, null, true);
+      await saveBase(next, ck.remote.version, ck.remote.payload);
+    } else {
+      const payload = { books: state, company };
+      const put = await cloudCall(next, "PUT", { baseVersion: ck.remote ? ck.remote.version : 0, payload, ...who() });
+      if (!put.ok) return { error: (await problem(put)).message };
+      await saveBase(next, (await put.json()).version, payload);
+    }
+    setCfg(next);
+    setStatus((s) => ({ ...s, phase: "synced", last: (/* @__PURE__ */ new Date()).toISOString(), pending: 0 }));
+    toast(mode === "download" ? "Connected \u2014 the cloud books are now on this device" : "Connected \u2014 your books are in the cloud");
+    return { ok: true };
+  };
+  const disconnect = (why) => {
+    const c = { ...readCloud(), enabled: false };
+    setCfg(c);
+    setStatus((s) => ({ ...s, phase: "idle" }));
+    if (why) toast(why, "warn");
+  };
+  const useMine = (k) => {
+    const [root, coll] = k.at.split(".");
+    if (root === "books" && coll && k.id) setState((s) => {
+      const list = s[coll] || [], i = list.findIndex((x) => recId(x) === k.id);
+      return { ...s, [coll]: i >= 0 ? list.map((x, j) => j === i ? k.local : x) : [...list, k.local] };
+    });
+    setConflicts((x) => x.filter((y) => y.key !== k.key));
+    toast(`Your version of ${k.label || "the record"} is back \u2014 it uploads now`);
+  };
+  const dismiss = (k) => setConflicts((x) => x.filter((y) => y.key !== k.key));
+  return { cfg, on, status, conflicts, log, check, connect, disconnect, syncNow: () => run("manual"), useMine, dismiss, recount };
+}
+function usePwa() {
+  const [prompt, setPrompt] = useState(null);
+  React.useEffect(() => {
+    if (typeof location === "undefined" || !/^https?:$/.test(location.protocol)) return;
+    fetch("manifest.webmanifest", { method: "HEAD", cache: "no-store" }).then((r) => {
+      if (!r.ok) return;
+      if (!document.querySelector('link[rel="manifest"]')) {
+        const l = document.createElement("link");
+        l.rel = "manifest";
+        l.href = "manifest.webmanifest";
+        document.head.appendChild(l);
+      }
+      if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {
+      });
+    }).catch(() => {
+    });
+    const bip = (e) => {
+      e.preventDefault();
+      setPrompt(e);
+    }, done = () => setPrompt(null);
+    window.addEventListener("beforeinstallprompt", bip);
+    window.addEventListener("appinstalled", done);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", bip);
+      window.removeEventListener("appinstalled", done);
+    };
+  }, []);
+  return { canInstall: !!prompt, install: async () => {
+    if (!prompt) return;
+    prompt.prompt();
+    try {
+      await prompt.userChoice;
+    } catch (e) {
+    }
+    setPrompt(null);
+  } };
+}
+const syncLook = (sync) => {
+  const { phase, pending, last } = sync.status;
+  if (phase === "offline") return { I: CloudOff, tone: "warn", label: pending ? `Offline \xB7 ${pending} waiting` : "Offline", line: pending ? `${pending} change${pending === 1 ? "" : "s"} saved on this device, waiting to upload` : "Working offline \u2014 nothing waiting to upload" };
+  if (phase === "syncing") return { I: RefreshCw, tone: "info", label: "Syncing\u2026", line: "Uploading and checking for colleagues' changes", spin: true };
+  if (phase === "error") return { I: AlertTriangle, tone: "bad", label: "Sync problem", line: sync.status.error };
+  if (phase === "choose") return { I: AlertTriangle, tone: "warn", label: "Action needed", line: "Choose which books to keep in Settings \u203A Cloud sync" };
+  if (pending) return { I: CloudUpload, tone: "info", label: `${pending} to upload`, line: `${pending} change${pending === 1 ? "" : "s"} waiting to upload` };
+  return { I: Cloud, tone: "ok", label: "Synced", line: `Everything is in the cloud \xB7 ${ago(last)}` };
+};
+function SyncChip({ sync, go }) {
+  const [open, setOpen] = useState(false);
+  if (!sync.on) return null;
+  const L = syncLook(sync);
+  return /* @__PURE__ */ React.createElement("div", { className: "nt-wrap" }, /* @__PURE__ */ React.createElement("button", { className: cx("sync-chip", L.tone, open && "on"), onClick: () => setOpen((v) => !v), "aria-haspopup": "dialog", "aria-expanded": open, title: L.line }, /* @__PURE__ */ React.createElement(L.I, { size: 15, strokeWidth: 2, className: L.spin ? "spin" : "" }), /* @__PURE__ */ React.createElement("span", null, L.label), sync.conflicts.length > 0 && /* @__PURE__ */ React.createElement("i", { className: "sc-dot" }, sync.conflicts.length)), open && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pop-scrim", onMouseDown: () => setOpen(false) }), /* @__PURE__ */ React.createElement("div", { className: "notif-pop sync-pop", role: "dialog", "aria-label": "Cloud sync" }, /* @__PURE__ */ React.createElement("header", null, /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, "Cloud sync"), /* @__PURE__ */ React.createElement("small", null, sync.cfg.company ? sync.cfg.company.name : "")), /* @__PURE__ */ React.createElement("button", { className: "icon-btn", "aria-label": "Close", onClick: () => setOpen(false) }, /* @__PURE__ */ React.createElement(X, { size: 15 }))), /* @__PURE__ */ React.createElement("div", { className: cx("sp-state", L.tone) }, /* @__PURE__ */ React.createElement("span", { className: "sp-ic" }, /* @__PURE__ */ React.createElement(L.I, { size: 18, className: L.spin ? "spin" : "" })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("b", null, L.label), /* @__PURE__ */ React.createElement("small", null, L.line))), /* @__PURE__ */ React.createElement("dl", { className: "sp-facts" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("dt", null, "Last synced"), /* @__PURE__ */ React.createElement("dd", null, ago(sync.status.last))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("dt", null, "This device"), /* @__PURE__ */ React.createElement("dd", null, sync.cfg.deviceName)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("dt", null, "Server"), /* @__PURE__ */ React.createElement("dd", null, cleanUrl(sync.cfg.url).replace(/^https?:\/\//, "")))), sync.conflicts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "sp-warn" }, /* @__PURE__ */ React.createElement(AlertTriangle, { size: 14 }), sync.conflicts.length, " record", sync.conflicts.length === 1 ? "" : "s", " also changed by a colleague \u2014 review in Settings."), /* @__PURE__ */ React.createElement("footer", null, /* @__PURE__ */ React.createElement("button", { className: "linkish", onClick: () => {
+    setOpen(false);
+    go("settings", "__cloud__");
+  } }, "Cloud sync settings"), /* @__PURE__ */ React.createElement(Btn, { size: "sm", icon: RefreshCw, onClick: () => sync.syncNow(), disabled: sync.status.phase === "syncing" }, "Sync now")))));
+}
+function CloudSyncCard({ sync, pwa, state, toast, backup, startCompany }) {
+  const [url, setUrl] = useState(sync.cfg.url || "");
+  const [key, setKey] = useState("");
+  const [busy, setBusy] = useState(false), [err, setErr] = useState(""), [ck, setCk] = useState(null), [served, setServed] = useState(false);
+  React.useEffect(() => {
+    if (sync.cfg.url || typeof location === "undefined" || !/^https?:$/.test(location.protocol)) return;
+    fetch(location.origin + "/api/health", { cache: "no-store" }).then((r) => r.ok && r.json()).then((j) => {
+      if (j && j.service === "invoeez-sync") {
+        setUrl(location.origin);
+        setServed(true);
+      }
+    }).catch(() => {
+    });
+  }, []);
+  const tryConnect = async () => {
+    setBusy(true);
+    setErr("");
+    const r = await sync.check(url, key);
+    setBusy(false);
+    if (r.error) return setErr(r.error);
+    if (state.sample) return r.remoteHas ? finish(r, "download") : setErr("This company has no books in the cloud yet. Start your company on one device and connect it first; then connect the others.");
+    if (!r.remote) return finish(r, "upload");
+    if (!r.localHas) return finish(r, "download");
+    if (!r.remoteHas) return finish(r, "upload");
+    setCk(r);
+  };
+  const finish = async (r, mode) => {
+    setBusy(true);
+    setErr("");
+    const x = await sync.connect(r, mode);
+    setBusy(false);
+    if (x.error) setErr(x.error);
+    else {
+      setCk(null);
+      setKey("");
+    }
+  };
+  const L = syncLook(sync);
+  const docsOf = (b) => b && b.docs ? b.docs.length : 0;
+  return /* @__PURE__ */ React.createElement(Card, { title: "Cloud sync", sub: "Work offline on any device; changes upload to your company's cloud books when you are connected", pad: false, className: "cloud-card" }, /* @__PURE__ */ React.createElement("div", { className: "setsec", id: "cloud-sync" }, sync.on ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: cx("cc-status", L.tone) }, /* @__PURE__ */ React.createElement("span", { className: "sp-ic" }, /* @__PURE__ */ React.createElement(L.I, { size: 18, className: L.spin ? "spin" : "" })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("b", null, L.label), /* @__PURE__ */ React.createElement("small", null, L.line)), /* @__PURE__ */ React.createElement(Btn, { size: "sm", icon: RefreshCw, onClick: () => sync.syncNow(), disabled: sync.status.phase === "syncing" }, "Sync now")), /* @__PURE__ */ React.createElement("div", { className: "setrow" }, /* @__PURE__ */ React.createElement("div", { className: "st" }, /* @__PURE__ */ React.createElement("b", null, sync.cfg.company ? sync.cfg.company.name : "Company"), /* @__PURE__ */ React.createElement("span", null, cleanUrl(sync.cfg.url), " \xB7 this device: ", sync.cfg.deviceName, " \xB7 last synced ", ago(sync.status.last))), /* @__PURE__ */ React.createElement(Btn, { kind: "danger", onClick: () => sync.disconnect("Cloud sync is off on this device. Your books stay here.") }, "Disconnect")), sync.status.phase === "choose" && /* @__PURE__ */ React.createElement("div", { className: "cc-note warn" }, /* @__PURE__ */ React.createElement(AlertTriangle, { size: 16 }), /* @__PURE__ */ React.createElement("span", null, "This device has no record of the last sync. Disconnect and connect again to choose which books to keep.")), sync.conflicts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cc-conf" }, /* @__PURE__ */ React.createElement("b", null, "Changed on two devices at once"), /* @__PURE__ */ React.createElement("small", null, "The cloud version was kept. Use yours if it is the right one \u2014 it uploads straight away."), sync.conflicts.slice().reverse().map((k) => /* @__PURE__ */ React.createElement("div", { key: k.key, className: "cc-crow" }, /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, k.label || k.id), /* @__PURE__ */ React.createElement("small", null, (k.at || "").split(".").pop(), " \xB7 ", ago(k.when))), /* @__PURE__ */ React.createElement(Btn, { size: "sm", onClick: () => sync.useMine(k) }, "Use mine"), /* @__PURE__ */ React.createElement(Btn, { size: "sm", onClick: () => sync.dismiss(k) }, "Keep cloud")))), sync.log.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cc-log" }, /* @__PURE__ */ React.createElement("b", null, "Recent sync notes"), sync.log.slice(0, 5).map((x, i) => /* @__PURE__ */ React.createElement("div", { key: i }, /* @__PURE__ */ React.createElement(Info, { size: 13 }), x.text, /* @__PURE__ */ React.createElement("small", null, ago(x.at)))))) : ck ? /* @__PURE__ */ React.createElement("div", { className: "cc-choose" }, /* @__PURE__ */ React.createElement("b", null, "Both this device and the cloud already have books"), /* @__PURE__ */ React.createElement("small", null, "The cloud has ", /* @__PURE__ */ React.createElement("b", null, ck.remote.company ? ck.remote.company.name : "a company"), " with ", docsOf(ck.remote.payload.books), " documents (saved ", ago(ck.remote.updatedAt), ck.remote.updatedBy ? " by " + ck.remote.updatedBy : "", "). This device has ", docsOf(state), " documents. Choose which to keep \u2014 a backup of this device's books is downloaded first either way."), /* @__PURE__ */ React.createElement("div", { className: "cc-acts" }, /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Download, disabled: busy, onClick: () => {
+    backup();
+    finish(ck, "download");
+  } }, "Use the cloud books here"), /* @__PURE__ */ React.createElement(Btn, { kind: "danger", icon: CloudUpload, disabled: busy, onClick: () => {
+    backup();
+    finish(ck, "upload");
+  } }, "Replace the cloud with this device's"), /* @__PURE__ */ React.createElement(Btn, { disabled: busy, onClick: () => setCk(null) }, "Cancel")), err && /* @__PURE__ */ React.createElement("div", { className: "form-error" }, err)) : /* @__PURE__ */ React.createElement("div", { className: "cc-form" }, /* @__PURE__ */ React.createElement("p", { className: "cc-intro" }, "Your administrator creates the company on the InvoEez sync server and gives you its ", /* @__PURE__ */ React.createElement("b", null, "address"), " and an ", /* @__PURE__ */ React.createElement("b", null, "access key"), ". Everyone who uses the same key works on the same books; each device keeps working offline."), state.sample && /* @__PURE__ */ React.createElement("div", { className: "cc-note" }, /* @__PURE__ */ React.createElement(Info, { size: 16 }), /* @__PURE__ */ React.createElement("span", null, "This device shows the ", /* @__PURE__ */ React.createElement("b", null, "sample company"), ". Connecting brings your company's books from the cloud in its place. Setting up the company for the first time? ", /* @__PURE__ */ React.createElement("button", { className: "linkish", onClick: startCompany }, "Start my company"), " first, then connect it.")), served && /* @__PURE__ */ React.createElement("div", { className: "cc-note ok" }, /* @__PURE__ */ React.createElement(CircleCheck, { size: 16 }), /* @__PURE__ */ React.createElement("span", null, "This app is served by your InvoEez sync server \u2014 just paste the access key.")), /* @__PURE__ */ React.createElement("div", { className: "cc-fields" }, /* @__PURE__ */ React.createElement(Field, { label: "Server address" }, /* @__PURE__ */ React.createElement(Input, { value: url, placeholder: "https://sync.yourcompany.ae", onChange: (e) => setUrl(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Access key" }, /* @__PURE__ */ React.createElement(Input, { type: "password", autoComplete: "off", value: key, placeholder: "xxxxxxxxxxxx.xxxxxxxx\u2026", onChange: (e) => setKey(e.target.value), onKeyDown: (e) => {
+    if (e.key === "Enter") tryConnect();
+  } }))), err && /* @__PURE__ */ React.createElement("div", { className: "form-error" }, err), /* @__PURE__ */ React.createElement("div", { className: "cc-acts" }, /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Cloud, disabled: busy || !url || !key, onClick: tryConnect }, busy ? "Connecting\u2026" : "Connect"))), /* @__PURE__ */ React.createElement("div", { className: "setrow" }, /* @__PURE__ */ React.createElement("div", { className: "st" }, /* @__PURE__ */ React.createElement("b", null, "Install InvoEez"), /* @__PURE__ */ React.createElement("span", null, pwa.canInstall ? "Adds InvoEez to this computer or phone like an app, and opens it even with no internet." : typeof location !== "undefined" && /^https?:$/.test(location.protocol) ? "Opens without internet once loaded. To install, use the browser's menu \u203A Install app / Add to Home Screen." : "Open InvoEez from its web address to install it as an app.")), pwa.canInstall && /* @__PURE__ */ React.createElement(Btn, { icon: Download, onClick: pwa.install }, "Install app"))));
+}
+const SYNC_CSS = `
+.mz .sync-chip{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);position:relative;white-space:nowrap;transition:background .15s,border-color .15s}
+.mz .sync-chip.ok svg{color:var(--pos)}.mz .sync-chip.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 35%,var(--line));background:var(--warn-50)}
+.mz .sync-chip.bad{color:var(--neg);border-color:color-mix(in srgb,var(--neg) 35%,var(--line));background:var(--neg-50)}
+.mz .sync-chip.info svg{color:var(--info)}.mz .sync-chip.on,.mz .sync-chip:hover{border-color:var(--brand-100)}
+.sc-dot{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:9px;padding:0 4px;background:var(--neg);color:#fff;font-size:10px;font-style:normal;display:grid;place-items:center}
+.spin{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sync-pop{width:min(360px,calc(100vw - 24px))}
+.sp-state,.cc-status{display:flex;align-items:center;gap:12px;padding:12px 16px}
+.cc-status{margin:0 0 4px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line-2)}
+.cc-status>div{flex:1;min-width:0}
+.sp-state b,.cc-status b{display:block;font-size:13.5px;color:var(--ink)}
+.sp-state small,.cc-status small{display:block;font-size:12px;color:var(--ink-3);margin-top:2px;line-height:1.4}
+.sp-ic{width:36px;height:36px;flex:0 0 36px;border-radius:11px;display:grid;place-items:center;background:var(--pos-50);color:var(--pos)}
+.warn .sp-ic{background:var(--warn-50);color:var(--warn)}.bad .sp-ic{background:var(--neg-50);color:var(--neg)}.info .sp-ic{background:var(--info-50);color:var(--info)}
+.sp-facts{margin:0;padding:4px 16px 10px;display:grid;gap:6px}
+.sp-facts div{display:flex;justify-content:space-between;gap:12px;font-size:12px}
+.sp-facts dt{color:var(--ink-3)}.sp-facts dd{margin:0;color:var(--ink-2);font-weight:550;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sp-warn{display:flex;gap:8px;align-items:flex-start;margin:0 12px 10px;padding:9px 11px;border-radius:10px;background:var(--warn-50);color:var(--ink-2);font-size:12px}
+.sp-warn svg{color:var(--warn);flex:0 0 auto;margin-top:1px}
+.cc-form,.cc-choose{padding:0 0 6px}
+.cc-intro{font-size:12.5px;color:var(--ink-3);line-height:1.55;margin:0 0 12px}
+.cc-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cc-acts{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 8px}
+.cc-note{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:10px 12px;border-radius:10px;background:var(--info-50);color:var(--ink-2);font-size:12.5px;line-height:1.5}
+.cc-note svg{color:var(--info);flex:0 0 auto}.cc-note span{flex:1}
+.cc-note.ok{background:var(--pos-50)}.cc-note.ok svg{color:var(--pos)}.cc-note.warn{background:var(--warn-50)}.cc-note.warn svg{color:var(--warn)}
+.cc-choose>b{display:block;font-size:13.5px;color:var(--ink)}
+.cc-choose>small{display:block;font-size:12.5px;color:var(--ink-3);line-height:1.55;margin-top:4px}
+.cc-conf,.cc-log{margin:12px 0 4px;padding:12px 14px;border-radius:12px;border:1px solid var(--line-2)}
+.cc-conf{border-color:color-mix(in srgb,var(--warn) 30%,var(--line));background:color-mix(in srgb,var(--warn-50) 60%,var(--surface))}
+.cc-conf>b,.cc-log>b{display:block;font-size:13px;color:var(--ink)}
+.cc-conf>small{display:block;font-size:12px;color:var(--ink-3);margin:2px 0 8px}
+.cc-crow{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px dashed var(--line)}
+.cc-crow>span{flex:1;min-width:0}.cc-crow b{display:block;font-size:12.5px;color:var(--ink)}.cc-crow small{display:block;font-size:11px;color:var(--ink-4)}
+.cc-log>div{display:flex;align-items:flex-start;gap:7px;font-size:12px;color:var(--ink-2);padding:6px 0;border-top:1px dashed var(--line-2);line-height:1.45}
+.cloud-card .form-error{margin-top:4px}
+.cc-log>div svg{color:var(--info);flex:0 0 auto;margin-top:2px}.cc-log>div small{margin-left:auto;white-space:nowrap;color:var(--ink-4);padding-left:8px}
+@media(max-width:1250px){.mz .sync-chip span{display:none}.mz .sync-chip{padding:0;width:34px;justify-content:center}}
+@media(max-width:650px){.cc-fields{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
 `;
 
 window.__Invoeez=Invoeez;</script>

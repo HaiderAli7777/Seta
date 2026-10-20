@@ -1,9 +1,9 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{transformSync}=require('esbuild'),path=require('node:path');
 const root=path.join(__dirname,'..');
-const source=['invoeez-source.jsx','enhancements-data.jsx','company-template.jsx','enhancements-ui.jsx','dashboard.jsx','design.jsx','onboarding.jsx','brand-assets.jsx','brand.jsx','clarity.jsx','sidebar.jsx','select.jsx','features.jsx','pdc.jsx','reports.jsx','dash.jsx','compare.jsx','users.jsx','ifrs.jsx','pro.jsx','approval.jsx','ux.jsx','motion.jsx'].concat(['tests/sample-fixture.jsx']).map(f=>fs.readFileSync(path.join(root,f),'utf8')).join('\n');
+const source=['invoeez-source.jsx','enhancements-data.jsx','company-template.jsx','enhancements-ui.jsx','dashboard.jsx','design.jsx','onboarding.jsx','brand-assets.jsx','brand.jsx','clarity.jsx','sidebar.jsx','select.jsx','features.jsx','pdc.jsx','reports.jsx','dash.jsx','compare.jsx','users.jsx','ifrs.jsx','pro.jsx','approval.jsx','ux.jsx','motion.jsx','sync.jsx'].concat(['tests/sample-fixture.jsx']).map(f=>fs.readFileSync(path.join(root,f),'utf8')).join('\n');
 const icons=[...fs.readFileSync(path.join(root,'runtime-prefix.js'),'utf8').matchAll(/var ([A-Z]\w+) = __mk/g)].map(m=>m[1]);
 const ctx={console,Intl,Date,Math,Number,crypto:require('node:crypto').webcrypto,React:{createContext:v=>v},window:{},setTimeout};icons.forEach(n=>ctx[n]=()=>null);vm.createContext(ctx);
-vm.runInContext(transformSync(source,{loader:'jsx',target:'es2020'}).code+`\n globalThis.api={aging,buildSampleBooks,freshBooks,LEGACY_PARTNERS,LEGACY_PRODUCTS,TEMPLATE_ACCOUNTS,TEMPLATE_CATEGORIES,TEMPLATE_EXPENSE_ITEMS,DEMO,migrateBooks,deriveBooks,syncProducts,syncPartners,syncAccounts,syncMethods,pricingFor,productHistory,freezeAccounts,amounts,searchScore,cashMovement,validateStockOperation,PRODUCTS_SEED,DEFAULT_CATEGORIES,TODAY,learnPurchasePrices,nextProductCode,autoCodes,currentCost,PRODUCTS,syncProducts,pdcStatus,pdcEntries,partySpecial,stockMovement,inRange,cmpRange,cmpAsOf,cmpCoverage,mergeRows,chg,pnl,balanceSheet,plStatement,bsStatement,sectionOf,seedGroups,groupsOf,statementCols,generalLedger,settlementsOf,docStatus,poRights,awaitingMe,orList,ACC:()=>ACC};`,ctx);
+vm.runInContext(transformSync(source,{loader:'jsx',target:'es2020'}).code+`\n globalThis.api={stable,merge3,mergePayload,countChanges,aging,buildSampleBooks,freshBooks,LEGACY_PARTNERS,LEGACY_PRODUCTS,TEMPLATE_ACCOUNTS,TEMPLATE_CATEGORIES,TEMPLATE_EXPENSE_ITEMS,DEMO,migrateBooks,deriveBooks,syncProducts,syncPartners,syncAccounts,syncMethods,pricingFor,productHistory,freezeAccounts,amounts,searchScore,cashMovement,validateStockOperation,PRODUCTS_SEED,DEFAULT_CATEGORIES,TODAY,learnPurchasePrices,nextProductCode,autoCodes,currentCost,PRODUCTS,syncProducts,pdcStatus,pdcEntries,partySpecial,stockMovement,inRange,cmpRange,cmpAsOf,cmpCoverage,mergeRows,chg,pnl,balanceSheet,plStatement,bsStatement,sectionOf,seedGroups,groupsOf,statementCols,generalLedger,settlementsOf,docStatus,poRights,awaitingMe,orList,ACC:()=>ACC};`,ctx);
 const a=ctx.api;const clean=a.migrateBooks(a.DEMO());assert.equal(clean.docs.length+clean.payments.length+clean.manual.length+clean.stockOps.length,0);assert(!clean.sample&&clean.partners.length===0&&clean.accounts.length>=30&&clean.categories.length>=20);assert.equal(clean.users.length,1);
 let s=a.migrateBooks(a.buildSampleBooks(a.TODAY));a.syncAccounts(s.accounts);a.syncProducts(s.products,s.categories);a.syncPartners(s.partners);a.syncMethods(s.methods);
 const base=a.deriveBooks(s);assert(base.balanced);for(const e of base.entries)assert(Math.abs(e.lines.reduce((n,l)=>n+l.debit-l.credit,0))<.011,e.number);
@@ -201,4 +201,38 @@ assert.equal(a.pricingFor({...s,docs:[]},{...pr,price:0},1,a.TODAY,'','sale',cus
  assert.equal(a.orList(['A','B','C']),'A, B or C');assert.equal(a.orList(['A','B']),'A or B');
  const st={docs:[{...po,state:'pending',requestedBy:'b'},{...po,id:'po3',state:'approved'}],users:U};
  assert.equal(a.awaitingMe(st,U[2]).length,1);assert.equal(a.awaitingMe(st,U[1]).length,0);assert.equal(a.awaitingMe(st,U[3]).length,0);}
-console.log('PASS: purchase-order approval rules and off-ledger orders, document payments and balance due, IFRS 18 statements, account groups and drill-down, report comparison periods and comparative statements, dashboard fast/slow movers, post-dated cheques (received, cleared, bounced with charges, issued), party specials, last price, empty price, product codes, first-purchase cost, last purchase price, clean new company, document-specific settlement, sample fixture, legacy master-data migration, start-fresh template, ledger balance, historical account preservation, inherited accounts, pricing tiers, date validity, manual discounts, retired-rule migration, cash movement, stock counts, scrap, costing methods, validation, search and history.');
+// Offline sync: three-way merge, renumbering and the waiting-to-upload count.
+{const doc=(id,number,x)=>({id,type:'invoice',number,partner:'p1',date:'2026-10-01',state:'posted',seq:x||1,lines:[{id:'l'+id,product:'g1',qty:1,price:100,disc:0,tax:'s5'}]});
+ const book=(o)=>({docs:[],payments:[],manual:[],partners:[],products:[],stockOps:[],accounts:[{code:'1200',name:'Receivables'}],...o});
+ const base={books:book({docs:[doc('a','INV/2026/0001',1),doc('b','INV/2026/0002',2)],partners:[{id:'p1',name:'Acme',phone:'1',email:'a@x'}],payments:[{id:'r1',kind:'in',number:'RCPT/2026/0001',amount:10}]}),company:{name:'Co',trn:'1'}};
+ const clone=(x)=>JSON.parse(JSON.stringify(x));
+ const local=clone(base),remote=clone(base);
+ local.books.partners[0].phone='2';remote.books.partners[0].email='b@x';               // master data: different fields
+ local.books.docs.push(doc('c','INV/2026/0003',3));remote.books.docs.push(doc('d','INV/2026/0003',3));  // same number on both sides
+ local.books.payments.push({id:'r2',kind:'in',number:'RCPT/2026/0002',amount:5,memo:'For INV/2026/0003'});
+ remote.books.docs=remote.books.docs.filter(d=>d.id!=='a');                             // deleted there, untouched here
+ local.books.docs.find(d=>d.id==='b').lines[0].price=150;remote.books.docs.find(d=>d.id==='b').lines[0].price=175;  // a document edited on both
+ remote.company.trn='2';
+ const m=a.mergePayload(base,local,remote),B=m.payload.books;
+ assert.equal(a.stable(B.partners[0]),a.stable({id:'p1',name:'Acme',phone:'2',email:'b@x'}),'master data merges field by field');
+ assert(!B.docs.some(d=>d.id==='a'),'a deletion made in the cloud reaches this device');
+ assert.equal(B.docs.find(d=>d.id==='b').lines[0].price,175,'a document changed on both sides keeps the cloud version');
+ assert.equal(m.conflicts.length,1);assert.equal(m.conflicts[0].id,'i:b');assert.equal(m.conflicts[0].local.lines[0].price,150,'this device\'s version is kept for review');
+ assert.equal(B.docs.find(d=>d.id==='d').number,'INV/2026/0003','the colleague keeps the number');
+ assert.equal(B.docs.find(d=>d.id==='c').number,'INV/2026/0004','the offline document takes the next free number');
+ assert.equal(B.docs.find(d=>d.id==='c').seq,4,'the offline posting goes after the colleague\'s');
+ assert.equal(B.payments.find(p=>p.id==='r2').memo,'For INV/2026/0004','references to a renumbered document follow it');
+ assert.equal(a.stable(m.renamed),a.stable([{key:'docs',kind:'invoice',from:'INV/2026/0003',to:'INV/2026/0004'}]));
+ assert.equal(m.payload.company.trn,'2');assert.equal(B.accounts.length,1);
+ // deletion here, untouched there; an edit beats a deletion
+ const l2=clone(base),r2=clone(base);l2.books.payments=[];r2.books.docs[0].lines[0].qty=3;l2.books.docs=l2.books.docs.filter(d=>d.id!=='a');
+ const m2=a.mergePayload(base,l2,r2);assert.equal(m2.payload.books.payments.length,0,'a deletion made here reaches the cloud');
+ assert.equal(m2.payload.books.docs.find(d=>d.id==='a').lines[0].qty,3,'a document edited elsewhere survives a deletion here');
+ // nothing changed: the cloud copy comes back untouched; the same change on both sides is not a conflict
+ const same=a.mergePayload(base,clone(base),remote);assert.equal(a.stable(same.payload),a.stable(remote));assert.equal(same.conflicts.length,0);
+ const both=clone(base);both.books.partners[0].name='Acme LLC';const m3=a.mergePayload(base,both,clone(both));assert.equal(m3.conflicts.length+m3.renamed.length,0);
+ // key order does not matter (PostgreSQL stores JSON with its own key order)
+ assert.equal(a.stable({b:1,a:{d:2,c:3}}),a.stable({a:{c:3,d:2},b:1}));
+ assert.equal(a.countChanges(base,base),0);assert.equal(a.countChanges(base,local),4,'a partner, two documents and a receipt');assert.equal(a.countChanges(base,{...local,company:{name:'Co',trn:'9'}}),5,'plus the company profile');
+ assert.equal(a.countChanges(base,{books:{...base.books,docs:base.books.docs.slice(1)},company:base.company}),1,'a deletion counts');}
+console.log('PASS: offline sync merge (field-level master data, cloud-wins documents with conflicts kept, deletions, renumbering), purchase-order approval rules and off-ledger orders, document payments and balance due, IFRS 18 statements, account groups and drill-down, report comparison periods and comparative statements, dashboard fast/slow movers, post-dated cheques (received, cleared, bounced with charges, issued), party specials, last price, empty price, product codes, first-purchase cost, last purchase price, clean new company, document-specific settlement, sample fixture, legacy master-data migration, start-fresh template, ledger balance, historical account preservation, inherited accounts, pricing tiers, date validity, manual discounts, retired-rule migration, cash movement, stock counts, scrap, costing methods, validation, search and history.');

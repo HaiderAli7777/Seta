@@ -1,0 +1,16 @@
+{
+  "name": "invoeez-sync-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Keeps InvoEez books in the cloud: versioned per company, merge-friendly, with full version history. PostgreSQL or JSON files.",
+  "type": "module",
+  "main": "index.mjs",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node index.mjs",
+    "create-company": "node index.mjs create-company"
+  },
+  "dependencies": {
+    "pg": "^8.13.0"
+  }
+}

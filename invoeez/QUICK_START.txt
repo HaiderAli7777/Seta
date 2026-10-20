@@ -24,6 +24,15 @@ KEEP YOUR DATA SAFE
   Back up regularly and keep the file somewhere safe.
 - Always open the same file at the same address/folder in the same browser.
 
+WORK OFFLINE, SHARE THROUGH THE CLOUD (3.15)
+- InvoEez saves every change on this device first, so it keeps working with
+  no internet.
+- To share one set of books between people and devices, run the InvoEez sync
+  server (server/README.md). Then on each device open its address, go to
+  Settings > Cloud sync, paste the access key and click Connect.
+- Changes upload as soon as there is a connection. The top bar shows Synced,
+  Offline · N waiting, or Syncing.
+
 UPGRADING FROM 3.2
 - Open the new file at the same address/folder in the same browser: your books
   load automatically with every customer, vendor and product kept.

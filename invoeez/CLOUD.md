@@ -1,15 +1,19 @@
 # InvoEez in the cloud — hosting and database
 
-## Where things stand today
+## Where things stand today (3.15)
 
-InvoEez is one self-contained web page (`dist/index.html`, the same as `invoeez.html`). All of a company's books live in the **browser's own storage** on the computer that opened it. That means:
+InvoEez is **offline first**. Each device saves the company's books in its own browser storage the moment a change is made, so it keeps working with no internet. Since 3.15 there is also **cloud sync**:
 
-- It works offline and needs no server.
-- Each browser, Chrome profile or computer has its **own separate books**. Two people on two laptops do not see each other's invoices.
-- Clearing the browser's data deletes the books, so **Settings › Back up** matters.
-- Users, roles, PINs and approvals are enforced by the screen, not by a server, so they keep honest colleagues in their lane but are not security against someone with access to the computer.
+- **The InvoEez sync server** (`server/`, see `server/README.md`) keeps one shared set of books per company in **PostgreSQL**, with every saved version kept.
+- **Settings › Cloud sync** connects a device with the server address and the company's access key. Changes upload whenever there is a connection, and colleagues' changes come in. Work done offline uploads as soon as the connection returns and is merged record by record, so nothing is overwritten.
+- **Opened from its web address**, the app keeps an offline copy of itself and can be installed like a desktop or phone app.
 
-There are two steps to "the cloud". Step A puts the app online with no code changes. Step B adds a real database so a whole team shares one set of books.
+What is still on the device and not on the server:
+
+- **Users, roles, PINs and purchase approvals** are enforced by the app. They keep honest colleagues in their lane, but they are not a server security boundary. Anyone holding the company's access key can read and change its books.
+- **The company profile and preferences** sync with the books. Theme and layout stay per device.
+
+The rest of this guide covers hosting the app (Step A) and the sync server with its database (Step B).
 
 ---
 
@@ -24,21 +28,26 @@ Any static web host will serve the file over HTTPS on your own address (for exam
 | **GitHub Pages** | Copy `index.html` into a `docs/` folder at the top of the repository, then Repository › Settings › Pages → *Deploy from a branch* → that branch, folder `/docs`. | Free for public repositories (private repositories need a paid plan) |
 | **Azure Static Web Apps** | Create a Static Web App and deploy the folder with `index.html` (from GitHub or the Azure CLI). | Free tier |
 
-**What you get:** a link anyone can open from any device, always the latest version, HTTPS.
-**What you do not get yet:** shared data. Every person who opens the link still has their own books in their own browser. Step A suits a single user, demos and trials.
+**What you get:** a link anyone can open from any device, always the latest version, HTTPS. The page installs an offline copy of itself, provided `sw.js`, `manifest.webmanifest` and `icons/` from `dist/` are uploaded alongside `index.html`.
+**What you do not get without Step B:** shared data. Every browser keeps its own books. To share them, add the sync server (Step B), or let the sync server host the app itself, which also removes the need for Step A.
 
 ---
 
-## Step B — the cloud version with a database
+## Step B — the sync server and its database
 
 ### What the database adds
 
-- One set of books per company, shared by everyone in it, from any device.
-- Real sign-in (email and password or Microsoft/Google, with two-factor), replacing the on-device PIN.
+**Available now (3.15):**
+
+- One set of books per company, shared by everyone in it, from any device, and still usable offline.
+- Two people can work at the same time. Changes reach the others within about 20 seconds, and offline work merges when the device reconnects.
+- Every saved version is kept, with who saved it, from which device and when. Managed PostgreSQL adds daily backups and point-in-time restore, and the JSON export you have today still works.
+
+**Next (Phases 2–3 below):**
+
+- Real sign-in (email and password or Microsoft/Google, with two-factor), replacing the shared company key and the on-device PIN.
 - Roles, purchase approvals and posting rules **enforced on the server**, so they cannot be bypassed.
-- Two people can work at the same time; changes appear for others within seconds.
-- Automatic daily backups and point-in-time restore, plus the JSON export you have today.
-- An audit trail: who created, posted, approved, changed or deleted what, and when.
+- A record-level audit trail: who created, posted, approved, changed or deleted what, and when.
 - The server-side connection needed for UAE e-invoicing (sending invoices through an accredited service provider) and, later, bank feeds.
 
 ### Recommended database: PostgreSQL
@@ -72,13 +81,18 @@ PostgreSQL (one schema, every row tagged with its company)
         └── e-invoicing provider, bank feeds (later)
 ```
 
-The app already keeps the whole company's books in one data object and already syncs open tabs, so the move can be done in phases without redesigning the screens.
+The diagram shows the end state. Phase 1 is in place: the app already kept the whole company's books in one data object, and the sync server stores that object, versioned, in PostgreSQL. The later phases change no screens.
 
-**Phase 1 — shared books (fastest, a few days of work)**
-- Sign-in with email and password (two-factor optional), one company per account, invite colleagues with a role and the purchase-approver flag.
-- The company's books are stored in the database as one versioned record; every save checks the version, so two people cannot silently overwrite each other ("Updated by Aisha a moment ago — reload").
-- Live updates push changes to everyone who has the company open.
-- A one-click import of your current browser books (the backup file) into the cloud company.
+**Phase 1 — shared books, offline first (done in 3.15)**
+- The company's books are stored in PostgreSQL as one versioned record. Every save checks the version, so two people cannot silently overwrite each other.
+- Every version is kept with who, which device and when.
+- Devices work offline and merge record by record when they reconnect:
+  - customers, vendors and products merge field by field;
+  - a document changed on two devices keeps the cloud version and offers "Use mine";
+  - offline numbers that clash are renumbered.
+- Colleagues' changes arrive within about 20 seconds, and at once on Sync now or when the window is reopened.
+- Connecting a device that already has books lets you choose which set to keep. The first device uploads its books, which is the import.
+- **Still to do in this phase:** personal sign-in on the server (email and password or Microsoft/Google, two-factor) in place of the shared company key, and live push instead of the 20-second check.
 
 **Phase 2 — full database (for growth and audit)**
 - Split the record into proper tables: `companies`, `members`, `accounts`, `account_groups`, `partners`, `products`, `categories`, `price_lists`, `documents` and `document_lines`, `payments`, `pdcs`, `journal_entries` and `journal_lines`, `stock_operations`, `fixed_assets`, `audit_log`.
@@ -92,9 +106,12 @@ The app already keeps the whole company's books in one data object and already s
 
 HTTPS only · passwords never stored in the browser · two-factor sign-in · row-level security so a company sees only its own rows · roles and approvals checked on the server · encrypted at rest · daily backups with tested restores · audit log kept for at least five years · least-privilege keys kept on the server, never in the page.
 
-### What is needed to start Phase 1
+### What is needed to go live with the sync server
 
-1. Choose the provider (Supabase for speed, or Azure/AWS if you need a UAE region).
-2. Create the account in your company's name (the owner should hold the billing and admin rights) and invite the developer.
-3. Choose the web address (for example `app.yourcompany.ae`).
-4. Decide the sign-in method (email and password, and/or Microsoft or Google).
+1. Choose where it runs and where the data lives: Azure UAE North or AWS Middle East (UAE) if your records must stay in the UAE. Render, Railway, a VPS or Docker work too.
+2. Create a PostgreSQL database and set `DATABASE_URL` (and `PGSSL=require` for managed databases).
+3. Run the server (Docker image or `npm start`) behind HTTPS on your address, for example `books.yourcompany.ae`.
+4. `npm run create-company "Your company"` and keep the access key safe.
+5. On the device that has the real books, open the address, then go to Settings › Cloud sync and Connect, which uploads them. Then connect the other devices.
+
+Step-by-step commands are in `server/README.md`.
