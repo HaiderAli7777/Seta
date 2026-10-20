@@ -38,7 +38,16 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
   const leave = () => { clearTimeout(peekT.current); peekT.current = setTimeout(() => setPeek(false), 240); };
   React.useEffect(() => () => clearTimeout(peekT.current), []);
   React.useEffect(() => { if (!folded) setPeek(false); }, [folded]);
+  React.useEffect(() => { if (peek) setFly(null); }, [peek]);
   const rail = folded && !peek;
+  /* The menu sits beside the page, so opening or folding it moves the page by its change in width.
+     The page is laid out once at its new width and glides there (FLIP) while the menu unfolds in step. */
+  const wasRail = React.useRef(rail);
+  React.useLayoutEffect(() => {
+    if (wasRail.current === rail) return; const before = wasRail.current; wasRail.current = rail;
+    if (drawer || !window.matchMedia("(min-width:901px)").matches) return;
+    slideMain(before ? -196 : 196);
+  }, [rail]);
   const [q, setQ] = useState("");
   const [fly, setFly] = useState(null);
   const flyT = React.useRef(0), search = React.useRef(null);
@@ -79,7 +88,7 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
         <div key={x.s} className={cx("sb-sub", isOpen(x.s) && "open", x.items.some((y) => y.k === view) && "has-on")}>
           <button className="sb-subhead" onClick={() => toggle(x.s)} aria-expanded={isOpen(x.s)}>
             <span className="sb-tick" aria-hidden="true" /><span className="lbl">{x.s}</span><ChevronRight size={13} strokeWidth={2.2} className="cv" /></button>
-          {isOpen(x.s) && <div className="sb-tree inner">{x.items.map(leaf)}</div>}
+          <Fold open={isOpen(x.s)}><div className="sb-tree inner">{x.items.map(leaf)}</div></Fold>
         </div>) : leaf(x))}
     </div>);
 
@@ -87,6 +96,7 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
     <nav className={cx("sbar", rail && "rail", folded && "folded", folded && peek && "peek", drawer && "open")} aria-label="Main navigation"
       onMouseEnter={enter} onMouseLeave={leave} onFocus={() => { if (folded) { clearTimeout(peekT.current); setPeek(true); } }}
       onBlur={(e) => { if (folded && !e.currentTarget.contains(e.relatedTarget)) leave(); }}>
+      <div className="sb-panel">
       <div className="sb-brand">
         <img className="sb-lockup" src={BRAND_LOCKUP} alt="InvoEez — Invoice Made Easy" />
         <img className="sb-mark" src={BRAND_MARK} alt="InvoEez" />
@@ -96,9 +106,10 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
         <span className="t"><b>{company.name}</b>{company.nameAr ? <span dir="rtl" className="ar">{company.nameAr}</span> : <span>{company.trn ? `TRN ${company.trn}` : "Add company details"}</span>}</span>
       </button>
       <label className="sb-search">
+        <Search size={15} strokeWidth={2.1} className="sb-s-ic" />
         <input ref={search} aria-label="Search navigation" placeholder="Type to search" value={q} onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Escape") { setQ(""); e.currentTarget.blur(); } }} />
-        {q ? <button className="x" onClick={() => setQ("")} aria-label="Clear search"><X size={13} /></button> : <Search size={15} strokeWidth={2.1} />}
+        {q && <button className="x" onClick={() => setQ("")} aria-label="Clear search"><X size={13} /></button>}
       </label>
       <div className="sb-scroll" onMouseLeave={closeFly}>
         {visible.map((g) => {
@@ -107,12 +118,12 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
             <div key={g.g} className={cx("sb-sec", on && "has-on", open && "open")}>
               <button className={cx("sb-head", g.k && view === g.k && "on")} title={rail ? g.g : undefined} data-title={g.g} data-k={g.k || undefined}
                 onClick={(e) => g.k ? pick(g.k) : rail ? openFly(g, e.currentTarget) : toggle(g.g)}
-                onMouseEnter={(e) => openFly(g, e.currentTarget)} aria-expanded={g.k ? undefined : open}>
+                aria-expanded={g.k ? undefined : open}>
                 <span className="ic"><g.i size={18} strokeWidth={1.8} /></span>
                 <span className="lbl">{g.g}</span>
                 {!g.k && <ChevronRight size={14} strokeWidth={2.2} className="cv" />}
               </button>
-              {open && tree(g)}
+              {!g.k && <Fold open={open}>{tree(g)}</Fold>}
             </div>);
         })}
         {!visible.length && <div className="sb-none">No section matches “{q}”.</div>}
@@ -126,10 +137,11 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
         <button className="who-btn" onClick={onSwitchUser} title="Switch user" aria-label={`Signed in as ${meUser.name}. Switch user`}>
           <span className="av">{initials(meUser.name)}</span>
           <span className="who"><b>{meUser.name}</b><span>{role.label} · v{BUILD}</span></span></button>
-        {!rail && <button className="signout" onClick={onSignOut} title="Sign out" aria-label="Sign out"><LogOut size={15} /></button>}
+        <button className="signout" onClick={onSignOut} title="Sign out" aria-label="Sign out" tabIndex={rail ? -1 : undefined}><LogOut size={15} /></button>
         {!tablet && <button className={cx("collapse", !mini && "pinned")} onClick={() => { setMini((v) => !v); setPeek(false); }}
           title={mini ? "Keep the menu open" : "Fold the menu — it opens when you point at it"} aria-label={mini ? "Keep the menu open" : "Fold the menu"} aria-pressed={!mini}>
           {mini ? <Pin size={15} /> : <ChevronsLeft size={15} />}</button>}
+      </div>
       </div>
     </nav>);
   function flyItem(it) {
@@ -141,20 +153,40 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
   }
 }
 
+/* A section that folds and unfolds by animating its height (grid rows 0fr ↔ 1fr), staying out of reach while closed. */
+function Fold({ open, children }) {
+  return <div className={cx("sb-fold", open && "open")} {...(open ? {} : { inert: "", "aria-hidden": "true" })}><div className="sb-fold-in">{children}</div></div>;
+}
+/* Move the page by dx with a compositor-only slide (FLIP): the layout changes once, the eye sees a glide. */
+function slideMain(dx) {
+  const el = typeof document !== "undefined" && document.querySelector(".mz .main");
+  if (!el || !el.animate || reducedMotion()) return;
+  /* Reversing half-way (the pointer leaves while it opens) continues from where the page is now, without a jump. */
+  let now = 0;
+  try { const t = getComputedStyle(el).transform; if (t && t !== "none") now = new DOMMatrixReadOnly(t).m41; } catch (e) {}
+  el.getAnimations().forEach((a) => { if (a.id === "mz-slide") a.cancel(); });
+  el.animate([{ transform: `translateX(${now + dx}px)` }, { transform: "translateX(0)" }], { duration: 420, easing: "cubic-bezier(.22,1,.36,1)", id: "mz-slide" });
+}
+
 const SIDEBAR_CSS = `
-.sbar{--sb-w:272px;--sb-hi:#FFFFFF;
-  width:var(--sb-w);flex:0 0 var(--sb-w);display:flex;flex-direction:column;position:relative;z-index:30;
-  background:linear-gradient(180deg,var(--sb-1) 0%,var(--sb-2) 46%,var(--sb-3) 100%);color:var(--sb-txt);
-  box-shadow:inset -1px 0 0 rgba(255,255,255,.06),1px 0 0 rgba(0,0,0,.25);transition:width .22s var(--ease),flex-basis .22s var(--ease)}
-.sbar::before{content:"";position:absolute;inset:0 0 auto 0;height:180px;pointer-events:none;
+/* The menu is a slot in the page (272px open, 76px folded) holding one full-width panel. Folding never re-lays out the
+   panel: the rail is the same panel clipped to its first 76px, and opening it unclips — a paint-only, GPU-friendly wipe. */
+.sbar{--sb-w:272px;--sb-hi:#FFFFFF;--sb-glide:cubic-bezier(.22,1,.36,1);
+  width:var(--sb-w);flex:0 0 var(--sb-w);position:relative;z-index:30;color:var(--sb-txt)}
+.sb-panel{position:absolute;inset:0 auto 0 0;width:272px;display:flex;flex-direction:column;overflow:hidden;
+  background:linear-gradient(180deg,var(--sb-1) 0%,var(--sb-2) 46%,var(--sb-3) 100%);
+  box-shadow:inset -1px 0 0 rgba(255,255,255,.06);clip-path:inset(0 0 0 0)}
+.sb-panel::before{content:"";position:absolute;inset:0 0 auto 0;height:180px;pointer-events:none;
   background:radial-gradient(260px 120px at 30% 0%,rgba(255,255,255,.07),transparent 70%)}
-.sb-brand{position:relative;padding:20px 20px 14px;display:flex;align-items:center}
+.sb-brand{position:relative;padding:20px 20px 14px;display:flex;align-items:center;flex:0 0 auto}
 .sb-brand::after{content:"";position:absolute;left:20px;right:20px;bottom:0;height:1px;
   background:linear-gradient(90deg,transparent,rgba(201,206,212,.45) 30%,rgba(255,255,255,.75) 50%,rgba(201,206,212,.45) 70%,transparent)}
-.sb-lockup{display:block;width:100%;max-width:214px;height:auto;filter:brightness(1.08) contrast(1.04) drop-shadow(0 2px 6px rgba(0,0,0,.35))}
-.sb-mark{display:none;width:38px;height:auto;filter:drop-shadow(0 2px 5px rgba(0,0,0,.35))}
+.sb-lockup{display:block;width:100%;max-width:214px;height:auto;filter:brightness(1.08) contrast(1.04) drop-shadow(0 2px 6px rgba(0,0,0,.35));transition:opacity .3s var(--sb-glide)}
+.sb-mark{position:absolute;left:19px;top:50%;transform:translateY(-50%) scale(.9);width:38px;height:auto;opacity:0;pointer-events:none;
+  filter:drop-shadow(0 2px 5px rgba(0,0,0,.35));transition:opacity .3s var(--sb-glide),transform .42s var(--sb-glide)}
 .sb-co{margin:14px 14px 10px;padding:9px 10px;display:flex;align-items:center;gap:10px;border-radius:12px;text-align:left;
-  background:rgba(255,255,255,.045);border:1px solid var(--sb-line);transition:background .15s,border-color .15s}
+  background:rgba(255,255,255,.045);border:1px solid var(--sb-line);transition:background .25s,border-color .25s}
+.sb-co .t,.sb-search input,.sb-head .lbl,.sb-head .cv,.sb-foot .who{transition:opacity .28s var(--sb-glide)}
 .sb-co:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.14)}
 .sb-co .av,.sb-co img{width:32px;height:32px;flex:0 0 32px;border-radius:9px;display:grid;place-items:center;font-weight:700;font-size:12px;
   background:linear-gradient(145deg,#F4F6F8,#B9C0C8);color:#1B1F25;object-fit:contain}
@@ -162,16 +194,23 @@ const SIDEBAR_CSS = `
 .sb-co .t b{display:block;color:#fff;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-co .t span{display:block;color:var(--sb-dim);font-size:10.5px;font-family:var(--mono);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-co .t span.ar{font-family:var(--sans);font-size:12px}
-.sb-search{margin:0 14px 4px;display:flex;align-items:center;gap:8px;height:38px;padding:0 10px 0 12px;border-radius:10px;
-  background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.10);color:var(--sb-dim);transition:border-color .15s,box-shadow .15s}
+.sb-search{margin:0 14px 4px;display:flex;align-items:center;gap:9px;height:38px;padding:0 10px 0 12px;border-radius:10px;cursor:text;
+  background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.10);color:var(--sb-dim);transition:background .25s,border-color .25s,box-shadow .15s}
+.sb-s-ic{flex:0 0 auto}
 .sb-search:focus-within{border-color:var(--sb-acc);box-shadow:0 0 0 3px var(--sb-on)}
 .sb-search input{flex:1;min-width:0;background:none;border:0;outline:0;color:#fff;font-size:13px}
 .sb-search input::placeholder{color:#7D858F}
 .sb-search .x{display:grid;place-items:center;width:20px;height:20px;border-radius:6px;color:var(--sb-dim)}
 .sb-search .x:hover{background:var(--sb-hover);color:#fff}
-.sb-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px 10px 18px;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 12px,#000 calc(100% - 18px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 12px,#000 calc(100% - 18px),transparent 100%)}
+.sb-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px 10px 18px;scrollbar-gutter:stable;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 12px,#000 calc(100% - 18px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 12px,#000 calc(100% - 18px),transparent 100%)}
 .sb-scroll::-webkit-scrollbar{width:8px}.sb-scroll::-webkit-scrollbar-thumb{background:#363C44;border-radius:8px;border:2px solid transparent;background-clip:content-box}
-.sb-sec{position:relative;margin:2px 0;border-radius:11px;transition:background .18s}
+.sb-sec{position:relative;margin:2px 0;border-radius:11px;transition:background .3s var(--sb-glide)}
+/* sections unfold by height (grid rows 0fr → 1fr) instead of popping open */
+.sb-fold{display:grid;grid-template-rows:0fr;opacity:0;visibility:hidden;
+  transition:grid-template-rows .38s var(--sb-glide),opacity .28s var(--sb-glide),visibility 0s linear .38s}
+.sb-fold.open{grid-template-rows:1fr;opacity:1;visibility:visible;transition:grid-template-rows .38s var(--sb-glide),opacity .28s var(--sb-glide),visibility 0s}
+.sb-fold:not(.open) .sb-fold{visibility:hidden;transition:grid-template-rows .38s var(--sb-glide),opacity .28s var(--sb-glide),visibility 0s linear .38s}
+.sb-fold-in{min-height:0;overflow:hidden}
 .sb-sec.open{background:rgba(255,255,255,.025)}
 .sb-head{position:relative;display:flex;align-items:center;gap:11px;width:100%;height:40px;padding:0 10px 0 12px;border-radius:10px;
   color:var(--sb-txt);font-size:13.5px;font-weight:500;letter-spacing:-.005em;text-align:left;transition:background .14s,color .14s}
@@ -225,21 +264,21 @@ const SIDEBAR_CSS = `
 .sb-foot .collapse{display:grid;place-items:center;width:30px;height:30px;border-radius:8px;color:var(--sb-dim)}
 .sb-foot .collapse:hover{background:var(--sb-hover);color:#fff}
 
-/* Collapsed rail; while folded the menu slides open over the page on hover */
-.sbar.rail{--sb-w:76px}
-.sbar.folded{transition:width .22s var(--ease),flex-basis .22s var(--ease),margin .22s var(--ease),box-shadow .22s}
-.sbar.folded.peek{margin-right:calc(76px - var(--sb-w));box-shadow:28px 0 60px rgba(8,12,24,.38),inset -1px 0 0 rgba(255,255,255,.08)}
-.sbar.folded.peek .sb-scroll{animation:sbfly .18s var(--ease)}
+/* Folded: a 76px rail. Pointing at it unfolds the same panel beside the page (the page glides along, see slideMain). */
 .sb-foot .collapse.pinned{color:var(--sb-acc)}
-.sbar.rail .sb-lockup,.sbar.rail .sb-co,.sbar.rail .sb-search,.sbar.rail .sb-head .lbl,.sbar.rail .sb-head .cv,.sbar.rail .sb-foot .who{display:none}
-.sbar.rail .sb-mark{display:block}
-.sbar.rail .sb-brand{justify-content:center;padding:18px 0 14px}
-.sbar.rail .sb-brand::after{left:14px;right:14px}
-.sbar.rail .sb-scroll{padding:10px 10px}
-.sbar.rail .sb-head{justify-content:center;padding:0;height:44px}
-.sbar.rail .sb-head .ic{width:auto}
-.sbar.rail .sb-sec.has-on>.sb-head{background:var(--sb-on)}
-.sbar.rail .sb-foot{flex-direction:column;padding:12px 0}
+.sbar.folded .sb-panel{transition:clip-path .42s var(--sb-glide),box-shadow .42s var(--sb-glide)}
+.sbar.folded .sb-scroll{padding-left:16px}
+.sbar.folded .sb-search{padding-left:16px}
+.sbar.folded .sb-foot{padding-left:22px}
+.sbar.rail{--sb-w:76px}
+.sbar.rail .sb-panel{clip-path:inset(0 196px 0 0)}
+.sbar.rail .sb-lockup,.sbar.rail .sb-co .t,.sbar.rail .sb-search input,.sbar.rail .sb-head .lbl,.sbar.rail .sb-head .cv,.sbar.rail .sb-foot .who{opacity:0}
+.sbar.rail .sb-mark{opacity:1;transform:translateY(-50%) scale(1);transition-duration:.3s,.42s}
+.sbar:not(.rail) .sb-mark{transition-duration:.14s,.42s}
+.sbar.folded:not(.rail) .sb-lockup{transition-delay:.08s}
+.sbar.rail .sb-co,.sbar.rail .sb-search{background:transparent;border-color:transparent;box-shadow:none}
+.sbar.rail .sb-search{color:#AEB5BE}
+.sbar.rail .sb-sec.has-on>.sb-head .ic{background:var(--sb-on);box-shadow:0 0 0 8px var(--sb-on);border-radius:3px}
 .sb-fly{position:fixed;z-index:1200;min-width:248px;max-width:300px;max-height:calc(100vh - 24px);overflow:auto;padding:8px;border-radius:14px;
   background:linear-gradient(180deg,var(--sb-1),var(--sb-2));border:1px solid rgba(255,255,255,.12);
   box-shadow:0 22px 50px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06);color:#C3C9D1;animation:sbfly .14s var(--ease)}
@@ -252,13 +291,13 @@ const SIDEBAR_CSS = `
 
 /* Phones: off-canvas drawer */
 @media (max-width:900px){
-  .sbar{position:fixed;top:0;left:0;bottom:0;--sb-w:292px;z-index:950;transform:translateX(-102%);transition:transform .26s var(--ease)}
+  .sbar{position:fixed;top:0;left:0;bottom:0;--sb-w:292px;z-index:950;transform:translateX(-102%);transition:transform .42s cubic-bezier(.32,.72,0,1);will-change:transform}
   .sbar.open{transform:none;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+  .sb-panel{position:relative;inset:auto;width:100%;height:100%;clip-path:none}
   .sb-link,.sb-subhead{height:38px}
   .sb-head{height:44px}
   .sb-add{width:30px;height:30px;flex-basis:30px}
   .sb-foot .collapse{display:none}
-  .sbar.folded.peek{margin-right:0}
 }
 @media print{.sbar{display:none}}
 `;

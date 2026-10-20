@@ -250,8 +250,6 @@ function exportExcelPro(title, meta, CO, tables, name) {
 }
 
 const PRO_CSS = `
-/* sidebar opens beside the page, never over it */
-.sbar.folded.peek{margin-right:0!important}
 
 /* statements read like statements */
 .mz .rframe .tbl td.n,.mz .rframe .tbl th.n,.mz .fin-tbl td.n,.mz .pay-tbl td.n{font-family:var(--sans);font-variant-numeric:tabular-nums lining-nums;font-feature-settings:"tnum" 1,"lnum" 1;letter-spacing:-.005em}
@@ -273,8 +271,6 @@ const PRO_CSS = `
 .mz .exp-group .btn{border:0;border-radius:0;box-shadow:none;background:transparent}
 .mz .exp-group .btn+.btn{border-left:1px solid var(--line)}
 .mz .exp-group .btn:hover{background:var(--brand-50);color:var(--brand-600)}
-.sbar.folded{transition:width .2s var(--ease),flex-basis .2s var(--ease)}
-.sbar.folded.peek{box-shadow:inset -1px 0 0 rgba(255,255,255,.06),8px 0 24px rgba(8,12,24,.18)}
 
 /* payments on a document */
 .pay-panel{border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:16px 18px 14px;box-shadow:var(--sh-1)}

@@ -10,7 +10,8 @@ const cells=async(p,sel,label)=>(await p.locator(sel,{hasText:label}).first().lo
 
 // 1. sidebar: folded by default, opens on hover, can be pinned; drawer on phones
 let p=await open({},false);
-check(await p.locator('.sbar.rail').count()===1&&await p.locator('.sbar [data-k="r_pnl"]').count()===0,'sidebar starts folded');
+/* 3.16: folded sections stay in the page (so they can unfold smoothly) but are hidden and out of reach */
+check(await p.locator('.sbar.rail').count()===1&&!(await p.locator('.sbar [data-k="r_pnl"]').isVisible())&&await p.locator('.sbar [data-k="r_pnl"]').evaluate(e=>!!e.closest('[inert]')),'sidebar starts folded');
 await p.mouse.move(30,320);await p.waitForTimeout(500);
 check(await p.locator('.sbar.peek').count()===1&&await p.locator('.sbar .sb-search').isVisible(),'hovering opens the full menu');
 const mainX=await p.evaluate(()=>document.querySelector('.main').getBoundingClientRect().left);

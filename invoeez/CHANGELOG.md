@@ -1,3 +1,15 @@
+# 3.16.0 — Smoother movement, discount on the whole quotation
+
+- **The menu glides open.** Pointing at the folded menu used to re-lay out the whole page on every animation frame, which made the slide stutter. Now the page is laid out once at its new width and glides there, in step with the menu as it unfolds; changing your mind half-way reverses from where it is. Pinning the open menu no longer moves the page, folding it glides the page back, and menu sections fold and unfold smoothly instead of popping. On phones the menu slides in with a softer, springier ease.
+- **Highlights slide to your choice.** Period switches (Month / Quarter / Year), quotation status (Draft / Sent / Accepted / Declined), list filters, view toggles and the document tabs (Line items / Price history / Activity) move their highlight or underline to the new choice instead of jumping.
+- **Documents glide in** when opened from a list and when going back to it; dialogs rise in; buttons give a small press.
+- **Discount on the whole quotation**: under the lines, "Add a discount on the whole quotation" takes a fixed amount (AED) or a percentage. It comes off before VAT and is shared across the lines in proportion to their value, so VAT, revenue accounts and stock cost are exact. Lines keep their list amount and show the net after the discount. It is checked (no more than the quotation is worth, or 100%), saved with the quotation, carried to the invoice when the quotation is converted (same total), and works the same on invoices, credit notes, purchase orders, bills and debit notes.
+- **Printed and PDF documents** with such a discount show Subtotal, Discount, Taxable amount, VAT and Total; the line table shows each line's amount before the discount. The PINT AE e-invoice states each line's discount as an allowance, so quantity × price − allowance equals the line amount (this also covers ordinary line discounts).
+- **Totals panel redesigned**: subtotal at list price, line discounts, the whole-document discount, taxable amount, VAT and a large total that rolls to its new value, with "Discounts take AED … off" when there are any.
+- **Calmer line grid**: a chosen product reads as plain text until the row is pointed at or edited.
+- **Save bar** now sits on the window edge; before, the totals peeked out beneath it.
+- Everything stays still with the system's "reduce motion" setting.
+
 # 3.15.0 — Works offline, syncs to the cloud
 
 - **Offline first**: every change is saved on the device straight away, so InvoEez keeps working with no internet — create and post invoices, record payments, edit customers. When the app is opened from its web address it also installs an offline copy of itself (a service worker), so it opens even with no connection, and it can be installed like an app (Settings › Cloud sync › Install app, or the browser's Install / Add to Home Screen).

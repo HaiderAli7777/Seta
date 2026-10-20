@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.15)
+# InvoEez — Invoice Made Easy (3.16)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -74,6 +74,10 @@ Company profile, theme, user selection and connection settings use their existin
 | Scrap | Record damaged quantities with a reason. Scrap reduces stock at carrying cost and charges the category adjustment account. Quantities cannot exceed on-hand stock. |
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
+
+## Smoother movement and discount on the whole quotation (3.16)
+
+The folded menu unfolds beside the page with a single layout and a GPU glide, so it no longer stutters, and its sections fold smoothly. Switches and tab bars slide their highlight to the new choice, documents glide in, and dialogs rise in. Quotations (and every other document) take a **discount on the whole document**, as a fixed amount or a percentage, before VAT. It is shared across the lines so VAT, ledger and stock cost stay exact, then carried to the invoice, printed as Subtotal → Discount → Taxable amount, and sent in the e-invoice as line allowances.
 
 ## Offline and cloud sync (3.15)
 
@@ -196,6 +200,7 @@ npm test
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
 | `dashboard.jsx` | New overview dashboard. |
+| `refine.jsx` | 3.16 gliding highlights for switches and tabs, rolling total, totals panel with the discount on the whole document, motion and editor refinements. |
 | `sync.jsx` | 3.15 offline-first cloud sync: record-by-record three-way merge, renumbering, sync engine, top-bar status chip, Settings › Cloud sync, installable app. |
 | `server/` | 3.15 InvoEez sync server (Node.js; PostgreSQL or files): versioned books per company, access keys, also serves the app. See `server/README.md`. |
 | `icons/` | App icons for the installable app (192, 512 and maskable 512 px). |
@@ -213,6 +218,7 @@ npm test
 | `shell.html` | Original standalone shell and bundled libraries/fonts. |
 | `build.mjs` | Reproducible JSX compilation and standalone packaging. |
 | `tests/engine.cjs` | Executable accounting, pricing, migration and inventory regression checks. |
+| `tests/browser-refine.cjs` | 3.16 checks: menu unfolds with one layout and a glide (and reverses smoothly), sections fold, phone drawer, gliding highlights, documents glide in, discount on the whole quotation (amount, %, limits, save, reload, print, convert, post), save bar position, dark, reduced motion. |
 | `tests/browser-offline-sync.cjs` | 3.15 checks with the real sync server (files and PostgreSQL): connect and upload, a second device downloads, offline work waiting, renumbering on reconnect, a field changed on two devices and Use mine, deletions, opening with no internet, wrong key, restore switches sync off. |
 | `tests/browser-dashboard-motion.cjs` | 3.14 checks: scroll reveal, count-up on arrival, donut, rings, banner, pointer light, other donuts intact, reduced motion, print, phone. |
 | `tests/browser-experience.cjs` | 3.13 checks: figure font, summary tiles, notification centre, keyboard shortcuts, Undo on deletes, payments table fit, phone. |
