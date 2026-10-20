@@ -164,7 +164,9 @@ function PdcDialog({ state, setState, toast, init, close, onSaved }) {
     if (!(amt > 0)) return setErr("Enter the cheque amount.");
     if ((state.pdcs || []).some((c) => c.kind === kind && c.partner === r.partner && String(c.chequeNo).trim() === String(r.chequeNo).trim() && (c.bank || "") === (r.bank || "") && c.id !== r.replaces && pdcStatus(c) !== "cancelled"))
       return setErr("This cheque number is already recorded for this party.");
-    const rec = { ...r, chequeNo: String(r.chequeNo).trim(), bank: r.bank.trim(), amount: amt, number: nextPdcNo(state, kind, r.date), events: [] };
+    const forDoc = r.doc ? state.docs.find((d) => d.id === r.doc) : null;
+    const rec = { ...r, chequeNo: String(r.chequeNo).trim(), bank: r.bank.trim(), amount: amt, number: nextPdcNo(state, kind, r.date), events: [],
+      branch: (forDoc ? branchOfRecord(state, forDoc) : r.branch || homeBranch(state)) || undefined };
     if (!rec.doc) delete rec.doc; if (!rec.replaces) delete rec.replaces;
     setState((s) => ({ ...s, pdcs: [...(s.pdcs || []).map((c) => (c.id === rec.replaces ? { ...c, replacedBy: rec.id } : c)), rec] }));
     toast(`${rec.number} recorded — cheque ${rec.chequeNo} for AED ${money(amt, false)}`);
@@ -185,6 +187,8 @@ function PdcDialog({ state, setState, toast, init, close, onSaved }) {
         : <Field label="Paid from"><Select value={r.account} onChange={(e) => set("account", e.target.value)}>{banks.map((b) => <option key={b.code} value={b.code}>{b.code} · {b.name}</option>)}</Select></Field>}
       <Field label="Cheque date (maturity)"><Input type="date" value={r.chequeDate} onChange={(e) => set("chequeDate", e.target.value)} /></Field>
       <Field label={kind === "in" ? "Received on" : "Issued on"}><Input type="date" value={r.date} onChange={(e) => set("date", e.target.value)} /></Field>
+      {(() => { const forDoc = r.doc ? state.docs.find((d) => d.id === r.doc) : null;
+        return <BranchField value={forDoc ? branchOfRecord(state, forDoc) : r.branch || homeBranch(state)} disabled={!!forDoc} onChange={(b) => set("branch", b)} />; })()}
       <Field label="Amount · AED"><Input n type="number" min="0" step="0.01" placeholder="Enter amount" value={r.amount} onChange={(e) => set("amount", e.target.value)} /></Field>
       <Field label="Memo"><Input value={r.memo} onChange={(e) => set("memo", e.target.value)} placeholder="Optional note" /></Field>
     </div>

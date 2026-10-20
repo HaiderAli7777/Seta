@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.17.0";
+const BUILD = "3.18.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -424,11 +424,12 @@ function deriveBooks(state) {
   });
 
   entries.push(...pdcEntries(state));
+  tagBranches(state, entries);
 
   entries.sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number));
   const flat = [];
   entries.forEach((e) => e.lines.forEach((l, i) =>
-    flat.push({ ...l, entryId: e.id, date: e.date, number: e.number, ref: e.ref, journal: e.journal, docId: e.docId, source: e.source, key: e.id + "_" + i })));
+    flat.push({ ...l, entryId: e.id, date: e.date, number: e.number, ref: e.ref, journal: e.journal, docId: e.docId, source: e.source, branch: e.branch, key: e.id + "_" + i })));
   const totalD = R2(flat.reduce((s, l) => s + l.debit, 0));
   const totalC = R2(flat.reduce((s, l) => s + l.credit, 0));
   return { entries, flat, stock, moves, totalD, totalC, method, balanced: Math.abs(totalD - totalC) < 0.01 };
@@ -1950,8 +1951,11 @@ function ExportBar({ frameRef, title, meta, toast }) {
 }
 
 /* -------------------------------------------------------- report wrapper */
-const ReportFrame = ({ title, meta, right, children, toast, icon: Ic = BarChart3, chips }) => {
+const ReportFrame = ({ title, meta, right, children, toast, icon: Ic = BarChart3, chips, nobranch }) => {
   const CO = useCo();
+  /* A report run for one branch says so on screen, on paper and in its exports. */
+  const brTag = !nobranch && REPORT_BRANCH ? "Branch: " + REPORT_BRANCH : "";
+  if (brTag) { chips = [...(chips || [meta]), brTag]; meta = [meta, brTag].filter(Boolean).join(" · "); }
   const frameRef = React.useRef(null);
   return (
   <div className="card rframe" ref={frameRef}>
@@ -2463,6 +2467,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState("");
   const [f, setF] = useState("all");
+  const [brF, setBrF] = useState("");
   const [sort, setSort] = useState({ k: "date", dir: "desc" });
   const [limit, setLimit] = useState(100);
   const meta = DOCMETA[type], sale = meta.side === "sale";
@@ -2475,7 +2480,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
     if (openId === "__list__") setEditing(null);
     else if (openId === "__pending__") { setEditing(null); setF("pending"); }
     else if (openId.startsWith("__f:")) { setEditing(null); setF(openId.slice(4)); }
-    else if (openId === "__new__") { if (!readOnly) setEditing(blankDoc(state.docs, type)); }
+    else if (openId === "__new__") { if (!readOnly) { const hb = homeBranch(state); setEditing({ ...blankDoc(state.docs, type), ...(hb ? { branch: hb } : {}) }); } }
     else { const d = state.docs.find((x) => x.id === openId); if (d) setEditing(d); }
     clearOpen();
   }, [openId]);
@@ -2490,7 +2495,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
   if (editing) return <DocEditor key={editing.id} doc={editing} state={state} setState={setState} books={books}
     toast={toast} fta={fta} go={go} user={user} users={users} readOnly={readOnly} close={() => setEditing(null)} />;
 
-  const filtered = state.docs.filter((d) => d.type === type)
+  const filtered = state.docs.filter((d) => d.type === type && (!brF || branchOfRecord(state, d) === brF))
     .filter((d) => f === "all" || (f === "open" ? (openMap[d.id] || 0) > 0.004 : f === "overdue" ? (openMap[d.id] || 0) > 0.004 && d.due < TODAY
       : f === "soon" ? (openMap[d.id] || 0) > 0.004 && d.due >= TODAY && d.due <= addDays(TODAY, 7) : f === "approved" && isPO ? ["approved", "sent"].includes(d.state) : d.state === f))
     .filter((d) => hits(q, d.number, PMAP[d.partner].name, PMAP[d.partner].trn, d.ref, d.emirate, d.delivery && d.delivery.name,
@@ -2509,7 +2514,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
   const t = list.filter(live).reduce((s, d) => { const a = amounts(d);
     return { net: R2(s.net + a.net), vat: R2(s.vat + a.vat), total: R2(s.total + a.total) }; }, { net: 0, vat: 0, total: 0 });
   const totalOpen = R2(list.reduce((s, d) => s + (openMap[d.id] || 0), 0));
-  const tiles = summaryTiles(type, state.docs.filter((d) => d.type === type), openMap);
+  const tiles = summaryTiles(type, state.docs.filter((d) => d.type === type && (!brF || branchOfRecord(state, d) === brF)), openMap);
 
   return (
     <div className="doc-list-view">
@@ -2519,12 +2524,13 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
           : isPO
           ? `${list.length} purchase orders · ${pendingCount} awaiting approval · ${money(t.total, false)} on order · nothing posts until one becomes a bill`
           : `${list.length} documents · ${money(t.total, false)} posted${totalOpen > 0.004 ? ` · ${money(totalOpen, false)} outstanding` : ""}`}>
-        {!readOnly && <Btn kind="pri" icon={Plus} onClick={() => setEditing(blankDoc(state.docs, type))}>New {meta.short.toLowerCase()}</Btn>}
+        {!readOnly && <Btn kind="pri" icon={Plus} onClick={() => { const hb = homeBranch(state); setEditing({ ...blankDoc(state.docs, type), ...(hb ? { branch: hb } : {}) }); }}>New {meta.short.toLowerCase()}</Btn>}
       </PageHead>
 
       {tiles && <DocSummary tiles={tiles} f={f} setF={(v) => { setF(v); setLimit(100); }} />}
       <Card pad={false}>
         <div className="toolbar">
+          <BranchPick value={brF} onChange={setBrF} />
           <SearchBox value={q} onChange={setQ} width={300}
             placeholder={`Search number, ${sale ? "customer" : "vendor"}, TRN, product or reference`} />
           <div className="seg">{(isQ
@@ -2557,7 +2563,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
               return (
                 <tr key={d.id} className="click" onClick={() => setEditing(d)}>
                   <td className="mono nowrap c-no" style={{ fontSize: 12.5 }}>{d.number}</td>
-                  <td className="c-party"><Party name={PMAP[d.partner].name} meta={d.delivery && d.deliverTo ? "Deliver to " + d.delivery.name : PMAP[d.partner].trn ? "TRN " + PMAP[d.partner].trn : "Not VAT registered"} /></td>
+                  <td className="c-party"><Party name={PMAP[d.partner].name} meta={[d.delivery && d.deliverTo ? "Deliver to " + d.delivery.name : PMAP[d.partner].trn ? "TRN " + PMAP[d.partner].trn : "Not VAT registered", branchOn() && branchName(branchOfRecord(state, d))].filter(Boolean).join(" · ")} /></td>
                   <td className="muted nowrap c-date">{dmy(d.date)}</td>
                   <td className="nowrap c-due" style={{ color: late ? "var(--neg)" : "var(--ink-3)" }}>{dmy(d.due)}
                     {late && <div className="late-note">{daysBetween(d.due, TODAY)} {daysBetween(d.due, TODAY) === 1 ? "day" : "days"} overdue</div>}</td>
@@ -2710,7 +2716,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     const nd = { id: uid("d"), type, number: nextNumber(state.docs, type), partner: d.partner,salesman:d.salesman||"",pricelist:d.pricelist||"",
       date: TODAY, due: addDays(TODAY, PMAP[d.partner].terms), lines, ref: ref || "", note: note || "",
       state: "draft", seq: 0, emirate: d.emirate, ...(d.docDisc && +d.docDisc.value > 0 ? { docDisc: { ...d.docDisc } } : {}),
-      ...(d.deliverTo && d.delivery && DOCMETA[type].side === "sale" ? { deliverTo: d.deliverTo, delivery: { ...d.delivery } } : {}), ...(extra || {}) };
+      ...(d.deliverTo && d.delivery && DOCMETA[type].side === "sale" ? { deliverTo: d.deliverTo, delivery: { ...d.delivery } } : {}),
+      ...(d.branch ? { branch: d.branch } : {}), ...(extra || {}) };
     setState((x) => ({ ...x, docs: [...x.docs, nd] }));
     toast(`${nd.number} created as a draft`);
     go(LIST_OF[type], nd.id);
@@ -2740,7 +2747,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   const recordPayment = () => {
     const kind = d.type === "invoice" ? "in" : "out";
     const m = MET[payMethod] || METHODS[0];
-    const pm = { id: uid("pm"), kind, number: nextPay(state.payments, kind), partner: d.partner, doc: d.id,
+    const pm = { id: uid("pm"), kind, number: nextPay(state.payments, kind), partner: d.partner, doc: d.id, branch: branchOfRecord(state, d) || undefined,
       date: TODAY, amount: R2(+payAmt || 0), method: m.id, account: m.account,
       memo: [`Settlement of ${d.number}`, payRef].filter(Boolean).join(" · ") };
     setState((x) => ({ ...x, payments: [...x.payments, pm] }));
@@ -2917,7 +2924,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
             <Field label="Place of supply"><Select value={d.emirate} disabled={locked} onChange={e=>set('emirate',e.target.value)}>{[...EMIRATES,'Export','Import'].map(x=><option key={x}>{x}</option>)}</Select></Field>
             <Field span={sale?2:1} label={sale?'Customer purchase order':isPO?'Vendor quotation ref.':'Supplier invoice number'}><Input value={d.ref} disabled={locked} onChange={e=>set('ref',e.target.value)} placeholder="Optional reference"/></Field>
             {sale&&<Field span={2} label="Deliver to"><DeliverToField d={d} locked={locked} pick={id=>pickBranch(id)} addBranch={addBranch}/></Field>}
-            {sale&&<div className="fld dl-fld" style={{gridColumn:'span 3'}}><span className="lb" aria-hidden="true">&nbsp;</span><DeliveryPreview d={d}/></div>}
+            {sale&&<div className="fld dl-fld" style={{gridColumn:branchOn()?'span 2':'span 3'}}><span className="lb" aria-hidden="true">&nbsp;</span><DeliveryPreview d={d}/></div>}
+            <BranchField value={branchOfRecord(state,d)} disabled={locked} onChange={v=>set('branch',v)}/>
           </div>
         </DocUnit>
 
@@ -3100,6 +3108,9 @@ function PrintDoc({ d, close, fta, toast, settle }) {
   const [dn, setDn] = useState(false);
   const canDn = d.type === "invoice" || d.type === "quote";
   const dl = d.deliverTo && d.delivery ? d.delivery : null;
+  /* The issuing branch's address appears under the company (one TRN for the whole company). */
+  const brP = branchOn() && d.branch && BR[d.branch] ? BR[d.branch] : null;
+  const coAddr = brP ? [brP.name + " branch", addrText(brP), brP.emirate].filter(Boolean).join(", ") : [addrText(CO), CO.city].filter(Boolean).join(", ");
   const dlTo = dl || (dn ? { name: p.name, address: p.address, address2: p.address2, emirate: p.emirate, contact: "", phone: p.phone } : null);
   /* A purchase order is issued by us to a vendor; a quotation is an offer, not a tax invoice. */
   const isPO = d.type === "purchase_order", isQ = d.type === "quote";
@@ -3172,7 +3183,7 @@ function PrintDoc({ d, close, fta, toast, settle }) {
       const wrapped = lines.filter(Boolean).flatMap((t) => doc.splitTextToSize(String(t), cw));
       doc.text(wrapped.join("\n"), x, y + 13); return y + 13 + wrapped.length * 10.5;
     };
-    const e1 = party(cx3[0], CO.name, CO.nameAr, [addrText(CO), CO.city, `TRN ${CO.trn || "not registered"}`]);
+    const e1 = party(cx3[0], CO.name, CO.nameAr, brP ? [brP.name + " branch", addrText(brP), brP.emirate, `TRN ${CO.trn || "not registered"}`] : [addrText(CO), CO.city, `TRN ${CO.trn || "not registered"}`]);
     const e2 = party(cx3[1], p.name, p.nameAr, [...addrLines(p), p.emirate, `TRN ${p.trn || "not registered"}`]);
     const e3 = dlTo ? party(cx3[2], dlTo.name, "", [...deliveryLines(dlTo), deliveryContact(dlTo) && (dl ? "Receiving: " : "") + deliveryContact(dlTo)]) : 0;
     const R = { halign: "right" };
@@ -3363,7 +3374,7 @@ function PrintDoc({ d, close, fta, toast, settle }) {
           </div>
           <div className="sheet-body">
             <div className="sheet-parties">
-              {[[sides[0][0], CO.name, CO.nameAr, [addrText(CO), CO.city].filter(Boolean).join(", "), CO.trn],
+              {[[sides[0][0], CO.name, CO.nameAr, coAddr, CO.trn],
                 [dn ? "Customer" : sides[1][0], p.name, p.nameAr, addrText(p), p.trn]].map(([t, n, nAr, ad, trn]) => (
                 <div className="blk" key={t}>
                   <div className="lb">{T(t)}</div><div className="nm">{n}</div>
@@ -3481,8 +3492,11 @@ function PaymentsScreen({ state, setState, toast, create }) {
     .filter((p) => hits(q, p.number, PMAP[p.partner] ? PMAP[p.partner].name : "", p.memo,
       methodName(p.method), ACC[p.account] ? ACC[p.account].name : "", String(p.amount)));
   const rec = R2(list.filter((p) => p.kind === "in").reduce((s, p) => s + p.amount, 0));
+  /* Settling a particular invoice or bill puts the money in that document's branch. */
+  const payDoc = nw && nw.doc ? state.docs.find((d) => d.id === nw.doc) : null;
+  const payBranch = nw ? (payDoc ? branchOfRecord(state, payDoc) : nw.branch || homeBranch(state)) : "";
   const paid = R2(list.filter((p) => p.kind === "out").reduce((s, p) => s + p.amount, 0));
-  const add = () => { const rec = { ...nw, amount: R2(+nw.amount || 0) }; if (!rec.doc) delete rec.doc; setState((s) => ({ ...s, payments: [...s.payments, rec] }));
+  const add = () => { const rec = { ...nw, amount: R2(+nw.amount || 0), branch: payBranch || undefined }; if (!rec.doc) delete rec.doc; setState((s) => ({ ...s, payments: [...s.payments, rec] }));
     toast(`${nw.number} recorded`); setNw(null); };
 
   return (
@@ -3519,6 +3533,7 @@ function PaymentsScreen({ state, setState, toast, create }) {
                   {open.map((it) => <option key={it.id} value={it.id}>{it.number} · {money(it.open, false)} open · due {dmy(it.due)}</option>)}
                 </Select></Field>; })()}
             <Field label="Date"><Input type="date" value={nw.date} onChange={(e) => setNw({ ...nw, date: e.target.value })} /></Field>
+            <BranchField value={payBranch} disabled={!!payDoc} onChange={(b) => setNw({ ...nw, branch: b })} />
             <Field label="Amount · AED"><Input n type="number" step="0.01" min="0" placeholder="Enter amount" value={nw.amount} onChange={(e) => setNw({ ...nw, amount: e.target.value })} /></Field>
             <MethodPicker dir={nw.kind === "in" ? "in" : "out"} value={nw.method} onChange={pickMethod}
               refValue={nw.memo} onRef={(v) => setNw({ ...nw, memo: v })} />
@@ -3944,7 +3959,7 @@ function JournalScreen({ books, state, setState, toast, create }) {
   const balanced = Math.abs(jd - jc) < 0.005 && jd > 0;
   const setL = (id, k, v) => setNw((p) => ({ ...p, lines: p.lines.map((l) => (l.id === id ? { ...l, [k]: v } : l)) }));
   const post = () => {
-    const clean = { id: nw.id, number: nw.number, date: nw.date, ref: nw.ref || "Manual journal entry",
+    const clean = { id: nw.id, number: nw.number, date: nw.date, ref: nw.ref || "Manual journal entry", branch: nw.branch || homeBranch(state) || undefined,
       journal: nw.journal, lines: nw.lines.filter((l) => (+l.debit || 0) || (+l.credit || 0))
         .map((l) => ({ acc: l.acc, label: l.label || (ACC[l.acc] ? ACC[l.acc].name : l.acc),
           debit: R2(+l.debit || 0), credit: R2(+l.credit || 0), partner: l.partner || null })) };
@@ -3965,6 +3980,7 @@ function JournalScreen({ books, state, setState, toast, create }) {
           <div className="setsec" style={{ paddingBottom: 0 }}>
             <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 14 }}>
               <Field label="Entry number"><Input value={nw.number} onChange={(e) => setNw({ ...nw, number: e.target.value })} /></Field>
+              <BranchField value={nw.branch || homeBranch(state)} onChange={(b) => setNw({ ...nw, branch: b })} />
               <Field label="Date"><Input type="date" value={nw.date} onChange={(e) => setNw({ ...nw, date: e.target.value })} /></Field>
               <Field label="Journal">
                 <Select value={nw.journal} onChange={(e) => setNw({ ...nw, journal: e.target.value })}>
@@ -4054,8 +4070,9 @@ function JournalScreen({ books, state, setState, toast, create }) {
 /*  REPORTS                                                                   */
 /* ========================================================================== */
 
-function PeriodBar({ p, setP, mode = "range", onExport }) {
+function PeriodBar({ p, setP, mode = "range", onExport, nobranch }) {
   return (<>
+    {!nobranch && <BranchPick value={REPORT_BRANCH_ID} onChange={REPORT_SET_BRANCH} />}
     {mode === "range"
       ? <RangePicker value={{ preset: p.preset, from: p.from, to: p.to }}
           onChange={(r) => setP({ ...p, ...r })} />
@@ -4305,9 +4322,9 @@ function VatReturn({ state, p, setP , toast }) {
       <td className="n">{net === null ? "" : money(net)}</td>
       <td className="n" style={{ color: tone }}>{vat === null ? "" : money(vat)}</td></tr>);
   return (
-    <ReportFrame toast={toast} title="VAT Return — FTA Form 201" icon={Building2}
+    <ReportFrame toast={toast} title="VAT Return — FTA Form 201" icon={Building2} nobranch
       chips={[`${dmy(p.from)} – ${dmy(p.to)}`, CO.trn ? `TRN ${CO.trn}` : "TRN not set", "EmaraTax"]}
-      meta={`Tax period ${dmy(p.from)} to ${dmy(p.to)} · TRN ${CO.trn} · AED`} right={<PeriodBar p={p} setP={setP} />}>
+      meta={`Tax period ${dmy(p.from)} to ${dmy(p.to)} · TRN ${CO.trn} · AED`} right={<PeriodBar p={p} setP={setP} nobranch />}>
       <Insight>You charged customers <b>{aed(v.out.vat)}</b> VAT and paid <b>{aed(v.inp.vat)}</b> VAT you can recover in this period, so{" "}
         {v.due >= 0 ? <>you <b className="neg">pay the FTA {aed(v.due)}</b></> : <>the FTA <b className="pos">owes you {aed(-v.due)}</b></>}. Choose the tax period above that matches your VAT return.</Insight>
       <VatVisuals state={state} v={v} p={p} />
@@ -4357,8 +4374,8 @@ function StockReport({ books, p, setP , toast }) {
   const moves = books.moves.filter((m) => inRange(m.date, p.from, p.to)).slice().reverse();
   return (
     <div className="grid">
-      <ReportFrame toast={toast} title="Inventory Valuation" meta={`As at ${dmy(TODAY)} · inventory carrying value · AED`} icon={Package}
-        chips={[`As at ${dmy(TODAY)}`, `${COSTING[books.method || "avco"]?.label || "Weighted average"}`, "AED"]} right={<PeriodBar p={p} setP={setP} />}>
+      <ReportFrame toast={toast} title="Inventory Valuation" nobranch meta={`As at ${dmy(TODAY)} · inventory carrying value · AED`} icon={Package}
+        chips={[`As at ${dmy(TODAY)}`, `${COSTING[books.method || "avco"]?.label || "Weighted average"}`, "AED"]} right={<PeriodBar p={p} setP={setP} nobranch />}>
         <Insight>{rows.length ? <>You hold <b>{rows.filter((r) => r.qty > 0).length}</b> of {rows.length} stocked products, valued at <b>{aed(total)}</b> at cost.
           {rows.filter((r) => r.qty <= (r.pr.reorder ?? 5)).length ? <> <b className="neg">{rows.filter((r) => r.qty <= (r.pr.reorder ?? 5)).length}</b> are at or below their low-stock level.</> : " Nothing is running low."}</>
           : <>No stocked products yet. Add products with the type "Storable goods" to track stock here.</>}</Insight>
@@ -4425,7 +4442,7 @@ function AssetsScreen({ state, setState, books, toast, create }) {
     const n = (state.manual || []).filter((e) => e.number.indexOf("DEP/") === 0)
       .reduce((m, e) => Math.max(m, +e.number.split("/").pop() || 0), 0);
     const je = { id: uid("je"), number: `DEP/${TODAY.slice(0, 4)}/${String(n + 1).padStart(4, "0")}`,
-      date: TODAY, ref: `Depreciation — ${a.code || a.name}`, journal: "Miscellaneous",
+      date: TODAY, ref: `Depreciation — ${a.code || a.name}`, journal: "Miscellaneous", branch: a.branch || homeBranch(state) || undefined,
       lines: [{ acc: a.exp, debit: amt, credit: 0, label: `Depreciation on ${a.name}`, partner: null },
               { acc: a.accum, debit: 0, credit: amt, label: "Accumulated depreciation", partner: null }] };
     setState((x) => ({ ...x, manual: [...x.manual, je] }));
@@ -4466,6 +4483,7 @@ function AssetsScreen({ state, setState, books, toast, create }) {
             <Field label="Asset tag"><Input value={ed.code} placeholder="FA-014" onChange={(e) => setEd({ ...ed, code: e.target.value })} /></Field>
             <Field label="Description" span={2}><Input value={ed.name} placeholder="Toyota Hiace delivery van"
               onChange={(e) => setEd({ ...ed, name: e.target.value })} /></Field>
+            <BranchField value={ed.branch || homeBranch(state)} onChange={(b) => setEd({ ...ed, branch: b })} />
             <Field label="Cost · AED"><Input n type="number" step="0.01" value={ed.cost}
               onChange={(e) => setEd({ ...ed, cost: e.target.value })} /></Field>
             <Field label="Residual value · AED"><Input n type="number" step="0.01" value={ed.salvage}
@@ -4669,7 +4687,7 @@ function BankingScreen({ state, setState, books, toast, go, create }) {
     const n = (state.manual || []).filter((e) => e.number.indexOf("TRF/") === 0)
       .reduce((m, e) => Math.max(m, +e.number.split("/").pop() || 0), 0);
     const je = { id: uid("je"), number: `TRF/${TODAY.slice(0, 4)}/${String(n + 1).padStart(4, "0")}`,
-      date: tf.date, ref: tf.memo || `Transfer to ${ACC[tf.to].name}`, journal: "Miscellaneous",
+      date: tf.date, ref: tf.memo || `Transfer to ${ACC[tf.to].name}`, journal: "Miscellaneous", branch: tf.branch || homeBranch(state) || undefined,
       lines: [{ acc: tf.to, debit: R2(+tf.amount), credit: 0, label: "Funds in", partner: null },
               { acc: tf.from, debit: 0, credit: R2(+tf.amount), label: "Funds out", partner: null }] };
     setState((x) => ({ ...x, manual: [...x.manual, je] }));
@@ -4727,6 +4745,7 @@ function BankingScreen({ state, setState, books, toast, go, create }) {
             <Field label="Amount · AED">
               <Input n type="number" step="0.01" value={tf.amount} onChange={(e) => setTf({ ...tf, amount: e.target.value })} /></Field>
             <Field label="Date"><Input type="date" value={tf.date} onChange={(e) => setTf({ ...tf, date: e.target.value })} /></Field>
+            <BranchField value={tf.branch || homeBranch(state)} onChange={(b) => setTf({ ...tf, branch: b })} />
             <Field label="Memo" span={2}><Input value={tf.memo} placeholder="Cash drawn for petty cash float"
               onChange={(e) => setTf({ ...tf, memo: e.target.value })} /></Field>
           </div>
@@ -4767,7 +4786,7 @@ function ExpensesScreen({ state, setState, books, toast, create }) {
     const net = R2(+ex.amount), v = PMAP[ex.vendor];
     const base = PRODUCTS.find((p) => p.kind === "service" && /^EX-/.test(p.code)) || PRODUCTS.find((p) => p.kind === "service") || PRODUCTS[0];
     if (!base || !v) { toast(!v ? "Add a vendor first" : "Add an expense item under Products & services first", "warn"); return; }
-    const bill = { id: uid("d"), type: "bill", number: nextNumber(state.docs, "bill"),
+    const bill = { id: uid("d"), type: "bill", number: nextNumber(state.docs, "bill"), branch: ex.branch || homeBranch(state) || undefined,
       partner: ex.vendor, date: ex.date, due: ex.paid ? ex.date : addDays(ex.date, v.terms),
       lines: [{ id: uid("l"), product: base.id, desc: ex.memo || ACC[ex.acc].name, qty: 1,
         price: net, disc: 0, tax: ex.vat, account: ex.acc }],
@@ -4776,7 +4795,7 @@ function ExpensesScreen({ state, setState, books, toast, create }) {
     const gross = amounts(bill).total;
     const m = MET[ex.method] || METHODS[0];
     const pays = ex.paid ? [{ id: uid("pm"), kind: "out", number: nextPay(state.payments, "out"),
-      partner: ex.vendor, date: ex.date, amount: gross, method: m.id, account: m.account,
+      partner: ex.vendor, date: ex.date, amount: gross, method: m.id, account: m.account, branch: bill.branch, doc: bill.id,
       memo: [`Paid — ${ex.memo || ACC[ex.acc].name}`, ex.ref].filter(Boolean).join(" · ") }] : [];
     setState((x) => ({ ...x, docs: [...x.docs, freezeAccounts(bill)], payments: [...x.payments, ...pays] }));
     toast(`${bill.number} · ${money(gross, false)} recorded${ex.paid ? " and paid" : ""}`); setEx(null);
@@ -4809,6 +4828,7 @@ function ExpensesScreen({ state, setState, books, toast, create }) {
               <Select value={ex.vat} onChange={(e) => setEx({ ...ex, vat: e.target.value })}>
                 {TAXES.filter((t) => t.scope !== "sale").map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select></Field>
             <Field label="Date"><Input type="date" value={ex.date} onChange={(e) => setEx({ ...ex, date: e.target.value })} /></Field>
+            <BranchField value={ex.branch || homeBranch(state)} onChange={(b) => setEx({ ...ex, branch: b })} />
             <Field label="Supplier">
               <Select value={ex.vendor} onChange={(e) => setEx({ ...ex, vendor: e.target.value })}>
                 {PARTNERS.filter((p) => p.role === "vendor").map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
@@ -5779,7 +5799,7 @@ function FtaScreen({ state, setState, books, company, fta, setFta, p, setP, toas
         </div>)}
 
       {tab === "vat" && (
-        <ReportFrame toast={toast} title="VAT 201 filing pack" meta={`Enter these values on EmaraTax · ${dmy(p.from)} to ${dmy(p.to)} · AED`}
+        <ReportFrame toast={toast} title="VAT 201 filing pack" nobranch meta={`Enter these values on EmaraTax · ${dmy(p.from)} to ${dmy(p.to)} · AED`}
           right={<><Btn icon={Download} onClick={() => {
             dl(["Box,Description,Amount AED,VAT AED",
               ...boxes.map((b) => `"${b.n}","${b.label}",${b.net == null ? "" : b.net},${b.vat == null ? "" : b.vat}`)].join("\n"),
@@ -6010,6 +6030,7 @@ const SCREEN_PERM = {
   r_tb: "reports", r_gl: "reports", r_partner: "reports", r_aged_ar: "reports", r_aged_ap: "reports",
   r_prod: "reports", r_cust: "reports", r_vat: "tax", fta: "tax", settings: "settings", users: "settings", setup: "master",
   customers: "master", vendors: "master", reports: "reports", opening: "master", pdc: "bank",
+  branches: "settings", r_branch: "reports", r_group: "reports",
 };
 
 function UsersScreen({ state, setState, me, setMe, toast, create }) {
@@ -6031,7 +6052,8 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
     setState((x) => { const l = x.users || SEED_USERS;
       return { ...x, users: l.some((u) => u.id === rec.id) ? l.map((u) => (u.id === rec.id ? rec : u)) : [...l, rec] }; });
     if (!rec.approver) delete rec.approver;
-    toast(`${rec.name} saved as ${ROLES[rec.role].label}${rec.approver ? " · purchase approver" : ""}`); setEd(null);
+    if (!rec.branch) delete rec.branch;
+    toast(`${rec.name} saved as ${ROLES[rec.role].label}${rec.approver ? " · purchase approver" : ""}${rec.branch && BR[rec.branch] ? " · " + BR[rec.branch].name : ""}`); setEd(null);
   };
   const toggle = (u) => {
     if (u.id === me) { toast("You cannot deactivate the account you are signed in as", "warn"); return; }
@@ -6066,6 +6088,7 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
             <Field label="Status">
               <Select value={ed.active ? "y" : "n"} onChange={(e) => setEd({ ...ed, active: e.target.value === "y" })}>
                 <option value="y">Active</option><option value="n">Suspended</option></Select></Field>
+            <BranchField label="Home branch" value={ed.branch && BR[ed.branch] ? ed.branch : defaultBranchId(state)} onChange={(b) => setEd({ ...ed, branch: b })} />
             <Field label={ed.pinHash && !ed.clearPin ? "Sign-in PIN · set (type to change)" : "Sign-in PIN (optional)"}>
               <Input type="password" inputMode="numeric" autoComplete="new-password" maxLength={6} value={ed.newPin || ""} placeholder="4–6 digits"
                 onChange={(e) => setEd({ ...ed, newPin: e.target.value.replace(/\D/g, ""), clearPin: false })} />
@@ -6148,7 +6171,7 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
   );
 }
 
-function SettingsScreen({ accent, setAccent, company, setCompany, theme, setTheme, density, setDensity, backup, restore, reset, startCompany, go, toast, books, state, fta, setFta, setCosting, setSettings, cloud, pwa, param }) {
+function SettingsScreen({ accent, setAccent, company, setCompany, theme, setTheme, density, setDensity, backup, restore, reset, startCompany, go, toast, books, state, fta, setFta, setCosting, setSettings, cloud, pwa, param, onAddCompany }) {
   const [d, setD] = useState(company);
   const dirty = JSON.stringify(d) !== JSON.stringify(company);
   /* A profile changed by cloud sync or another window replaces the form, unless you have unsaved edits. */
@@ -6156,8 +6179,8 @@ function SettingsScreen({ accent, setAccent, company, setCompany, theme, setThem
   React.useEffect(() => { if (JSON.stringify(d) === JSON.stringify(shown.current)) setD(company); shown.current = company; }, [company]);
   const f = (k) => ({ value: d[k] || "", onChange: (e) => setD({ ...d, [k]: e.target.value }) });
   React.useEffect(() => {
-    if (param !== "__cloud__") return;
-    const t = setTimeout(() => { const el = document.getElementById("cloud-sync"); if (el) el.closest(".card").scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "start" }); }, 60);
+    if (param !== "__cloud__" && param !== "__companies__") return;
+    const t = setTimeout(() => { const el = document.getElementById(param === "__companies__" ? "companies" : "cloud-sync"); if (el) el.closest(".card").scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "start" }); }, 60);
     return () => clearTimeout(t);
   }, [param]);
   return (
@@ -6293,6 +6316,7 @@ function SettingsScreen({ accent, setAccent, company, setCompany, theme, setThem
         </div>
 
         <div className="grid">
+          {onAddCompany && <CompaniesCard company={company} onAdd={onAddCompany} toast={toast} backup={backup} />}
           {cloud && <CloudSyncCard sync={cloud} pwa={pwa} state={state} toast={toast} backup={backup} startCompany={startCompany} />}
           <Card title="WhatsApp & email delivery" pad={false}
             sub="Send invoices straight from the document view">
@@ -6415,6 +6439,8 @@ const NAV = [
  { g: "Reports", i: PieChart, items: [
     { k: "reports", l: "All reports", i: PieChart },
     { k: "r_pnl", l: "Profit & loss", i: BarChart3 },
+    { k: "r_branch", l: "Branch performance", i: Store },
+    { k: "r_group", l: "Group report", i: Building2 },
     { k: "r_bs", l: "Balance sheet", i: Scale },
     { k: "r_aged_ar", l: "Aged receivable", i: Receipt },
     { k: "r_aged_ap", l: "Aged payable", i: Receipt },
@@ -6426,15 +6452,15 @@ const NAV = [
     { k: "r_gl", l: "General ledger", i: BookOpen },
     { k: "r_partner", l: "Partner ledger", i: Users }] },
  { g: "VAT & e-invoicing", i: ShieldCheck, items: [{ k: "r_vat", l: "VAT return — FTA 201", i: Building2 }, { k: "fta", l: "FTA & e-invoicing", i: ShieldCheck }] },
- { g: "Utilities & tools", i: Wrench, items: [{ k: "setup", l: "Setup guide", i: ListChecks }, { k: "users", l: "Users & access", i: Users, add: 1 }, { k: "settings", l: "Settings & backup", i: Settings }] },
+ { g: "Utilities & tools", i: Wrench, items: [{ k: "setup", l: "Setup guide", i: ListChecks }, { k: "users", l: "Users & access", i: Users, add: 1 }, { k: "branches", l: "Branches", i: Store, add: 1 }, { k: "settings", l: "Settings & backup", i: Settings }] },
 ];
 const NAV_FLAT = navFlat();
 
 const DOC_VIEWS = { quotes: "quote", invoices: "invoice", credit_notes: "credit_note", bills: "bill", debit_notes: "debit_note", purchase_orders: "purchase_order" };
-const STORE_KEY = "mizan.books.v2";
+const STORE_KEY = coKey("mizan.books.v2");     // each company keeps its own books (3.18)
 const THEME_KEY = "mizan.theme";
-const CO_KEY = "mizan.company";
-const FTA_KEY = "mizan.fta";
+const CO_KEY = coKey("mizan.company");
+const FTA_KEY = coKey("mizan.fta");
 const NAVGRP_KEY = "mizan.navgroups";
 const ME_KEY = "mizan.me";
 const DENSITY_KEY = "mizan.density";
@@ -6473,6 +6499,7 @@ function Invoeez() {
   const [newAt, setNewAt] = useState({ top: 0, left: 0 });
   const [drawer, setDrawer] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [addingCo, setAddingCo] = useState(false), [coPop, setCoPop] = useState(null);
   const [bannerHidden, setBannerHidden] = useState(false);
   const newRef = React.useRef(null);
   const [me, setMe] = useState(() => initialMe(state.users || SEED_USERS));
@@ -6511,7 +6538,15 @@ function Invoeez() {
   useMemo(() => syncPartners(state.partners || []), [state.partners]);
   useMemo(() => syncProducts(state.products || [], state.categories || DEFAULT_CATEGORIES), [state.products, state.categories]);
   useMemo(() => syncMethods(state.methods || []), [state.methods]);
+  useMemo(() => syncBranches(state.branches || []), [state.branches]);
   const books = useMemo(() => deriveBooks(state), [state]);
+  /* Reports and the dashboard can look at one branch; the VAT return, stock and statements stay company-wide. */
+  const rb = branchOn() && period.branch && BR[period.branch] ? period.branch : "";
+  const db = branchOn() && range.branch && BR[range.branch] ? range.branch : "";
+  const rbooks = useMemo(() => branchBooks(books, rb), [books, rb]), rstate = useMemo(() => branchState(state, rb), [state, rb]);
+  const dbooks = useMemo(() => branchBooks(books, db), [books, db]), dstate = useMemo(() => branchState(state, db), [state, db]);
+  REPORT_BRANCH = rb ? BR[rb].name : ""; REPORT_BRANCH_ID = rb;
+  REPORT_SET_BRANCH = (b) => setPeriod((x) => ({ ...x, branch: b }));
   const palette = { ...PALETTE[theme], c1: ACCENTS[accent][theme === "dark" ? "c1d" : "c1"], c2: ACCENTS[accent][theme === "dark" ? "c2d" : "c2"] };
 
   React.useEffect(() => {
@@ -6520,6 +6555,7 @@ function Invoeez() {
   }, [theme]);
   React.useEffect(() => {
     try { window.localStorage.setItem(CO_KEY, JSON.stringify(company)); } catch (e) {}
+    touchCompany(company);
   }, [company]);
   React.useEffect(() => {
     try { window.localStorage.setItem(DENSITY_KEY, density); } catch (e) {}
@@ -6622,6 +6658,7 @@ function Invoeez() {
   const users = state.users || SEED_USERS;
   const meFound = users.find((u) => u.id === me && u.active);
   const meUser = meFound || { id: null, name: "", role: "viewer" };
+  ME_BRANCH = meUser.branch || "";
   const role = ROLES[meUser.role] || ROLES.viewer;
   const signOut = () => { setSwitching(false); setMenu(false); setMe(null); setView("dash"); };
   const can = (p) => role.perms.indexOf(p) >= 0;
@@ -6672,7 +6709,7 @@ function Invoeez() {
       books={books} openId={param} clearOpen={() => setParam(null)} toast={toast} go={go} fta={fta} user={meUser} users={users}
       readOnly={!!SCREEN_PERM[view] && !can(SCREEN_PERM[view])} />;
     switch (view) {
-      case "dash": return <Dashboard state={state} books={books} go={go} newDoc={newDoc} range={range} setRange={setRange} user={meUser}
+      case "dash": return <Dashboard state={dstate} whole={state} books={dbooks} go={go} newDoc={newDoc} range={range} setRange={setRange} user={meUser}
         setup={!state.sample && !(state.setup && state.setup.hidden) && <SetupProgress state={state} company={company} go={go} />} />;
       case "opening": return <OpeningScreen state={state} setState={setState} books={books} toast={toast} go={go} />;
       case "setup": return <SetupScreen state={state} setState={setState} books={books} company={company} go={go} newDoc={newDoc} toast={toast}
@@ -6680,7 +6717,7 @@ function Invoeez() {
       case "methods": return <MethodsScreen create={cr("methods")} state={state} setState={setState} books={books} toast={toast} />;
       case "r_stmt": return <StatementScreen state={state} books={books} p={period} setP={setPeriod}
         toast={toast} fta={fta} param={param} />;
-      case "r_method": return <MethodReport state={state} books={books} p={period} setP={setPeriod} toast={toast} />;
+      case "r_method": return <MethodReport state={rstate} books={rbooks} p={period} setP={setPeriod} toast={toast} />;
       case "pdc": return <PdcScreen state={state} setState={setState} books={books} toast={toast} go={go} create={cr("pdc")} />;
       case "banking": return <BankingScreen create={cr("banking")} state={state} setState={setState} books={books} toast={toast} go={go} />;
       case "expenses": return <ExpensesScreen create={cr("expenses")} state={state} setState={setState} books={books} toast={toast} />;
@@ -6702,24 +6739,27 @@ function Invoeez() {
       case "users": return <UsersScreen create={cr("users")} state={state} setState={setState} me={me} setMe={setMe} toast={toast} />;
       case "settings": return <SettingsScreen accent={accent} setAccent={setAccent} setCosting={(k) => setState((x) => ({ ...x, costing: k }))} setSettings={(patch) => setState((x) => ({ ...x, settings: { ...(x.settings || {}), ...patch } }))} fta={fta} setFta={setFta} company={company} setCompany={setCompany} theme={theme} setTheme={setTheme}
         density={density} setDensity={setDensity} backup={backup} restore={restore} reset={reset} startCompany={startCompany} go={go}
-        toast={toast} books={books} state={state} cloud={cloud} pwa={pwa} param={param} />;
-      case "r_tb": return <TrialBalance books={books} p={period} setP={setPeriod} toast={toast} drill={drill} />;
-      case "r_gl": return <GeneralLedger books={books} p={period} setP={setPeriod} toast={toast} param={param} drill={drill} />;
+        toast={toast} books={books} state={state} cloud={cloud} pwa={pwa} param={param} onAddCompany={() => setAddingCo(true)} />;
+      case "branches": return <BranchesScreen state={state} setState={setState} books={books} company={company} toast={toast} go={go} users={users} create={cr("branches")} />;
+      case "r_branch": return <BranchPerformance state={state} books={books} p={period} setP={setPeriod} toast={toast} go={go} />;
+      case "r_group": return <GroupReport state={state} books={books} company={company} p={period} setP={setPeriod} toast={toast} onAdd={() => setAddingCo(true)} />;
+      case "r_tb": return <TrialBalance books={rbooks} p={period} setP={setPeriod} toast={toast} drill={drill} />;
+      case "r_gl": return <GeneralLedger books={rbooks} p={period} setP={setPeriod} toast={toast} param={param} drill={drill} />;
       case "acct_groups": return <AccountGroupsScreen state={state} setState={setState} books={books} toast={toast} go={go} />;
-      case "r_partner": return <PartnerLedgerRep books={books} p={period} setP={setPeriod} toast={toast} param={param} />;
-      case "r_aged_ar": return <Aged state={state} kind="receivable" p={period} setP={setPeriod} toast={toast} />;
-      case "r_aged_ap": return <Aged state={state} kind="payable" p={period} setP={setPeriod} toast={toast} />;
-      case "r_pnl": return <ProfitLoss books={books} p={period} setP={setPeriod} toast={toast} state={state} drill={drill} go={go} />;
-      case "r_bs": return <BalanceSheetRep books={books} p={period} setP={setPeriod} toast={toast} state={state} drill={drill} go={go} />;
-      case "r_prod": return <ProfitReport state={state} books={books} p={period} setP={setPeriod} by="product" toast={toast} />;
-      case "r_cust": return <ProfitReport state={state} books={books} p={period} setP={setPeriod} by="customer" toast={toast} />;
+      case "r_partner": return <PartnerLedgerRep books={rbooks} p={period} setP={setPeriod} toast={toast} param={param} />;
+      case "r_aged_ar": return <Aged state={rstate} kind="receivable" p={period} setP={setPeriod} toast={toast} />;
+      case "r_aged_ap": return <Aged state={rstate} kind="payable" p={period} setP={setPeriod} toast={toast} />;
+      case "r_pnl": return <ProfitLoss books={rbooks} p={period} setP={setPeriod} toast={toast} state={rstate} drill={drill} go={go} />;
+      case "r_bs": return <BalanceSheetRep books={rbooks} p={period} setP={setPeriod} toast={toast} state={rstate} drill={drill} go={go} />;
+      case "r_prod": return <ProfitReport state={rstate} books={rbooks} p={period} setP={setPeriod} by="product" toast={toast} />;
+      case "r_cust": return <ProfitReport state={rstate} books={rbooks} p={period} setP={setPeriod} by="customer" toast={toast} />;
       case "r_vat": return <VatReturn state={state} p={period} setP={setPeriod} toast={toast} />;
       case "r_stock": return <StockReport books={books} p={period} setP={setPeriod} toast={toast} />;
       default: return null;
     }
   };
 
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS + REFINE_CSS + DELIVERY_CSS;
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS + REFINE_CSS + DELIVERY_CSS + GROUP_CSS;
   /* Nobody signed in in this tab: show the sign-in screen. */
   if (!meFound) return (
     <ThemeCtx.Provider value={palette}>
@@ -6738,6 +6778,9 @@ function Invoeez() {
     <div className="mz" data-theme={theme} data-accent={accent} data-density={density} style={{ height: "100vh" }}>
       <style>{ALL_CSS}</style>
       {starting && <StartCompanyDialog state={state} company={company} backup={backup} close={() => setStarting(false)} onDone={companyStarted} />}
+      {addingCo && <StartCompanyDialog mode="add" state={state} company={company} backup={backup} close={() => setAddingCo(false)}
+        onDone={(b, prof) => { const r = createCompany(b, prof); if (r.error) toast(r.error, "warn"); else { setAddingCo(false); toast(`${prof.name} created — opening it`); } }} />}
+      {coPop && <CompanySwitcher company={company} at={coPop} close={() => setCoPop(null)} add={() => { setCoPop(null); setAddingCo(true); }} manage={() => { setCoPop(null); go("settings", "__companies__"); }} />}
       {cmdk && <CommandPalette items={cmdItems} close={() => setCmdk(false)} run={(i) => i.act()} />}
       <Toasts items={toasts} dismiss={dismissToast} />
 
@@ -6745,7 +6788,8 @@ function Invoeez() {
         onClick={() => setDrawer(false)} role="presentation" />}
       <Sidebar view={view} go={go} quickAdd={quickAdd} allowed={allowed} counts={counts} closed={closed} setClosed={setClosed}
         mini={mini} setMini={setMini} drawer={drawer} company={company} meUser={meUser} role={role}
-        canAdd={canAdd} onSwitchUser={() => setSwitching(true)} onSignOut={signOut} />
+        canAdd={canAdd} onSwitchUser={() => setSwitching(true)} onSignOut={signOut}
+        onCompany={(el) => { const r = el.getBoundingClientRect(); setCoPop({ top: Math.min(r.bottom + 8, window.innerHeight - 420), left: Math.max(8, Math.min(r.left, window.innerWidth - 352)) }); }} />
       {keysOpen && <ShortcutSheet allowed={allowed} canAdd={canAdd} close={() => setKeysOpen(false)} />}
       <ChordHint chord={chord} allowed={allowed} canAdd={canAdd} />
       {switching && <SwitchUserDialog users={users} me={me} isAdmin={can("settings")} go={go} close={() => setSwitching(false)} onSignOut={signOut}

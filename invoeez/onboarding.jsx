@@ -84,9 +84,11 @@ function SetupProgress({ state, company, go }) {
 }
 
 /* ------------------------------------------------------- start a company -- */
-function StartCompanyDialog({ state, company, close, onDone, backup }) {
-  const sample = !!state.sample;
-  const [f, setF] = useState({ name: sample ? "" : company.name === COMPANY.name ? "" : company.name, trn: "", licence: "", address: "", address2: "", city: "", emirate: "Dubai",
+/* Starting over replaces this company's books; mode "add" (3.18) sets up another company beside it and leaves this one as it is. */
+function StartCompanyDialog({ state, company, close, onDone, backup, mode }) {
+  const sample = !!state.sample, add = mode === "add";
+  const [sameUsers, setSameUsers] = useState(add && !sample);
+  const [f, setF] = useState({ name: add || sample ? "" : company.name === COMPANY.name ? "" : company.name, trn: "", licence: "", address: "", address2: "", city: "", emirate: "Dubai",
     phone: "", email: "", admin: "", adminEmail: "" });
   const [keep, setKeep] = useState({ products: false, partners: false, pricing: false });
   const [ok, setOk] = useState(false), [step, setStep] = useState(1), [error, setError] = useState("");
@@ -96,17 +98,17 @@ function StartCompanyDialog({ state, company, close, onDone, backup }) {
   const next = () => {
     if (f.name.trim().length < 2) return setError("Enter your company's registered name.");
     if (f.trn.trim() && !/^\d{15}$/.test(f.trn.replace(/\s/g, ""))) return setError("A UAE TRN has exactly 15 digits — or leave it blank for now.");
-    if (f.admin.trim().length < 2) return setError("Enter your name. You will be the administrator.");
+    if (!sameUsers && f.admin.trim().length < 2) return setError("Enter your name. You will be the administrator.");
     setError(""); setStep(2);
   };
   const create = () => {
-    const users = [{ id: "u1", name: f.admin.trim(), email: f.adminEmail.trim(), role: "admin", active: true }];
+    const users = sameUsers ? (state.users || []).map((u) => ({ ...u })) : [{ id: "u1", name: f.admin.trim(), email: f.adminEmail.trim(), role: "admin", active: true }];
     const books = migrateBooks(freshBooks(state, { ...keep, users }));
     books.setup = {};
     onDone(books, { ...COMPANY, name: f.name.trim(), trn: f.trn.replace(/\s/g, ""), licence: f.licence.trim(), address: f.address.trim(), address2: f.address2.trim(),
       city: f.city.trim() || "United Arab Emirates", emirate: f.emirate, phone: f.phone.trim(), email: f.email.trim(), logo: "" });
   };
-  return <StudioModal wide title={sample ? "Start my company" : "Start a new company"} sub={step === 1 ? "Step 1 of 2 · Who you are" : "Step 2 of 2 · What to keep"} close={close}>
+  return <StudioModal wide title={add ? "Add a company" : sample ? "Start my company" : "Start a new company"} sub={step === 1 ? (add ? "Step 1 of 2 · The new company" : "Step 1 of 2 · Who you are") : add ? `Step 2 of 2 · What to copy from ${company.name}` : "Step 2 of 2 · What to keep"} close={close}>
     <div className="steps-dots"><i className="on" /><i className={step === 2 ? "on" : ""} /></div>
     {step === 1 ? <>
       <div className="studio-form">
@@ -119,28 +121,32 @@ function StartCompanyDialog({ state, company, close, onDone, backup }) {
         <Field label="Emirate"><Select value={f.emirate} onChange={(e) => set("emirate", e.target.value)}>{EMIRATES.map((x) => <option key={x}>{x}</option>)}</Select></Field>
         <Field label="Telephone"><Input value={f.phone} placeholder="+971 4 000 0000" onChange={(e) => set("phone", e.target.value)} /></Field>
         <Field label="Accounts email"><Input type="email" value={f.email} placeholder="accounts@yourcompany.ae" onChange={(e) => set("email", e.target.value)} /></Field>
-        <Field label="Your name (administrator)"><Input value={f.admin} placeholder="Full name" onChange={(e) => set("admin", e.target.value)} /></Field>
-        <Field label="Your email"><Input type="email" value={f.adminEmail} placeholder="Optional" onChange={(e) => set("adminEmail", e.target.value)} /></Field>
+        {add && !sample && <label className="check-label span2 same-users"><input type="checkbox" checked={sameUsers} onChange={(e) => setSameUsers(e.target.checked)} />
+          <span><b>The same people sign in</b> — copy the {(state.users || []).length} user{(state.users || []).length === 1 ? "" : "s"}, roles and PINs from {company.name}</span></label>}
+        {!sameUsers && <><Field label="Your name (administrator)"><Input value={f.admin} placeholder="Full name" onChange={(e) => set("admin", e.target.value)} /></Field>
+        <Field label="Your email"><Input type="email" value={f.adminEmail} placeholder="Optional" onChange={(e) => set("adminEmail", e.target.value)} /></Field></>}
       </div>
       {error && <div role="alert" className="form-error">{error}</div>}
-      <footer className="modal-actions"><Btn onClick={close}>Cancel</Btn><Btn kind="pri" icon={ArrowRight} onClick={next}>Next: choose what to keep</Btn></footer>
+      <footer className="modal-actions"><Btn onClick={close}>Cancel</Btn><Btn kind="pri" icon={ArrowRight} onClick={next}>{add ? "Next: choose what to copy" : "Next: choose what to keep"}</Btn></footer>
     </> : <>
       <div className="keep-list">
         {[["Chart of accounts", `${ACCOUNTS.length} accounts with VAT, bank, inventory and expense accounts`, true],
           ["Product categories", `${CATEGORIES.length} categories with their revenue, cost and stock accounts`, true],
           ["Expense items & payment methods", "Rent, utilities, telecom and the other items bills and expenses use", true]].map(([t, s]) =>
-          <label key={t} className="keep-row locked"><input type="checkbox" checked disabled /><span className="kt"><b>{t}</b><small>{s}</small></span><Pill tone="ok">Always kept</Pill></label>)}
+          <label key={t} className="keep-row locked"><input type="checkbox" checked disabled /><span className="kt"><b>{t}</b><small>{s}</small></span><Pill tone="ok">{add ? "Copied" : "Always kept"}</Pill></label>)}
         {[["products", "Products & services", `${own} items you have entered`],
           ["partners", "Customers & vendors", `${PARTNERS.length} records`],
           ["pricing", "Price lists & sales team", `${(state.priceLists || []).length} price lists and ${(state.salespeople || []).length} salespeople`]].map(([k, t, s]) =>
           <label key={k} className={cx("keep-row", keep[k] && "on")}><input type="checkbox" checked={keep[k]} onChange={(e) => setKeep((x) => ({ ...x, [k]: e.target.checked }))} />
-            <span className="kt"><b>{t}</b><small>{s}</small></span><Pill tone={keep[k] ? "ok" : ""}>{keep[k] ? "Keep" : "Remove"}</Pill></label>)}
+            <span className="kt"><b>{t}</b><small>{s}</small></span><Pill tone={keep[k] ? "ok" : ""}>{add ? (keep[k] ? "Copy" : "Don't copy") : keep[k] ? "Keep" : "Remove"}</Pill></label>)}
       </div>
-      <div className="info-strip warn-strip"><AlertTriangle size={20} /><span><b>{txn} transactions will be removed.</b><br />
+      {add ? <div className="info-strip"><Building2 size={20} /><span><b>{company.name} stays exactly as it is.</b><br />
+        {f.name.trim() || "The new company"} starts with clean books — no invoices, bills or payments — and its own TRN, VAT return and settings. Switch between companies from the company name at the top of the menu.</span></div>
+      : <><div className="info-strip warn-strip"><AlertTriangle size={20} /><span><b>{txn} transactions will be removed.</b><br />
         Invoices, bills, payments, journals, stock counts and fixed assets start empty. Download a backup first if you might want them back.</span>
         <Btn icon={Download} onClick={backup}>Backup</Btn></div>
-      <label className="check-label confirm-check"><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} />I understand — start {f.name.trim() || "my company"} with clean books.</label>
-      <footer className="modal-actions"><Btn onClick={() => setStep(1)}>Back</Btn><Btn kind="pri" icon={Rocket} disabled={!ok} onClick={create}>Create my company</Btn></footer>
+      <label className="check-label confirm-check"><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} />I understand — start {f.name.trim() || "my company"} with clean books.</label></>}
+      <footer className="modal-actions"><Btn onClick={() => setStep(1)}>Back</Btn><Btn kind="pri" icon={Rocket} disabled={!add && !ok} onClick={create}>{add ? `Create ${f.name.trim() || "the company"}` : "Create my company"}</Btn></footer>
     </>}
   </StudioModal>;
 }

@@ -33,6 +33,15 @@ WORK OFFLINE, SHARE THROUGH THE CLOUD (3.15)
 - Changes upload as soon as there is a connection. The top bar shows Synced,
   Offline · N waiting, or Syncing.
 
+SEVERAL COMPANIES AND BRANCHES (3.18)
+- Click the company name at the top of the menu > Add a company. Each
+  company has its own books, users, TRN, VAT return and backup.
+- Utilities & tools > Branches > Set up branches: the company becomes Head
+  office, then add your other branches. Give each user a home branch in
+  Users & access.
+- Every report has a Branch filter. Reports > Branch performance compares the
+  branches; Reports > Group report adds the companies together.
+
 UPGRADING FROM 3.2
 - Open the new file at the same address/folder in the same browser: your books
   load automatically with every customer, vendor and product kept.

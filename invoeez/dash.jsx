@@ -127,15 +127,16 @@ function DashHero({ user, company, range, setRange, mode, setMode, P, prior, com
         {pace != null && <span className="dh-pill pace" title="Sales so far this year, carried to the year end at the same daily rate"><TrendingUp size={13} /> On pace for <b>AED {short(pace)}</b> sales in {yr}</span>}</div>
       <div className="dh-ctrl">
         <div className="seg dh-seg" aria-label="Dashboard period">{[["mtd", "Month"], ["qtd", "Quarter"], ["ytd", "Year"], ["d365", "12 months"]].map(([key, l]) =>
-          <button key={key} className={range.preset === key ? "on" : ""} onClick={() => { const [f, t] = PRESETS.find((x) => x[0] === key)[2](); setRange({ preset: key, from: f, to: t }); }}>{l}</button>)}</div>
-        <RangePicker value={range} onChange={setRange} />
+          <button key={key} className={range.preset === key ? "on" : ""} onClick={() => { const [f, t] = PRESETS.find((x) => x[0] === key)[2](); setRange({ ...range, preset: key, from: f, to: t }); }}>{l}</button>)}</div>
+        <RangePicker value={range} onChange={(r) => setRange({ ...range, ...r })} />
+        <BranchPick dark value={range.branch} onChange={(b) => setRange({ ...range, branch: b })} />
         <div className="seg dh-seg">{[["overview", "Overview"], ["detail", "Financial detail"]].map(([k, l]) => <button key={k} className={mode === k ? "on" : ""} onClick={() => { setMode(k); scrollPageTop(); }}>{l}</button>)}</div>
       </div>
     </div>
     <div className="dh-body">
       <div className="dh-left">
         <h1>{greeting()}, {user.name.split(" ")[0]}<span className="wave" aria-hidden="true">.</span></h1>
-        <p className="dh-sub">Here’s how {company.name} is doing {label}.</p>
+        <p className="dh-sub">Here’s how {range.branch && BR[range.branch] ? `${company.name} · ${BR[range.branch].name}` : company.name} is doing {label}.</p>
         <div className="dh-figures">
           <div className="dh-main"><span>{P.net < 0 ? "Net loss" : "Net profit"}</span>
             <b><small>AED</small><CountUp value={P.net} /></b>

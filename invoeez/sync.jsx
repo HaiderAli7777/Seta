@@ -16,7 +16,8 @@
      follow.
    ========================================================================== */
 
-const CLOUD_KEY = "mizan.cloud", CONFLICT_KEY = "mizan.cloud.conflicts", CLOUD_LOG_KEY = "mizan.cloud.log";
+/* Each company has its own cloud link (3.18). */
+const CLOUD_KEY = coKey("mizan.cloud"), CONFLICT_KEY = coKey("mizan.cloud.conflicts"), CLOUD_LOG_KEY = coKey("mizan.cloud.log");
 const ATOMIC = new Set(["docs", "payments", "pdcs", "stockOps", "manual", "assets"]);
 const NUMBERED = { docs: (d) => d.type || "", payments: (p) => p.kind || "", pdcs: (c) => c.kind || "", stockOps: (o) => o.kind || "", manual: () => "", assets: () => "" };
 

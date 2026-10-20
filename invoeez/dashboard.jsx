@@ -1,11 +1,13 @@
-function Dashboard({state,books,go,newDoc,range,setRange,user,setup}){
+function Dashboard({state,books,go,newDoc,range,setRange,user,setup,whole}){
  const [mode,setMode]=useState('overview'),[gran,setGran]=useState('month'),[tx,setTx]=useState('all'),[settlement,setSettlement]=useState('collect');
  const C=useC(),company=useCo(),from=range.from,to=range.to;
  const rootRef=React.useRef(null),spot=useDashMotion(rootRef,[mode]);
  const P=useMemo(()=>pnl(books.flat,from,to),[books,from,to]);
  const cr=cmpRange(range,'prev'),pastEnd=cr.to,pastStart=cr.from;
  const prior=useMemo(()=>pnl(books.flat,pastStart,pastEnd),[books,pastStart,pastEnd]);
- const periodBooks=useMemo(()=>deriveBooks({...state,docs:state.docs.filter(d=>d.date<=to),payments:state.payments.filter(d=>d.date<=to),manual:state.manual.filter(d=>d.date<=to),stockOps:state.stockOps.filter(d=>d.date<=to)}),[state,to]);
+ /* Stock is held for the whole company, so its value comes from every branch's buying and selling. */
+ const W=whole||state;
+ const periodBooks=useMemo(()=>deriveBooks({...W,docs:W.docs.filter(d=>d.date<=to),payments:W.payments.filter(d=>d.date<=to),manual:W.manual.filter(d=>d.date<=to),stockOps:W.stockOps.filter(d=>d.date<=to)}),[W,to]);
  const ar=useMemo(()=>aging(state,'receivable',to),[state,to]),ap=useMemo(()=>aging(state,'payable',to),[state,to]);
  const buckets=useMemo(()=>bucketize(from,to,gran),[from,to,gran]);
  const bankCodes=ACCOUNTS.filter(a=>a.type==='bank').map(a=>a.code);
@@ -42,7 +44,7 @@ function Dashboard({state,books,go,newDoc,range,setRange,user,setup}){
   <KpiTile label="Costs & expenses" value={P.cost+P.expense} icon={Wallet} tone="t2" goodUp={false} delta={delta(P.cost+P.expense,prior.cost+prior.expense)} sub="goods + running costs" spark={series.map(x=>x.cost)} onClick={()=>go('r_pnl')}/>
   <KpiTile label="Gross profit" value={P.gross} icon={Layers} tone="t3" delta={delta(P.gross,prior.gross)} sub={P.gm.toFixed(1)+'% margin'} spark={series.map(x=>x.gross)} onClick={()=>go('r_prod')}/>
   <KpiTile label="To collect" value={ar.grand} icon={ArrowDownLeft} tone={arLate>0.004?'warn':'pos'} sub={arLate>0.004?'AED '+money(arLate,false)+' overdue':'nothing overdue'} onClick={()=>go('r_aged_ar')} foot={bar(ar.grand>0?arLate/ar.grand*100:0,'warn')}/>
-  <KpiTile label="Stock value" value={inventory} icon={Package} sub={lowCount?lowCount+' item'+(lowCount===1?'':'s')+' low on stock':'stock levels healthy'} onClick={()=>go('r_stock')} foot={bar(goodsCount?(goodsCount-lowCount)/goodsCount*100:0,'pos')}/>
+  <KpiTile label="Stock value" value={inventory} icon={Package} sub={(W!==state?'whole company · ':'')+(lowCount?lowCount+' item'+(lowCount===1?'':'s')+' low on stock':'stock levels healthy')} onClick={()=>go('r_stock')} foot={bar(goodsCount?(goodsCount-lowCount)/goodsCount*100:0,'pos')}/>
  </div>
  <div className="dash-row r21"><Card className="revenue-card" title="Revenue & costs" sub={`${dmy(from)} — ${dmy(to)} · AED`} right={<div className="seg">{[['day','Day'],['week','Week'],['month','Month']].map(([v,l])=><button key={v} className={gran===v?'on':''} onClick={()=>setGran(v)}>{l}</button>)}</div>}><div className="viz-legend"><span><i style={{background:'var(--s1)'}}/>Revenue</span><span><i style={{background:'var(--s2)'}}/>Costs & expenses</span><span><i className="ln" style={{background:'var(--s3)'}}/>Net profit</span></div>{series.some(x=>Math.abs(x.revenue)>0.004||Math.abs(x.cost)>0.004)?<><ColumnChart key={gran+from+to} data={series} height={236} series={[{key:'revenue',name:'Revenue',color:'var(--s1)'},{key:'cost',name:'Costs & expenses',color:'var(--s2)'}]} line={{key:'profit',name:'Net profit',color:'var(--s3)'}} ariaLabel="Revenue, costs and net profit"/><VizTable caption="Revenue and costs" cols={['Period','Revenue','Costs & expenses','Net profit']} rows={series.map(x=>[x.full||x.label,money(x.revenue,false),money(x.cost,false),money(x.profit,false)])}/></>:<div className="chart-empty" style={{height:244}}><EmptyState icon={BarChart3} title="No sales or costs in this period">Post an invoice or a bill and your trend appears here.</EmptyState><Btn kind="pri" icon={Plus} onClick={()=>newDoc('invoice')}>Create an invoice</Btn></div>}<div className="chart-bottom"><span>Gross profit <b>AED {money(P.gross,false)}</b></span><span>Gross margin <b>{P.gm.toFixed(1)}%</b></span><button onClick={()=>go('r_pnl')}>Explore report <ArrowUpRight size={14}/></button></div></Card>
  <DashHealth books={books} P={P} ar={ar} cash={cash} from={from} to={to} go={go}/></div>

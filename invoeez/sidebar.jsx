@@ -29,7 +29,7 @@ function navFlat() {
   return out;
 }
 
-function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini, setMini, drawer, company, meUser, role, canAdd, onSwitchUser, onSignOut }) {
+function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini, setMini, drawer, company, meUser, role, canAdd, onSwitchUser, onSignOut, onCompany }) {
   const tablet = useMedia("(min-width:901px) and (max-width:1024px)");
   /* Folded by default: a slim rail that slides open over the page while the pointer (or keyboard focus) is on it. */
   const [peek, setPeek] = useState(false), peekT = React.useRef(0);
@@ -101,9 +101,10 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
         <img className="sb-lockup" src={BRAND_LOCKUP} alt="InvoEez — Invoice Made Easy" />
         <img className="sb-mark" src={BRAND_MARK} alt="InvoEez" />
       </div>
-      <button className="sb-co" onClick={() => pick("settings")} title="Company profile">
+      <button className="sb-co" onClick={(e) => (onCompany ? onCompany(e.currentTarget) : pick("settings"))} title="Companies — switch or add" aria-haspopup="dialog">
         {company.logo ? <img src={company.logo} alt="" /> : <span className="av">{initials(company.name)}</span>}
         <span className="t"><b>{company.name}</b>{company.nameAr ? <span dir="rtl" className="ar">{company.nameAr}</span> : <span>{company.trn ? `TRN ${company.trn}` : "Add company details"}</span>}</span>
+        <ChevronDown size={14} className="sb-co-cv" />
       </button>
       <label className="sb-search">
         <Search size={15} strokeWidth={2.1} className="sb-s-ic" />
