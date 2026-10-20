@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.16)
+# InvoEez — Invoice Made Easy (3.17)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -74,6 +74,10 @@ Company profile, theme, user selection and connection settings use their existin
 | Scrap | Record damaged quantities with a reason. Scrap reduces stock at carrying cost and charges the category adjustment account. Quantities cannot exceed on-hand stock. |
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
+
+## Line discounts in % or AED, delivery addresses (3.17)
+
+Each line's discount has a **% | AED** switch; AED takes that amount off the whole line, and switching keeps the same money off. Customers can have several **delivery addresses** (branches), one of them the default. Quotations, invoices and credit notes choose where the goods go under **Deliver to**, and the place of supply follows the branch's emirate. A copy of the address stays on the document. It is printed, sent in the e-invoice, shown in the invoice list, and an invoice or quotation can be printed as a **delivery note** with quantities and signature boxes but no prices.
 
 ## Smoother movement and discount on the whole quotation (3.16)
 
@@ -200,6 +204,7 @@ npm test
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
 | `dashboard.jsx` | New overview dashboard. |
+| `delivery.jsx` | 3.17 delivery addresses: branches on customers, Deliver to on documents, add a branch from a document, address preview, print styles for Deliver to and the delivery note. |
 | `refine.jsx` | 3.16 gliding highlights for switches and tabs, rolling total, totals panel with the discount on the whole document, motion and editor refinements. |
 | `sync.jsx` | 3.15 offline-first cloud sync: record-by-record three-way merge, renumbering, sync engine, top-bar status chip, Settings › Cloud sync, installable app. |
 | `server/` | 3.15 InvoEez sync server (Node.js; PostgreSQL or files): versioned books per company, access keys, also serves the app. See `server/README.md`. |
@@ -218,6 +223,7 @@ npm test
 | `shell.html` | Original standalone shell and bundled libraries/fonts. |
 | `build.mjs` | Reproducible JSX compilation and standalone packaging. |
 | `tests/engine.cjs` | Executable accounting, pricing, migration and inventory regression checks. |
+| `tests/browser-delivery.cjs` | 3.17 checks: % / AED line discounts (switching keeps the money off, limits, saved), branches on a customer and the default, Deliver to and place of supply, adding a branch from the quotation, print, delivery note on screen and as PDF, carried to the invoice, list and search, phone. |
 | `tests/browser-refine.cjs` | 3.16 checks: menu unfolds with one layout and a glide (and reverses smoothly), sections fold, phone drawer, gliding highlights, documents glide in, discount on the whole quotation (amount, %, limits, save, reload, print, convert, post), save bar position, dark, reduced motion. |
 | `tests/browser-offline-sync.cjs` | 3.15 checks with the real sync server (files and PostgreSQL): connect and upload, a second device downloads, offline work waiting, renumbering on reconnect, a field changed on two devices and Use mine, deletions, opening with no internet, wrong key, restore switches sync off. |
 | `tests/browser-dashboard-motion.cjs` | 3.14 checks: scroll reveal, count-up on arrival, donut, rings, banner, pointer light, other donuts intact, reduced motion, print, phone. |

@@ -100,7 +100,7 @@ function pricingFor(state, product, qty, date, listId, side='sale', partner='', 
 function productHistory(state,pid,side,partner='',exclude='',before='9999-12-31') {
   const type=side==='sale'?'invoice':'bill';
   return (state.docs||[]).filter(d=>d.type===type&&d.state==='posted'&&d.id!==exclude&&d.date<=before&&(!partner||d.partner===partner))
-    .flatMap(d=>amounts(d).lines.filter(l=>l.product===pid).map(l=>({...l,date:d.date,number:d.number,docId:d.id,partner:d.partner,unitNet:l.docShare&&+l.qty?R2(l.amount/l.qty):R2(l.price*(1-(l.disc||0)/100))})))
+    .flatMap(d=>amounts(d).lines.filter(l=>l.product===pid).map(l=>({...l,date:d.date,number:d.number,docId:d.id,partner:d.partner,unitNet:(l.docShare||isAmtDisc(l))&&+l.qty?R2(l.amount/l.qty):R2(l.price*(1-(l.disc||0)/100))})))
     .sort((a,b)=>b.date.localeCompare(a.date)||b.number.localeCompare(a.number));
 }
 const saveMaster=(setState,key,rec)=>setState(s=>({...s,[key]:(s[key]||[]).some(x=>x.id===rec.id)?s[key].map(x=>x.id===rec.id?rec:x):[...(s[key]||[]),rec]}));
@@ -113,7 +113,7 @@ function learnPurchasePrices(state, bill) {
   const updates = {};
   amounts(bill).lines.forEach((l) => {          // net of any discount on the whole bill
     const p = PROD[l.product]; if (!p || p.id === 'ob_balance' || /^EX-/.test(p.code || '')) return;
-    const unit = l.docShare && +l.qty ? R2(l.amount / l.qty) : R2((+l.price || 0) * (1 - (+l.disc || 0) / 100)); if (!(unit > 0)) return;
+    const unit = (l.docShare || isAmtDisc(l)) && +l.qty ? R2(l.amount / l.qty) : R2((+l.price || 0) * (1 - (+l.disc || 0) / 100)); if (!(unit > 0)) return;
     const boughtBefore = state.docs.some((d) => d.id !== bill.id && d.type === 'bill' && d.state === 'posted' && d.lines.some((x) => x.product === p.id));
     const base = updates[p.id] || list.find((x) => x.id === p.id) || p;
     updates[p.id] = { ...base, lastPurchase: unit, cost: !boughtBefore && !(+base.cost > 0) ? unit : base.cost };

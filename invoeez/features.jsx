@@ -102,7 +102,7 @@ const AR = {
   "Supplier": "المورد", "Billed to": "فاتورة إلى", "Recipient": "المستلم", "Payment terms": "شروط الدفع",
   "#": "م", "Description": "الوصف", "Qty": "الكمية", "Unit price": "سعر الوحدة", "Taxable": "الخاضع للضريبة",
   "VAT %": "النسبة", "VAT": "الضريبة", "Total": "الإجمالي", "Amount in words": "المبلغ كتابةً",
-  "Payment": "الدفع", "Taxable amount": "المبلغ الخاضع للضريبة", "Subtotal": "المجموع الفرعي", "Discount": "الخصم", "Amount": "المبلغ", "VAT amount": "ضريبة القيمة المضافة", "Reverse charge": "الاحتساب العكسي",
+  "Payment": "الدفع", "Taxable amount": "المبلغ الخاضع للضريبة", "Subtotal": "المجموع الفرعي", "Disc.": "الخصم", "Deliver to": "التسليم إلى", "Delivery Note": "إشعار التسليم", "Reference": "المرجع", "Code": "الرمز", "Received": "المستلم", "Customer": "العميل", "Delivered by": "سلّمه", "Received in good condition by": "استلمه بحالة جيدة", "Discount": "الخصم", "Amount": "المبلغ", "VAT amount": "ضريبة القيمة المضافة", "Reverse charge": "الاحتساب العكسي",
   "TOTAL PAYABLE": "الإجمالي المستحق", "TOTAL CREDITED": "إجمالي المبلغ الدائن", "Authorised signatory": "التوقيع المعتمد",
   "Issued": "تاريخ الإصدار", "Due": "تاريخ الاستحقاق", "Place of supply": "مكان التوريد", "TRN": "الرقم الضريبي",
   "not registered": "غير مسجل", "Your ref": "مرجعكم", "Net": "صافي", "days": "يوم",

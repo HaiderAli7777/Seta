@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.16.0";
+const BUILD = "3.17.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -232,9 +232,18 @@ function docDiscountOf(d, gross) {
   const v = x.mode === "percent" ? R2((gross * Math.min(100, +x.value)) / 100) : R2(+x.value);
   return Math.max(0, Math.min(v, R2(gross)));
 }
+/* A line discount is a percentage (the default) or an amount in AED taken off the whole line (discMode "amount"). */
+const isAmtDisc = (l) => l.discMode === "amount";
+function lineNetOf(l) {
+  if (!isAmtDisc(l)) return R2(+l.qty * +l.price * (1 - (+l.disc || 0) / 100));
+  const g = R2(+l.qty * +l.price);
+  return R2(g - Math.max(0, Math.min(+l.disc || 0, g > 0 ? g : 0)));
+}
+const unitNetOf = (l) => (isAmtDisc(l) ? (+l.qty ? lineNetOf(l) / +l.qty : +l.price || 0) : (+l.price || 0) * (1 - (+l.disc || 0) / 100));
+const discLabel = (l) => (+l.disc > 0 ? (isAmtDisc(l) ? "AED " + money(+l.disc, false) : `${+l.disc}%`) : "—");
 function amounts(d) {
   let net = 0, vat = 0, rcm = 0;
-  const pre = d.lines.map((l) => R2(+l.qty * +l.price * (1 - (+l.disc || 0) / 100)));
+  const pre = d.lines.map(lineNetOf);
   const gross = pre.reduce((s, a) => s + (a > 0 ? a : 0), 0), dd = docDiscountOf(d, gross);
   const share = pre.map((a) => (dd && a > 0 ? R2((dd * a) / gross) : 0));
   if (dd) { const diff = R2(dd - share.reduce((s, a) => s + a, 0)); if (diff) { const i = pre.indexOf(Math.max(...pre)); share[i] = R2(share[i] + diff); } }
@@ -2484,7 +2493,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
   const filtered = state.docs.filter((d) => d.type === type)
     .filter((d) => f === "all" || (f === "open" ? (openMap[d.id] || 0) > 0.004 : f === "overdue" ? (openMap[d.id] || 0) > 0.004 && d.due < TODAY
       : f === "soon" ? (openMap[d.id] || 0) > 0.004 && d.due >= TODAY && d.due <= addDays(TODAY, 7) : f === "approved" && isPO ? ["approved", "sent"].includes(d.state) : d.state === f))
-    .filter((d) => hits(q, d.number, PMAP[d.partner].name, PMAP[d.partner].trn, d.ref, d.emirate,
+    .filter((d) => hits(q, d.number, PMAP[d.partner].name, PMAP[d.partner].trn, d.ref, d.emirate, d.delivery && d.delivery.name,
       d.lines.map((l) => (PROD[l.product] ? productText(PROD[l.product]) : "") + " " + l.desc).join(" ")));
   const field = (d, k) => {
     const a = amounts(d);
@@ -2548,7 +2557,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
               return (
                 <tr key={d.id} className="click" onClick={() => setEditing(d)}>
                   <td className="mono nowrap c-no" style={{ fontSize: 12.5 }}>{d.number}</td>
-                  <td className="c-party"><Party name={PMAP[d.partner].name} meta={PMAP[d.partner].trn ? "TRN " + PMAP[d.partner].trn : "Not VAT registered"} /></td>
+                  <td className="c-party"><Party name={PMAP[d.partner].name} meta={d.delivery && d.deliverTo ? "Deliver to " + d.delivery.name : PMAP[d.partner].trn ? "TRN " + PMAP[d.partner].trn : "Not VAT registered"} /></td>
                   <td className="muted nowrap c-date">{dmy(d.date)}</td>
                   <td className="nowrap c-due" style={{ color: late ? "var(--neg)" : "var(--ink-3)" }}>{dmy(d.due)}
                     {late && <div className="late-note">{daysBetween(d.due, TODAY)} {daysBetween(d.due, TODAY) === 1 ? "day" : "days"} overdue</div>}</td>
@@ -2608,12 +2617,24 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     if(l.id!==id)return l;const next={...l,[k]:v,...(k==='price'?{manualPricing:true,priceChoice:undefined,oneOff:false}:{})};
     return k==='qty'&&!next.manualPricing&&PROD[next.product]?{...next,...pricingFor(state,PROD[next.product],v,s.date,s.pricelist,meta.side,s.partner,s.id)}:next;
   })}));
-  const addLine=()=>{const id=uid('l');pendingLine.current=id;setTab('items');setActiveLine(id);setD(s=>({...s,lines:[...s.lines,{id,product:'',desc:'',qty:'',price:'',disc:'',tax:'s5',account:null}]}));};
+  const setDiscMode=(id,mode)=>setD(s=>({...s,lines:s.lines.map(l=>{
+    if(l.id!==id||(isAmtDisc(l)?'amount':'percent')===mode)return l;
+    const g=R2((+l.qty||0)*(+l.price||0)),v=+l.disc||0;
+    const disc=!v?'':mode==='amount'?R2(g*v/100):g?R2(v/g*100):'';
+    return {...l,discMode:mode==='amount'?'amount':undefined,disc:disc===''||disc===0?'':String(disc)};})}));
+  const addLine=()=>{const id=uid('l');pendingLine.current=id;setTab('items');setActiveLine(id);setD(s=>{const last=s.lines[s.lines.length-1];
+    return {...s,lines:[...s.lines,{id,product:'',desc:'',qty:'',price:'',disc:'',tax:'s5',account:null,...(last&&isAmtDisc(last)?{discMode:'amount'}:{})}]};});};
   const pickProduct=(id,pid)=>{const p=PROD[pid];if(!p)return;setActiveLine(id);
     setD(s=>({...s,lines:s.lines.map(l=>l.id===id?{...l,product:pid,desc:p.name,disc:0,...pricingFor(state,p,l.qty,s.date,s.pricelist,meta.side,s.partner,s.id),tax:sale&&p.tax==='rc5'?'s5':p.tax,account:null,accounts:undefined,manualPricing:false,priceChoice:undefined,oneOff:false}:l)}));
     requestAnimationFrame(()=>document.querySelector('[data-line-id="'+id+'"] .q-qty')?.focus());
   };
-  const pickPartner=pid=>{const p=PMAP[pid];if(!p)return;setD(s=>reprice({...s,partner:pid,due:addDays(s.date,p.terms||0),emirate:p.emirate,salesman:p.salesman||'',pricelist:p.pricelist||''},true));};
+  /* A customer's default delivery address is chosen with them; the place of supply follows where the goods go. */
+  const pickPartner=pid=>{const p=PMAP[pid];if(!p)return;const br=sale&&p.defaultBranch?snapDelivery(p,p.defaultBranch):undefined;
+    setD(s=>reprice({...s,partner:pid,due:addDays(s.date,p.terms||0),emirate:br&&EMIRATES.includes(br.emirate)?br.emirate:p.emirate,salesman:p.salesman||'',pricelist:p.pricelist||'',deliverTo:br?br.id:undefined,delivery:br},true));};
+  const pickBranch=(id,rec)=>{const p=PMAP[d.partner];const b=rec?snapBranch(rec):id?snapDelivery(p,id):undefined;
+    setD(s=>({...s,deliverTo:b?b.id:undefined,delivery:b,emirate:b&&EMIRATES.includes(b.emirate)?b.emirate:!b&&p?p.emirate:s.emirate}));
+    if(b&&b.emirate&&b.emirate!==d.emirate&&EMIRATES.includes(b.emirate))toast(`Place of supply set to ${b.emirate}, where the goods are delivered`);};
+  const addBranch=(b)=>{setState(s=>({...s,partners:(s.partners||[]).map(x=>x.id===d.partner?{...x,branches:[...branchesOf(x),b]}:x)}));pickBranch(b.id,b);toast(`${b.name} added to ${PMAP[d.partner].name}`);};
   const validate=(posting=false)=>{
     if(!PMAP[d.partner])return 'Select a customer or vendor.';
     if(!d.date||!d.due)return 'Set the document and due dates.';
@@ -2621,7 +2642,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     if(d.lines.some(l=>!PROD[l.product]))return 'Choose a product on every line, or remove the empty line.';
     if(d.lines.some(l=>l.qty===''||l.qty==null))return 'Enter a quantity on every line.';
     if(d.lines.some(l=>l.price===''||l.price==null))return 'Enter a unit price on every line.';
-    if(d.lines.some(l=>!Number.isFinite(+l.qty)||+l.qty<=0||!Number.isFinite(+l.price)||+l.price<0||!Number.isFinite(+l.disc)||+l.disc<0||+l.disc>100))return 'Use quantities above zero, non-negative prices, and discounts between 0 and 100%.';
+    if(d.lines.some(l=>!Number.isFinite(+l.qty)||+l.qty<=0||!Number.isFinite(+l.price)||+l.price<0||!Number.isFinite(+l.disc)||+l.disc<0||(!isAmtDisc(l)&&+l.disc>100)))return 'Use quantities above zero, non-negative prices, and discounts between 0 and 100%.';
+    {const i=d.lines.findIndex(l=>isAmtDisc(l)&&+l.disc>R2(+l.qty*+l.price)+0.004);if(i>=0)return `The discount on line ${i+1} (AED ${money(+d.lines[i].disc,false)}) is more than the line is worth (AED ${money(R2(+d.lines[i].qty*+d.lines[i].price),false)}).`;}
     if(d.docDisc&&d.docDisc.value!==''&&d.docDisc.value!=null&&!(Number.isFinite(+d.docDisc.value)&&+d.docDisc.value>=0))return 'Enter the discount as a number, or remove it.';
     if(d.docDisc&&+d.docDisc.value>0&&(d.docDisc.mode==='percent'?+d.docDisc.value>100:+d.docDisc.value>am.gross+0.004))return d.docDisc.mode==='percent'?'The discount cannot be more than 100%.':`The discount is more than the ${meta.short.toLowerCase()} is worth (AED ${money(am.gross,false)} before VAT).`;
     if(posting&&state.stockOps.some(o=>o.date>d.date&&o.lines.some(x=>d.lines.some(l=>l.product===x.product))))return 'A later stock adjustment exists for one of these products. Use a date on or after that adjustment.';
@@ -2663,14 +2685,14 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   const commit = (next) => setState((s) => {
     const exists = s.docs.some((x) => x.id === d.id);
     const seq = next.state === "posted" && !next.seq ? Math.max(0, ...s.docs.map((x) => x.seq||0), ...(s.stockOps||[]).map(x=>x.seq||0)) + 1 : next.seq;
-    const numeric = { ...next, docDisc: normDisc(next.docDisc), lines: next.lines.map((l) => ({ ...l, qty: +l.qty || 0, price: +l.price || 0, disc: +l.disc || 0 })) };
+    const numeric = { ...next, docDisc: normDisc(next.docDisc), ...(next.deliverTo ? { delivery: snapDelivery(PMAP[next.partner], next.deliverTo) || next.delivery } : { deliverTo: undefined, delivery: undefined }), lines: next.lines.map((l) => ({ ...l, qty: +l.qty || 0, price: +l.price || 0, disc: +l.disc || 0, discMode: isAmtDisc(l) ? "amount" : undefined })) };
     const clean = { ...(numeric.state === "posted" ? freezeAccounts(numeric) : numeric), seq: numeric.state === "posted" ? seq : 0, isNew: undefined };
     const docs = exists ? s.docs.map((x) => (x.id === d.id ? clean : x)) : [...s.docs, clean];
     return { ...s, docs, products: clean.type === "bill" && clean.state === "posted" ? learnPurchasePrices(s, clean) : s.products };
   });
   const save = () => { const err=validate();if(err)return warn(err);commit(isPO&&d.state==='rejected'?poLog({...d,state:'draft'},'revised',user):d); toast(`${d.number} saved as draft`); close(); };
   /* Unsaved changes: shown in the save bar, Ctrl+S saves in place, leaving asks first. */
-  const snapOf = (x) => JSON.stringify({ ...x, isNew: undefined, seq: undefined, docDisc: normDisc(x.docDisc), lines: x.lines.map((l) => ({ ...l, qty: +l.qty || 0, price: +l.price || 0, disc: +l.disc || 0 })) });
+  const snapOf = (x) => JSON.stringify({ ...x, isNew: undefined, seq: undefined, docDisc: normDisc(x.docDisc), lines: x.lines.map((l) => ({ ...l, qty: +l.qty || 0, price: +l.price || 0, disc: +l.disc || 0, discMode: isAmtDisc(l) ? "amount" : undefined })) });
   const savedSnap = React.useRef(snapOf(initial));
   const dirty = !locked && (d.isNew ? !!d.partner || d.lines.some((l) => l.product) : snapOf(d) !== savedSnap.current);
   const saveHere = () => { if (locked) return; const err = validate(); if (err) return warn(err);
@@ -2687,7 +2709,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   const spawn = (type, lines, ref, note, extra) => {
     const nd = { id: uid("d"), type, number: nextNumber(state.docs, type), partner: d.partner,salesman:d.salesman||"",pricelist:d.pricelist||"",
       date: TODAY, due: addDays(TODAY, PMAP[d.partner].terms), lines, ref: ref || "", note: note || "",
-      state: "draft", seq: 0, emirate: d.emirate, ...(d.docDisc && +d.docDisc.value > 0 ? { docDisc: { ...d.docDisc } } : {}), ...(extra || {}) };
+      state: "draft", seq: 0, emirate: d.emirate, ...(d.docDisc && +d.docDisc.value > 0 ? { docDisc: { ...d.docDisc } } : {}),
+      ...(d.deliverTo && d.delivery && DOCMETA[type].side === "sale" ? { deliverTo: d.deliverTo, delivery: { ...d.delivery } } : {}), ...(extra || {}) };
     setState((x) => ({ ...x, docs: [...x.docs, nd] }));
     toast(`${nd.number} created as a draft`);
     go(LIST_OF[type], nd.id);
@@ -2893,6 +2916,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
             <Field label={isQuote?'Valid until':isPO?'Deliver by':'Payment due'}><Input type="date" value={d.due} disabled={locked} onChange={e=>set('due',e.target.value)}/></Field>
             <Field label="Place of supply"><Select value={d.emirate} disabled={locked} onChange={e=>set('emirate',e.target.value)}>{[...EMIRATES,'Export','Import'].map(x=><option key={x}>{x}</option>)}</Select></Field>
             <Field span={sale?2:1} label={sale?'Customer purchase order':isPO?'Vendor quotation ref.':'Supplier invoice number'}><Input value={d.ref} disabled={locked} onChange={e=>set('ref',e.target.value)} placeholder="Optional reference"/></Field>
+            {sale&&<Field span={2} label="Deliver to"><DeliverToField d={d} locked={locked} pick={id=>pickBranch(id)} addBranch={addBranch}/></Field>}
+            {sale&&<div className="fld dl-fld" style={{gridColumn:'span 3'}}><span className="lb" aria-hidden="true">&nbsp;</span><DeliveryPreview d={d}/></div>}
           </div>
         </DocUnit>
 
@@ -2916,7 +2941,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
           {lineView!=='compact'&&<div className="line-section-head"><div><h2>Products & services</h2><p>Search by name, code or barcode. Select a product to fill the line.</p></div>{!locked&&<Btn icon={Plus} kind="pri" onClick={addLine}>Add line</Btn>}</div>}
           {!d.lines.length&&lineView!=='compact'&&<Card><EmptyState icon={Package} title="Start with your first product">Add a blank line, then search or scan a product.</EmptyState>{!locked&&<div className="center"><Btn kind="pri" icon={Plus} onClick={addLine}>Add first line</Btn></div>}</Card>}
           {lineView==='compact'&&<div className="line-grid-wrap"><table className="line-grid">
-            <thead><tr><th className="lg-n">#</th><th className="lg-p">Product</th><th className="lg-d">Description</th><th className="lg-q">Qty</th><th className="lg-u">Unit</th><th className="lg-pr">Unit price</th><th className="lg-di">Disc %</th><th className="lg-t">VAT</th>{showAccounts&&<th className="lg-a">Account</th>}{showCost&&<th className="lg-c">Cost / margin</th>}<th className="lg-am">Amount</th><th className="lg-x"/></tr></thead>
+            <thead><tr><th className="lg-n">#</th><th className="lg-p">Product</th><th className="lg-d">Description</th><th className="lg-q">Qty</th><th className="lg-u">Unit</th><th className="lg-pr">Unit price</th><th className="lg-di">Discount</th><th className="lg-t">VAT</th>{showAccounts&&<th className="lg-a">Account</th>}{showCost&&<th className="lg-c">Cost / margin</th>}<th className="lg-am">Amount</th><th className="lg-x"/></tr></thead>
             <tbody>{am.lines.map((l,i)=>{const p=PROD[l.product],st=p&&books.stock[p.id]||{qty:0,value:0},cost=p?currentCost(p,books):0;
               const def=sale?(l.accounts?.income||p?.income):(p?.kind==='goods'?(l.accounts?.inventory||p?.inventory):(l.accounts?.expense||p?.expense));
               const last=i===am.lines.length-1;
@@ -2930,10 +2955,10 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
                 <td className="lg-q"><input className="inp n q-qty" type="number" min="0" step="any" placeholder="0" value={l.qty} disabled={locked||!p} onKeyDown={enter} onChange={e=>setLine(l.id,'qty',e.target.value)} aria-label={'Quantity on line '+(i+1)}/></td>
                 <td className="lg-u">{p?p.uom:''}</td>
                 <td className={cx("lg-pr",l.priceSource==='Party special'&&'special')}>{l.priceSource==='Party special'&&<Star size={10} className="lg-star" aria-label="Party special price"/>}<input className="inp n q-price" type="number" min="0" step="0.01" value={l.price} placeholder={p?'Price':''} disabled={locked||!p} onKeyDown={enter} onChange={e=>setLine(l.id,'price',e.target.value)} aria-label={'Unit price on line '+(i+1)} title={l.priceChoice==='once'?"Changed for this document only (Don't store)":l.manualPricing?'Manual price':l.priceSource||'Product price'}/></td>
-                <td className="lg-di"><input className="inp n" type="number" min="0" max="100" step="0.01" value={l.disc||''} placeholder="0" disabled={locked||!p} onKeyDown={enter} onChange={e=>setLine(l.id,'disc',e.target.value)} aria-label={'Discount on line '+(i+1)}/></td>
+                <td className="lg-di"><DiscCell l={l} n={i+1} disabled={locked||!p} onKeyDown={enter} onValue={v=>setLine(l.id,'disc',v)} onMode={m=>setDiscMode(l.id,m)}/></td>
                 <td className="lg-t"><Select compact value={l.tax} disabled={locked||!p} onChange={e=>setLine(l.id,'tax',e.target.value)} aria-label={'VAT on line '+(i+1)}>{taxes.map(t=><option key={t.id} value={t.id}>{t.short||t.name}</option>)}</Select></td>
                 {showAccounts&&<td className="lg-a">{p?.kind==='goods'&&!sale?<span className="lg-ro">{def}</span>:<Select compact value={l.account||def||''} disabled={locked||!p} onChange={e=>setLine(l.id,'account',e.target.value)} aria-label={'Account on line '+(i+1)}><option value="">—</option>{accounts.map(a=><option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}</Select>}</td>}
-                {showCost&&<td className="lg-c">{p?<><span>{money(cost,false)}</span>{sale&&<small className={l.price*(1-(l.disc||0)/100)-cost<0?'neg':'pos'}>{money(l.price*(1-(l.disc||0)/100)-cost,false)}</small>}</>:''}</td>}
+                {showCost&&<td className="lg-c">{p?<><span>{money(cost,false)}</span>{sale&&<small className={unitNetOf(l)-cost<0?'neg':'pos'}>{money(unitNetOf(l)-cost,false)}</small>}</>:''}</td>}
                 <td className="lg-am"><b>{money(l.preDisc??l.amount,false)}</b>{l.docShare?<small className="lg-after" title={`After this line's share of the discount on the whole ${meta.short.toLowerCase()}: ${money(l.amount,false)}${l.taxAmt?` + VAT ${money(l.taxAmt,false)}`:''}`}>net {money(l.amount,false)}</small>:l.taxAmt?<small>VAT {money(l.taxAmt,false)}</small>:null}</td>
                 <td className="lg-x">{!locked&&<button className="icon-btn" title={'Remove line '+(i+1)} aria-label={'Remove line '+(i+1)} onClick={()=>setD(s=>({...s,lines:s.lines.filter(x=>x.id!==l.id)}))}><Trash2 size={14}/></button>}</td>
               </tr>{open&&lineInfo(l,p,st)}{priceAskRow(l,20)}</React.Fragment>;})}
@@ -2953,12 +2978,12 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
               <div className="line-values">
                 <Field label={'Quantity'+(p?' · '+p.uom:'')}><Input n type="number" min="0" step="0.01" value={l.qty} disabled={locked||!p} onChange={e=>setLine(l.id,'qty',e.target.value)}/></Field>
                 <Field label="Unit price · AED"><Input n className="q-price" type="number" min="0" step="0.01" value={l.price} placeholder={p?'Price':''} disabled={locked||!p} onChange={e=>setLine(l.id,'price',e.target.value)}/></Field>
-                <Field label="Discount %"><Input n type="number" min="0" max="100" step="0.01" value={l.disc||''} placeholder="0" disabled={locked||!p} onChange={e=>setLine(l.id,'disc',e.target.value)}/></Field>
+                <Field label="Discount"><DiscCell l={l} n={i+1} disabled={locked||!p} onValue={v=>setLine(l.id,'disc',v)} onMode={m=>setDiscMode(l.id,m)}/></Field>
                 <Field label="VAT treatment"><Select value={l.tax} disabled={locked||!p} onChange={e=>setLine(l.id,'tax',e.target.value)}>{taxes.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</Select></Field>
                 <div className="line-amount"><small>Amount excl. VAT</small><b>{money(l.preDisc??l.amount,false)}</b><span>{l.docShare?`net ${money(l.amount,false)} · `:''}VAT {money(l.taxAmt,false)}</span></div>
               </div>
               {askPrice(l)&&<table className="price-ask-card"><tbody>{priceAskRow(l,1)}</tbody></table>}
-              {p&&<div className="line-insights"><button className="line-detail-toggle" aria-expanded={!!expandedLines[l.id]} onClick={()=>setExpandedLines(x=>({...x,[l.id]:!x[l.id]}))}><ChevronDown size={13}/>{expandedLines[l.id]?"Hide description":"Description"}</button><span className="price-source">{l.manualPricing?'Manual price':l.priceSource||'Product price'}</span><span>{last?<>Last {sale?'sold':'purchased'}: <b>AED {money(last.unitNet,false)}</b> / {p.uom.toLowerCase()} · {dmy(last.date)} · Qty {last.qty}</>:<>No previous {sale?'sale to this customer':'purchase from this vendor'}</>}</span><button onClick={()=>setHistoryLine(l)}><Clock size={13}/>View history</button>{showCost&&<div className="runtime-cost"><span>Cost price <b>{money(p.cost,false)}</b></span><span>Current unit cost ({(books.method||'avco').toUpperCase()}) <b>{money(cost,false)}</b></span>{sale&&<span>Est. margin / unit <b className={l.price*(1-(l.disc||0)/100)-cost<0?'neg':'pos'}>{money(l.price*(1-(l.disc||0)/100)-cost,false)}</b></span>}<small>Current costs · AED · before VAT</small></div>}{showAccounts&&<div className="runtime-account"><Field label="Account">{p?.kind==='goods'&&!sale?<div className="readonly">{def} · {ACC[def]?.name}</div>:<Select aria-label={'Account on line '+(i+1)} value={l.account||def||''} disabled={locked||!p} onChange={e=>setLine(l.id,'account',e.target.value)}><option value="">Select product first</option>{accounts.map(a=><option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}</Select>}</Field><span className="account-source">{p.kind==='goods'&&!sale?'Inventory account from product category':l.account?'Line account override':'Default from product category'}</span>{!locked&&l.account&&!(p.kind==='goods'&&!sale)&&<button onClick={()=>setLine(l.id,'account',null)}><RotateCcw size={13}/>Use category default</button>}</div>}</div>}
+              {p&&<div className="line-insights"><button className="line-detail-toggle" aria-expanded={!!expandedLines[l.id]} onClick={()=>setExpandedLines(x=>({...x,[l.id]:!x[l.id]}))}><ChevronDown size={13}/>{expandedLines[l.id]?"Hide description":"Description"}</button><span className="price-source">{l.manualPricing?'Manual price':l.priceSource||'Product price'}</span><span>{last?<>Last {sale?'sold':'purchased'}: <b>AED {money(last.unitNet,false)}</b> / {p.uom.toLowerCase()} · {dmy(last.date)} · Qty {last.qty}</>:<>No previous {sale?'sale to this customer':'purchase from this vendor'}</>}</span><button onClick={()=>setHistoryLine(l)}><Clock size={13}/>View history</button>{showCost&&<div className="runtime-cost"><span>Cost price <b>{money(p.cost,false)}</b></span><span>Current unit cost ({(books.method||'avco').toUpperCase()}) <b>{money(cost,false)}</b></span>{sale&&<span>Est. margin / unit <b className={unitNetOf(l)-cost<0?'neg':'pos'}>{money(unitNetOf(l)-cost,false)}</b></span>}<small>Current costs · AED · before VAT</small></div>}{showAccounts&&<div className="runtime-account"><Field label="Account">{p?.kind==='goods'&&!sale?<div className="readonly">{def} · {ACC[def]?.name}</div>:<Select aria-label={'Account on line '+(i+1)} value={l.account||def||''} disabled={locked||!p} onChange={e=>setLine(l.id,'account',e.target.value)}><option value="">Select product first</option>{accounts.map(a=><option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}</Select>}</Field><span className="account-source">{p.kind==='goods'&&!sale?'Inventory account from product category':l.account?'Line account override':'Default from product category'}</span>{!locked&&l.account&&!(p.kind==='goods'&&!sale)&&<button onClick={()=>setLine(l.id,'account',null)}><RotateCcw size={13}/>Use category default</button>}</div>}</div>}
             </article>;})}</div>}
           <div className="df-foot"><div className="document-bottom"><Field label="Internal note"><textarea className="inp" rows={3} value={d.note} disabled={locked} placeholder="Delivery terms, references or notes…" onChange={e=>set('note',e.target.value)}/></Field><DocTotals d={d} am={am} locked={locked} set={set} settle={settle}/></div></div>
         </>}
@@ -2977,7 +3002,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
       {rejecting&&<RejectDialog d={d} close={()=>setRejecting(false)} reject={rejectPO}/>}
       {pdcOpen&&<PdcDialog state={state} setState={setState} toast={toast} init={{kind:sale?'in':'out',partner:d.partner,doc:d.id,amount:R2(outstanding)}} close={()=>setPdcOpen(false)}/>}
       {quick&&<MasterModal kind={quick.kind} initial={quick.record} state={state} setState={setState} books={books} toast={toast} close={()=>setQuick(null)} onSaved={rec=>{if(quick.kind==='product')pickProduct(quick.line,rec.id);else pickPartner(rec.id);}}/>}
-      {historyLine&&<StudioModal wide title={PROD[historyLine.product]?.name||'Product history'} sub={sale?'Previous prices charged to your customer':'Previous prices charged by your vendor'} close={()=>setHistoryLine(null)}><HistoryTable state={state} product={historyLine.product} side={meta.side} partner={d.partner} exclude={d.id} date={d.date} apply={!locked?l=>{setD(s=>({...s,lines:s.lines.map(x=>x.id===historyLine.id?{...x,price:l.price,disc:l.disc||0,manualPricing:true}:x)}));setHistoryLine(null);toast('Historical price and discount applied');}:undefined}/></StudioModal>}
+      {historyLine&&<StudioModal wide title={PROD[historyLine.product]?.name||'Product history'} sub={sale?'Previous prices charged to your customer':'Previous prices charged by your vendor'} close={()=>setHistoryLine(null)}><HistoryTable state={state} product={historyLine.product} side={meta.side} partner={d.partner} exclude={d.id} date={d.date} apply={!locked?l=>{setD(s=>({...s,lines:s.lines.map(x=>x.id===historyLine.id?{...x,price:l.price,disc:l.disc||0,discMode:isAmtDisc(l)?'amount':undefined,manualPricing:true}:x)}));setHistoryLine(null);toast('Historical price and discount applied');}:undefined}/></StudioModal>}
     </div>
   );
 }
@@ -3069,6 +3094,13 @@ function PrintDoc({ d, close, fta, toast, settle }) {
   const am = amounts(d), p = PMAP[d.partner], isCN = d.type === "credit_note";
   /* A discount on the whole document: lines show their amounts before it, the totals take it off before VAT. */
   const dd = am.docDisc || 0, discPct = dd && d.docDisc && d.docDisc.mode === "percent" ? ` (${+d.docDisc.value}%)` : "";
+  /* Line discounts are shown in their own column (10% or AED 50.00) whenever a line has one. */
+  const hasLD = am.lines.some((l) => +l.disc > 0);
+  /* Where the goods go (a customer's branch), and an invoice or quotation printed as a delivery note: quantities, no prices. */
+  const [dn, setDn] = useState(false);
+  const canDn = d.type === "invoice" || d.type === "quote";
+  const dl = d.deliverTo && d.delivery ? d.delivery : null;
+  const dlTo = dl || (dn ? { name: p.name, address: p.address, address2: p.address2, emirate: p.emirate, contact: "", phone: p.phone } : null);
   /* A purchase order is issued by us to a vendor; a quotation is an offer, not a tax invoice. */
   const isPO = d.type === "purchase_order", isQ = d.type === "quote";
   const okBy = isPO ? (lastAct(d, "approved") || lastAct(d, "confirmed")) : null;
@@ -3088,7 +3120,8 @@ function PrintDoc({ d, close, fta, toast, settle }) {
     const whole = Math.floor(n), fils = Math.round((n - whole) * 100);
     return `${w(whole) || "Zero"} Dirhams${fils ? ` and ${w(fils)} Fils` : ""} only`;
   };
-  const title = isCN ? "Tax Credit Note" : isPO ? "Purchase Order" : isQ ? "Quotation" : "Tax Invoice";
+  const title = dn ? "Delivery Note" : isCN ? "Tax Credit Note" : isPO ? "Purchase Order" : isQ ? "Quotation" : "Tax Invoice";
+  const dnLegal = `Please check the goods on delivery, then sign and stamp to confirm receipt. Prices are on ${isQ ? "quotation" : "invoice"} ${d.number}.`;
   const bi = isBilingual(CO), T = (en, ar) => biLabel(bi, en, ar);
   const msg = (fta.waTemplate || DEFAULT_WA)
     .replace(/{customer}/g, p.name).replace(/{document}/g, d.number).replace(/{title}/g, title)
@@ -3122,34 +3155,53 @@ function PrintDoc({ d, close, fta, toast, settle }) {
     doc.setFont("courier", "normal"); doc.setFontSize(11); doc.setTextColor(226, 229, 233);
     doc.text(d.number, W - 40, ry, { align: "right" });
     doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...SILVER);
-    [["Issued", dmy(d.date)], [dueK, dmy(d.due)], ["Place of supply", d.emirate]].forEach(([k, v], n) => {
+    (dn ? [["Date", dmy(d.date)], [isQ ? "Quotation" : "Invoice", d.number], ["Place of supply", d.emirate]] : [["Issued", dmy(d.date)], [dueK, dmy(d.due)], ["Place of supply", d.emirate]]).forEach(([k, v], n) => {
       const y = ry + 16 + n * 12; doc.text(`${k}: ${v}`, W - 40, y, { align: "right" });
       if (bi) pdfAr(doc, AR[k], W - 46 - doc.getTextWidth(`${k}: ${v}`), y, 7.5, "#AEB4BC", "right");
     });
     let py = head + 30;
     doc.setTextColor(...MUTE); doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
-    doc.text(sides[0][1], 40, py); doc.text(sides[1][1], W / 2, py);
-    if (bi) { pdfAr(doc, AR[sides[0][0]], 40 + doc.getTextWidth(sides[0][1]) + 6, py, 7.5, "#626973"); pdfAr(doc, AR[isPO || isQ ? sides[1][0] : "Recipient"], W / 2 + doc.getTextWidth(sides[1][1]) + 6, py, 7.5, "#626973"); }
+    const cx3 = dlTo ? [40, 40 + (W - 80) / 3, 40 + (2 * (W - 80)) / 3] : [40, W / 2], cw = dlTo ? (W - 80) / 3 - 14 : W / 2 - 54;
+    doc.text(sides[0][1], cx3[0], py); doc.text(dn ? "CUSTOMER" : sides[1][1], cx3[1], py); if (dlTo) doc.text("DELIVER TO", cx3[2], py);
+    if (bi) { pdfAr(doc, AR[sides[0][0]], 40 + doc.getTextWidth(sides[0][1]) + 6, py, 7.5, "#626973"); pdfAr(doc, AR[dn ? "Customer" : isPO || isQ ? sides[1][0] : "Recipient"], cx3[1] + doc.getTextWidth(dn ? "CUSTOMER" : sides[1][1]) + 6, py, 7.5, "#626973");
+      if (dlTo) pdfAr(doc, AR["Deliver to"], cx3[2] + doc.getTextWidth("DELIVER TO") + 6, py, 7.5, "#626973"); }
     const party = (x, name, nameAr, lines) => {
       let y = py + 15; doc.setTextColor(...INK); doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.text(name, x, y);
       if (bi && nameAr) { y += pdfAr(doc, nameAr, x, y + 13, 9.5, "#16191D") - 3; }
       doc.setFont("helvetica", "normal"); doc.setFontSize(8.8); doc.setTextColor(...MUTE);
-      doc.text(lines.filter(Boolean).join("\n"), x, y + 13); return y + 13 + lines.filter(Boolean).length * 10.5;
+      const wrapped = lines.filter(Boolean).flatMap((t) => doc.splitTextToSize(String(t), cw));
+      doc.text(wrapped.join("\n"), x, y + 13); return y + 13 + wrapped.length * 10.5;
     };
-    const e1 = party(40, CO.name, CO.nameAr, [addrText(CO), CO.city, `TRN ${CO.trn || "not registered"}`]);
-    const e2 = party(W / 2, p.name, p.nameAr, [...addrLines(p), p.emirate, `TRN ${p.trn || "not registered"}`]);
-    const heads = dd ? ["#", "Description", "Qty", "Unit price", "Amount", "VAT %"] : ["#", "Description", "Qty", "Unit price", "Taxable", "VAT %", "VAT", "Total"];
+    const e1 = party(cx3[0], CO.name, CO.nameAr, [addrText(CO), CO.city, `TRN ${CO.trn || "not registered"}`]);
+    const e2 = party(cx3[1], p.name, p.nameAr, [...addrLines(p), p.emirate, `TRN ${p.trn || "not registered"}`]);
+    const e3 = dlTo ? party(cx3[2], dlTo.name, "", [...deliveryLines(dlTo), deliveryContact(dlTo) && (dl ? "Receiving: " : "") + deliveryContact(dlTo)]) : 0;
+    const R = { halign: "right" };
+    const cols = dn ? [
+      { h: "#", v: (l, i) => i + 1, st: { cellWidth: 22 } },
+      { h: "Description", v: (l, i) => (arLines[i] ? { content: l.desc + "\n ", styles: { minCellHeight: 34 } } : l.desc) },
+      { h: "Code", v: (l) => (PROD[l.product] ? PROD[l.product].code : ""), st: { cellWidth: 90 } },
+      { h: "Qty", v: (l) => `${l.qty} ${PROD[l.product] ? PROD[l.product].uom : ""}`, st: { ...R, fontStyle: "bold", cellWidth: 70 } },
+      { h: "Received", v: () => "", st: { cellWidth: 80 } },
+    ] : [
+      { h: "#", v: (l, i) => i + 1, st: { cellWidth: 22 } },
+      { h: "Description", v: (l, i) => (arLines[i] ? { content: l.desc + "\n ", styles: { minCellHeight: 34 } } : l.desc) },
+      { h: "Qty", v: (l) => `${l.qty}`, st: R },
+      { h: "Unit price", v: (l) => money(l.price, false), st: R },
+      ...(hasLD ? [{ h: "Disc.", v: (l) => (+l.disc > 0 ? discLabel(l) : ""), st: R }] : []),
+      { h: dd ? "Amount" : "Taxable", v: (l) => money(dd ? l.preDisc : l.amount, false), st: dd ? { ...R, fontStyle: "bold" } : R },
+      { h: "VAT %", v: (l) => `${l.rate}%`, st: R },
+      ...(dd ? [] : [{ h: "VAT", v: (l) => money(l.taxAmt, false), st: R }, { h: "Total", v: (l) => money(l.amount + l.taxAmt, false), st: { ...R, fontStyle: "bold" } }]),
+    ];
+    const heads = cols.map((c) => c.h);
     const arLines = am.lines.map((l) => (bi && PROD[l.product] && PROD[l.product].nameAr) || "");
     doc.autoTable({
-      startY: Math.max(e1, e2) + 18, margin: { left: 40, right: 40 },
+      startY: Math.max(e1, e2, e3) + 18, margin: { left: 40, right: 40 },
       head: [heads],
-      body: am.lines.map((l, i) => [i + 1, arLines[i] ? { content: l.desc + "\n ", styles: { minCellHeight: 34 } } : l.desc, `${l.qty}`, money(l.price, false), money(dd ? l.preDisc : l.amount, false),
-        `${l.rate}%`, ...(dd ? [] : [money(l.taxAmt, false), money(l.amount + l.taxAmt, false)])]),
+      body: am.lines.map((l, i) => cols.map((c) => c.v(l, i))),
       styles: { font: "helvetica", fontSize: 8.5, cellPadding: 6, lineColor: [226, 229, 233], lineWidth: 0.4, textColor: INK },
       headStyles: { fillColor: S1, textColor: [255, 255, 255], fontStyle: "bold", fontSize: 7.5, valign: "top", minCellHeight: bi ? 30 : 0 },
       alternateRowStyles: { fillColor: [248, 249, 250] },
-      columnStyles: { 0: { cellWidth: 22 }, 2: { halign: "right" }, 3: { halign: "right" },
-        4: { halign: "right", ...(dd ? { fontStyle: "bold" } : {}) }, 5: { halign: "right" }, 6: { halign: "right" }, 7: { halign: "right", fontStyle: "bold" } },
+      columnStyles: Object.fromEntries(cols.map((c, i) => [i, c.st || {}])),
       didDrawCell: (h) => {
         if (!bi) return;
         const right = h.column.index >= 2;
@@ -3158,6 +3210,24 @@ function PrintDoc({ d, close, fta, toast, settle }) {
       },
     });
     let fy = doc.lastAutoTable.finalY + 24;
+    if (dn) {
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...MUTE);
+      doc.text(`${am.lines.length} ${am.lines.length === 1 ? "line" : "lines"} · ${R2(am.lines.reduce((n, l) => n + (+l.qty || 0), 0))} units in total`, 40, fy);
+      let ny = fy + 14;
+      if (d.note) { doc.setTextColor(...INK); const t = doc.splitTextToSize(d.note, W - 80); doc.text(t, 40, ny + 4); ny += t.length * 11 + 8; }
+      const sy = Math.min(H - 190, ny + 30), bw2 = (W - 100) / 2;
+      [["DELIVERED BY", "Driver / storekeeper"], ["RECEIVED IN GOOD CONDITION BY", "Name, signature and stamp"]].forEach(([h, sub], k) => {
+        const x = 40 + k * (bw2 + 20);
+        doc.setDrawColor(222, 226, 230); doc.setFillColor(250, 250, 251); doc.roundedRect(x, sy, bw2, 120, 5, 5, "FD");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(...INK); doc.text(h, x + 12, sy + 18);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(...MUTE); doc.text(sub, x + 12, sy + 30);
+        ["Name", "Signature", "Date and time"].forEach((lbl, n) => { const y = sy + 58 + n * 24; doc.setDrawColor(201, 206, 212); doc.line(x + 12, y, x + bw2 - 12, y); doc.text(lbl, x + 12, y + 9); });
+      });
+      doc.setFillColor(201, 206, 212); doc.rect(40, H - 70, W - 80, 0.8, "F");
+      doc.setFontSize(7); doc.setTextColor(140, 147, 156);
+      doc.text(doc.splitTextToSize(`${dnLegal}${CO.licence ? ` Trade licence ${CO.licence}.` : ""}`, W - 80), 40, H - 56);
+      return doc;
+    }
     const rows = [...(dd ? [["Subtotal", money(am.gross, false)], ["Discount" + discPct, "(" + money(dd, false) + ")"]] : []),
       ["Taxable amount", money(am.net, false)], ["VAT", money(am.vat, false)], ...(am.rcm > 0 ? [["Reverse charge", money(am.rcm, false)]] : [])];
     const step = bi ? 26 : 18, boxH = rows.length * step + (bi ? 50 : 40);
@@ -3202,7 +3272,7 @@ function PrintDoc({ d, close, fta, toast, settle }) {
     if (bi && !isPO && !isQ) pdfAr(doc, AR.legal, W - 40, H - 40, 7, "#8C939C", "right");
     return doc;
   };
-  const fileName = `${d.number.replace(/\//g, "-")}.pdf`;
+  const fileName = `${dn ? "Delivery-note-" : ""}${d.number.replace(/\//g, "-")}.pdf`;
   const savePdf = () => {
     const doc = buildPdf();
     if (!doc) { window.print(); return; }
@@ -3264,6 +3334,9 @@ function PrintDoc({ d, close, fta, toast, settle }) {
         doc={d} party={p} msg={msg} fileName={fileName} cap={cap} waNumber={waNumber} />}
       <div style={{ maxWidth: 880, width: "100%", margin: "0 auto" }} onMouseDown={(e) => e.stopPropagation()}>
         <div className="sendbar noprint">
+          {canDn && <div className="seg dn-seg" role="group" aria-label="Print as">
+            <button className={cx(!dn && "on")} onClick={() => setDn(false)}>{isQ ? "Quotation" : "Tax invoice"}</button>
+            <button className={cx(dn && "on")} onClick={() => setDn(true)}><Truck size={13} />Delivery note</button></div>}
           <Btn icon={FileDown} onClick={savePdf}>Download PDF</Btn>
           <Btn icon={Printer} onClick={() => window.print()}>Print</Btn>
           <Btn icon={Mail} onClick={() => setSendTo("mail")}>Email</Btn>
@@ -3283,7 +3356,7 @@ function PrintDoc({ d, close, fta, toast, settle }) {
               <div className="doc">
                 <span className="badge">{title}{bi && <span className="ar" lang="ar" dir="rtl">{AR[title]}</span>}</span>
                 <div className="no">{d.number}</div>
-                <div className="dt">{[["Issued", dmy(d.date)], [dueK, dmy(d.due)], ["Place of supply", d.emirate]].map(([k, v]) =>
+                <div className="dt">{(dn ? [["Date", dmy(d.date)], [isQ ? "Quotation" : "Invoice", d.number], ["Place of supply", d.emirate]] : [["Issued", dmy(d.date)], [dueK, dmy(d.due)], ["Place of supply", d.emirate]]).map(([k, v]) =>
                   <div key={k} className="kv">{bi && <span className="ar" lang="ar" dir="rtl">{AR[k]}</span>}<span>{k}: <b>{v}</b></span></div>)}</div>
               </div>
             </div>
@@ -3291,23 +3364,44 @@ function PrintDoc({ d, close, fta, toast, settle }) {
           <div className="sheet-body">
             <div className="sheet-parties">
               {[[sides[0][0], CO.name, CO.nameAr, [addrText(CO), CO.city].filter(Boolean).join(", "), CO.trn],
-                [sides[1][0], p.name, p.nameAr, addrText(p), p.trn]].map(([t, n, nAr, ad, trn]) => (
+                [dn ? "Customer" : sides[1][0], p.name, p.nameAr, addrText(p), p.trn]].map(([t, n, nAr, ad, trn]) => (
                 <div className="blk" key={t}>
                   <div className="lb">{T(t)}</div><div className="nm">{n}</div>
                   {bi && nAr && <div className="nm-ar" lang="ar" dir="rtl">{nAr}</div>}
                   <div className="ad">{ad}</div>
                   <div className="trn">{T("TRN")} {trn || <span style={{ color: "#9AA0A8" }}>not registered</span>}</div>
                 </div>))}
-              <div className="blk" style={{ flex: "0 0 168px" }}>
+              {dlTo && <div className="blk dl-blk">
+                <div className="lb">{T("Deliver to")}</div><div className="nm">{dlTo.name}</div>
+                <div className="ad">{deliveryLines(dlTo).join(", ")}</div>
+                {deliveryContact(dlTo) && <div className="trn">{dl ? "Receiving: " : ""}{deliveryContact(dlTo)}</div>}
+              </div>}
+              {dn ? <div className="blk" style={{ flex: "0 0 168px" }}>
+                <div className="lb">{T("Reference")}</div>
+                <div className="ad" style={{ marginTop: 7 }}>{isQ ? "Quotation" : "Invoice"} {d.number}{d.ref && <><br />Your order: {d.ref}</>}</div>
+              </div> : <div className="blk" style={{ flex: "0 0 168px" }}>
                 <div className="lb">{T(isPO ? "Deliver by" : isQ ? "Valid until" : "Payment terms")}</div>
                 <div className="ad" style={{ marginTop: 7 }}>
                   {isPO || isQ ? dmy(d.due) : <>Net {daysBetween(d.date, d.due)} days<br />Due {dmy(d.due)}</>}
                   {d.ref && <><br />Your ref: {d.ref}</>}</div>
-              </div>
+              </div>}
             </div>
+            {dn ? <><div className="tbl-wrap" style={{ marginTop: 22 }}><table className="tbl sheet-lines dn-lines" style={{ fontSize: 12.5 }}>
+              <thead><tr><th style={{ width: 32 }}>{T("#")}</th><th>{T("Description")}</th><th>{T("Code")}</th><th className="n">{T("Qty")}</th><th className="n" style={{ width: 110 }}>{T("Received")}</th></tr></thead>
+              <tbody>{am.lines.map((l, i) => <tr key={l.id}><td className="mono" style={{ fontSize: 11.5, color: "#9AA0A8" }}>{i + 1}</td>
+                <td><b style={{ fontWeight: 500 }}>{l.desc}</b>{bi && PROD[l.product].nameAr && <div className="desc-ar" lang="ar" dir="rtl">{PROD[l.product].nameAr}</div>}</td>
+                <td className="mono" style={{ fontSize: 11.5 }}>{PROD[l.product].code}</td>
+                <td className="n" style={{ fontWeight: 600 }}>{l.qty} {PROD[l.product].uom}</td><td className="n"><span className="dn-box" /></td></tr>)}</tbody>
+            </table></div>
+            <div className="dn-sum">{am.lines.length} {am.lines.length === 1 ? "line" : "lines"} · {R2(am.lines.reduce((n, l) => n + (+l.qty || 0), 0))} units in total</div>
+            {d.note && <div className="payblk" style={{ marginTop: 14 }}>{d.note}</div>}
+            <div className="dn-sign">
+              {[["Delivered by", "Driver / storekeeper"], ["Received in good condition by", "Name, signature and stamp"]].map(([h, sub]) => <div key={h}>
+                <b>{T(h)}</b><small>{sub}</small><span className="ln" /><em>Name</em><span className="ln" /><em>Signature</em><span className="ln" /><em>Date and time</em></div>)}
+            </div></> : <>
             <div className="tbl-wrap" style={{ marginTop: 22 }}><table className="tbl sheet-lines" style={{ fontSize: 12.5 }}>
               <thead><tr><th style={{ width: 32 }}>{T("#")}</th><th>{T("Description")}</th><th className="n">{T("Qty")}</th>
-                <th className="n">{T("Unit price")}</th><th className="n">{T(dd ? "Amount" : "Taxable")}</th><th className="n">{T("VAT %")}</th>
+                <th className="n">{T("Unit price")}</th>{hasLD && <th className="n">{T("Disc.")}</th>}<th className="n">{T(dd ? "Amount" : "Taxable")}</th><th className="n">{T("VAT %")}</th>
                 {!dd && <><th className="n">{T("VAT")}</th><th className="n">{T("Total")}</th></>}</tr></thead>
               <tbody>{am.lines.map((l, i) => (
                 <tr key={l.id}>
@@ -3316,7 +3410,7 @@ function PrintDoc({ d, close, fta, toast, settle }) {
                     {bi && PROD[l.product].nameAr && <div className="desc-ar" lang="ar" dir="rtl">{PROD[l.product].nameAr}</div>}
                     <div style={{ fontSize: 11, color: "#9AA0A8", marginTop: 2 }}>{PROD[l.product].code}</div></td>
                   <td className="n">{l.qty} {PROD[l.product].uom}</td>
-                  <td className="n">{money(l.price, false)}</td><td className="n">{money(dd ? l.preDisc : l.amount, false)}</td>
+                  <td className="n">{money(l.price, false)}</td>{hasLD && <td className="n">{discLabel(l)}</td>}<td className="n">{money(dd ? l.preDisc : l.amount, false)}</td>
                   <td className="n">{l.rate}%</td>{!dd && <><td className="n">{money(l.taxAmt, false)}</td>
                   <td className="n" style={{ fontWeight: 600 }}>{money(l.amount + l.taxAmt, false)}</td></>}
                 </tr>))}</tbody>
@@ -3353,10 +3447,10 @@ function PrintDoc({ d, close, fta, toast, settle }) {
                 </div>
                 <div className="sign">{T("Authorised signatory")}</div>
               </div>
-            </div>
+            </div></>}
             <div className="foot">
-              <span style={{ flex: "1 1 340px" }}>{legal}{CO.licence ? ` Trade licence ${CO.licence}.` : ""}
-                {bi && !isPO && !isQ && <span className="foot-ar" lang="ar" dir="rtl">{AR.legal}</span>}</span>
+              <span style={{ flex: "1 1 340px" }}>{dn ? dnLegal : legal}{CO.licence ? ` Trade licence ${CO.licence}.` : ""}
+                {bi && !isPO && !isQ && !dn && <span className="foot-ar" lang="ar" dir="rtl">{AR.legal}</span>}</span>
               <span>{CO.name}{CO.trn ? ` · TRN ${CO.trn}` : ""}</span>
             </div>
           </div>
@@ -3481,10 +3575,13 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed, creat
   const custom = state.partners || [];
   const blank = (r) => ({ id: uid("p"), name: "", role: r, trn: "", emirate: "Dubai", address: "", address2: "",
     contact: "", phone: "", terms: 30, custom: true });
-  const valid = ed && ed.name.trim().length > 1 && (!ed.trn || /^\d{15}$/.test(ed.trn.trim()));
+  const valid = ed && ed.name.trim().length > 1 && (!ed.trn || /^\d{15}$/.test(ed.trn.trim()))
+    && branchesOf(ed).every((b) => branchOk(b) || !(b.address || b.address2 || b.contact || b.phone));
   const isNew = ed && !PARTNERS.some((p) => p.id === ed.id);
   const save = () => {
-    const rec = { ...ed, name: ed.name.trim(), trn: ed.trn.trim(), terms: +ed.terms || 0 };
+    const branches = branchesOf(ed).filter(branchOk).map((b) => ({ ...b, name: b.name.trim() }));
+    const rec = { ...ed, name: ed.name.trim(), trn: ed.trn.trim(), terms: +ed.terms || 0, branches: branches.length ? branches : undefined,
+      defaultBranch: branches.some((b) => b.id === ed.defaultBranch) ? ed.defaultBranch : undefined };
     setState((x) => { const list = x.partners || [];
       return { ...x, partners: list.some((p) => p.id === rec.id)
         ? list.map((p) => (p.id === rec.id ? rec : p)) : [...list, rec] }; });
@@ -3552,6 +3649,7 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed, creat
             <Field label="Name in Arabic (optional)">
               <Input dir="rtl" lang="ar" value={ed.nameAr || ""} placeholder="الاسم بالعربية" onChange={(e) => setEd({ ...ed, nameAr: e.target.value })} /></Field>
           </div>
+          {ed.role === "customer" && <BranchEditor ed={ed} setEd={setEd} />}
           {!isNew && <PartySpecials state={state} setState={setState} books={books} partner={ed.id} role={ed.role} toast={toast} />}
           <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--ink-3)" }}>
             {ed.role === "customer"
@@ -3584,7 +3682,8 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed, creat
               {!fixed && <td><Pill tone={p.role === "customer" ? "ok" : "info"}>{p.role}</Pill></td>}
               <td className="mono nowrap" style={{ fontSize: 12.5 }}>{p.trn || <span className="muted">Not registered</span>}</td>
               <td className="addr-cell"><b>{p.emirate}</b>{p.designatedZone && <> <Pill tone="gold">Designated zone</Pill></>}
-                {addrText(p) && <small title={addrText(p)}>{addrText(p)}</small>}</td>
+                {addrText(p) && <small title={addrText(p)}>{addrText(p)}</small>}
+                {branchesOf(p).length > 0 && <span className="br-count" title={branchesOf(p).map((b) => b.name).join(", ")}><Truck size={12} />{branchesOf(p).length} delivery address{branchesOf(p).length === 1 ? "" : "es"}</span>}</td>
               <td className="n nowrap">{p.terms ? `${p.terms} days` : "Cash"}</td>
               <td className="n" style={{ fontWeight: 600 }}>{money(balOf(p))}</td>
               <td style={{ whiteSpace: "nowrap" }}>
@@ -5436,7 +5535,18 @@ ${party(CO.name, CO.trn, CO.address, CO.city, "AE:TRN", CO.address2)}
   <cac:AccountingCustomerParty>
 ${party(p.name, p.trn, p.address, p.emirate, "AE:TRN", p.address2)}
   </cac:AccountingCustomerParty>
-  <cac:Delivery><cbc:ActualDeliveryDate>${d.date}</cbc:ActualDeliveryDate></cac:Delivery>
+  <cac:Delivery><cbc:ActualDeliveryDate>${d.date}</cbc:ActualDeliveryDate>${d.deliverTo && d.delivery ? `
+    <cac:DeliveryLocation>
+      <cbc:ID>${xesc(d.delivery.id)}</cbc:ID>
+      <cac:Address>
+        <cbc:StreetName>${xesc(d.delivery.address || d.delivery.name)}</cbc:StreetName>${d.delivery.address2 ? `
+        <cbc:AdditionalStreetName>${xesc(d.delivery.address2)}</cbc:AdditionalStreetName>` : ""}
+        <cbc:CityName>${xesc(d.delivery.emirate || "")}</cbc:CityName>
+        <cac:Country><cbc:IdentificationCode>AE</cbc:IdentificationCode></cac:Country>
+      </cac:Address>
+    </cac:DeliveryLocation>
+    <cac:DeliveryParty><cac:PartyName><cbc:Name>${xesc(p.name + " — " + d.delivery.name)}</cbc:Name></cac:PartyName></cac:DeliveryParty>
+  ` : ""}</cac:Delivery>
   <cac:PaymentMeans><cbc:PaymentMeansCode>30</cbc:PaymentMeansCode></cac:PaymentMeans>
   <cac:TaxTotal>
     <cbc:TaxAmount currencyID="AED">${am.vat.toFixed(2)}</cbc:TaxAmount>
@@ -6609,7 +6719,7 @@ function Invoeez() {
     }
   };
 
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS + REFINE_CSS;
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS + REFINE_CSS + DELIVERY_CSS;
   /* Nobody signed in in this tab: show the sign-in screen. */
   if (!meFound) return (
     <ThemeCtx.Provider value={palette}>

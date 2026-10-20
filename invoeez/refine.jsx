@@ -91,6 +91,21 @@ function TweenNum({ value, ms = 420 }) {
   return <>{money(shown, false)}</>;
 }
 
+/* ---------------------------------------------------- 3.17 line discount */
+/* A line discount is a percentage or an amount in AED off the whole line; the switch beside it chooses. Switching keeps
+   the same money off the line (10% of 7,350 becomes AED 735.00, and back). */
+function DiscCell({ l, n, disabled, onValue, onMode, onKeyDown }) {
+  const amt = isAmtDisc(l);
+  return <div className={cx("disc-in", amt && "amt")}>
+    <div className="seg disc-mode" role="group" aria-label={`Line ${n} discount type`}>
+      <button type="button" className={cx(!amt && "on")} disabled={disabled} aria-pressed={!amt} title="A percentage off this line" onClick={() => onMode("percent")}>%</button>
+      <button type="button" className={cx(amt && "on")} disabled={disabled} aria-pressed={amt} title="An amount in AED off this line" onClick={() => onMode("amount")}>AED</button>
+    </div>
+    <input className="inp n" type="number" min="0" max={amt ? undefined : 100} step="0.01" value={l.disc || ""} placeholder="0" disabled={disabled}
+      onKeyDown={onKeyDown} onChange={(e) => onValue(e.target.value)} aria-label={`Discount on line ${n}${amt ? " in AED" : " in percent"}`} />
+  </div>;
+}
+
 /* ------------------------------------------------------- document totals */
 const normDisc = (x) => (x && +x.value > 0 ? { mode: x.mode === "percent" ? "percent" : "amount", value: R2(+x.value) } : undefined);
 
@@ -217,6 +232,19 @@ const REFINE_CSS = `
 .mz .line-grid tbody tr:not(:hover):not(:focus-within) .smart-picker:has(.inp:not(:placeholder-shown))>svg{opacity:0}
 .mz .line-grid .smart-picker .inp,.mz .line-grid .smart-picker>svg{transition:border-color .18s,background-color .18s,opacity .18s}
 .mz .line-grid tbody tr{transition:background-color .18s}
+
+/* ---------- 3.17 line discount: % or AED ---------- */
+.mz .lg-di{width:150px}
+.mz .lg-t{width:96px}
+.disc-in{display:flex;align-items:center;gap:5px;min-width:0}
+.mz .disc-in .seg.disc-mode{flex:0 0 auto;width:auto;padding:2px;border-radius:7px;background:var(--surface-2);border:1px solid var(--line-2)}
+.mz .disc-in .seg.disc-mode button{flex:0 0 auto;min-width:0;min-height:0;height:22px;padding:0 5px;font-size:10.5px;font-weight:650;line-height:22px;border-radius:5px;color:var(--ink-3)}
+.mz .disc-in .seg.disc-mode button.on{color:var(--brand)}
+.mz .disc-in .seg.disc-mode button:disabled{opacity:1;cursor:default}
+.mz .disc-in .inp{flex:1;min-width:52px;padding-left:5px;padding-right:6px}
+.mz .line-grid tbody tr:not(:hover):not(:focus-within) .disc-in .seg.disc-mode{background:transparent;border-color:transparent}
+.mz .line-grid tbody tr:not(:hover):not(:focus-within) .disc-in .seg.disc-mode button:not(.on){opacity:.35}
+.mz .line-card .disc-in .seg.disc-mode button,.mz .document-lines .disc-in .seg.disc-mode button{height:28px;line-height:28px;padding:0 9px}
 
 @media (prefers-reduced-motion:reduce){.view,.mz .doc-workspace,.mz .doc-list-view,.tot-disc,.mz .scrim>div:first-child,.mz .studio-modal{animation:none}.mz .btn:active,.mz .icon-btn:active{transform:none}}
 `;
