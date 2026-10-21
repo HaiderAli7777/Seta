@@ -20,9 +20,9 @@ function useMedia(q) {
   }, [q]);
   return m;
 }
-function navFlat() {
+function navFlat(list) {
   const out = [];
-  NAV.forEach((g) => {
+  list.forEach((g) => {
     if (g.k) return out.push({ k: g.k, l: g.g, i: g.i, g: g.g });
     g.items.forEach((x) => x.s ? x.items.forEach((y) => out.push({ ...y, g: g.g, sg: x.s })) : out.push({ ...x, g: g.g }));
   });
@@ -56,7 +56,7 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
     window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
   }, []);
   const match = (...t) => !q.trim() || hits(q, ...t);
-  const visible = NAV.map((g) => {
+  const visible = NAV_CLASSIC.map((g) => {
     if (g.k) return allowed(g.k) && match(g.g) ? g : null;
     const items = g.items.map((x) => {
       if (!x.s) return allowed(x.k) && match(g.g, x.l) ? x : null;

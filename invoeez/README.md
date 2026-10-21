@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.20)
+# InvoEez — Invoice Made Easy (3.21)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -74,6 +74,13 @@ Company profile, theme, user selection and connection settings use their existin
 | Scrap | Record damaged quantities with a reason. Scrap reduces stock at carrying cost and charges the category adjustment account. Quantities cannot exceed on-hand stock. |
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
+
+## Navigation: Sidebar or Apps dashboard (3.21)
+
+**Settings › Navigation** switches the whole interface between two modes (also in the user menu and Ctrl K):
+
+- **Sidebar** (default): the classic menu on the left with every screen; opens on the dashboard; no Home launcher or app overviews.
+- **Apps dashboard**: no sidebar. Home shows the apps and the figures that need attention; each app has its own menu bar across the top (tabs, dropdowns, More on narrow screens, a menu sheet on phones). The menus are defined in `APP_MENUS` in `apps.jsx`.
 
 ## Apps (3.20)
 
@@ -229,7 +236,7 @@ npm test
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
 | `dashboard.jsx` | New overview dashboard. |
-| `apps.jsx` | 3.20 Home (hero, search, Create new, Jump back in, business applications with filters and illustrations), the app definitions, and an overview for each app. |
+| `apps.jsx` | 3.20–3.21 navigation modes (app bar with tabs, dropdowns and More; phone menu; Settings › Navigation), Home (hero, search, Create new, Jump back in, business applications with filters and illustrations), the app definitions, and an overview for each app. |
 | `group.jsx` | 3.18–3.19 several companies (registry, switcher, add a company, Companies screen, colour per company, edit or back up any company) and branches (guided set-up, Branches screen, numbering per branch, working branch, users limited to a branch, Branch field and picker, branch ledgers), Branch performance and Group report. |
 | `delivery.jsx` | 3.17 delivery addresses: branches on customers, Deliver to on documents, add a branch from a document, address preview, print styles for Deliver to and the delivery note. |
 | `refine.jsx` | 3.16 gliding highlights for switches and tabs, rolling total, totals panel with the discount on the whole document, motion and editor refinements. |
@@ -250,7 +257,7 @@ npm test
 | `shell.html` | Original standalone shell and bundled libraries/fonts. |
 | `build.mjs` | Reproducible JSX compilation and standalone packaging. |
 | `tests/engine.cjs` | Executable accounting, pricing, migration and inventory regression checks. |
-| `tests/browser-apps.cjs` | 3.20 checks: Home, card counts, filters, search, Create new, Jump back in, every app overview, the menu grouped by app with every screen still in it, All apps and g h, apps limited by role, dark mode, phone. |
+| `tests/browser-apps.cjs` | 3.20–3.21 checks: Sidebar mode (classic menu, no Home), switching from Settings, the user menu and Ctrl K, the apps dashboard (app bars, dropdowns, More, context, every screen reachable), plus Home, card counts, filters, search, Create new, Jump back in, every app overview, the menu grouped by app with every screen still in it, All apps and g h, apps limited by role, dark mode, phone. |
 | `tests/browser-branches.cjs` | 3.18–3.19 checks: guided branch set-up, branch details on print, numbering per branch, working branch, a user limited to one branch, Companies screen (edit, colour, back up another company), company colours; setting up branches (head office, next branch, rules), home branch, Branch field on invoice, payment and journal (a payment follows its invoice), printed branch address, Branch performance adds up to the P&L, branch filter on P&L, trial balance, balance sheet, dashboard and lists, VAT return company-wide, adding a company and switching back, Group report, phone. |
 | `tests/browser-delivery.cjs` | 3.17 checks: % / AED line discounts (switching keeps the money off, limits, saved), branches on a customer and the default, Deliver to and place of supply, adding a branch from the quotation, print, delivery note on screen and as PDF, carried to the invoice, list and search, phone. |
 | `tests/browser-refine.cjs` | 3.16 checks: menu unfolds with one layout and a glide (and reverses smoothly), sections fold, phone drawer, gliding highlights, documents glide in, discount on the whole quotation (amount, %, limits, save, reload, print, convert, post), save bar position, dark, reduced motion. |

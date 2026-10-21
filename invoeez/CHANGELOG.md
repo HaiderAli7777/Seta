@@ -1,3 +1,19 @@
+# 3.21.0 — Choose your navigation: Sidebar or Apps dashboard
+
+- **Settings › Navigation** (at the top of Settings) offers two complete ways to get around, each shown with a small picture. The choice applies straight away, is remembered on the device, and can also be changed from the user menu (Navigation: Sidebar | Apps) or Ctrl K ("Switch to the apps dashboard").
+- **Sidebar** (the default): the classic menu on the left with every screen (Dashboard, Master, Sale, Purchase, Banking, Accounting, Stock, Reports, VAT, Utilities & tools), opening on the dashboard. There is no Home launcher and there are no app overview pages in this mode.
+- **Apps dashboard**: there is no sidebar at all. You land on **Home**, and each app opens with **its own menu bar across the top**:
+  - **The bar**: the apps button (back to Home), the app's coloured icon and name, a tab for each of its screens, and dropdowns for the rest ("Pricing", "Reporting", "Configuration"…).
+  - **Examples**: Sales has Overview, Quotations, Invoices, Credit notes, Customers, Pricing and Reporting. Reports has All reports, Statements, Ledgers, Ageing, Analysis, and Branches & group.
+  - **Context**: a screen opened from an app's menu stays inside that app, so Customers opened from Contacts keeps the Contacts menu. Screens opened from search or from Home go to their natural app.
+  - **Narrow windows**: tabs that do not fit move under **More**.
+  - **Phones**: the app name opens the app's full menu.
+  - **Pages**: they use the full width, centred on wide screens.
+- **Home, refined**: a greeting for the time of day, the search box and Create new, then four figures at a glance. These are **To collect** (and how much is overdue), **To pay** (bills due this week), **VAT due or refund this quarter** (with the return deadline) and **Low stock**, and each opens the screen where you act on it. The business applications follow below.
+- **Company switching without the sidebar**: in the apps dashboard the company and working branch are in the top bar; "Switch company" is also in the user menu.
+- Fixed along the way: dropdowns in the top bar now close when you click anywhere on the page.
+- Every feature works the same in both modes: documents, discounts, salespeople, price lists, WhatsApp and email sending, report designs and exports, branches and companies.
+
 # 3.20.0 — InvoEez as a set of apps
 
 - **Home**: InvoEez now opens on a Home page. It has a welcome, a large search box that finds documents, customers, products, reports and screens as you type (Enter opens the first), a **Create new** menu (invoice, quotation, purchase order, vendor bill, receipt or payment, customer, vendor, product, journal entry), **Jump back in** with the screens you opened last, and today's sales, what is owed to you and cash at a glance. **Business applications** shows every app as a card with its colour, illustration and live count (287 invoices, 160 bills, 48 products…). You can filter them by Core, Finance, Insights, People and Setup.

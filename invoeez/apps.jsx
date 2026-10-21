@@ -175,7 +175,7 @@ const Skyline = () => <svg className="ah-sky" viewBox="0 0 1200 220" preserveAsp
 </svg>;
 
 /* ------------------------------------------------------------------- home */
-function AppsHome({ state, books, company, user, go, quickAdd, allowed, canAdd, counts, cmdItems, openSearch }) {
+function AppsHome({ state, books, company, user, go, openApp, quickAdd, allowed, canAdd, counts, cmdItems, openSearch }) {
   const [cat, setCat] = useState("all");
   const [q, setQ] = useState(""), [hi, setHi] = useState(0), [mk, setMk] = useState(false);
   const ctx = { state, books, counts };
@@ -185,8 +185,20 @@ function AppsHome({ state, books, company, user, go, quickAdd, allowed, canAdd, 
     .sort((a, b) => b.s - a.s).slice(0, 8).map((x) => x.i) : []), [q, cmdItems]);
   const run = (i) => { setQ(""); i.act(); };
   const recents = recentViews().map((k) => NAV_FLAT.find((n) => n.k === k) || (appOfView(k) && { k, l: appOfView(k).name + " overview" })).filter((x) => x && allowed(x.k)).slice(0, 5);
-  const today = useMemo(() => { const inv = docsOf(state, "invoice").filter((d) => d.state === "posted" && d.date === TODAY);
-    return { sales: R2(inv.reduce((s, d) => s + amounts(d).sub, 0)), recv: aging(state, "receivable", TODAY).grand, cash: bankBalance(books) }; }, [state, books]);
+  /* At a glance: what to collect, what to pay, the VAT return and stock to reorder — each opens where to act. */
+  const glance = useMemo(() => {
+    const ar = aging(state, "receivable", TODAY), ap = aging(state, "payable", TODAY), late = overdueOf(ar), week = addDays(TODAY, 7);
+    const dueSoon = ap.rows.reduce((s, r) => s + r.items.filter((i) => i.due <= week).length, 0);
+    const qs = quarterStart(), v = vat201(state, qs, TODAY), qEnd = addDays(addMonths(qs, 3), -1), qn = Math.floor((+qs.slice(5, 7) - 1) / 3) + 1;
+    const low = PRODUCTS.filter((p) => p.kind === "goods" && ((books.stock[p.id] || {}).qty || 0) <= (p.reorder ?? 5));
+    return [
+      { k: "r_aged_ar", icon: ArrowDownLeft, label: "To collect", value: ar.grand, sub: late > 0 ? `AED ${money(late, false)} overdue` : "Nothing overdue", tone: late > 0 ? "neg" : "" },
+      { k: "r_aged_ap", icon: ArrowUpRight, label: "To pay", value: ap.grand, sub: dueSoon ? `${nPlural(dueSoon, "bill")} due this week` : "Nothing due this week" },
+      { k: "r_vat", icon: ShieldCheck, label: `VAT ${v.due >= 0 ? "due" : "refund"} · Q${qn}`, value: Math.abs(v.due), sub: `Return by ${dmy(addDays(qEnd, 28))}` },
+      { k: "products", p: "__low_stock__", icon: Package, label: "Low stock", value: nPlural(low.length, "item"), text: true,
+        sub: low.length ? low.slice(0, 2).map((p) => p.name.split(" ").slice(0, 3).join(" ")).join(", ") : "Stock levels healthy", tone: low.length ? "warn" : "" },
+    ].filter((x) => allowed(x.k));
+  }, [state, books]);
   const CREATE = [["Documents", [["invoices", "Invoice", Receipt], ["quotes", "Quotation", FileText], ["purchase_orders", "Purchase order", ClipboardCheck], ["bills", "Vendor bill", ShoppingCart], ["payments", "Receipt or payment", ArrowDownLeft]]],
     ["Records", [["customers", "Customer", Users], ["vendors", "Vendor", Truck], ["products", "Product or service", Package], ["journal", "Journal entry", BookOpen]]]];
   const first = (user.name || "").split(" ")[0];
@@ -194,7 +206,7 @@ function AppsHome({ state, books, company, user, go, quickAdd, allowed, canAdd, 
     <section className="ah-hero">
       <div className="ah-bg" aria-hidden="true"><div className="ah-glow g1" /><div className="ah-glow g2" /><div className="ah-arc a1" /><div className="ah-arc a2" /><Skyline /></div>
       <div className="ah-center">
-        <div className="ah-eyebrow">Welcome back{first ? ", " + first : ""}</div>
+        <div className="ah-eyebrow">{greeting()}{first ? ", " + first : ""}</div>
         <h1 className="ah-title">Everything <span>your business</span> needs</h1>
         <p className="ah-sub">Search, create and open everything in {company.name} from one place.</p>
         <div className="ah-search-wrap">
@@ -222,9 +234,9 @@ function AppsHome({ state, books, company, user, go, quickAdd, allowed, canAdd, 
         </div>
         {recents.length > 0 && <div className="ah-recent"><span>Jump back in</span>{recents.map((r) => <button key={r.k} onClick={() => go(r.k)}>{r.l}</button>)}</div>}
       </div>
-      <div className="ah-glass left"><b>One platform.</b><b>Every part of your business.</b><i /></div>
-      <div className="ah-glass right"><span className="bars"><i /><i /><i /></span><div>
-        <small>Today</small><span>Sales <b>{money(today.sales, false)}</b></span><span>To collect <b>{money(today.recv, false)}</b></span><span>Cash &amp; bank <b>{money(today.cash, false)}</b></span></div></div>
+      {glance.length > 0 && <div className="ah-glance" aria-label="At a glance">{glance.map((g) => <button key={g.k} className={cx("ah-g", g.tone)} data-k={g.k} onClick={() => go(g.k, g.p)}>
+        <span className="gi"><g.icon size={15} strokeWidth={2.1} /></span><small>{g.label}</small>
+        <b>{g.text ? g.value : <><em>AED</em>{money(g.value, false)}</>}</b><span className="gs">{g.sub}</span></button>)}</div>}
     </section>
     {/* Approvers see what waits for them as soon as they arrive. */}
     <div className="ah-inbox"><ApprovalInbox state={state} user={user} go={go} /></div>
@@ -234,7 +246,7 @@ function AppsHome({ state, books, company, user, go, quickAdd, allowed, canAdd, 
         <div className="ah-chips" role="tablist" aria-label="Filter applications">{APP_CATS.filter(([k]) => k === "all" || apps.some((a) => a.cat === k)).map(([k, l]) =>
           <button key={k} role="tab" aria-selected={cat === k} className={cx(cat === k && "on")} onClick={() => setCat(k)}>{l}</button>)}</div>
       </header>
-      <div className="ah-grid">{shown.map((a, i) => <button key={a.id} className="ah-card" data-app={a.id} style={{ "--a1": a.tone[0], "--a2": a.tone[1], "--i": i }} onClick={() => go(a.home)}>
+      <div className="ah-grid">{shown.map((a, i) => <button key={a.id} className="ah-card" data-app={a.id} style={{ "--a1": a.tone[0], "--a2": a.tone[1], "--i": i }} onClick={() => openApp(a)}>
         <span className="ah-ic"><a.icon size={24} strokeWidth={2} /></span>
         <span className="ah-txt"><b>{a.name}</b><small>{a.desc}</small><em>{a.records(ctx)}</em></span>
         <AppArt kind={a.art} tone={a.tone} />
@@ -279,13 +291,115 @@ function AppOverview({ app, state, books, go, quickAdd, allowed, canAdd, counts 
   </div>;
 }
 
+/* ------------------------------------------------------- apps mode: menus */
+/* In the apps mode each app has its own menu bar: a tab per screen, and dropdowns for the rest. */
+const APP_MENUS = {
+  sales: ["app_sales", "quotes", "invoices", "credit_notes", "customers", ["Pricing", ["pricelists", "salespeople"]], ["Reporting", ["r_cust", "r_aged_ar", "r_stmt", "r_prod"]]],
+  purchase: ["app_purchase", "purchase_orders", "bills", "debit_notes", "expenses", "vendors", ["Reporting", ["r_aged_ap", "r_partner"]]],
+  inventory: ["app_inventory", "products", "stock_count", "scrap", "r_stock", ["Configuration", ["categories"]], ["Reporting", ["r_prod"]]],
+  accounting: ["app_accounting", "journal", "accounts", "assets", ["Configuration", ["acct_groups", "opening", "methods"]], ["Reporting", ["r_pnl", "r_bs", "r_tb", "r_gl"]]],
+  bank: ["app_bank", "payments", "pdc", "banking", ["Configuration", ["methods"]], ["Reporting", ["r_method"]]],
+  vat: ["app_vat", "r_vat", "fta"],
+  reports: ["reports", ["Statements", ["r_pnl", "r_bs", "r_tb"]], ["Ledgers", ["r_gl", "r_partner", "r_stmt"]], ["Ageing", ["r_aged_ar", "r_aged_ap"]],
+    ["Analysis", ["r_prod", "r_cust", "r_method", "r_stock"]], ["Branches & group", ["r_branch", "r_group"]]],
+  dash: ["dash"],
+  contacts: ["app_contacts", "customers", "vendors", "salespeople", "pricelists"],
+  org: ["companies", "branches", ["Reporting", ["r_branch", "r_group"]]],
+  users: ["users"],
+  settings: ["settings", "setup", "users", "companies", "branches"],
+};
+/* Where a screen opens when it is reached from search or a link, rather than from an app's own menu. */
+const PRIMARY_APP = { methods: "bank", companies: "org", branches: "org", users: "users", r_vat: "vat", r_stock: "inventory" };
+const TAB_LABEL = { quotes: "Quotations", invoices: "Invoices", credit_notes: "Credit notes", purchase_orders: "Purchase orders", bills: "Vendor bills", products: "Products",
+  stock_count: "Stock counts", scrap: "Damage & scrap", r_stock: "Valuation", journal: "Journal entries", accounts: "Chart of accounts", assets: "Fixed assets", payments: "Receipts & payments",
+  pdc: "Cheques", banking: "Bank & cash", r_vat: "VAT return", fta: "E-invoicing", reports: "All reports", dash: "Dashboard", settings: "Company & settings", setup: "Setup guide" };
+const menuKeys = (id) => (APP_MENUS[id] || []).flatMap((x) => (typeof x === "string" ? [x] : x[1]));
+function primaryAppOf(k) {
+  if (appOfView(k)) return appOfView(k).id;
+  if (PRIMARY_APP[k]) return PRIMARY_APP[k];
+  if (/^r_/.test(k) && k !== "r_vat") return "reports";
+  const a = APPS.find((x) => menuKeys(x.id).includes(k));
+  return a ? a.id : null;
+}
+const tabLabel = (k) => TAB_LABEL[k] || (appOfView(k) ? "Overview" : (NAV_FLAT_APPS.find((n) => n.k === k) || { l: k }).l);
+const tabIcon = (k) => (appOfView(k) ? LayoutGrid : (NAV_FLAT_APPS.find((n) => n.k === k) || { i: FileText }).i || FileText);
+
+/* The left of the top bar in the apps mode: the apps button, the app, and its menu. On Home, the logo. */
+function AppBarNav({ view, app, go, openApp, allowed }) {
+  const [open, setOpen] = useState(null), [fit, setFit] = useState(99);
+  const navRef = React.useRef(null), measRef = React.useRef(null);
+  React.useEffect(() => setOpen(null), [view, app && app.id]);
+  /* Tabs that do not fit go into "More", measured against the room the bar actually has. */
+  React.useLayoutEffect(() => {
+    const nav = navRef.current, meas = measRef.current; if (!nav || !meas) return;
+    const calc = () => {
+      const ws = [...meas.children].map((c) => c.getBoundingClientRect().width + 2), more = ws.pop() || 70, room = nav.getBoundingClientRect().width - 4;
+      let used = 0, n = 0;
+      for (; n < ws.length; n++) { const rest = n < ws.length - 1 ? more : 0; if (used + ws[n] + rest > room) break; used += ws[n]; }
+      setFit(n);
+    };
+    calc();
+    let ro; try { ro = new ResizeObserver(calc); ro.observe(nav); } catch (e) { window.addEventListener("resize", calc); }
+    return () => { if (ro) ro.disconnect(); else window.removeEventListener("resize", calc); };
+  }, [app && app.id]);
+  if (!app) return <div className="ab-l"><button className="ab-brand" onClick={() => go("home")} aria-label="InvoEez — Home"><img src={BRAND_LOCKUP} alt="InvoEez" /></button></div>;
+  const items = (APP_MENUS[app.id] || []).map((x) => (typeof x === "string" ? (allowed(x) ? x : null) : ((g) => (g.length ? [x[0], g] : null))(x[1].filter(allowed)))).filter(Boolean);
+  const pick = (k) => { setOpen(null); go(k); };
+  const phone = () => { try { return window.matchMedia("(max-width:900px)").matches; } catch (e) { return false; } };
+  return <div className="ab-l" style={{ "--a1": app.tone[0], "--a2": app.tone[1] }}>
+    <button className="ab-grid" onClick={() => go("home")} title="All apps" aria-label="All apps"><LayoutGrid size={18} strokeWidth={2} /></button>
+    <button className={cx("ab-app", open === "__menu" && "open")} onClick={() => (phone() ? setOpen(open === "__menu" ? null : "__menu") : openApp(app))} aria-label={`${app.name} — overview`}>
+      <span className="ab-ic"><app.icon size={15} strokeWidth={2.1} /></span><b>{app.name}</b><ChevronDown size={14} className="ab-cv" /></button>
+    <nav className="ab-tabs" ref={navRef} aria-label={`${app.name} menu`}>
+    <div className="ab-measure" ref={measRef} aria-hidden="true">{items.map((it) => <span key={typeof it === "string" ? it : it[0]} className="ab-tab">{typeof it === "string" ? tabLabel(it) : <>{it[0]}<ChevronDown size={13} /></>}</span>)}
+      <span className="ab-tab">More<ChevronDown size={13} /></span></div>
+    {items.slice(0, fit).map((it) => typeof it === "string"
+      ? <button key={it} data-k={it} className={cx("ab-tab", view === it && "on")} aria-current={view === it ? "page" : undefined} onClick={() => pick(it)}>{tabLabel(it)}</button>
+      : <div key={it[0]} className="ab-dd">
+          <button className={cx("ab-tab", it[1].includes(view) && "on", open === it[0] && "open")} aria-haspopup="menu" aria-expanded={open === it[0]} onClick={() => setOpen(open === it[0] ? null : it[0])}>
+            {it[0]}<ChevronDown size={13} /></button>
+          {open === it[0] && <><div className="pop-scrim" onMouseDown={() => setOpen(null)} />
+            <div className="ab-menu" role="menu">{it[1].map((k) => { const I = tabIcon(k); return <button key={k} role="menuitem" data-k={k} className={cx(view === k && "on")} onClick={() => pick(k)}>
+              <span className="mi"><I size={14} /></span>{tabLabel(k)}</button>; })}</div></>}
+        </div>)}
+    {fit < items.length && <div className="ab-dd">
+      <button className={cx("ab-tab", items.slice(fit).some((it) => (typeof it === "string" ? it === view : it[1].includes(view))) && "on", open === "__more" && "open")} aria-haspopup="menu" aria-expanded={open === "__more"}
+        onClick={() => setOpen(open === "__more" ? null : "__more")}>More<ChevronDown size={13} /></button>
+      {open === "__more" && <><div className="pop-scrim" onMouseDown={() => setOpen(null)} />
+        <div className="ab-menu right" role="menu">{items.slice(fit).map((it) => typeof it === "string" ? [[null, it]] : it[1].map((k, i) => [i === 0 ? it[0] : null, k])).flat().map(([head, k]) => { const I = tabIcon(k);
+          return <React.Fragment key={k}>{head && <div className="ab-mh">{head}</div>}<button role="menuitem" data-k={k} className={cx(view === k && "on")} onClick={() => pick(k)}><span className="mi"><I size={14} /></span>{tabLabel(k)}</button></React.Fragment>; })}</div></>}
+    </div>}
+    </nav>
+    {open === "__menu" && <><div className="pop-scrim" onMouseDown={() => setOpen(null)} />
+      <div className="ab-sheet" role="menu" aria-label={`${app.name} menu`}>
+        <button className="ab-sheet-home" onClick={() => go("home")}><LayoutGrid size={15} />All apps</button>
+        {items.map((it) => typeof it === "string" ? [it] : it[1]).flat().map((k) => { const I = tabIcon(k); return <button key={k} role="menuitem" data-k={k} className={cx(view === k && "on")} onClick={() => pick(k)}>
+          <span className="mi"><I size={14} /></span>{tabLabel(k)}</button>; })}
+      </div></>}
+  </div>;
+}
+
+/* Settings › Navigation: the two ways to get around, each with a small picture of it. */
+function NavChoice({ mode, setMode }) {
+  const tiles = ["#4F8DFF", "#A78BFA", "#FDBA74", "#34D399", "#22D3EE", "#FB7185"];
+  return <div className="nav-choice" role="radiogroup" aria-label="Navigation">{[
+    ["sidebar", "Sidebar", "Every screen in a menu on the left, grouped the classic way. Opens on the dashboard."],
+    ["apps", "Apps dashboard", "Home shows your apps. Each app has its own menu across the top — no sidebar."]].map(([k, t, d]) =>
+    <button key={k} role="radio" aria-checked={mode === k} className={cx("nc-opt", mode === k && "on")} data-mode={k} onClick={() => setMode(k)}>
+      <span className={cx("nc-prev", k)} aria-hidden="true">{k === "sidebar"
+        ? <><i className="pv-side"><i /><i /><i /><i /><i /></i><i className="pv-main"><i className="pv-top" /><i className="pv-cards"><i /><i /><i /></i><i className="pv-rows"><i /><i /><i /></i></i></>
+        : <><i className="pv-bar"><i /><i /><i /><i /></i><i className="pv-apps">{tiles.map((c) => <i key={c} style={{ background: c }} />)}</i></>}</span>
+      <span className="nc-txt"><span className="nc-t"><b>{t}</b>{mode === k ? <Pill tone="ok">In use</Pill> : <span className="nc-use">Use this</span>}</span><small>{d}</small></span>
+    </button>)}</div>;
+}
+
 const APPS_CSS = `
 /* ---- home ---- */
 .mz{--sky-1:#9DB8E8;--sky-2:#DCE7F8}
 .mz[data-theme="dark"]{--sky-1:#2C4677;--sky-2:#14213D}
 .ah{display:flex;flex-direction:column;gap:0;margin:-6px 0 0}
 /* The hero's decoration is clipped to its rounded box; its menus are not, so they open over the apps below. */
-.ah-hero{position:relative;border-radius:28px;padding:56px 32px 190px;min-height:500px;
+.ah-hero{position:relative;border-radius:28px;padding:50px 32px 118px;
   background:radial-gradient(900px 420px at 15% 0%,rgba(255,255,255,.95),transparent 60%),radial-gradient(800px 380px at 100% 10%,rgba(255,226,198,.55),transparent 60%),
     linear-gradient(180deg,#E8F0FD 0%,#F3F0FF 52%,#FFF3E8 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.7),0 18px 50px rgba(30,50,90,.08)}
 .mz[data-theme="dark"] .ah-hero{background:radial-gradient(900px 420px at 15% 0%,rgba(76,110,190,.35),transparent 60%),radial-gradient(800px 380px at 100% 10%,rgba(160,90,200,.22),transparent 60%),
@@ -341,6 +455,19 @@ const APPS_CSS = `
 .ah-glass.right .bars i:nth-child(1){height:40%}.ah-glass.right .bars i:nth-child(2){height:70%}.ah-glass.right .bars i:nth-child(3){height:100%}
 .ah-glass.right div{display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--ink-2)}.ah-glass.right small{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
 .ah-glass.right b{color:var(--ink);font-variant-numeric:tabular-nums;margin-left:4px}
+.ah-glance{position:relative;z-index:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;max-width:1040px;margin:30px auto 0;animation:ahUp .7s .3s cubic-bezier(.22,1,.36,1) both}
+.ah-g{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto auto;column-gap:10px;align-items:center;text-align:left;padding:14px 16px;border-radius:18px;
+  background:rgba(255,255,255,.62);backdrop-filter:blur(16px) saturate(1.3);border:1px solid rgba(255,255,255,.9);box-shadow:0 10px 28px rgba(40,70,140,.08);color:var(--ink);transition:transform .2s,box-shadow .2s,background .2s}
+.ah-g:hover{transform:translateY(-2px);background:rgba(255,255,255,.85);box-shadow:0 16px 34px rgba(40,70,140,.14)}
+.mz[data-theme="dark"] .ah-g{background:rgba(20,30,52,.62);border-color:rgba(160,180,225,.14)}
+.mz[data-theme="dark"] .ah-g:hover{background:rgba(26,38,64,.85)}
+.ah-g .gi{grid-row:span 1;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:var(--brand-50);color:var(--brand)}
+.ah-g small{font-size:12px;color:var(--ink-3);font-weight:550}
+.ah-g b{grid-column:1 / -1;margin-top:8px;font-size:22px;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ah-g b em{font-style:normal;font-size:11px;font-weight:600;color:var(--ink-3);margin-right:5px;letter-spacing:.02em}
+.ah-g .gs{grid-column:1 / -1;font-size:11.5px;color:var(--ink-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ah-g.neg .gs{color:var(--neg)}.ah-g.warn .gs{color:var(--warn,#B45309)}.ah-g.neg .gi{background:color-mix(in srgb,var(--neg) 12%,transparent);color:var(--neg)}
+.ah-g.warn .gi{background:color-mix(in srgb,var(--warn,#B45309) 14%,transparent);color:var(--warn,#B45309)}
 @keyframes ahUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 .ah-inbox{position:relative;z-index:3;margin:-78px 18px 0}.ah-inbox:empty{display:none}
 .ah-inbox:not(:empty)+.ah-apps{margin-top:14px}
@@ -371,6 +498,78 @@ const APPS_CSS = `
 .ah-card:hover .app-art{transform:translate(-4px,-3px) scale(1.04)}
 .ah-go{position:absolute;right:12px;bottom:12px;z-index:1;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--ink);box-shadow:0 4px 12px rgba(19,26,43,.14);transition:transform .2s,background .2s,color .2s}
 .ah-card:hover .ah-go{background:var(--a2);color:#fff;transform:translateX(2px)}
+/* ---- apps mode: no sidebar, a menu bar per app ---- */
+.mz[data-nav="apps"] .topbar{display:flex;align-items:center;grid-template-columns:none;position:sticky;top:0;z-index:40;height:62px;flex:0 0 62px;min-height:62px;padding:0 18px 0 12px;gap:12px;background:linear-gradient(90deg,#0E1830,#15233F 55%,#192B4E);
+  border-bottom:0;box-shadow:0 1px 0 rgba(255,255,255,.04),0 8px 24px rgba(10,20,40,.18);color:#E6ECF7}
+/* Opaque, so no backdrop blur: a blur would make the bar the frame for its pop-ups and keep them from covering the page. */
+.mz[data-nav="apps"] .topbar{backdrop-filter:none;-webkit-backdrop-filter:none}
+.mz[data-nav="apps"] .topbar::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,var(--a1,var(--brand)),var(--a2,#8B5CF6));opacity:.9}
+.mz[data-nav="apps"] .topbar .icon-btn{color:#C9D3E6;background:transparent}.mz[data-nav="apps"] .topbar .icon-btn:hover{background:rgba(255,255,255,.08);color:#fff}
+.mz[data-nav="apps"] .tb-icons{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.08)}
+.mz[data-nav="apps"] .tb-div{background:rgba(255,255,255,.12)}
+.mz[data-nav="apps"] .topbar .coswitch{display:flex}
+.mz[data-nav="apps"] .coswitch,.mz[data-nav="apps"] .userchip{color:#E6ECF7;background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1)}
+.mz[data-nav="apps"] .coswitch .cx span,.mz[data-nav="apps"] .userchip .ux span{color:#93A1BC}.mz[data-nav="apps"] .coswitch .cx b,.mz[data-nav="apps"] .userchip .ux b{color:#fff}
+.mz[data-nav="apps"] .omni{flex:0 1 230px;min-width:40px;margin-left:auto;background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.1);color:#AEB9CF;height:38px}
+.mz[data-nav="apps"] .omni .ot{color:#AEB9CF}.mz[data-nav="apps"] .omni kbd{background:rgba(255,255,255,.1);color:#C9D3E6;border-color:transparent}
+.mz[data-nav="apps"] .omni .oi{background:rgba(255,255,255,.12);color:#fff}
+.mz[data-nav="apps"].on-home .omni{display:none}
+.mz[data-nav="apps"] .tb-r{margin-left:0}
+.ab-l{display:flex;align-items:center;gap:6px;min-width:0;flex:1 1 0;height:100%}
+.ab-brand{display:flex;align-items:center;height:100%;padding:0 6px}.ab-brand img{height:40px;width:auto;filter:drop-shadow(0 2px 6px rgba(0,0,0,.3))}
+.ab-grid{width:40px;height:40px;flex:0 0 40px;border-radius:12px;display:grid;place-items:center;color:#C9D3E6;transition:background .15s,color .15s}
+.ab-grid:hover{background:rgba(255,255,255,.1);color:#fff}
+.ab-app{display:flex;align-items:center;gap:9px;height:40px;padding:0 10px 0 6px;border-radius:12px;color:#fff;flex:0 0 auto;transition:background .15s}
+.ab-app:hover{background:rgba(255,255,255,.08)}.ab-app b{font-size:15px;font-weight:650;letter-spacing:-.01em}
+.ab-ic{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,var(--a1),var(--a2));box-shadow:0 4px 12px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.3)}
+.ab-cv{display:none;opacity:.7}
+.ab-tabs{position:relative;display:flex;align-items:center;gap:2px;min-width:0;flex:1 1 auto;height:100%;margin-left:8px;padding-left:12px;border-left:1px solid rgba(255,255,255,.1);overflow:visible}
+.ab-measure{position:absolute;left:0;top:0;width:0;height:0;overflow:hidden;display:flex;gap:2px;visibility:hidden;pointer-events:none;white-space:nowrap}.ab-measure>*{flex:0 0 auto}
+.ab-menu.right{left:auto;right:0}
+.ab-mh{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4);font-weight:650;padding:8px 10px 4px}
+.ab-tab{position:relative;display:inline-flex;align-items:center;gap:4px;height:36px;padding:0 12px;border-radius:10px;font-size:13.5px;font-weight:550;color:#AEB9CF;white-space:nowrap;transition:color .15s,background .15s}
+.ab-tab:hover,.ab-tab.open{color:#fff;background:rgba(255,255,255,.07)}
+.ab-tab.on{color:#fff}
+.ab-tab.on::after{content:"";position:absolute;left:12px;right:12px;bottom:-13px;height:3px;border-radius:3px 3px 0 0;background:linear-gradient(90deg,var(--a1),var(--a2));box-shadow:0 0 12px var(--a1)}
+.ab-dd{position:relative}
+.ab-menu{position:absolute;top:46px;left:0;z-index:1300;min-width:230px;padding:6px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-3);animation:ahUp .18s ease both}
+.ab-menu button,.ab-sheet button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:9px;font-size:13.5px;color:var(--ink);text-align:left}
+.ab-menu button:hover,.ab-sheet button:hover{background:var(--surface-2)}.ab-menu button.on,.ab-sheet button.on{background:color-mix(in srgb,var(--a1) 12%,var(--surface));color:var(--a2);font-weight:600}
+.ab-menu .mi,.ab-sheet .mi{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:color-mix(in srgb,var(--a1) 12%,var(--surface));color:var(--a2);flex:0 0 auto}
+.ab-sheet{position:fixed;left:10px;right:10px;top:66px;z-index:1300;max-height:calc(100vh - 80px);overflow:auto;padding:8px;border-radius:18px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-3);animation:ahUp .2s ease both}
+.ab-sheet-home{color:var(--ink-2)!important;border-bottom:1px solid var(--line-2)!important;border-radius:9px 9px 0 0!important;margin-bottom:4px}
+.mz[data-nav="apps"] .main{width:100%}
+.mz[data-nav="apps"] .page>.view{max-width:1480px;margin-left:auto;margin-right:auto}
+@media(max-width:1420px){.ab-tab{padding:0 9px;font-size:13px}.ab-tabs{margin-left:4px;padding-left:8px}.ab-tab.on::after{left:9px;right:9px}}
+@media(max-width:1599px){.mz[data-nav="apps"] .omni .ot,.mz[data-nav="apps"] .omni kbd{display:none}.mz[data-nav="apps"] .omni{flex:0 0 40px;width:40px;min-width:40px;height:40px;padding:0;justify-content:center;border-radius:12px}
+  .mz[data-nav="apps"] .omni .oi{width:30px;height:30px}}
+@media(max-width:900px){.ab-tabs{display:none}.ab-cv{display:inline}.mz[data-nav="apps"] .topbar{padding:0 8px;gap:6px}.ab-brand img{height:32px}
+  .mz[data-nav="apps"] .topbar .coswitch,.mz[data-nav="apps"] .tb-div,.mz[data-nav="apps"] .omni{display:none}.ab-app b{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+/* ---- Settings › Navigation ---- */
+.nav-choice{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.nav-card .setsec{padding-top:6px}
+@media(min-width:1100px){.nav-card .nc-opt{flex-direction:row;align-items:center;gap:16px}.nav-card .nc-prev{flex:0 0 190px}.nav-card .nc-txt{display:flex;flex-direction:column;gap:6px;min-width:0}}
+.nc-opt{display:flex;flex-direction:column;align-items:stretch;gap:9px;padding:12px;border-radius:16px;border:1.5px solid var(--line);background:var(--surface);text-align:left;transition:border-color .2s,box-shadow .2s,transform .2s}
+.nc-opt:hover{border-color:color-mix(in srgb,var(--brand) 45%,var(--line));transform:translateY(-1px)}
+.nc-opt.on{border-color:var(--brand);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand) 14%,transparent)}
+.nc-t{display:flex;align-items:center;justify-content:space-between;gap:8px}.nc-t b{font-size:14px;color:var(--ink)}
+.nc-use{font-size:12px;color:var(--brand);font-weight:600}
+.nc-opt small{font-size:12px;line-height:1.5;color:var(--ink-3)}
+.nc-prev{display:flex;height:96px;border-radius:11px;overflow:hidden;background:var(--surface-2);border:1px solid var(--line-2)}
+.nc-prev i{display:block}
+.nc-prev.sidebar .pv-side{width:30%;background:linear-gradient(180deg,#15233F,#0F1B33);padding:10px 7px;display:flex;flex-direction:column;gap:6px}
+.nc-prev.sidebar .pv-side i{height:5px;border-radius:3px;background:rgba(255,255,255,.28)}.nc-prev.sidebar .pv-side i:first-child{background:var(--brand);width:70%}
+.nc-prev.sidebar .pv-main{flex:1;padding:8px;display:flex;flex-direction:column;gap:6px}
+.nc-prev .pv-top{height:10px;border-radius:4px;background:var(--surface);border:1px solid var(--line-2)}
+.nc-prev .pv-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.nc-prev .pv-cards i{height:20px;border-radius:5px;background:var(--surface);border:1px solid var(--line-2)}
+.nc-prev .pv-rows{display:flex;flex-direction:column;gap:4px}.nc-prev .pv-rows i{height:6px;border-radius:3px;background:var(--line)}
+.nc-prev.apps{flex-direction:column}
+.nc-prev.apps .pv-bar{height:20px;background:linear-gradient(90deg,#0E1830,#192B4E);display:flex;align-items:center;gap:6px;padding:0 8px;border-bottom:2px solid var(--brand)}
+.nc-prev.apps .pv-bar i{width:20px;height:5px;border-radius:3px;background:rgba(255,255,255,.3)}.nc-prev.apps .pv-bar i:first-child{width:9px;height:9px;border-radius:3px;background:var(--brand)}
+.nc-prev.apps .pv-apps{flex:1;display:grid;grid-template-columns:repeat(6,1fr);gap:8px;padding:14px 16px;align-content:center}
+.nc-prev.apps .pv-apps i{aspect-ratio:1;border-radius:7px;box-shadow:0 3px 8px rgba(0,0,0,.15)}
+.pop-item .seg.nav-seg{margin-left:auto}
+@media(max-width:650px){.nav-choice{grid-template-columns:1fr}}
 /* ---- app overview ---- */
 .ao{display:flex;flex-direction:column;gap:16px}
 .ao-head{position:relative;overflow:hidden;display:flex;align-items:center;gap:20px;padding:26px 28px;border-radius:24px;
@@ -405,7 +604,8 @@ const APPS_CSS = `
 .sbar.rail .sb-sec.has-on>.sb-head .ic.app{box-shadow:0 0 0 3px rgba(255,255,255,.35)}
 .tb-apps{position:relative}
 @media(min-width:1700px){.ah-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media(max-width:1100px){.ah-glass.left,.ah-glass.right{display:none}.ah-hero{padding-bottom:130px;min-height:0}}
+@media(max-width:900px){.ah-glance{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.ah-g b{font-size:17px}.ah-g{padding:12px}}
 @media(max-width:900px){.ao-head .app-art{display:none}}
 @media(max-width:650px){.ah-hero{padding:34px 16px 110px;border-radius:22px;min-height:0}.ah-eyebrow{letter-spacing:.24em;font-size:11px}.ah-sub{font-size:14.5px}
   .ah-search{height:56px;padding-left:18px}.ah-search kbd{display:none}.ah-spark{width:40px;height:40px}.ah-apps{margin:-80px 0 0;padding:18px 14px}

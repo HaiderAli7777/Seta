@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.20.0";
+const BUILD = "3.21.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -6191,7 +6191,7 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
   );
 }
 
-function SettingsScreen({ accent, setAccent, company, setCompany, theme, setTheme, density, setDensity, backup, restore, reset, startCompany, go, toast, books, state, fta, setFta, setCosting, setSettings, cloud, pwa, param, onAddCompany }) {
+function SettingsScreen({ accent, setAccent, company, setCompany, theme, setTheme, density, setDensity, backup, restore, reset, startCompany, go, toast, books, state, fta, setFta, setCosting, setSettings, cloud, pwa, param, onAddCompany, navMode, setNavMode }) {
   const [d, setD] = useState(company);
   const dirty = JSON.stringify(d) !== JSON.stringify(company);
   /* A profile changed by cloud sync or another window replaces the form, unless you have unsaved edits. */
@@ -6207,6 +6207,8 @@ function SettingsScreen({ accent, setAccent, company, setCompany, theme, setThem
     <div>
       <PageHead eyebrow="Configuration" title="Settings"
         sub="Company details flow straight through to every tax invoice, statement and report." />
+      {setNavMode && <Card className="nav-card" title="Navigation" sub="How you move around InvoEez on this device — switch any time; nothing else changes" pad={false} style={{ marginBottom: 16 }}>
+        <div className="setsec" id="navigation"><NavChoice mode={navMode} setMode={setNavMode} /></div></Card>}
       <div className="grid" style={{ gridTemplateColumns: "minmax(0,1.4fr) minmax(0,1fr)", alignItems: "start" }}>
         <div className="grid">
           <Card title="Company profile" sub="Shown on tax invoices and as the letterhead on every statement" pad={false}>
@@ -6443,7 +6445,40 @@ function SettingsScreen({ accent, setAccent, company, setCompany, theme, setThem
 /*  APP SHELL                                                                 */
 /* ========================================================================== */
 
-/* 3.20: the menu is grouped by app. Each app has its colour (from APPS) and an overview as its first item. */
+/* 3.21: two ways to get around. Sidebar mode uses this classic menu (no Home, no app overviews);
+   Apps mode has no sidebar — Home shows the apps and each app has its own menu bar (APP_MENUS in apps.jsx). */
+const NAV_CLASSIC = [
+ { g: "Dashboard", i: LayoutDashboard, k: "dash" },
+ { g: "Master", i: Database, items: [
+   { s: "Accounts master", items: [{ k: "accounts", l: "Chart of accounts", i: BookOpen, add: 1 }, { k: "acct_groups", l: "Account groups", i: Layers }, { k: "customers", l: "Customers", i: Users, add: 1 }, { k: "vendors", l: "Vendors", i: Truck, add: 1 }] },
+   { s: "Inventory master", items: [{ k: "products", l: "Products & services", i: Package, add: 1 }, { k: "categories", l: "Product categories", i: Layers, add: 1 }] },
+   { s: "Rate master", items: [{ k: "pricelists", l: "Price lists", i: Tag, add: 1 }] },
+   { s: "Other master", items: [{ k: "salespeople", l: "Sales team", i: Users, add: 1 }, { k: "methods", l: "Payment methods", i: CreditCard, add: 1 }] },
+   { k: "opening", l: "Opening balances", i: Scale }] },
+ { g: "Sale", i: ShoppingBag, items: [{ k: "quotes", l: "Quotations", i: FileText, add: 1 }, { k: "invoices", l: "Invoices", i: Receipt, add: 1 }, { k: "credit_notes", l: "Credit notes", i: FileMinus, add: 1 }] },
+ { g: "Purchase", i: ShoppingCart, items: [{ k: "purchase_orders", l: "Purchase orders", i: ClipboardCheck, add: 1 }, { k: "bills", l: "Vendor bills", i: ShoppingCart, add: 1 }, { k: "debit_notes", l: "Debit notes", i: FilePlus, add: 1 }, { k: "expenses", l: "Expenses", i: Wallet, add: 1 }] },
+ { g: "Banking", i: Landmark, items: [{ k: "payments", l: "Receipts & payments", i: ArrowDownLeft, add: 1 }, { k: "pdc", l: "Post-dated cheques", i: CalendarClock, add: 1 }, { k: "banking", l: "Bank & cash", i: Landmark, add: 1 }] },
+ { g: "Accounting trans.", i: Calculator, items: [{ k: "journal", l: "Journal entries", i: BookOpen, add: 1 }, { k: "assets", l: "Fixed assets", i: Layers, add: 1 }] },
+ { g: "Stock management", i: Warehouse, items: [{ k: "stock_count", l: "Stock counts & adjustments", i: Boxes, add: 1 }, { k: "scrap", l: "Damage & scrap", i: Trash2, add: 1 }, { k: "r_stock", l: "Inventory valuation", i: Package }] },
+ { g: "Reports", i: PieChart, items: [
+    { k: "reports", l: "All reports", i: PieChart },
+    { k: "r_pnl", l: "Profit & loss", i: BarChart3 },
+    { k: "r_branch", l: "Branch performance", i: Store },
+    { k: "r_group", l: "Group report", i: Building2 },
+    { k: "r_bs", l: "Balance sheet", i: Scale },
+    { k: "r_aged_ar", l: "Aged receivable", i: Receipt },
+    { k: "r_aged_ap", l: "Aged payable", i: Receipt },
+    { k: "r_stmt", l: "Customer statement", i: Send },
+    { k: "r_prod", l: "Profit by product", i: Package },
+    { k: "r_cust", l: "Profit by customer", i: Users },
+    { k: "r_method", l: "Payments by method", i: Banknote },
+    { k: "r_tb", l: "Trial balance", i: CircleDot },
+    { k: "r_gl", l: "General ledger", i: BookOpen },
+    { k: "r_partner", l: "Partner ledger", i: Users }] },
+ { g: "VAT & e-invoicing", i: ShieldCheck, items: [{ k: "r_vat", l: "VAT return — FTA 201", i: Building2 }, { k: "fta", l: "FTA & e-invoicing", i: ShieldCheck }] },
+ { g: "Utilities & tools", i: Wrench, items: [{ k: "setup", l: "Setup guide", i: ListChecks }, { k: "users", l: "Users & access", i: Users, add: 1 }, { k: "companies", l: "Companies", i: Building2 }, { k: "branches", l: "Branches", i: Store, add: 1 }, { k: "settings", l: "Settings & backup", i: Settings }] },
+];
+/* 3.20: every screen grouped by app, each with its colour (from APPS) and an overview as its first item. */
 const NAV = [
  { g: "Home", i: House, k: "home" },
  { g: "Dashboard", i: LayoutDashboard, k: "dash" },
@@ -6476,7 +6511,10 @@ const NAV = [
  { g: "Administration", i: Settings, app: "settings", items: [{ k: "setup", l: "Setup guide", i: ListChecks }, { k: "users", l: "Users & access", i: Users, add: 1 }, { k: "companies", l: "Companies", i: Building2 },
    { k: "branches", l: "Branches", i: Store, add: 1 }, { k: "settings", l: "Settings & backup", i: Settings }] },
 ];
-const NAV_FLAT = navFlat();
+const NAV_FLAT_CLASSIC = navFlat(NAV_CLASSIC), NAV_FLAT_APPS = navFlat(NAV);
+/* The menu entries of the navigation in use; switched with the Navigation setting. */
+let NAV_FLAT = NAV_FLAT_CLASSIC;
+const NAVMODE_KEY = "mizan.navmode";
 
 const DOC_VIEWS = { quotes: "quote", invoices: "invoice", credit_notes: "credit_note", bills: "bill", debit_notes: "debit_note", purchase_orders: "purchase_order" };
 const STORE_KEY = coKey("mizan.books.v2");     // each company keeps its own books (3.18)
@@ -6507,7 +6545,12 @@ let _tid = 0;
 
 function Invoeez() {
   const [state, setState] = useState(loadBooks);
-  const [view, setView] = useState("home");
+  /* Navigation: the classic sidebar, or the apps dashboard with a menu bar per app (3.21). Remembered on this device. */
+  const [navMode, setNavModeState] = useState(() => (readStr(NAVMODE_KEY) === "apps" ? "apps" : "sidebar"));
+  const appsNav = navMode === "apps";
+  NAV_FLAT = appsNav ? NAV_FLAT_APPS : NAV_FLAT_CLASSIC;
+  const landing = appsNav ? "home" : "dash";
+  const [view, setView] = useState(() => (readStr(NAVMODE_KEY) === "apps" ? "home" : "dash"));
   const [param, setParam] = useState(null);
   const [period, setPeriod] = useState(() => ({ preset: "ytd", from: TODAY.slice(0,4)+"-01-01", to: TODAY, asOf: TODAY, ...cmpDefaults() }));
   const [range, setRange] = useState({ preset: "ytd", from: TODAY.slice(0,4)+"-01-01", to: TODAY });
@@ -6697,13 +6740,24 @@ function Invoeez() {
     if (b && BR[b]) toast(`Working in ${BR[b].name} — new records go there`);
   };
   const role = ROLES[meUser.role] || ROLES.viewer;
-  const signOut = () => { setSwitching(false); setMenu(false); setMe(null); setView("home"); };
+  const signOut = () => { setSwitching(false); setMenu(false); setMe(null); setView(landing); };
   const can = (p) => role.perms.indexOf(p) >= 0;
   /* Approvers reach purchase orders even when their role does not raise purchases. */
   const allowedScreen = (k) => !(LOCK_BRANCH && BRANCH_WIDE.includes(k)) && (!SCREEN_PERM[k] || can(SCREEN_PERM[k]) || (k === "purchase_orders" && !!meUser.approver));
   /* An app's overview is open to anyone who can use at least one screen in it. */
-  const allowed = (k) => (appOfView(k) ? appOfView(k).screens.some(allowedScreen) : allowedScreen(k));
-  React.useEffect(() => { if (!allowed(view)) setView("home"); }, [me, view]);
+  const allowed = (k) => ((k === "home" || appOfView(k)) && !appsNav ? false : appOfView(k) ? appOfView(k).screens.some(allowedScreen) : allowedScreen(k));
+  React.useEffect(() => { if (!allowed(view)) setView(landing); }, [me, view, navMode]);
+  const setNavMode = (m) => {
+    if (m === navMode) return;
+    try { window.localStorage.setItem(NAVMODE_KEY, m); } catch (e) {}
+    setMenu(false); setDrawer(false); setNavModeState(m); setView(m === "apps" ? "home" : "dash"); setParam(null); scrollPageTop();
+    toast(m === "apps" ? "Apps dashboard — each app has its own menu across the top" : "Sidebar — every screen in the menu on the left");
+  };
+  /* Which app's menu bar is showing: the one you are in, as long as the screen belongs to it. */
+  const appRef = React.useRef(null);
+  if (appsNav) { if (view === "home") appRef.current = null; else if (!(appRef.current && menuKeys(appRef.current).includes(view))) appRef.current = primaryAppOf(view); }
+  const curApp = appsNav && appRef.current ? APP_BY[appRef.current] : null;
+  const openApp = (a) => { appRef.current = a.id; go(a.home); };
   React.useEffect(() => { rememberView(view); }, [view]);
   const here = NAV_FLAT.find((i) => i.k === view) || (appOfView(view) && { l: appOfView(view).name + " overview", g: appOfView(view).name }) || { l: "Home", g: "Home" };
   const canAdd = (k) => !SCREEN_PERM[k] || can(SCREEN_PERM[k]);
@@ -6726,9 +6780,10 @@ function Invoeez() {
     { key: "backup", label: "Back up the books to JSON", hint: "Action", icon: Download, act: backup },
     { key: "start_company", label: state.sample ? "Start my company (clear the sample data)" : "Start a new company", hint: "Action", icon: Rocket, act: startCompany },
     { key: "setup_guide", label: "Setup guide — import products, customers, opening balances", hint: "Action", icon: ListChecks, act: () => go("setup") },
-    ...APPS.filter((a) => a.home.startsWith("app_") && !NAV_FLAT.some((n) => n.k === a.home)).map((a) => ({ key: a.home, label: `${a.name} overview`, hint: "App", icon: a.icon, act: () => go(a.home) })),
+    ...APPS.filter((a) => appsNav && a.home.startsWith("app_") && !NAV_FLAT.some((n) => n.k === a.home)).map((a) => ({ key: a.home, label: `${a.name} overview`, hint: "App", icon: a.icon, act: () => go(a.home) })),
     ...companyList().filter((c) => c.id !== activeCompanyId()).map((c) => ({ key: "co_" + c.id, label: `Switch to ${c.name}`, hint: "Company", icon: Building2, act: () => switchCompany(c.id) })),
     { key: "add_company", label: "Add a company", hint: "Action", icon: Plus, act: () => setAddingCo(true) },
+    { key: "nav_mode", label: appsNav ? "Switch to the sidebar menu" : "Switch to the apps dashboard", hint: "Navigation", icon: LayoutGrid, act: () => setNavMode(appsNav ? "sidebar" : "apps") },
     ...(branchOn() && !LOCK_BRANCH ? BRANCHES.filter((b) => b.active !== false).map((b) => ({ key: "work_" + b.id, label: `Work in ${b.name}`, hint: "Branch", icon: MapPin, act: () => setWork(b.id) })) : []),
     ...state.docs.map((d) => ({ key: d.id, label: `${d.number} · ${PMAP[d.partner].name}`,
       hint: DOCMETA[d.type].short, search:d.lines.map(l=>productText(PROD[l.product])).join(" "), icon: FileText, act: () => go(LIST_OF[d.type], d.id) })),
@@ -6736,7 +6791,7 @@ function Invoeez() {
     ...PARTNERS.map(p=>({key:"partner_"+p.id,label:p.name,hint:[p.role,p.phone,p.contact,p.trn].join(" · "),icon:Users,act:()=>go("partners",p.id)})),
     ...ACCOUNTS.map((a) => ({ key: a.code, label: `${a.code} — ${a.name}`, hint: "Ledger", icon: BookOpen,
       act: () => go("r_gl", a.code) })),
-  ], [state, me]);
+  ], [state, me, navMode]);
 
   const body = () => {
     if (!allowed(view)) return (
@@ -6754,7 +6809,7 @@ function Invoeez() {
       readOnly={!!SCREEN_PERM[view] && !can(SCREEN_PERM[view])} />;
     if (appOfView(view)) return <AppOverview key={view} app={appOfView(view)} state={state} books={books} go={go} quickAdd={quickAdd} allowed={allowed} canAdd={canAdd} counts={counts} />;
     switch (view) {
-      case "home": return <AppsHome state={state} books={books} company={company} user={meUser} go={go} quickAdd={quickAdd} allowed={allowed} canAdd={canAdd} counts={counts}
+      case "home": return <AppsHome state={state} books={books} company={company} user={meUser} go={go} openApp={openApp} quickAdd={quickAdd} allowed={allowed} canAdd={canAdd} counts={counts}
         cmdItems={cmdItems} openSearch={() => setCmdk(true)} />;
       case "dash": return <Dashboard state={dstate} whole={state} books={dbooks} go={go} newDoc={newDoc} range={range} setRange={setRange} user={meUser}
         setup={!state.sample && !(state.setup && state.setup.hidden) && <SetupProgress state={state} company={company} go={go} />} />;
@@ -6786,7 +6841,7 @@ function Invoeez() {
       case "users": return <UsersScreen create={cr("users")} state={state} setState={setState} me={me} setMe={setMe} toast={toast} />;
       case "settings": return <SettingsScreen accent={accent} setAccent={setAccent} setCosting={(k) => setState((x) => ({ ...x, costing: k }))} setSettings={(patch) => setState((x) => ({ ...x, settings: { ...(x.settings || {}), ...patch } }))} fta={fta} setFta={setFta} company={company} setCompany={setCompany} theme={theme} setTheme={setTheme}
         density={density} setDensity={setDensity} backup={backup} restore={restore} reset={reset} startCompany={startCompany} go={go}
-        toast={toast} books={books} state={state} cloud={cloud} pwa={pwa} param={param} onAddCompany={() => setAddingCo(true)} />;
+        toast={toast} books={books} state={state} cloud={cloud} pwa={pwa} param={param} onAddCompany={() => setAddingCo(true)} navMode={navMode} setNavMode={setNavMode} />;
       case "branches": return <BranchesScreen state={state} setState={setState} books={books} company={company} toast={toast} go={go} users={users} create={cr("branches")}
         work={branchOn() ? homeBranch(state) : ""} setWork={setWork} />;
       case "companies": return <CompaniesScreen state={state} books={books} company={company} setCompany={setCompany} accent={accent} setAccent={setAccent} toast={toast}
@@ -6825,7 +6880,7 @@ function Invoeez() {
   return (
     <ThemeCtx.Provider value={palette}>
     <CompanyCtx.Provider value={company}>
-    <div className="mz" data-theme={theme} data-accent={accent} data-density={density} style={{ height: "100vh" }}>
+    <div className={cx("mz", appsNav && view === "home" && "on-home")} data-theme={theme} data-accent={accent} data-density={density} data-nav={navMode} style={{ height: "100vh" }}>
       <style>{ALL_CSS}</style>
       {starting && <StartCompanyDialog state={state} company={company} backup={backup} close={() => setStarting(false)} onDone={companyStarted} />}
       {addingCo && <StartCompanyDialog mode="add" state={state} company={company} backup={backup} close={() => setAddingCo(false)}
@@ -6836,20 +6891,20 @@ function Invoeez() {
       {cmdk && <CommandPalette items={cmdItems} close={() => setCmdk(false)} run={(i) => i.act()} />}
       <Toasts items={toasts} dismiss={dismissToast} />
 
-      {drawer && <div className="side-scrim" onMouseDown={() => setDrawer(false)}
+      {!appsNav && drawer && <div className="side-scrim" onMouseDown={() => setDrawer(false)}
         onClick={() => setDrawer(false)} role="presentation" />}
-      <Sidebar view={view} go={go} quickAdd={quickAdd} allowed={allowed} counts={counts} closed={closed} setClosed={setClosed}
+      {!appsNav && <Sidebar view={view} go={go} quickAdd={quickAdd} allowed={allowed} counts={counts} closed={closed} setClosed={setClosed}
         mini={mini} setMini={setMini} drawer={drawer} company={company} meUser={meUser} role={role}
         canAdd={canAdd} onSwitchUser={() => setSwitching(true)} onSignOut={signOut}
-        branch={branchOn() ? branchName(homeBranch(state)) : ""} onCompany={openCoPop} />
+        branch={branchOn() ? branchName(homeBranch(state)) : ""} onCompany={openCoPop} />}
       {keysOpen && <ShortcutSheet allowed={allowed} canAdd={canAdd} close={() => setKeysOpen(false)} />}
       <ChordHint chord={chord} allowed={allowed} canAdd={canAdd} />
       {switching && <SwitchUserDialog users={users} me={me} isAdmin={can("settings")} go={go} close={() => setSwitching(false)} onSignOut={signOut}
         onSwitch={(id) => { setMe(id); setSwitching(false); const u = users.find((x) => x.id === id); toast(`Signed in as ${u ? u.name : "user"}`); }} />}
 
       <div className="main">
-        <div className="topbar">
-          <div className="tb-l">
+        <div className="topbar" style={curApp ? { "--a1": curApp.tone[0], "--a2": curApp.tone[1] } : undefined}>
+          {appsNav ? <AppBarNav view={view} app={curApp} go={go} openApp={openApp} allowed={allowed} /> : <div className="tb-l">
             <button className="icon-btn burger" onClick={() => setDrawer(true)} aria-label="Open navigation">
               <Menu size={20} strokeWidth={1.9} /></button>
             <div className="tb-title">{here.l}</div>
@@ -6858,7 +6913,7 @@ function Invoeez() {
               title="Total debits versus total credits across every posted entry">
               <Scale size={13} strokeWidth={1.9} />
               <span className="lbl">{books.balanced ? "Balanced" : `Out by ${money(books.totalD - books.totalC)}`}</span></span>
-          </div>
+          </div>}
           <button className="omni" onClick={() => setCmdk(true)}>
             <span className="oi"><Search size={15} strokeWidth={2.2} /></span>
             <span className="ot">Search products, barcode, invoices…</span><kbd>{MOD === "⌘" ? "⌘K" : "Ctrl K"}</kbd></button>
@@ -6874,8 +6929,6 @@ function Invoeez() {
           </div>
           <span className="tb-div" />
           <div className="tb-icons">
-            <button className={cx("icon-btn tb-apps", view === "home" && "on")} onClick={() => go("home")} title="All apps" aria-label="All apps">
-              <LayoutGrid size={17} strokeWidth={1.9} /></button>
             <div className="nt-wrap">
             <button className={cx("icon-btn bell", notif && "on")} onClick={() => setNotif((v) => !v)} title="Needs attention" aria-haspopup="dialog" aria-expanded={notif}>
               <Bell size={17} strokeWidth={1.9} />
@@ -6939,9 +6992,13 @@ function Invoeez() {
                 <LogOut size={15} strokeWidth={1.8} />Sign out</button>
               {can("settings") && <button className="pop-item" onClick={() => { setMenu(false); go("users"); }}>
                 <Users size={15} strokeWidth={1.8} />Users &amp; access</button>}
+              <div className="pop-item nav-row"><LayoutGrid size={15} strokeWidth={1.8} />Navigation
+                <div className="seg nav-seg">{[["sidebar", "Sidebar"], ["apps", "Apps"]].map(([k, l]) => <button key={k} className={cx(navMode === k && "on")} onClick={() => setNavMode(k)}>{l}</button>)}</div></div>
               <button className="pop-item" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
                 {theme === "dark" ? <Moon size={15} strokeWidth={1.8} /> : <Sun size={15} strokeWidth={1.8} />}
                 Dark mode<Switch on={theme === "dark"} /></button>
+              <button className="pop-item" onClick={() => { setMenu(false); openCoPop(document.querySelector(".userchip") || document.body); }}>
+                <Building2 size={15} strokeWidth={1.8} />Switch company</button>
               <button className="pop-item" onClick={() => { setMenu(false); go("settings"); }}>
                 <Settings size={15} strokeWidth={1.8} />Settings</button>
               <button className="pop-item" onClick={() => { setMenu(false); setKeysOpen(true); }}>
