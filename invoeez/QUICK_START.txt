@@ -33,12 +33,14 @@ WORK OFFLINE, SHARE THROUGH THE CLOUD (3.15)
 - Changes upload as soon as there is a connection. The top bar shows Synced,
   Offline · N waiting, or Syncing.
 
-SEVERAL COMPANIES AND BRANCHES (3.18)
+SEVERAL COMPANIES AND BRANCHES (3.18, 3.19)
 - Click the company name at the top of the menu > Add a company. Each
-  company has its own books, users, TRN, VAT return and backup.
-- Utilities & tools > Branches > Set up branches: the company becomes Head
-  office, then add your other branches. Give each user a home branch in
-  Users & access.
+  company has its own books, users, TRN, VAT return, backup and colour.
+  Utilities & tools > Companies shows them all.
+- Utilities & tools > Branches > Set up branches: three steps — head office,
+  your other branches, then who works where and how documents are numbered
+  (one series, or a series per branch such as INV/DRA/2026/0001).
+- Working somewhere else today? Click the company name > Working in.
 - Every report has a Branch filter. Reports > Branch performance compares the
   branches; Reports > Group report adds the companies together.
 

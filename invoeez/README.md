@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.18)
+# InvoEez — Invoice Made Easy (3.19)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -74,6 +74,10 @@ Company profile, theme, user selection and connection settings use their existin
 | Scrap | Record damaged quantities with a reason. Scrap reduces stock at carrying cost and charges the category adjustment account. Quantities cannot exceed on-hand stock. |
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
+
+## Company and branch set-up (3.19)
+
+**Set up branches** is a three-step guide: head office, every other branch on one screen (codes suggested), then each user's home branch, who sees only their branch, and numbering. Branches can **number their own documents** (INV/DRA/2026/0001) while the default branch keeps the company series. Branches carry an Arabic name, telephone, email, licence and manager, all printed on their invoices. Users can **switch their working branch** from the company switcher, and a user limited to one branch sees only its documents and reports. **Utilities & tools › Companies** shows every company's figures and set-up, and lets you edit, colour, back up or open any of them. Each company has its **own colour theme**, so it is always clear whose books are open.
 
 ## Several companies, branches and group reporting (3.18)
 
@@ -208,7 +212,7 @@ npm test
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
 | `dashboard.jsx` | New overview dashboard. |
-| `group.jsx` | 3.18 several companies (registry, switcher, add a company, Settings › Companies) and branches (Branches screen, Branch field and picker, branch ledgers), Branch performance and Group report. |
+| `group.jsx` | 3.18–3.19 several companies (registry, switcher, add a company, Companies screen, colour per company, edit or back up any company) and branches (guided set-up, Branches screen, numbering per branch, working branch, users limited to a branch, Branch field and picker, branch ledgers), Branch performance and Group report. |
 | `delivery.jsx` | 3.17 delivery addresses: branches on customers, Deliver to on documents, add a branch from a document, address preview, print styles for Deliver to and the delivery note. |
 | `refine.jsx` | 3.16 gliding highlights for switches and tabs, rolling total, totals panel with the discount on the whole document, motion and editor refinements. |
 | `sync.jsx` | 3.15 offline-first cloud sync: record-by-record three-way merge, renumbering, sync engine, top-bar status chip, Settings › Cloud sync, installable app. |
@@ -228,7 +232,7 @@ npm test
 | `shell.html` | Original standalone shell and bundled libraries/fonts. |
 | `build.mjs` | Reproducible JSX compilation and standalone packaging. |
 | `tests/engine.cjs` | Executable accounting, pricing, migration and inventory regression checks. |
-| `tests/browser-branches.cjs` | 3.18 checks: setting up branches (head office, next branch, rules), home branch, Branch field on invoice, payment and journal (a payment follows its invoice), printed branch address, Branch performance adds up to the P&L, branch filter on P&L, trial balance, balance sheet, dashboard and lists, VAT return company-wide, adding a company and switching back, Group report, phone. |
+| `tests/browser-branches.cjs` | 3.18–3.19 checks: guided branch set-up, branch details on print, numbering per branch, working branch, a user limited to one branch, Companies screen (edit, colour, back up another company), company colours; setting up branches (head office, next branch, rules), home branch, Branch field on invoice, payment and journal (a payment follows its invoice), printed branch address, Branch performance adds up to the P&L, branch filter on P&L, trial balance, balance sheet, dashboard and lists, VAT return company-wide, adding a company and switching back, Group report, phone. |
 | `tests/browser-delivery.cjs` | 3.17 checks: % / AED line discounts (switching keeps the money off, limits, saved), branches on a customer and the default, Deliver to and place of supply, adding a branch from the quotation, print, delivery note on screen and as PDF, carried to the invoice, list and search, phone. |
 | `tests/browser-refine.cjs` | 3.16 checks: menu unfolds with one layout and a glide (and reverses smoothly), sections fold, phone drawer, gliding highlights, documents glide in, discount on the whole quotation (amount, %, limits, save, reload, print, convert, post), save bar position, dark, reduced motion. |
 | `tests/browser-offline-sync.cjs` | 3.15 checks with the real sync server (files and PostgreSQL): connect and upload, a second device downloads, offline work waiting, renumbering on reconnect, a field changed on two devices and Use mine, deletions, opening with no internet, wrong key, restore switches sync off. |

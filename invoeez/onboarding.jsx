@@ -88,6 +88,8 @@ function SetupProgress({ state, company, go }) {
 function StartCompanyDialog({ state, company, close, onDone, backup, mode }) {
   const sample = !!state.sample, add = mode === "add";
   const [sameUsers, setSameUsers] = useState(add && !sample);
+  /* A new company gets a colour no other company uses yet, so the two are never confused. */
+  const [acc, setAcc] = useState(() => { const used = companyList().map(companyAccent); return Object.keys(ACCENTS).find((k) => !used.includes(k)) || "teal"; });
   const [f, setF] = useState({ name: add || sample ? "" : company.name === COMPANY.name ? "" : company.name, trn: "", licence: "", address: "", address2: "", city: "", emirate: "Dubai",
     phone: "", email: "", admin: "", adminEmail: "" });
   const [keep, setKeep] = useState({ products: false, partners: false, pricing: false });
@@ -102,11 +104,12 @@ function StartCompanyDialog({ state, company, close, onDone, backup, mode }) {
     setError(""); setStep(2);
   };
   const create = () => {
-    const users = sameUsers ? (state.users || []).map((u) => ({ ...u })) : [{ id: "u1", name: f.admin.trim(), email: f.adminEmail.trim(), role: "admin", active: true }];
+    /* Branches belong to each company, so copied users start without a home branch there. */
+    const users = sameUsers ? (state.users || []).map(({ branch, branchOnly, ...u }) => ({ ...u })) : [{ id: "u1", name: f.admin.trim(), email: f.adminEmail.trim(), role: "admin", active: true }];
     const books = migrateBooks(freshBooks(state, { ...keep, users }));
     books.setup = {};
     onDone(books, { ...COMPANY, name: f.name.trim(), trn: f.trn.replace(/\s/g, ""), licence: f.licence.trim(), address: f.address.trim(), address2: f.address2.trim(),
-      city: f.city.trim() || "United Arab Emirates", emirate: f.emirate, phone: f.phone.trim(), email: f.email.trim(), logo: "" });
+      city: f.city.trim() || "United Arab Emirates", emirate: f.emirate, phone: f.phone.trim(), email: f.email.trim(), logo: "" }, add ? acc : undefined);
   };
   return <StudioModal wide title={add ? "Add a company" : sample ? "Start my company" : "Start a new company"} sub={step === 1 ? (add ? "Step 1 of 2 · The new company" : "Step 1 of 2 · Who you are") : add ? `Step 2 of 2 · What to copy from ${company.name}` : "Step 2 of 2 · What to keep"} close={close}>
     <div className="steps-dots"><i className="on" /><i className={step === 2 ? "on" : ""} /></div>
@@ -121,6 +124,10 @@ function StartCompanyDialog({ state, company, close, onDone, backup, mode }) {
         <Field label="Emirate"><Select value={f.emirate} onChange={(e) => set("emirate", e.target.value)}>{EMIRATES.map((x) => <option key={x}>{x}</option>)}</Select></Field>
         <Field label="Telephone"><Input value={f.phone} placeholder="+971 4 000 0000" onChange={(e) => set("phone", e.target.value)} /></Field>
         <Field label="Accounts email"><Input type="email" value={f.email} placeholder="accounts@yourcompany.ae" onChange={(e) => set("email", e.target.value)} /></Field>
+        {add && <div className="fld span2 co-colour"><span className="lb">Colour</span>
+          <div className="cc-row" role="radiogroup" aria-label="Colour">{Object.entries(ACCENTS).map(([k, a]) => <button key={k} type="button" role="radio" aria-checked={acc === k}
+            className={cx("cc-opt", acc === k && "on")} onClick={() => setAcc(k)}><i style={{ background: `linear-gradient(135deg,${a.sw[0]},${a.sw[1]})` }} />{a.name}</button>)}</div>
+          <small>The whole app takes this colour while the company is open, so you always know whose books you are in.</small></div>}
         {add && !sample && <label className="check-label span2 same-users"><input type="checkbox" checked={sameUsers} onChange={(e) => setSameUsers(e.target.checked)} />
           <span><b>The same people sign in</b> — copy the {(state.users || []).length} user{(state.users || []).length === 1 ? "" : "s"}, roles and PINs from {company.name}</span></label>}
         {!sameUsers && <><Field label="Your name (administrator)"><Input value={f.admin} placeholder="Full name" onChange={(e) => set("admin", e.target.value)} /></Field>

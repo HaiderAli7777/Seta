@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.18.0";
+const BUILD = "3.19.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -2452,13 +2452,13 @@ function LegacyDashboard({ state, books, go, newDoc, range, setRange, user = { n
 
 const LIST_OF = { quote: "quotes", invoice: "invoices", credit_note: "credit_notes", bill: "bills", debit_note: "debit_notes", purchase_order: "purchase_orders" };
 
-function nextNumber(docs, type) {
-  const n = docs.filter((d) => d.type === type).reduce((m, d) => Math.max(m, +d.number.split("/").pop() || 0), 0);
-  return `${DOCMETA[type].prefix}/${TODAY.slice(0, 4)}/${String(n + 1).padStart(4, "0")}`;
+/* The branch decides the series when branches number their own documents (3.19). */
+function nextNumber(docs, type, branch) {
+  return seriesNext(docs.filter((d) => d.type === type), DOCMETA[type].prefix, branch);
 }
 /* A new document starts with no counterparty, so nothing is ever posted to the wrong customer by default. */
-function blankDoc(docs, type) {
-  return { id: uid("d"), type, number: nextNumber(docs, type), partner: "", salesman: "", pricelist: "", date: TODAY,
+function blankDoc(docs, type, branch) {
+  return { id: uid("d"), type, number: nextNumber(docs, type, branch), ...(branch ? { branch } : {}), partner: "", salesman: "", pricelist: "", date: TODAY,
     due: TODAY, lines: [{ id: uid("l"), product: "", desc: "", qty: "", price: "", disc: "", tax: "s5", account: null }],
     ref: "", note: "", state: "draft", seq: 0, emirate: COMPANY.emirate || "Dubai", isNew: true };
 }
@@ -2467,7 +2467,8 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState("");
   const [f, setF] = useState("all");
-  const [brF, setBrF] = useState("");
+  const [brPick, setBrF] = useState("");
+  const brF = LOCK_BRANCH || brPick;
   const [sort, setSort] = useState({ k: "date", dir: "desc" });
   const [limit, setLimit] = useState(100);
   const meta = DOCMETA[type], sale = meta.side === "sale";
@@ -2480,7 +2481,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
     if (openId === "__list__") setEditing(null);
     else if (openId === "__pending__") { setEditing(null); setF("pending"); }
     else if (openId.startsWith("__f:")) { setEditing(null); setF(openId.slice(4)); }
-    else if (openId === "__new__") { if (!readOnly) { const hb = homeBranch(state); setEditing({ ...blankDoc(state.docs, type), ...(hb ? { branch: hb } : {}) }); } }
+    else if (openId === "__new__") { if (!readOnly) setEditing(blankDoc(state.docs, type, homeBranch(state))); }
     else { const d = state.docs.find((x) => x.id === openId); if (d) setEditing(d); }
     clearOpen();
   }, [openId]);
@@ -2524,7 +2525,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
           : isPO
           ? `${list.length} purchase orders · ${pendingCount} awaiting approval · ${money(t.total, false)} on order · nothing posts until one becomes a bill`
           : `${list.length} documents · ${money(t.total, false)} posted${totalOpen > 0.004 ? ` · ${money(totalOpen, false)} outstanding` : ""}`}>
-        {!readOnly && <Btn kind="pri" icon={Plus} onClick={() => { const hb = homeBranch(state); setEditing({ ...blankDoc(state.docs, type), ...(hb ? { branch: hb } : {}) }); }}>New {meta.short.toLowerCase()}</Btn>}
+        {!readOnly && <Btn kind="pri" icon={Plus} onClick={() => setEditing(blankDoc(state.docs, type, homeBranch(state)))}>New {meta.short.toLowerCase()}</Btn>}
       </PageHead>
 
       {tiles && <DocSummary tiles={tiles} f={f} setF={(v) => { setF(v); setLimit(100); }} />}
@@ -2713,7 +2714,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   const leave = () => (dirty ? setLeaveAsk(true) : close());
 
   const spawn = (type, lines, ref, note, extra) => {
-    const nd = { id: uid("d"), type, number: nextNumber(state.docs, type), partner: d.partner,salesman:d.salesman||"",pricelist:d.pricelist||"",
+    const nd = { id: uid("d"), type, number: nextNumber(state.docs, type, d.branch), partner: d.partner,salesman:d.salesman||"",pricelist:d.pricelist||"",
       date: TODAY, due: addDays(TODAY, PMAP[d.partner].terms), lines, ref: ref || "", note: note || "",
       state: "draft", seq: 0, emirate: d.emirate, ...(d.docDisc && +d.docDisc.value > 0 ? { docDisc: { ...d.docDisc } } : {}),
       ...(d.deliverTo && d.delivery && DOCMETA[type].side === "sale" ? { deliverTo: d.deliverTo, delivery: { ...d.delivery } } : {}),
@@ -2747,7 +2748,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   const recordPayment = () => {
     const kind = d.type === "invoice" ? "in" : "out";
     const m = MET[payMethod] || METHODS[0];
-    const pm = { id: uid("pm"), kind, number: nextPay(state.payments, kind), partner: d.partner, doc: d.id, branch: branchOfRecord(state, d) || undefined,
+    const pb = branchOfRecord(state, d);
+    const pm = { id: uid("pm"), kind, number: nextPay(state.payments, kind, pb), partner: d.partner, doc: d.id, branch: pb || undefined,
       date: TODAY, amount: R2(+payAmt || 0), method: m.id, account: m.account,
       memo: [`Settlement of ${d.number}`, payRef].filter(Boolean).join(" · ") };
     setState((x) => ({ ...x, payments: [...x.payments, pm] }));
@@ -2925,7 +2927,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
             <Field span={sale?2:1} label={sale?'Customer purchase order':isPO?'Vendor quotation ref.':'Supplier invoice number'}><Input value={d.ref} disabled={locked} onChange={e=>set('ref',e.target.value)} placeholder="Optional reference"/></Field>
             {sale&&<Field span={2} label="Deliver to"><DeliverToField d={d} locked={locked} pick={id=>pickBranch(id)} addBranch={addBranch}/></Field>}
             {sale&&<div className="fld dl-fld" style={{gridColumn:branchOn()?'span 2':'span 3'}}><span className="lb" aria-hidden="true">&nbsp;</span><DeliveryPreview d={d}/></div>}
-            <BranchField value={branchOfRecord(state,d)} disabled={locked} onChange={v=>set('branch',v)}/>
+            <BranchField value={branchOfRecord(state,d)} disabled={locked} onChange={v=>setD(p=>({...p,branch:v,...(p.isNew?{number:nextNumber(state.docs,p.type,v)}:{})}))}/>
           </div>
         </DocUnit>
 
@@ -3110,7 +3112,11 @@ function PrintDoc({ d, close, fta, toast, settle }) {
   const dl = d.deliverTo && d.delivery ? d.delivery : null;
   /* The issuing branch's address appears under the company (one TRN for the whole company). */
   const brP = branchOn() && d.branch && BR[d.branch] ? BR[d.branch] : null;
-  const coAddr = brP ? [brP.name + " branch", addrText(brP), brP.emirate].filter(Boolean).join(", ") : [addrText(CO), CO.city].filter(Boolean).join(", ");
+  /* A branch's own contact details and licence print in the letterhead; the company's fill any gaps (3.19). */
+  const hdr = brP ? { lines: [brP.name + " branch", ...addrLines(brP)], city: brP.emirate, contact: [brP.phone || CO.phone, brP.email || CO.email].filter(Boolean).join(" · "),
+    ar: [brP.nameAr, brP.addressAr].filter(Boolean).join(" · ") || CO.addressAr }
+    : { lines: addrLines(CO), city: CO.city, contact: [CO.phone, CO.email].filter(Boolean).join(" · "), ar: CO.addressAr };
+  const coAddr = brP ? [brP.name + " branch", addrText(brP), brP.emirate, brP.licence && "Licence " + brP.licence].filter(Boolean).join(", ") : [addrText(CO), CO.city].filter(Boolean).join(", ");
   const dlTo = dl || (dn ? { name: p.name, address: p.address, address2: p.address2, emirate: p.emirate, contact: "", phone: p.phone } : null);
   /* A purchase order is issued by us to a vendor; a quotation is an offer, not a tax invoice. */
   const isPO = d.type === "purchase_order", isQ = d.type === "quote";
@@ -3158,7 +3164,7 @@ function PrintDoc({ d, close, fta, toast, settle }) {
     doc.text(CO.name, 40, ty);
     if (bi && CO.nameAr) ty += pdfAr(doc, CO.nameAr, 40, ty + 15, 11, "#DCE0E5") - 2;
     doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...SILVER);
-    doc.text(`${addrLines(CO).join("\n")}\n${CO.city}\n${[CO.phone, CO.email].filter(Boolean).join("  ·  ")}`, 40, ty + 14);
+    doc.text(`${hdr.lines.join("\n")}\n${hdr.city}\n${hdr.contact.split(" · ").join("  ·  ")}`, 40, ty + 14);
     doc.setFont("helvetica", "bold"); doc.setFontSize(17); doc.setTextColor(255, 255, 255);
     doc.text(title.toUpperCase(), W - 40, 44, { align: "right" });
     let ry = 62;
@@ -3361,8 +3367,8 @@ function PrintDoc({ d, close, fta, toast, settle }) {
                 {CO.logo && <img className="sheet-logo" src={CO.logo} alt="" />}
                 <h1>{CO.name}</h1>
                 {bi && CO.nameAr && <div className="h1-ar" lang="ar" dir="rtl">{CO.nameAr}</div>}
-                <div className="sub">{addrLines(CO).map((a, i) => <React.Fragment key={i}>{a}<br /></React.Fragment>)}{CO.city}<br />{[CO.phone, CO.email].filter(Boolean).join(" · ")}
-                  {bi && CO.addressAr && <div className="sub-ar" lang="ar" dir="rtl">{CO.addressAr}</div>}</div>
+                <div className="sub">{hdr.lines.map((a, i) => <React.Fragment key={i}>{a}<br /></React.Fragment>)}{hdr.city}<br />{hdr.contact}
+                  {bi && hdr.ar && <div className="sub-ar" lang="ar" dir="rtl">{hdr.ar}</div>}</div>
               </div>
               <div className="doc">
                 <span className="badge">{title}{bi && <span className="ar" lang="ar" dir="rtl">{AR[title]}</span>}</span>
@@ -3471,9 +3477,8 @@ function PrintDoc({ d, close, fta, toast, settle }) {
   );
 }
 
-function nextPay(list, kind) {
-  const n = list.filter((p) => p.kind === kind).reduce((m, p) => Math.max(m, +p.number.split("/").pop() || 0), 0);
-  return `${kind === "in" ? "RCPT" : "PAYM"}/${TODAY.slice(0, 4)}/${String(n + 1).padStart(4, "0")}`;
+function nextPay(list, kind, branch) {
+  return seriesNext(list.filter((p) => p.kind === kind), kind === "in" ? "RCPT" : "PAYM", branch);
 }
 
 function PaymentsScreen({ state, setState, toast, create }) {
@@ -3483,12 +3488,16 @@ function PaymentsScreen({ state, setState, toast, create }) {
   const [limit, setLimit] = useState(100);
   const blank = (kind) => {
     const m = methodsFor(kind === "in" ? "in" : "out")[0] || METHODS[0];
-    return { id: uid("pm"), kind, number: nextPay(state.payments, kind),
+    const no = nextPay(state.payments, kind, homeBranch(state));
+    return { id: uid("pm"), kind, number: no, autoNo: no,
       partner: "",
       date: TODAY, amount: "", method: m.id, account: m.account, memo: "" };
   };
   const pickMethod = (id) => setNw((p) => ({ ...p, method: id, account: MET[id] ? MET[id].account : p.account }));
+  const [brPick, setBrPick] = useState("");
+  const brF = LOCK_BRANCH || brPick;
   const list = state.payments.slice().sort((a, b) => b.date.localeCompare(a.date))
+    .filter((p) => !brF || branchOfPayment(state, p) === brF)
     .filter((p) => hits(q, p.number, PMAP[p.partner] ? PMAP[p.partner].name : "", p.memo,
       methodName(p.method), ACC[p.account] ? ACC[p.account].name : "", String(p.amount)));
   const rec = R2(list.filter((p) => p.kind === "in").reduce((s, p) => s + p.amount, 0));
@@ -3496,8 +3505,10 @@ function PaymentsScreen({ state, setState, toast, create }) {
   const payDoc = nw && nw.doc ? state.docs.find((d) => d.id === nw.doc) : null;
   const payBranch = nw ? (payDoc ? branchOfRecord(state, payDoc) : nw.branch || homeBranch(state)) : "";
   const paid = R2(list.filter((p) => p.kind === "out").reduce((s, p) => s + p.amount, 0));
-  const add = () => { const rec = { ...nw, amount: R2(+nw.amount || 0), branch: payBranch || undefined }; if (!rec.doc) delete rec.doc; setState((s) => ({ ...s, payments: [...s.payments, rec] }));
-    toast(`${nw.number} recorded`); setNw(null); };
+  const add = () => { const rec = { ...nw, amount: R2(+nw.amount || 0), branch: payBranch || undefined,
+      /* An untouched number follows the branch's series. */
+      number: nw.number === nw.autoNo ? nextPay(state.payments, nw.kind, payBranch) : nw.number }; delete rec.autoNo; if (!rec.doc) delete rec.doc; setState((s) => ({ ...s, payments: [...s.payments, rec] }));
+    toast(`${rec.number} recorded`); setNw(null); };
 
   return (
     <div>
@@ -3519,7 +3530,7 @@ function PaymentsScreen({ state, setState, toast, create }) {
             <Btn kind="pri" icon={Check} onClick={add} disabled={!(+nw.amount > 0) || !PMAP[nw.partner]}>Record</Btn></>}
           style={{ marginBottom: 16 }}>
           <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14 }}>
-            <Field label="Number"><Input value={nw.number} onChange={(e) => setNw({ ...nw, number: e.target.value })} /></Field>
+            <Field label="Number"><Input value={nw.number === nw.autoNo ? nextPay(state.payments, nw.kind, payBranch) : nw.number} onChange={(e) => setNw({ ...nw, number: e.target.value })} /></Field>
             <Field label={nw.kind === "in" ? "Customer" : "Vendor"}>
               <Select value={nw.partner} onChange={(e) => setNw({ ...nw, partner: e.target.value, doc: "" })}>
                 <option value="">{nw.kind === "in" ? "Choose a customer…" : "Choose a vendor…"}</option>
@@ -3544,6 +3555,7 @@ function PaymentsScreen({ state, setState, toast, create }) {
 
       <Card pad={false}>
         <div className="toolbar">
+          <BranchPick value={brF} onChange={setBrPick} />
           <SearchBox value={q} onChange={setQ} placeholder="Search number, counterparty, memo or amount" width={310} />
           <span style={{ marginLeft: "auto", fontSize: 12.5, color: "var(--ink-3)" }}>
             {list.length} of {state.payments.length}</span>
@@ -4786,7 +4798,8 @@ function ExpensesScreen({ state, setState, books, toast, create }) {
     const net = R2(+ex.amount), v = PMAP[ex.vendor];
     const base = PRODUCTS.find((p) => p.kind === "service" && /^EX-/.test(p.code)) || PRODUCTS.find((p) => p.kind === "service") || PRODUCTS[0];
     if (!base || !v) { toast(!v ? "Add a vendor first" : "Add an expense item under Products & services first", "warn"); return; }
-    const bill = { id: uid("d"), type: "bill", number: nextNumber(state.docs, "bill"), branch: ex.branch || homeBranch(state) || undefined,
+    const exB = ex.branch || homeBranch(state) || undefined;
+    const bill = { id: uid("d"), type: "bill", number: nextNumber(state.docs, "bill", exB), branch: exB,
       partner: ex.vendor, date: ex.date, due: ex.paid ? ex.date : addDays(ex.date, v.terms),
       lines: [{ id: uid("l"), product: base.id, desc: ex.memo || ACC[ex.acc].name, qty: 1,
         price: net, disc: 0, tax: ex.vat, account: ex.acc }],
@@ -4794,7 +4807,7 @@ function ExpensesScreen({ state, setState, books, toast, create }) {
       seq: Math.max(0, ...state.docs.map((x) => x.seq||0), ...(state.stockOps||[]).map(x=>x.seq||0)) + 1, emirate: v.emirate };
     const gross = amounts(bill).total;
     const m = MET[ex.method] || METHODS[0];
-    const pays = ex.paid ? [{ id: uid("pm"), kind: "out", number: nextPay(state.payments, "out"),
+    const pays = ex.paid ? [{ id: uid("pm"), kind: "out", number: nextPay(state.payments, "out", exB),
       partner: ex.vendor, date: ex.date, amount: gross, method: m.id, account: m.account, branch: bill.branch, doc: bill.id,
       memo: [`Paid — ${ex.memo || ACC[ex.acc].name}`, ex.ref].filter(Boolean).join(" · ") }] : [];
     setState((x) => ({ ...x, docs: [...x.docs, freezeAccounts(bill)], payments: [...x.payments, ...pays] }));
@@ -6030,7 +6043,7 @@ const SCREEN_PERM = {
   r_tb: "reports", r_gl: "reports", r_partner: "reports", r_aged_ar: "reports", r_aged_ap: "reports",
   r_prod: "reports", r_cust: "reports", r_vat: "tax", fta: "tax", settings: "settings", users: "settings", setup: "master",
   customers: "master", vendors: "master", reports: "reports", opening: "master", pdc: "bank",
-  branches: "settings", r_branch: "reports", r_group: "reports",
+  branches: "settings", companies: "settings", r_branch: "reports", r_group: "reports",
 };
 
 function UsersScreen({ state, setState, me, setMe, toast, create }) {
@@ -6049,11 +6062,12 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
     if (ed.newPin) rec.pinHash = await pinHash(rec.id, ed.newPin);
     if (ed.clearPin) delete rec.pinHash;
     delete rec.newPin; delete rec.clearPin;
+    if (!rec.branchOnly || rec.role === "admin" || !rec.branch) delete rec.branchOnly;
     setState((x) => { const l = x.users || SEED_USERS;
       return { ...x, users: l.some((u) => u.id === rec.id) ? l.map((u) => (u.id === rec.id ? rec : u)) : [...l, rec] }; });
     if (!rec.approver) delete rec.approver;
     if (!rec.branch) delete rec.branch;
-    toast(`${rec.name} saved as ${ROLES[rec.role].label}${rec.approver ? " · purchase approver" : ""}${rec.branch && BR[rec.branch] ? " · " + BR[rec.branch].name : ""}`); setEd(null);
+    toast(`${rec.name} saved as ${ROLES[rec.role].label}${rec.approver ? " · purchase approver" : ""}${rec.branch && BR[rec.branch] ? " · " + BR[rec.branch].name + (rec.branchOnly ? " only" : "") : ""}`); setEd(null);
   };
   const toggle = (u) => {
     if (u.id === me) { toast("You cannot deactivate the account you are signed in as", "warn"); return; }
@@ -6088,7 +6102,12 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
             <Field label="Status">
               <Select value={ed.active ? "y" : "n"} onChange={(e) => setEd({ ...ed, active: e.target.value === "y" })}>
                 <option value="y">Active</option><option value="n">Suspended</option></Select></Field>
-            <BranchField label="Home branch" value={ed.branch && BR[ed.branch] ? ed.branch : defaultBranchId(state)} onChange={(b) => setEd({ ...ed, branch: b })} />
+            <BranchField free label="Home branch" value={ed.branch && BR[ed.branch] ? ed.branch : defaultBranchId(state)} onChange={(b) => setEd({ ...ed, branch: b })} />
+            {branchOn() && <Field label="Branches they see">
+              <Select value={ed.branchOnly && ed.role !== "admin" ? "own" : "all"} disabled={ed.role === "admin"} aria-label="Branches they see"
+                onChange={(e) => setEd({ ...ed, branchOnly: e.target.value === "own", branch: ed.branch && BR[ed.branch] ? ed.branch : defaultBranchId(state) })}>
+                <option value="all">All branches</option><option value="own">Only their home branch</option></Select>
+              {ed.role === "admin" && <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 5 }}>Administrators always see every branch</div>}</Field>}
             <Field label={ed.pinHash && !ed.clearPin ? "Sign-in PIN · set (type to change)" : "Sign-in PIN (optional)"}>
               <Input type="password" inputMode="numeric" autoComplete="new-password" maxLength={6} value={ed.newPin || ""} placeholder="4–6 digits"
                 onChange={(e) => setEd({ ...ed, newPin: e.target.value.replace(/\D/g, ""), clearPin: false })} />
@@ -6117,15 +6136,16 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
         <Card title="People" pad={false} sub={`${users.filter((u) => u.active).length} active of ${users.length} · ${activeApprovers(users).length ? `${activeApprovers(users).length} purchase ${activeApprovers(users).length === 1 ? "approver" : "approvers"}` : "no purchase approver yet"}`}
           right={<SearchBox value={q} onChange={setQ} placeholder="Search name, email or role" width={250} />}>
           <div className="tbl-wrap"><table className="tbl">
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th className="n">Permissions</th>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th>{branchOn() && <th>Branch</th>}<th>Status</th><th className="n">Permissions</th>
               <th style={{ width: 190 }} /></tr></thead>
             <tbody>
-              {list.length === 0 && <tr><td colSpan={6}><EmptyState icon={Users} title={`Nothing matches “${q}”`} /></td></tr>}
+              {list.length === 0 && <tr><td colSpan={branchOn() ? 7 : 6}><EmptyState icon={Users} title={`Nothing matches “${q}”`} /></td></tr>}
               {list.map((u) => (
                 <tr key={u.id} style={u.active ? undefined : { opacity: .55 }}>
                   <td><Party name={u.name} meta={u.id === me ? "Signed in as this user" : ""} /></td>
                   <td className="muted">{u.email}</td>
                   <td><Pill tone={u.role === "admin" ? "gold" : u.role === "viewer" ? "" : "info"}>{ROLES[u.role].label}</Pill>{u.pinHash && <span className="su-lock" style={{ marginLeft: 6 }} title="Switching to this user asks for a PIN"><Lock size={12} />PIN</span>}{u.approver && <span className="su-appr" title="Can approve purchase orders"><ClipboardCheck size={12} />Approver</span>}</td>
+                  {branchOn() && <td className="u-br">{branchName(u.branch && BR[u.branch] ? u.branch : defaultBranchId(state))}{u.branchOnly && u.role !== "admin" && <span title="Sees only this branch"><Lock size={12} /> only</span>}</td>}
                   <td><Pill tone={u.active ? "ok" : "bad"} dot>{u.active ? "Active" : "Suspended"}</Pill></td>
                   <td className="n">{ROLES[u.role].perms.length} of {PERMS.length}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
@@ -6316,7 +6336,7 @@ function SettingsScreen({ accent, setAccent, company, setCompany, theme, setThem
         </div>
 
         <div className="grid">
-          {onAddCompany && <CompaniesCard company={company} onAdd={onAddCompany} toast={toast} backup={backup} />}
+          {onAddCompany && <CompaniesCard company={company} onAdd={onAddCompany} toast={toast} backup={backup} go={go} />}
           {cloud && <CloudSyncCard sync={cloud} pwa={pwa} state={state} toast={toast} backup={backup} startCompany={startCompany} />}
           <Card title="WhatsApp & email delivery" pad={false}
             sub="Send invoices straight from the document view">
@@ -6452,7 +6472,7 @@ const NAV = [
     { k: "r_gl", l: "General ledger", i: BookOpen },
     { k: "r_partner", l: "Partner ledger", i: Users }] },
  { g: "VAT & e-invoicing", i: ShieldCheck, items: [{ k: "r_vat", l: "VAT return — FTA 201", i: Building2 }, { k: "fta", l: "FTA & e-invoicing", i: ShieldCheck }] },
- { g: "Utilities & tools", i: Wrench, items: [{ k: "setup", l: "Setup guide", i: ListChecks }, { k: "users", l: "Users & access", i: Users, add: 1 }, { k: "branches", l: "Branches", i: Store, add: 1 }, { k: "settings", l: "Settings & backup", i: Settings }] },
+ { g: "Utilities & tools", i: Wrench, items: [{ k: "setup", l: "Setup guide", i: ListChecks }, { k: "users", l: "Users & access", i: Users, add: 1 }, { k: "companies", l: "Companies", i: Building2 }, { k: "branches", l: "Branches", i: Store, add: 1 }, { k: "settings", l: "Settings & backup", i: Settings }] },
 ];
 const NAV_FLAT = navFlat();
 
@@ -6525,8 +6545,9 @@ function Invoeez() {
   const [density, setDensity] = useState(() => {
     try { return window.localStorage.getItem(DENSITY_KEY) === "compact" ? "compact" : "comfortable"; } catch (e) { return "comfortable"; }
   });
-  const [accent, setAccent] = useState(() => { try { const a = window.localStorage.getItem(ACCENT_KEY); return ACCENTS[a] ? a : "ocean"; } catch (e) { return "ocean"; } });
-  React.useEffect(() => { try { window.localStorage.setItem(ACCENT_KEY, accent); document.documentElement.setAttribute("data-mz-accent", accent); } catch (e) {} }, [accent]);
+  /* Each company keeps its own colour theme (3.19). */
+  const [accent, setAccent] = useState(() => { const a = readStr(coKey(ACCENT_KEY)); return ACCENTS[a] ? a : "ocean"; });
+  React.useEffect(() => { try { window.localStorage.setItem(coKey(ACCENT_KEY), accent); document.documentElement.setAttribute("data-mz-accent", accent); } catch (e) {} }, [accent]);
   const [theme, setTheme] = useState(() => {
     try {
       const t = window.localStorage.getItem(THEME_KEY);
@@ -6538,11 +6559,16 @@ function Invoeez() {
   useMemo(() => syncPartners(state.partners || []), [state.partners]);
   useMemo(() => syncProducts(state.products || [], state.categories || DEFAULT_CATEGORIES), [state.products, state.categories]);
   useMemo(() => syncMethods(state.methods || []), [state.methods]);
-  useMemo(() => syncBranches(state.branches || []), [state.branches]);
+  useMemo(() => syncBranches(state.branches || [], branchCfg(state)), [state.branches, state.branchSeries, state.defaultBranch]);
   const books = useMemo(() => deriveBooks(state), [state]);
+  /* Someone limited to their branch sees and records only that branch (3.19); everyone else can switch their working branch. */
+  const meNow = (state.users || SEED_USERS).find((u) => u.id === me && u.active);
+  LOCK_BRANCH = meNow && meNow.branchOnly && meNow.role !== "admin" && meNow.branch && BR[meNow.branch] && branchOn() ? meNow.branch : "";
+  const [workBr, setWorkBr] = useState(() => readWorkBranch(me));
+  React.useEffect(() => { setWorkBr(readWorkBranch(me)); }, [me]);
   /* Reports and the dashboard can look at one branch; the VAT return, stock and statements stay company-wide. */
-  const rb = branchOn() && period.branch && BR[period.branch] ? period.branch : "";
-  const db = branchOn() && range.branch && BR[range.branch] ? range.branch : "";
+  const rb = LOCK_BRANCH || (branchOn() && period.branch && BR[period.branch] ? period.branch : "");
+  const db = LOCK_BRANCH || (branchOn() && range.branch && BR[range.branch] ? range.branch : "");
   const rbooks = useMemo(() => branchBooks(books, rb), [books, rb]), rstate = useMemo(() => branchState(state, rb), [state, rb]);
   const dbooks = useMemo(() => branchBooks(books, db), [books, db]), dstate = useMemo(() => branchState(state, db), [state, db]);
   REPORT_BRANCH = rb ? BR[rb].name : ""; REPORT_BRANCH_ID = rb;
@@ -6555,8 +6581,9 @@ function Invoeez() {
   }, [theme]);
   React.useEffect(() => {
     try { window.localStorage.setItem(CO_KEY, JSON.stringify(company)); } catch (e) {}
-    touchCompany(company);
   }, [company]);
+  /* The company list remembers each company's name, TRN, colour and number of branches, for the switcher. */
+  React.useEffect(() => { touchCompany(company, { accent, branches: (state.branches || []).length }); }, [company, accent, state.branches]);
   React.useEffect(() => {
     try { window.localStorage.setItem(DENSITY_KEY, density); } catch (e) {}
   }, [density]);
@@ -6658,12 +6685,20 @@ function Invoeez() {
   const users = state.users || SEED_USERS;
   const meFound = users.find((u) => u.id === me && u.active);
   const meUser = meFound || { id: null, name: "", role: "viewer" };
-  ME_BRANCH = meUser.branch || "";
+  const workOk = workBr && BR[workBr] && BR[workBr].active !== false ? workBr : "";
+  ME_BRANCH = LOCK_BRANCH || workOk || meUser.branch || "";
+  const openCoPop = (el) => { const r = el.getBoundingClientRect(), right = r.left > window.innerWidth / 2;
+    setCoPop({ top: Math.min(r.bottom + 8, window.innerHeight - 480), left: right ? Math.max(8, r.right - 352) : Math.max(8, Math.min(r.left, window.innerWidth - 352)) }); };
+  const setWork = (b) => {
+    const keep = b && b !== (meUser.branch || defaultBranchId(state)) ? b : "";
+    saveWorkBranch(meUser.id, keep); setWorkBr(keep); setCoPop(null);
+    if (b && BR[b]) toast(`Working in ${BR[b].name} — new records go there`);
+  };
   const role = ROLES[meUser.role] || ROLES.viewer;
   const signOut = () => { setSwitching(false); setMenu(false); setMe(null); setView("dash"); };
   const can = (p) => role.perms.indexOf(p) >= 0;
   /* Approvers reach purchase orders even when their role does not raise purchases. */
-  const allowed = (k) => !SCREEN_PERM[k] || can(SCREEN_PERM[k]) || (k === "purchase_orders" && !!meUser.approver);
+  const allowed = (k) => !(LOCK_BRANCH && BRANCH_WIDE.includes(k)) && (!SCREEN_PERM[k] || can(SCREEN_PERM[k]) || (k === "purchase_orders" && !!meUser.approver));
   React.useEffect(() => { if (!allowed(view)) setView("dash"); }, [me, view]);
   const here = NAV_FLAT.find((i) => i.k === view) || { l: "Dashboard", g: "Dashboard" };
   const canAdd = (k) => !SCREEN_PERM[k] || can(SCREEN_PERM[k]);
@@ -6686,13 +6721,16 @@ function Invoeez() {
     { key: "backup", label: "Back up the books to JSON", hint: "Action", icon: Download, act: backup },
     { key: "start_company", label: state.sample ? "Start my company (clear the sample data)" : "Start a new company", hint: "Action", icon: Rocket, act: startCompany },
     { key: "setup_guide", label: "Setup guide — import products, customers, opening balances", hint: "Action", icon: ListChecks, act: () => go("setup") },
+    ...companyList().filter((c) => c.id !== activeCompanyId()).map((c) => ({ key: "co_" + c.id, label: `Switch to ${c.name}`, hint: "Company", icon: Building2, act: () => switchCompany(c.id) })),
+    { key: "add_company", label: "Add a company", hint: "Action", icon: Plus, act: () => setAddingCo(true) },
+    ...(branchOn() && !LOCK_BRANCH ? BRANCHES.filter((b) => b.active !== false).map((b) => ({ key: "work_" + b.id, label: `Work in ${b.name}`, hint: "Branch", icon: MapPin, act: () => setWork(b.id) })) : []),
     ...state.docs.map((d) => ({ key: d.id, label: `${d.number} · ${PMAP[d.partner].name}`,
       hint: DOCMETA[d.type].short, search:d.lines.map(l=>productText(PROD[l.product])).join(" "), icon: FileText, act: () => go(LIST_OF[d.type], d.id) })),
     ...PRODUCTS.map(p=>({key:"product_"+p.id,label:prodLabel(p),hint:[p.id,p.barcode,p.brand,p.packing].filter(Boolean).join(" · "),icon:Package,act:()=>go("products",p.id)})),
     ...PARTNERS.map(p=>({key:"partner_"+p.id,label:p.name,hint:[p.role,p.phone,p.contact,p.trn].join(" · "),icon:Users,act:()=>go("partners",p.id)})),
     ...ACCOUNTS.map((a) => ({ key: a.code, label: `${a.code} — ${a.name}`, hint: "Ledger", icon: BookOpen,
       act: () => go("r_gl", a.code) })),
-  ], [state]);
+  ], [state, me]);
 
   const body = () => {
     if (!allowed(view)) return (
@@ -6740,7 +6778,10 @@ function Invoeez() {
       case "settings": return <SettingsScreen accent={accent} setAccent={setAccent} setCosting={(k) => setState((x) => ({ ...x, costing: k }))} setSettings={(patch) => setState((x) => ({ ...x, settings: { ...(x.settings || {}), ...patch } }))} fta={fta} setFta={setFta} company={company} setCompany={setCompany} theme={theme} setTheme={setTheme}
         density={density} setDensity={setDensity} backup={backup} restore={restore} reset={reset} startCompany={startCompany} go={go}
         toast={toast} books={books} state={state} cloud={cloud} pwa={pwa} param={param} onAddCompany={() => setAddingCo(true)} />;
-      case "branches": return <BranchesScreen state={state} setState={setState} books={books} company={company} toast={toast} go={go} users={users} create={cr("branches")} />;
+      case "branches": return <BranchesScreen state={state} setState={setState} books={books} company={company} toast={toast} go={go} users={users} create={cr("branches")}
+        work={branchOn() ? homeBranch(state) : ""} setWork={setWork} />;
+      case "companies": return <CompaniesScreen state={state} books={books} company={company} setCompany={setCompany} accent={accent} setAccent={setAccent} toast={toast}
+        onAdd={() => setAddingCo(true)} backup={backup} go={go} />;
       case "r_branch": return <BranchPerformance state={state} books={books} p={period} setP={setPeriod} toast={toast} go={go} />;
       case "r_group": return <GroupReport state={state} books={books} company={company} p={period} setP={setPeriod} toast={toast} onAdd={() => setAddingCo(true)} />;
       case "r_tb": return <TrialBalance books={rbooks} p={period} setP={setPeriod} toast={toast} drill={drill} />;
@@ -6779,8 +6820,10 @@ function Invoeez() {
       <style>{ALL_CSS}</style>
       {starting && <StartCompanyDialog state={state} company={company} backup={backup} close={() => setStarting(false)} onDone={companyStarted} />}
       {addingCo && <StartCompanyDialog mode="add" state={state} company={company} backup={backup} close={() => setAddingCo(false)}
-        onDone={(b, prof) => { const r = createCompany(b, prof); if (r.error) toast(r.error, "warn"); else { setAddingCo(false); toast(`${prof.name} created — opening it`); } }} />}
-      {coPop && <CompanySwitcher company={company} at={coPop} close={() => setCoPop(null)} add={() => { setCoPop(null); setAddingCo(true); }} manage={() => { setCoPop(null); go("settings", "__companies__"); }} />}
+        onDone={(b, prof, acc) => { const r = createCompany(b, prof, acc); if (r.error) toast(r.error, "warn"); else { setAddingCo(false); toast(`${prof.name} created — opening it`); } }} />}
+      {coPop && <CompanySwitcher company={company} accent={accent} at={coPop} close={() => setCoPop(null)} add={() => { setCoPop(null); setAddingCo(true); }}
+        manage={() => { setCoPop(null); go(allowed("companies") ? "companies" : "settings", allowed("companies") ? undefined : "__companies__"); }}
+        work={branchOn() ? homeBranch(state) : ""} setWork={setWork} home={meUser.branch || defaultBranchId(state)} />}
       {cmdk && <CommandPalette items={cmdItems} close={() => setCmdk(false)} run={(i) => i.act()} />}
       <Toasts items={toasts} dismiss={dismissToast} />
 
@@ -6789,7 +6832,7 @@ function Invoeez() {
       <Sidebar view={view} go={go} quickAdd={quickAdd} allowed={allowed} counts={counts} closed={closed} setClosed={setClosed}
         mini={mini} setMini={setMini} drawer={drawer} company={company} meUser={meUser} role={role}
         canAdd={canAdd} onSwitchUser={() => setSwitching(true)} onSignOut={signOut}
-        onCompany={(el) => { const r = el.getBoundingClientRect(); setCoPop({ top: Math.min(r.bottom + 8, window.innerHeight - 420), left: Math.max(8, Math.min(r.left, window.innerWidth - 352)) }); }} />
+        branch={branchOn() ? branchName(homeBranch(state)) : ""} onCompany={openCoPop} />
       {keysOpen && <ShortcutSheet allowed={allowed} canAdd={canAdd} close={() => setKeysOpen(false)} />}
       <ChordHint chord={chord} allowed={allowed} canAdd={canAdd} />
       {switching && <SwitchUserDialog users={users} me={me} isAdmin={can("settings")} go={go} close={() => setSwitching(false)} onSignOut={signOut}
@@ -6837,11 +6880,11 @@ function Invoeez() {
             </button>
           </div>
           <span className="tb-div" />
-          <button className="coswitch" onClick={() => go("settings")} title="Company profile">
+          <button className="coswitch" onClick={(e) => openCoPop(e.currentTarget)} title="Companies — switch or add" aria-haspopup="dialog">
             {company.logo ? <img src={company.logo} alt="" style={{ width: 26, height: 26, borderRadius: 7, objectFit: "contain", background: "#fff" }} />
               : <span className="gt sm" style={{ width: 26, height: 26, flexBasis: 26, borderRadius: 7 }}>
                   <Building2 size={14} strokeWidth={2} /></span>}
-            <span className="cx"><b>{company.name}</b><span>Company</span></span>
+            <span className="cx"><b>{company.name}</b><span>{branchOn() ? branchName(homeBranch(state)) : "Company"}</span></span>
             <ChevronDown size={14} strokeWidth={2} style={{ opacity: .55 }} /></button>
           <button className="userchip" onClick={() => setMenu(true)} aria-label="Account menu">
             <span className="me">{initials(meUser.name)}</span>

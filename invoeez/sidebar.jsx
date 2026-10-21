@@ -29,7 +29,7 @@ function navFlat() {
   return out;
 }
 
-function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini, setMini, drawer, company, meUser, role, canAdd, onSwitchUser, onSignOut, onCompany }) {
+function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini, setMini, drawer, company, meUser, role, canAdd, onSwitchUser, onSignOut, onCompany, branch }) {
   const tablet = useMedia("(min-width:901px) and (max-width:1024px)");
   /* Folded by default: a slim rail that slides open over the page while the pointer (or keyboard focus) is on it. */
   const [peek, setPeek] = useState(false), peekT = React.useRef(0);
@@ -103,7 +103,8 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
       </div>
       <button className="sb-co" onClick={(e) => (onCompany ? onCompany(e.currentTarget) : pick("settings"))} title="Companies — switch or add" aria-haspopup="dialog">
         {company.logo ? <img src={company.logo} alt="" /> : <span className="av">{initials(company.name)}</span>}
-        <span className="t"><b>{company.name}</b>{company.nameAr ? <span dir="rtl" className="ar">{company.nameAr}</span> : <span>{company.trn ? `TRN ${company.trn}` : "Add company details"}</span>}</span>
+        <span className="t"><b>{company.name}</b>{branch ? <span className="sb-br"><MapPin size={10} strokeWidth={2.4} />{branch}</span>
+          : company.nameAr ? <span dir="rtl" className="ar">{company.nameAr}</span> : <span>{company.trn ? `TRN ${company.trn}` : "Add company details"}</span>}</span>
         <ChevronDown size={14} className="sb-co-cv" />
       </button>
       <label className="sb-search">
@@ -195,6 +196,8 @@ const SIDEBAR_CSS = `
 .sb-co .t b{display:block;color:#fff;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-co .t span{display:block;color:var(--sb-dim);font-size:10.5px;font-family:var(--mono);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-co .t span.ar{font-family:var(--sans);font-size:12px}
+.sb-co .t span.sb-br{display:flex;align-items:center;gap:4px;font-family:var(--sans);font-size:11px;color:var(--sb-txt)}
+.sb-co .t span.sb-br svg{color:color-mix(in srgb,var(--brand) 50%,#fff);flex:0 0 auto}
 .sb-search{margin:0 14px 4px;display:flex;align-items:center;gap:9px;height:38px;padding:0 10px 0 12px;border-radius:10px;cursor:text;
   background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.10);color:var(--sb-dim);transition:background .25s,border-color .25s,box-shadow .15s}
 .sb-s-ic{flex:0 0 auto}

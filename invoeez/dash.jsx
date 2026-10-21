@@ -136,7 +136,7 @@ function DashHero({ user, company, range, setRange, mode, setMode, P, prior, com
     <div className="dh-body">
       <div className="dh-left">
         <h1>{greeting()}, {user.name.split(" ")[0]}<span className="wave" aria-hidden="true">.</span></h1>
-        <p className="dh-sub">Here’s how {range.branch && BR[range.branch] ? `${company.name} · ${BR[range.branch].name}` : company.name} is doing {label}.</p>
+        <p className="dh-sub">Here’s how {(LOCK_BRANCH || range.branch) && BR[LOCK_BRANCH || range.branch] ? `${company.name} · ${BR[LOCK_BRANCH || range.branch].name}` : company.name} is doing {label}.</p>
         <div className="dh-figures">
           <div className="dh-main"><span>{P.net < 0 ? "Net loss" : "Net profit"}</span>
             <b><small>AED</small><CountUp value={P.net} /></b>
