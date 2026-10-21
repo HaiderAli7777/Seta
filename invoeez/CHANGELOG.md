@@ -1,3 +1,39 @@
+# 3.22.0 — A cleaner apps dashboard: new top bar, Home in one view, clearer apps
+
+- **Home is just the search box and your apps.** The greeting, headline, "Jump back in", the four figures, Create new and the category filters are gone. All twelve apps now fit on one screen without scrolling: six to a row at 1920×880 (100% zoom on a full-HD monitor), and still in view at 1366×657 and 1280×600 laptops. Each app is a tile with its icon, illustration, a short description and a live count. When purchase orders are waiting for your approval, a single line under the search box says so, with **Review**.
+- **A new top bar** for the apps dashboard: light and quiet, in your theme (dark in dark mode).
+  - **On Home**: the InvoEez mark and name.
+  - **Inside an app**:
+    - the apps button (back to Home);
+    - the app's coloured icon and name;
+    - the app's menu, the current screen underlined in the app's colour.
+  - **Switch app**: click the app's name to switch straight to another app (Sales → Purchase in two clicks), with "All apps" at the top of the list.
+  - **On the right**: search (Ctrl K), **New**, alerts, the company and your avatar. The calendar and theme buttons are left out of the bar; dark mode is in the user menu, the filing calendar in the VAT app.
+- **The Navigation switch is no longer in the user menu**; choose Sidebar or Apps dashboard in **Settings › Navigation** (or Ctrl K). The user menu's name heading is readable again.
+- **Clearer apps — every menu follows one pattern**: Overview, the day-to-day work and the records it keeps, then **Reporting**, then **Configuration**. Each screen now has one home app:
+  - **Sales**: Quotations, Invoices, Credit notes, Customers · Reporting (profit by customer, profit by product, aged receivable, customer statement) · Configuration (price lists, sales team).
+  - **Purchase**: Purchase orders, Vendor bills, Debit notes, Expenses, Vendors · Reporting (aged payable, partner ledger).
+  - **Inventory**: Products, Stock counts, Damage & scrap · Reporting (stock valuation, profit by product) · Configuration (product categories).
+  - **Accounting**: Journal entries, Chart of accounts, Fixed assets · Reporting (P&L, balance sheet, trial balance, general ledger) · Configuration (account groups, opening balances).
+  - **Bank & cash**: Receipts & payments, Cheques, Bank & cash · Reporting (payments by method) · Configuration (payment methods — now only here).
+  - **Contacts** is the address book (customers, vendors, sales team; price lists stay in Sales). **Settings** holds company settings and the setup guide; users, companies and branches live in their own apps.
+- **Redesigned app overviews**:
+  - **Header**: the app's colour, name and create buttons, then its four key figures.
+  - **Cards**: **Transactions** and **Master data**, each with its count and a "+".
+  - **Latest activity**:
+    - Sales and Purchase: the newest documents, with their status.
+    - Accounting: journal entries.
+    - Bank & cash: receipts and payments.
+    - Inventory: items low on stock.
+    - VAT: the last four quarters.
+    - Contacts: the customers who owe the most.
+
+    Each row opens the record and "View all" opens the full list.
+  - **On the side**: **Reporting** and **Configuration**. Approvers also see their purchase-order inbox in Purchase.
+- **Every page inside an app** takes a faint wash of the app's colour, and its title is labelled with the app it is in (Customers opened from Contacts says "Contacts").
+- Phones: the account button is in the top bar in the apps dashboard, and the app's menu sheet is grouped by Reporting and Configuration.
+- Nothing was taken away: every screen, report, document and setting is still one or two clicks away, and the Sidebar mode is unchanged.
+
 # 3.21.0 — Choose your navigation: Sidebar or Apps dashboard
 
 - **Settings › Navigation** (at the top of Settings) offers two complete ways to get around, each shown with a small picture. The choice applies straight away, is remembered on the device, and can also be changed from the user menu (Navigation: Sidebar | Apps) or Ctrl K ("Switch to the apps dashboard").

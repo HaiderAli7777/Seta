@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.21.0";
+const BUILD = "3.22.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -1659,9 +1659,11 @@ const hits = (q, ...parts) => !!searchScore(q, parts.filter(Boolean).join(" "));
 const EmptyState = ({ icon: Ic = Inbox, title, children }) => (
   <div className="empty"><div className="eico"><Ic size={20} strokeWidth={1.6} /></div><b>{title}</b>{children}</div>
 );
+/* In the apps mode a page is labelled with the app it is in (set by the shell on each render). */
+var PAGE_APP = null;
 const PageHead = ({ eyebrow, title, sub, children }) => (
   <div className="page-head">
-    <div>{eyebrow && <div className="micro" style={{ marginBottom: 7 }}>{eyebrow}</div>}
+    <div>{(PAGE_APP || eyebrow) && <div className="micro" style={{ marginBottom: 7 }}>{PAGE_APP || eyebrow}</div>}
       <h1>{title}</h1>{sub && <p>{sub}</p>}</div>
     {children && <div className="acts">{children}</div>}
   </div>
@@ -6745,7 +6747,7 @@ function Invoeez() {
   /* Approvers reach purchase orders even when their role does not raise purchases. */
   const allowedScreen = (k) => !(LOCK_BRANCH && BRANCH_WIDE.includes(k)) && (!SCREEN_PERM[k] || can(SCREEN_PERM[k]) || (k === "purchase_orders" && !!meUser.approver));
   /* An app's overview is open to anyone who can use at least one screen in it. */
-  const allowed = (k) => ((k === "home" || appOfView(k)) && !appsNav ? false : appOfView(k) ? appOfView(k).screens.some(allowedScreen) : allowedScreen(k));
+  const allowed = (k) => ((k === "home" || appOfView(k)) && !appsNav ? false : appOfView(k) ? appScreens(appOfView(k)).some(allowedScreen) : allowedScreen(k));
   React.useEffect(() => { if (!allowed(view)) setView(landing); }, [me, view, navMode]);
   const setNavMode = (m) => {
     if (m === navMode) return;
@@ -6757,8 +6759,9 @@ function Invoeez() {
   const appRef = React.useRef(null);
   if (appsNav) { if (view === "home") appRef.current = null; else if (!(appRef.current && menuKeys(appRef.current).includes(view))) appRef.current = primaryAppOf(view); }
   const curApp = appsNav && appRef.current ? APP_BY[appRef.current] : null;
+  PAGE_APP = curApp ? curApp.name : null;
+  const appTone = curApp ? { "--a1": curApp.tone[0], "--a2": curApp.tone[1] } : undefined;
   const openApp = (a) => { appRef.current = a.id; go(a.home); };
-  React.useEffect(() => { rememberView(view); }, [view]);
   const here = NAV_FLAT.find((i) => i.k === view) || (appOfView(view) && { l: appOfView(view).name + " overview", g: appOfView(view).name }) || { l: "Home", g: "Home" };
   const canAdd = (k) => !SCREEN_PERM[k] || can(SCREEN_PERM[k]);
   const attention = useMemo(() => attentionItems({ state, books, user: meUser, can, allowed, backup }), [state, books, meUser]);
@@ -6807,7 +6810,7 @@ function Invoeez() {
     if (DOC_VIEWS[view]) return <DocumentsScreen key={view} type={DOC_VIEWS[view]} state={state} setState={setState}
       books={books} openId={param} clearOpen={() => setParam(null)} toast={toast} go={go} fta={fta} user={meUser} users={users}
       readOnly={!!SCREEN_PERM[view] && !can(SCREEN_PERM[view])} />;
-    if (appOfView(view)) return <AppOverview key={view} app={appOfView(view)} state={state} books={books} go={go} quickAdd={quickAdd} allowed={allowed} canAdd={canAdd} counts={counts} />;
+    if (appOfView(view)) return <AppOverview key={view} app={appOfView(view)} state={state} books={books} user={meUser} go={go} quickAdd={quickAdd} allowed={allowed} canAdd={canAdd} counts={counts} />;
     switch (view) {
       case "home": return <AppsHome state={state} books={books} company={company} user={meUser} go={go} openApp={openApp} quickAdd={quickAdd} allowed={allowed} canAdd={canAdd} counts={counts}
         cmdItems={cmdItems} openSearch={() => setCmdk(true)} />;
@@ -6903,7 +6906,7 @@ function Invoeez() {
         onSwitch={(id) => { setMe(id); setSwitching(false); const u = users.find((x) => x.id === id); toast(`Signed in as ${u ? u.name : "user"}`); }} />}
 
       <div className="main">
-        <div className="topbar" style={curApp ? { "--a1": curApp.tone[0], "--a2": curApp.tone[1] } : undefined}>
+        <div className={cx("topbar", curApp && "in-app")} style={appTone}>
           {appsNav ? <AppBarNav view={view} app={curApp} go={go} openApp={openApp} allowed={allowed} /> : <div className="tb-l">
             <button className="icon-btn burger" onClick={() => setDrawer(true)} aria-label="Open navigation">
               <Menu size={20} strokeWidth={1.9} /></button>
@@ -6992,8 +6995,6 @@ function Invoeez() {
                 <LogOut size={15} strokeWidth={1.8} />Sign out</button>
               {can("settings") && <button className="pop-item" onClick={() => { setMenu(false); go("users"); }}>
                 <Users size={15} strokeWidth={1.8} />Users &amp; access</button>}
-              <div className="pop-item nav-row"><LayoutGrid size={15} strokeWidth={1.8} />Navigation
-                <div className="seg nav-seg">{[["sidebar", "Sidebar"], ["apps", "Apps"]].map(([k, l]) => <button key={k} className={cx(navMode === k && "on")} onClick={() => setNavMode(k)}>{l}</button>)}</div></div>
               <button className="pop-item" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
                 {theme === "dark" ? <Moon size={15} strokeWidth={1.8} /> : <Sun size={15} strokeWidth={1.8} />}
                 Dark mode<Switch on={theme === "dark"} /></button>
@@ -7017,7 +7018,7 @@ function Invoeez() {
             </div></>)}
           </div>
         </div>
-        <div className="page"><div className="view" key={view}>
+        <div className={cx("page", curApp && "in-app")} style={appTone}><div className="view" key={view}>
           {trail.length > 0 && <nav className="drill-trail noprint" aria-label="Drill-down path">
             <button className="back" onClick={() => backTo(trail.length - 1)}><ArrowLeft size={14} />Back</button>
             {trail.map((t, i) => <React.Fragment key={i}><button className="crumb" onClick={() => backTo(i)}>{t.label}</button><ChevronRight size={13} className="sep" /></React.Fragment>)}

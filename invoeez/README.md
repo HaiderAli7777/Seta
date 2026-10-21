@@ -75,24 +75,24 @@ Company profile, theme, user selection and connection settings use their existin
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
 
-## Navigation: Sidebar or Apps dashboard (3.21)
+## Navigation: Sidebar or Apps dashboard (3.21–3.22)
 
-**Settings › Navigation** switches the whole interface between two modes (also in the user menu and Ctrl K):
+**Settings › Navigation** switches the whole interface between two modes (also in Ctrl K):
 
 - **Sidebar** (default): the classic menu on the left with every screen; opens on the dashboard; no Home launcher or app overviews.
-- **Apps dashboard**: no sidebar. Home shows the apps and the figures that need attention; each app has its own menu bar across the top (tabs, dropdowns, More on narrow screens, a menu sheet on phones). The menus are defined in `APP_MENUS` in `apps.jsx`.
+- **Apps dashboard**: no sidebar. Home is the search box and every app, all in one view. A light top bar shows the apps button, the app you are in (click its name to switch app) and that app's menu: tabs, then **Reporting** and **Configuration** dropdowns, **More** on narrow screens, and a menu sheet on phones. Every app follows the same pattern and each screen has one home app. The menus are defined in `APP_MENUS` in `apps.jsx`.
 
 ## Apps (3.20)
 
-InvoEez opens on **Home**: search everything, create anything, jump back to recent screens, and open any of the twelve **business applications**: Sales, Purchase, Inventory, Accounting, Bank & cash, VAT & e-invoicing, Reports, Dashboard, Contacts, Companies, Users & access and Settings. Each app has an **overview** with its key figures, create buttons, a card for every screen and its reports. The menu is grouped the same way, with each app in its own colour.
+In the apps dashboard InvoEez opens on **Home**: search everything and open any of the twelve **apps**: Sales, Purchase, Inventory, Accounting, Bank & cash, VAT & e-invoicing, Reports, Dashboard, Contacts, Companies, Users & access and Settings. Each app has an **overview**: key figures, create buttons, Transactions and Master data cards, its latest activity, and Reporting / Configuration panels. The sidebar menu is grouped the same way, with each app in its own colour.
 
 | App | Screens | Main source files |
 |---|---|---|
-| Sales | Quotations, invoices, credit notes, customers, price lists, sales team | `invoeez-source.jsx` (documents, print, WhatsApp/email), `refine.jsx` (discounts), `delivery.jsx`, `enhancements-ui.jsx` (price lists, sales team), `features.jsx` (party special prices), `enhancements-data.jsx` (pricing and history) |
+| Sales | Quotations, invoices, credit notes, customers · Configuration: price lists, sales team | `invoeez-source.jsx` (documents, print, WhatsApp/email), `refine.jsx` (discounts), `delivery.jsx`, `enhancements-ui.jsx` (price lists, sales team), `features.jsx` (party special prices), `enhancements-data.jsx` (pricing and history) |
 | Purchase | Purchase orders, vendor bills, debit notes, expenses, vendors | `invoeez-source.jsx`, `approval.jsx` (PO approval) |
-| Inventory | Products, categories, stock counts, scrap, valuation | `enhancements-ui.jsx` (products, counts, scrap), `invoeez-source.jsx` (costing, valuation) |
-| Accounting | Chart of accounts, account groups, journals, fixed assets, opening balances | `invoeez-source.jsx`, `ifrs.jsx`, `onboarding.jsx` |
-| Bank & cash | Receipts and payments, post-dated cheques, bank and cash, payment methods | `invoeez-source.jsx`, `pdc.jsx` |
+| Inventory | Products, stock counts, scrap · Reporting: valuation · Configuration: categories | `enhancements-ui.jsx` (products, counts, scrap), `invoeez-source.jsx` (costing, valuation) |
+| Accounting | Journals, chart of accounts, fixed assets · Configuration: account groups, opening balances | `invoeez-source.jsx`, `ifrs.jsx`, `onboarding.jsx` |
+| Bank & cash | Receipts and payments, post-dated cheques, bank and cash · Configuration: payment methods | `invoeez-source.jsx`, `pdc.jsx` |
 | VAT & e-invoicing | VAT return (FTA 201), PINT AE e-invoices | `invoeez-source.jsx` |
 | Reports | All reports, P&L, balance sheet, ledgers, ageing, profit analysis, branch and group | `reports.jsx`, `compare.jsx`, `ifrs.jsx`, `pro.jsx` (PDF/Excel), `group.jsx` |
 | Dashboard | Live dashboard | `dashboard.jsx`, `dash.jsx`, `motion.jsx` |
@@ -236,7 +236,7 @@ npm test
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
 | `dashboard.jsx` | New overview dashboard. |
-| `apps.jsx` | 3.20–3.21 navigation modes (app bar with tabs, dropdowns and More; phone menu; Settings › Navigation), Home (hero, search, Create new, Jump back in, business applications with filters and illustrations), the app definitions, and an overview for each app. |
+| `apps.jsx` | 3.20–3.22 apps dashboard: the app definitions and `APP_MENUS` (one pattern for every app), Home (search and every app in one view), the top bar (app switcher, tabs, Reporting/Configuration dropdowns, More, phone menu), app overviews (figures, Transactions/Master data cards, latest activity, Reporting/Configuration panels), and Settings › Navigation. |
 | `group.jsx` | 3.18–3.19 several companies (registry, switcher, add a company, Companies screen, colour per company, edit or back up any company) and branches (guided set-up, Branches screen, numbering per branch, working branch, users limited to a branch, Branch field and picker, branch ledgers), Branch performance and Group report. |
 | `delivery.jsx` | 3.17 delivery addresses: branches on customers, Deliver to on documents, add a branch from a document, address preview, print styles for Deliver to and the delivery note. |
 | `refine.jsx` | 3.16 gliding highlights for switches and tabs, rolling total, totals panel with the discount on the whole document, motion and editor refinements. |
