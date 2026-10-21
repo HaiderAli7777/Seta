@@ -263,6 +263,7 @@ const near = (a, b) => Math.abs(a - b) < 0.02;
   await asUser(sara.id);
   check(await p.locator('.sbar [data-k="branches"]').count() === 0 && await p.locator('.sbar [data-k="companies"]').count() === 0 && await p.locator('.sbar [data-k="r_branch"]').count() === 0 && await p.locator('.sbar [data-k="r_group"]').count() === 0,
     'she has no Branches, Companies, Branch performance or Group report');
+  await nav(p, 'dash');
   check(/Deira shop/.test(await p.locator('.dh-sub').innerText()) && /Deira shop/.test(await p.locator('.br-pick.locked').innerText()), 'her dashboard is Deira\'s, and cannot be changed');
   await nav(p, 'invoices');
   const sRows = await p.locator('.doc-list-tbl tbody tr.click').allInnerTexts();

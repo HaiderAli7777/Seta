@@ -1,6 +1,6 @@
 /* ============================================================================
-   SIDEBAR — graphite navigation tree. Sections open like a ledger index:
-   Master holds the reference data in sub-groups, transaction sections carry
+   SIDEBAR — graphite navigation tree. Since 3.20 each section is an app with
+   its own colour (Sales, Purchase, Inventory…), opening on its overview; sections carry
    a "+" to start a new record straight from the menu, and the collapsed rail
    shows each section's items in a flyout.
    ========================================================================== */
@@ -121,7 +121,8 @@ function Sidebar({ view, go, quickAdd, allowed, counts, closed, setClosed, mini,
               <button className={cx("sb-head", g.k && view === g.k && "on")} title={rail ? g.g : undefined} data-title={g.g} data-k={g.k || undefined}
                 onClick={(e) => g.k ? pick(g.k) : rail ? openFly(g, e.currentTarget) : toggle(g.g)}
                 aria-expanded={g.k ? undefined : open}>
-                <span className="ic"><g.i size={18} strokeWidth={1.8} /></span>
+                {g.app && APP_BY[g.app] ? <span className="ic app" style={{ "--a1": APP_BY[g.app].tone[0], "--a2": APP_BY[g.app].tone[1] }}><g.i size={14} strokeWidth={2} /></span>
+                  : <span className="ic"><g.i size={18} strokeWidth={1.8} /></span>}
                 <span className="lbl">{g.g}</span>
                 {!g.k && <ChevronRight size={14} strokeWidth={2.2} className="cv" />}
               </button>

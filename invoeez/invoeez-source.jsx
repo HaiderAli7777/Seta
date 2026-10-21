@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.19.0";
+const BUILD = "3.20.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -6443,20 +6443,21 @@ function SettingsScreen({ accent, setAccent, company, setCompany, theme, setThem
 /*  APP SHELL                                                                 */
 /* ========================================================================== */
 
+/* 3.20: the menu is grouped by app. Each app has its colour (from APPS) and an overview as its first item. */
 const NAV = [
+ { g: "Home", i: House, k: "home" },
  { g: "Dashboard", i: LayoutDashboard, k: "dash" },
- { g: "Master", i: Database, items: [
-   { s: "Accounts master", items: [{ k: "accounts", l: "Chart of accounts", i: BookOpen, add: 1 }, { k: "acct_groups", l: "Account groups", i: Layers }, { k: "customers", l: "Customers", i: Users, add: 1 }, { k: "vendors", l: "Vendors", i: Truck, add: 1 }] },
-   { s: "Inventory master", items: [{ k: "products", l: "Products & services", i: Package, add: 1 }, { k: "categories", l: "Product categories", i: Layers, add: 1 }] },
-   { s: "Rate master", items: [{ k: "pricelists", l: "Price lists", i: Tag, add: 1 }] },
-   { s: "Other master", items: [{ k: "salespeople", l: "Sales team", i: Users, add: 1 }, { k: "methods", l: "Payment methods", i: CreditCard, add: 1 }] },
-   { k: "opening", l: "Opening balances", i: Scale }] },
- { g: "Sale", i: ShoppingBag, items: [{ k: "quotes", l: "Quotations", i: FileText, add: 1 }, { k: "invoices", l: "Invoices", i: Receipt, add: 1 }, { k: "credit_notes", l: "Credit notes", i: FileMinus, add: 1 }] },
- { g: "Purchase", i: ShoppingCart, items: [{ k: "purchase_orders", l: "Purchase orders", i: ClipboardCheck, add: 1 }, { k: "bills", l: "Vendor bills", i: ShoppingCart, add: 1 }, { k: "debit_notes", l: "Debit notes", i: FilePlus, add: 1 }, { k: "expenses", l: "Expenses", i: Wallet, add: 1 }] },
- { g: "Banking", i: Landmark, items: [{ k: "payments", l: "Receipts & payments", i: ArrowDownLeft, add: 1 }, { k: "pdc", l: "Post-dated cheques", i: CalendarClock, add: 1 }, { k: "banking", l: "Bank & cash", i: Landmark, add: 1 }] },
- { g: "Accounting trans.", i: Calculator, items: [{ k: "journal", l: "Journal entries", i: BookOpen, add: 1 }, { k: "assets", l: "Fixed assets", i: Layers, add: 1 }] },
- { g: "Stock management", i: Warehouse, items: [{ k: "stock_count", l: "Stock counts & adjustments", i: Boxes, add: 1 }, { k: "scrap", l: "Damage & scrap", i: Trash2, add: 1 }, { k: "r_stock", l: "Inventory valuation", i: Package }] },
- { g: "Reports", i: PieChart, items: [
+ { g: "Sales", i: ShoppingBag, app: "sales", items: [{ k: "app_sales", l: "Sales overview", i: LayoutGrid }, { k: "quotes", l: "Quotations", i: FileText, add: 1 }, { k: "invoices", l: "Invoices", i: Receipt, add: 1 },
+   { k: "credit_notes", l: "Credit notes", i: FileMinus, add: 1 }, { k: "customers", l: "Customers", i: Users, add: 1 }, { k: "pricelists", l: "Price lists", i: Tag, add: 1 }, { k: "salespeople", l: "Sales team", i: Users, add: 1 }] },
+ { g: "Purchase", i: ShoppingCart, app: "purchase", items: [{ k: "app_purchase", l: "Purchase overview", i: LayoutGrid }, { k: "purchase_orders", l: "Purchase orders", i: ClipboardCheck, add: 1 },
+   { k: "bills", l: "Vendor bills", i: ShoppingCart, add: 1 }, { k: "debit_notes", l: "Debit notes", i: FilePlus, add: 1 }, { k: "expenses", l: "Expenses", i: Wallet, add: 1 }, { k: "vendors", l: "Vendors", i: Truck, add: 1 }] },
+ { g: "Inventory", i: Warehouse, app: "inventory", items: [{ k: "app_inventory", l: "Inventory overview", i: LayoutGrid }, { k: "products", l: "Products & services", i: Package, add: 1 },
+   { k: "categories", l: "Product categories", i: Layers, add: 1 }, { k: "stock_count", l: "Stock counts & adjustments", i: Boxes, add: 1 }, { k: "scrap", l: "Damage & scrap", i: Trash2, add: 1 }, { k: "r_stock", l: "Inventory valuation", i: Package }] },
+ { g: "Accounting", i: Calculator, app: "accounting", items: [{ k: "app_accounting", l: "Accounting overview", i: LayoutGrid }, { k: "accounts", l: "Chart of accounts", i: BookOpen, add: 1 },
+   { k: "acct_groups", l: "Account groups", i: Layers }, { k: "journal", l: "Journal entries", i: BookOpen, add: 1 }, { k: "assets", l: "Fixed assets", i: Layers, add: 1 }, { k: "opening", l: "Opening balances", i: Scale }] },
+ { g: "Bank & cash", i: Landmark, app: "bank", items: [{ k: "app_bank", l: "Bank & cash overview", i: LayoutGrid }, { k: "payments", l: "Receipts & payments", i: ArrowDownLeft, add: 1 },
+   { k: "pdc", l: "Post-dated cheques", i: CalendarClock, add: 1 }, { k: "banking", l: "Bank & cash", i: Landmark, add: 1 }, { k: "methods", l: "Payment methods", i: CreditCard, add: 1 }] },
+ { g: "Reports", i: PieChart, app: "reports", items: [
     { k: "reports", l: "All reports", i: PieChart },
     { k: "r_pnl", l: "Profit & loss", i: BarChart3 },
     { k: "r_branch", l: "Branch performance", i: Store },
@@ -6471,8 +6472,9 @@ const NAV = [
     { k: "r_tb", l: "Trial balance", i: CircleDot },
     { k: "r_gl", l: "General ledger", i: BookOpen },
     { k: "r_partner", l: "Partner ledger", i: Users }] },
- { g: "VAT & e-invoicing", i: ShieldCheck, items: [{ k: "r_vat", l: "VAT return — FTA 201", i: Building2 }, { k: "fta", l: "FTA & e-invoicing", i: ShieldCheck }] },
- { g: "Utilities & tools", i: Wrench, items: [{ k: "setup", l: "Setup guide", i: ListChecks }, { k: "users", l: "Users & access", i: Users, add: 1 }, { k: "companies", l: "Companies", i: Building2 }, { k: "branches", l: "Branches", i: Store, add: 1 }, { k: "settings", l: "Settings & backup", i: Settings }] },
+ { g: "VAT & e-invoicing", i: ShieldCheck, app: "vat", items: [{ k: "app_vat", l: "VAT overview", i: LayoutGrid }, { k: "r_vat", l: "VAT return — FTA 201", i: Building2 }, { k: "fta", l: "FTA & e-invoicing", i: ShieldCheck }] },
+ { g: "Administration", i: Settings, app: "settings", items: [{ k: "setup", l: "Setup guide", i: ListChecks }, { k: "users", l: "Users & access", i: Users, add: 1 }, { k: "companies", l: "Companies", i: Building2 },
+   { k: "branches", l: "Branches", i: Store, add: 1 }, { k: "settings", l: "Settings & backup", i: Settings }] },
 ];
 const NAV_FLAT = navFlat();
 
@@ -6505,7 +6507,7 @@ let _tid = 0;
 
 function Invoeez() {
   const [state, setState] = useState(loadBooks);
-  const [view, setView] = useState("dash");
+  const [view, setView] = useState("home");
   const [param, setParam] = useState(null);
   const [period, setPeriod] = useState(() => ({ preset: "ytd", from: TODAY.slice(0,4)+"-01-01", to: TODAY, asOf: TODAY, ...cmpDefaults() }));
   const [range, setRange] = useState({ preset: "ytd", from: TODAY.slice(0,4)+"-01-01", to: TODAY });
@@ -6695,12 +6697,15 @@ function Invoeez() {
     if (b && BR[b]) toast(`Working in ${BR[b].name} — new records go there`);
   };
   const role = ROLES[meUser.role] || ROLES.viewer;
-  const signOut = () => { setSwitching(false); setMenu(false); setMe(null); setView("dash"); };
+  const signOut = () => { setSwitching(false); setMenu(false); setMe(null); setView("home"); };
   const can = (p) => role.perms.indexOf(p) >= 0;
   /* Approvers reach purchase orders even when their role does not raise purchases. */
-  const allowed = (k) => !(LOCK_BRANCH && BRANCH_WIDE.includes(k)) && (!SCREEN_PERM[k] || can(SCREEN_PERM[k]) || (k === "purchase_orders" && !!meUser.approver));
-  React.useEffect(() => { if (!allowed(view)) setView("dash"); }, [me, view]);
-  const here = NAV_FLAT.find((i) => i.k === view) || { l: "Dashboard", g: "Dashboard" };
+  const allowedScreen = (k) => !(LOCK_BRANCH && BRANCH_WIDE.includes(k)) && (!SCREEN_PERM[k] || can(SCREEN_PERM[k]) || (k === "purchase_orders" && !!meUser.approver));
+  /* An app's overview is open to anyone who can use at least one screen in it. */
+  const allowed = (k) => (appOfView(k) ? appOfView(k).screens.some(allowedScreen) : allowedScreen(k));
+  React.useEffect(() => { if (!allowed(view)) setView("home"); }, [me, view]);
+  React.useEffect(() => { rememberView(view); }, [view]);
+  const here = NAV_FLAT.find((i) => i.k === view) || (appOfView(view) && { l: appOfView(view).name + " overview", g: appOfView(view).name }) || { l: "Home", g: "Home" };
   const canAdd = (k) => !SCREEN_PERM[k] || can(SCREEN_PERM[k]);
   const attention = useMemo(() => attentionItems({ state, books, user: meUser, can, allowed, backup }), [state, books, meUser]);
   const alerts = attention.length;
@@ -6721,6 +6726,7 @@ function Invoeez() {
     { key: "backup", label: "Back up the books to JSON", hint: "Action", icon: Download, act: backup },
     { key: "start_company", label: state.sample ? "Start my company (clear the sample data)" : "Start a new company", hint: "Action", icon: Rocket, act: startCompany },
     { key: "setup_guide", label: "Setup guide — import products, customers, opening balances", hint: "Action", icon: ListChecks, act: () => go("setup") },
+    ...APPS.filter((a) => a.home.startsWith("app_") && !NAV_FLAT.some((n) => n.k === a.home)).map((a) => ({ key: a.home, label: `${a.name} overview`, hint: "App", icon: a.icon, act: () => go(a.home) })),
     ...companyList().filter((c) => c.id !== activeCompanyId()).map((c) => ({ key: "co_" + c.id, label: `Switch to ${c.name}`, hint: "Company", icon: Building2, act: () => switchCompany(c.id) })),
     { key: "add_company", label: "Add a company", hint: "Action", icon: Plus, act: () => setAddingCo(true) },
     ...(branchOn() && !LOCK_BRANCH ? BRANCHES.filter((b) => b.active !== false).map((b) => ({ key: "work_" + b.id, label: `Work in ${b.name}`, hint: "Branch", icon: MapPin, act: () => setWork(b.id) })) : []),
@@ -6746,7 +6752,10 @@ function Invoeez() {
     if (DOC_VIEWS[view]) return <DocumentsScreen key={view} type={DOC_VIEWS[view]} state={state} setState={setState}
       books={books} openId={param} clearOpen={() => setParam(null)} toast={toast} go={go} fta={fta} user={meUser} users={users}
       readOnly={!!SCREEN_PERM[view] && !can(SCREEN_PERM[view])} />;
+    if (appOfView(view)) return <AppOverview key={view} app={appOfView(view)} state={state} books={books} go={go} quickAdd={quickAdd} allowed={allowed} canAdd={canAdd} counts={counts} />;
     switch (view) {
+      case "home": return <AppsHome state={state} books={books} company={company} user={meUser} go={go} quickAdd={quickAdd} allowed={allowed} canAdd={canAdd} counts={counts}
+        cmdItems={cmdItems} openSearch={() => setCmdk(true)} />;
       case "dash": return <Dashboard state={dstate} whole={state} books={dbooks} go={go} newDoc={newDoc} range={range} setRange={setRange} user={meUser}
         setup={!state.sample && !(state.setup && state.setup.hidden) && <SetupProgress state={state} company={company} go={go} />} />;
       case "opening": return <OpeningScreen state={state} setState={setState} books={books} toast={toast} go={go} />;
@@ -6800,7 +6809,7 @@ function Invoeez() {
     }
   };
 
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS + REFINE_CSS + DELIVERY_CSS + GROUP_CSS;
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS + REFINE_CSS + DELIVERY_CSS + GROUP_CSS + APPS_CSS;
   /* Nobody signed in in this tab: show the sign-in screen. */
   if (!meFound) return (
     <ThemeCtx.Provider value={palette}>
@@ -6865,6 +6874,8 @@ function Invoeez() {
           </div>
           <span className="tb-div" />
           <div className="tb-icons">
+            <button className={cx("icon-btn tb-apps", view === "home" && "on")} onClick={() => go("home")} title="All apps" aria-label="All apps">
+              <LayoutGrid size={17} strokeWidth={1.9} /></button>
             <div className="nt-wrap">
             <button className={cx("icon-btn bell", notif && "on")} onClick={() => setNotif((v) => !v)} title="Needs attention" aria-haspopup="dialog" aria-expanded={notif}>
               <Bell size={17} strokeWidth={1.9} />

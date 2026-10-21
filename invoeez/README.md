@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.19)
+# InvoEez — Invoice Made Easy (3.20)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -74,6 +74,23 @@ Company profile, theme, user selection and connection settings use their existin
 | Scrap | Record damaged quantities with a reason. Scrap reduces stock at carrying cost and charges the category adjustment account. Quantities cannot exceed on-hand stock. |
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
+
+## Apps (3.20)
+
+InvoEez opens on **Home**: search everything, create anything, jump back to recent screens, and open any of the twelve **business applications**: Sales, Purchase, Inventory, Accounting, Bank & cash, VAT & e-invoicing, Reports, Dashboard, Contacts, Companies, Users & access and Settings. Each app has an **overview** with its key figures, create buttons, a card for every screen and its reports. The menu is grouped the same way, with each app in its own colour.
+
+| App | Screens | Main source files |
+|---|---|---|
+| Sales | Quotations, invoices, credit notes, customers, price lists, sales team | `invoeez-source.jsx` (documents, print, WhatsApp/email), `refine.jsx` (discounts), `delivery.jsx`, `enhancements-ui.jsx` (price lists, sales team), `features.jsx` (party special prices), `enhancements-data.jsx` (pricing and history) |
+| Purchase | Purchase orders, vendor bills, debit notes, expenses, vendors | `invoeez-source.jsx`, `approval.jsx` (PO approval) |
+| Inventory | Products, categories, stock counts, scrap, valuation | `enhancements-ui.jsx` (products, counts, scrap), `invoeez-source.jsx` (costing, valuation) |
+| Accounting | Chart of accounts, account groups, journals, fixed assets, opening balances | `invoeez-source.jsx`, `ifrs.jsx`, `onboarding.jsx` |
+| Bank & cash | Receipts and payments, post-dated cheques, bank and cash, payment methods | `invoeez-source.jsx`, `pdc.jsx` |
+| VAT & e-invoicing | VAT return (FTA 201), PINT AE e-invoices | `invoeez-source.jsx` |
+| Reports | All reports, P&L, balance sheet, ledgers, ageing, profit analysis, branch and group | `reports.jsx`, `compare.jsx`, `ifrs.jsx`, `pro.jsx` (PDF/Excel), `group.jsx` |
+| Dashboard | Live dashboard | `dashboard.jsx`, `dash.jsx`, `motion.jsx` |
+| Contacts, Companies, Users, Settings | Customers and vendors; companies and branches; users and access; settings and backup | `group.jsx`, `users.jsx`, `sync.jsx`, `invoeez-source.jsx` |
+| Home and app overviews | — | `apps.jsx` |
 
 ## Company and branch set-up (3.19)
 
@@ -212,6 +229,7 @@ npm test
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
 | `dashboard.jsx` | New overview dashboard. |
+| `apps.jsx` | 3.20 Home (hero, search, Create new, Jump back in, business applications with filters and illustrations), the app definitions, and an overview for each app. |
 | `group.jsx` | 3.18–3.19 several companies (registry, switcher, add a company, Companies screen, colour per company, edit or back up any company) and branches (guided set-up, Branches screen, numbering per branch, working branch, users limited to a branch, Branch field and picker, branch ledgers), Branch performance and Group report. |
 | `delivery.jsx` | 3.17 delivery addresses: branches on customers, Deliver to on documents, add a branch from a document, address preview, print styles for Deliver to and the delivery note. |
 | `refine.jsx` | 3.16 gliding highlights for switches and tabs, rolling total, totals panel with the discount on the whole document, motion and editor refinements. |
@@ -232,6 +250,7 @@ npm test
 | `shell.html` | Original standalone shell and bundled libraries/fonts. |
 | `build.mjs` | Reproducible JSX compilation and standalone packaging. |
 | `tests/engine.cjs` | Executable accounting, pricing, migration and inventory regression checks. |
+| `tests/browser-apps.cjs` | 3.20 checks: Home, card counts, filters, search, Create new, Jump back in, every app overview, the menu grouped by app with every screen still in it, All apps and g h, apps limited by role, dark mode, phone. |
 | `tests/browser-branches.cjs` | 3.18–3.19 checks: guided branch set-up, branch details on print, numbering per branch, working branch, a user limited to one branch, Companies screen (edit, colour, back up another company), company colours; setting up branches (head office, next branch, rules), home branch, Branch field on invoice, payment and journal (a payment follows its invoice), printed branch address, Branch performance adds up to the P&L, branch filter on P&L, trial balance, balance sheet, dashboard and lists, VAT return company-wide, adding a company and switching back, Group report, phone. |
 | `tests/browser-delivery.cjs` | 3.17 checks: % / AED line discounts (switching keeps the money off, limits, saved), branches on a customer and the default, Deliver to and place of supply, adding a branch from the quotation, print, delivery note on screen and as PDF, carried to the invoice, list and search, phone. |
 | `tests/browser-refine.cjs` | 3.16 checks: menu unfolds with one layout and a glide (and reverses smoothly), sections fold, phone drawer, gliding highlights, documents glide in, discount on the whole quotation (amount, %, limits, save, reload, print, convert, post), save bar position, dark, reduced motion. |

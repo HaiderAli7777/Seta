@@ -5,6 +5,13 @@ TRY IT
 2. You are in the SAMPLE COMPANY (Zenith General Trading): a full year of
    invoices, bills, payments, stock and reports. Try anything — it is not real.
 
+FIND YOUR WAY (3.20)
+- InvoEez opens on Home: search anything, click Create new, or open an app
+  (Sales, Purchase, Inventory, Accounting, Bank & cash, VAT, Reports…).
+- Each app opens on its overview: its figures, what you can create, and
+  every screen in it. The grid button in the top bar (or g then h) brings
+  you back Home.
+
 START YOUR OWN COMPANY
 3. Click "Start my company" (banner at the top, or Settings, or the user menu).
 4. Enter your company name, TRN and your name. Choose what to keep:

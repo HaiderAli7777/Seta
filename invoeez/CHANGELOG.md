@@ -1,3 +1,17 @@
+# 3.20.0 — InvoEez as a set of apps
+
+- **Home**: InvoEez now opens on a Home page. It has a welcome, a large search box that finds documents, customers, products, reports and screens as you type (Enter opens the first), a **Create new** menu (invoice, quotation, purchase order, vendor bill, receipt or payment, customer, vendor, product, journal entry), **Jump back in** with the screens you opened last, and today's sales, what is owed to you and cash at a glance. **Business applications** shows every app as a card with its colour, illustration and live count (287 invoices, 160 bills, 48 products…). You can filter them by Core, Finance, Insights, People and Setup.
+- **Twelve apps**: Sales, Purchase, Inventory, Accounting, Bank & cash, VAT & e-invoicing, Reports, Dashboard, Contacts, Companies, Users & access and Settings. Each card opens its app.
+- **An overview for each app** (Sales, Purchase, Inventory, Accounting, Bank & cash, VAT & e-invoicing, Contacts). Each has:
+  - its four key figures (for example, sales this month, open quotations, what customers owe, overdue);
+  - buttons to create its documents;
+  - a card for every screen in the app, with its count and a "+" to start a new record;
+  - its reports, one click away.
+- **The menu is grouped by app**. Home, Dashboard, then Sales, Purchase, Inventory, Accounting, Bank & cash, Reports, VAT & e-invoicing and Administration, each with its coloured icon and its overview as the first item. Customers, price lists and the sales team are under Sales; vendors and expenses under Purchase; products, categories and stock under Inventory; the chart of accounts, journals, fixed assets and opening balances under Accounting; receipts, cheques, bank and payment methods under Bank & cash. When folded, the menu is a rail of app icons.
+- The **All apps** button in the top bar and **g h** go Home. The app overviews are also in Ctrl K search.
+- **Apps follow the role**: someone without access to an app does not see it, and Create new offers only what they may create.
+- **Nothing was taken away.** Every screen, report, document, setting, shortcut and print layout works as before: financial report design, WhatsApp and email sending, discounts, salespeople, price lists, branches and companies. The dashboard is one click from Home.
+
 # 3.19.0 — Easier, richer company and branch set-up
 
 - **Guided branch set-up**: Utilities & tools › Branches › **Set up branches** now walks through three short steps. **Head office**: the company's details, ready to check. **Your other branches**: add them all on one screen, with name, short code, emirate and address. A code is suggested from the name (Deira shop → DEI, Abu Dhabi branch → ADH), Enter adds the next row, and duplicates are caught. **People and numbering**: each user's home branch, who sees only their branch, and how documents are numbered, shown with real examples.

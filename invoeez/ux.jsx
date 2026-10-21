@@ -100,7 +100,7 @@ function NotificationCenter({ items, go, close }) {
 /* ------------------------------------------------------- keyboard shortcuts */
 const GO_KEYS = [["d", "dash", "Dashboard"], ["q", "quotes", "Quotations"], ["i", "invoices", "Invoices"], ["o", "purchase_orders", "Purchase orders"],
   ["b", "bills", "Vendor bills"], ["e", "expenses", "Expenses"], ["p", "payments", "Receipts & payments"], ["c", "customers", "Customers"],
-  ["v", "vendors", "Vendors"], ["s", "products", "Products & services"], ["j", "journal", "Journal entries"], ["r", "reports", "All reports"], ["l", "r_pnl", "Profit or loss"], ["k", "companies", "Companies"]];
+  ["v", "vendors", "Vendors"], ["s", "products", "Products & services"], ["j", "journal", "Journal entries"], ["r", "reports", "All reports"], ["l", "r_pnl", "Profit or loss"], ["k", "companies", "Companies"], ["h", "home", "Home — all apps"]];
 const NEW_KEYS = [["i", "invoice", "Invoice"], ["q", "quote", "Quotation"], ["o", "purchase_order", "Purchase order"], ["b", "bill", "Vendor bill"], ["c", "credit_note", "Credit note"]];
 const isTyping = (el) => !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 const modalOpen = () => !!document.querySelector(".studio-overlay, .scrim, .cmdk, .notif-pop, .newpop, .pop");

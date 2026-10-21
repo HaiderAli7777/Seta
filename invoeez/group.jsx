@@ -307,7 +307,7 @@ function CompaniesScreen({ state, books, company, setCompany, accent, setAccent,
     setEdit(null); setTick((t) => t + 1); toast(`${prof.name} details saved`);
   };
   return <div>
-    <PageHead eyebrow="Utilities & tools" title="Companies" sub={`${snaps.length} compan${snaps.length === 1 ? "y" : "ies"} in this InvoEez — each with its own books, users, TRN and VAT return`}>
+    <PageHead eyebrow="Administration" title="Companies" sub={`${snaps.length} compan${snaps.length === 1 ? "y" : "ies"} in this InvoEez — each with its own books, users, TRN and VAT return`}>
       <Btn kind="pri" icon={Plus} onClick={onAdd}>Add a company</Btn>
     </PageHead>
     {snaps.length > 1 && <div className="cs-sum">
@@ -477,7 +477,7 @@ function BranchesScreen({ state, setState, books, company, toast, go, users, cre
   const nextOf = (b) => nextNumber(state.docs, "invoice", b.id);
   const f = (k) => ({ value: ed[k] || "", onChange: (e) => setEd({ ...ed, [k]: k === "code" ? cleanCode(e.target.value) : e.target.value }) });
   return <div>
-    <PageHead eyebrow="Utilities & tools" title="Branches" sub={list.length ? `${list.length} branch${list.length === 1 ? "" : "es"} — every transaction belongs to one, and every report can be run for one or all` : "Run shops, warehouses or offices as branches of this company, and report on each"}>
+    <PageHead eyebrow="Administration" title="Branches" sub={list.length ? `${list.length} branch${list.length === 1 ? "" : "es"} — every transaction belongs to one, and every report can be run for one or all` : "Run shops, warehouses or offices as branches of this company, and report on each"}>
       {list.length > 0 && <Btn kind="pri" icon={Plus} onClick={() => setEd(blankOwnBranch(state, company))}>New branch</Btn>}
     </PageHead>
     {!list.length && !ed && <Card><div className="br-intro">

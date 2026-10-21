@@ -16,7 +16,8 @@ const num = (t) => +String(t).replace(/\u2212/g, '-').replace(/[^0-9.-]/g, '');
     await ctx.addInitScript(([fx, side]) => { try { if (!localStorage.getItem('fx-loaded')) { localStorage.clear(); localStorage.setItem('mizan.sidebar', side); localStorage.setItem('mizan.navgroups', '{}');
       localStorage.setItem('mizan.books.v2', fx); localStorage.setItem('fx-loaded', '1'); } } catch (e) {} }, [fx, o.side || 'pinned']);
     const p = await ctx.newPage(); p.on('pageerror', (e) => errs.push('PAGE ' + e.message)); p.on('dialog', (d) => d.accept());
-    await p.goto('file://' + HTML); await p.waitForTimeout(1500); return { ctx, p };
+    /* 3.20: the app opens on Home; these checks start on the dashboard. */
+    await p.goto('file://' + HTML); await p.waitForTimeout(600); await p.evaluate(()=> {const b=document.querySelector('.sbar [data-k="dash"]');if(b)b.click();}); await p.waitForTimeout(1500); return { ctx, p };
   };
   const shot = async (p, n, el) => { if (SHOTS) await (el ? p.locator(el).first().screenshot({ path: path.join(SHOTS, n + '.png') }) : p.screenshot({ path: path.join(SHOTS, n + '.png') })); };
   const nav = async (p, k) => { await p.locator(`.sbar [data-k="${k}"]`).first().click(); await p.waitForTimeout(800); };
