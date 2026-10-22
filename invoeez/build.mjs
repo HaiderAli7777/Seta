@@ -1,6 +1,6 @@
 import {transform} from 'esbuild';
 import {readFile,writeFile,mkdir,copyFile} from 'node:fs/promises';
-const files=['invoeez-source.jsx','enhancements-data.jsx','company-template.jsx','enhancements-ui.jsx','dashboard.jsx','design.jsx','onboarding.jsx','brand-assets.jsx','brand.jsx','clarity.jsx','sidebar.jsx','select.jsx','features.jsx','pdc.jsx','reports.jsx','dash.jsx','compare.jsx','users.jsx','ifrs.jsx','pro.jsx','approval.jsx','ux.jsx','motion.jsx','sync.jsx','refine.jsx','delivery.jsx','group.jsx','costing.jsx','apps.jsx','access.jsx','dashdoc.jsx'];
+const files=['invoeez-source.jsx','enhancements-data.jsx','company-template.jsx','enhancements-ui.jsx','dashboard.jsx','design.jsx','onboarding.jsx','brand-assets.jsx','brand.jsx','clarity.jsx','sidebar.jsx','select.jsx','features.jsx','pdc.jsx','reports.jsx','dash.jsx','compare.jsx','users.jsx','ifrs.jsx','pro.jsx','approval.jsx','ux.jsx','motion.jsx','sync.jsx','refine.jsx','delivery.jsx','group.jsx','costing.jsx','apps.jsx','access.jsx','dashdoc.jsx','modules.jsx'];
 const source=(await Promise.all(files.map(x=>readFile(new URL(x,import.meta.url),'utf8')))).join('\n\n');
 const result=await transform(source,{loader:'jsx',target:'es2020',jsxFactory:'React.createElement',jsxFragment:'React.Fragment',legalComments:'inline'});
 const prefix=await readFile(new URL('runtime-prefix.js',import.meta.url),'utf8');

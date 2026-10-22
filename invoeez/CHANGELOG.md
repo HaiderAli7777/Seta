@@ -1,3 +1,44 @@
+# 3.25.0 — Each module in its own colour, companies and branches in one switcher, several branches at once
+
+- **Each module now uses the colour of its icon**:
+  - Sales blue, Purchase violet, Inventory orange, Accounting green, Bank & cash cyan, VAT rose, Reports indigo, Contacts pink, Companies amber, Users & access teal and Settings slate.
+  - Inside a module, its buttons, links, tabs, focus rings and selected rows take that colour.
+    - **Apps dashboard**: the top bar and the page banners take it too, from deep to bright.
+    - **Sidebar mode**: the sidebar keeps the company's colour, and the open screen's menu item is marked in the module's colour.
+  - Home and the dashboard keep the company's colour theme. Printed invoices and reports keep the company's colours.
+  - Dark mode uses a lighter tint of each colour. Every colour pair meets WCAG AA contrast.
+  - Settings › Appearance › **Module colours** turns this off and uses the colour theme everywhere.
+- **Companies & branches in one switcher** (the company button: in the top bar in the apps dashboard, at the top of the menu in sidebar mode):
+  - Every company is listed with its branches under it.
+  - For the open company, the list shows **All branches** and then each branch. The branch new records go to is marked **Working here**.
+  - Clicking a branch shows its figures and makes it your working branch.
+  - Clicking a branch of **another company** opens that company on that branch.
+  - The button shows the company and the branches you are looking at, for example "Deira shop + Abu Dhabi branch". Before, the menu showed the branch you work in; that is now marked **Working here** in the list.
+  - At the foot: **Add a company**, **Branches** and **Companies**.
+- **One branch, several, or all, the same everywhere**:
+  - **Branch picker**: on reports it is now a tick list.
+    - Choose All branches, or tick any branches.
+    - **Only** beside each branch picks just that one.
+    - The button shows how many are ticked (2/4).
+  - **One choice everywhere**: branches picked on the dashboard also apply to the reports and to the invoice, bill and payment lists, and the other way round. The choice is remembered for each company until the browser tab is closed.
+  - **Report headers** name the branches ("Branch: Deira shop + Abu Dhabi branch"), on screen, in print, and in PDF and Excel.
+  - **One-branch users**: someone limited to one branch still sees only that branch, marked with a lock.
+- **Dashboard upgrades**:
+  - **Branch chips** under the progress bar: All, then each branch with its sales and share of sales.
+    - Click a branch to look at it on its own.
+    - Click more branches to add them, and click one again to take it away.
+  - **New Branches tab**:
+    - which branch made the most profit;
+    - the branches side by side (sales, share, gross profit, net profit, margin, to collect), with an All branches total that matches the company's figures;
+    - **Show only** on each row;
+    - a sales-and-net-profit chart and each branch's share of sales, each branch in its own colour.
+
+    Branches not on the dashboard are dimmed.
+  - **Module colours on key figures and tabs**: each key figure has an icon in its module's colour (Sales blue, Costs violet, Gross profit green, Cash cyan, Stock orange, VAT rose), and so does each tab.
+  - **Company-wide figures when looking at some branches**: VAT, stock value and Cash & bank stay company-wide and are labelled as such. VAT is one return for the company, and stock and bank accounts are not kept per branch. Cash & bank also shows what the chosen branches took in and paid out.
+- Fixes:
+  - **Home tiles**: a long count, such as "2 companies · 4 branches" or the VAT refund on a smaller screen, was cut off mid-word. It now uses the tile's full width and ends in an ellipsis only if it still does not fit.
+
 # 3.24.0 — The dashboard laid out like an invoice, and refreshed colour themes
 
 - **The dashboard now reads like an invoice or quotation**: one sheet, top to bottom, in the same order as a document.

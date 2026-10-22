@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.24)
+# InvoEez — Invoice Made Easy (3.25)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -75,6 +75,15 @@ Company profile, theme, user selection and connection settings use their existin
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
 
+## Module colours, companies and branches (3.25)
+
+- **Module colours**: each module uses the colour of its icon for its buttons, links, tabs and selected rows: Sales blue, Purchase violet, Inventory orange, Accounting green, Bank & cash cyan, VAT rose, Reports indigo, Contacts pink, Companies amber, Users & access teal and Settings slate. In the apps dashboard the top bar and page banners take it too. Home, the dashboard and printouts keep the company's colour theme. Settings › Appearance › **Module colours** turns it off.
+- **Companies & branches switcher**: the company button lists every company with its branches under it. Click **All branches** or a branch of the open company, or a branch of another company to open that company on it.
+- **Several branches at once**: the Branch picker is a tick list (All, any branches, or **Only** one). The choice is shared by the dashboard, reports and document lists, is remembered per company for the browser tab, and is named in report headers and exports.
+- **Dashboard**: branch chips with each branch's sales and share, a **Branches** tab putting the branches side by side, and key figures and tabs in their modules' colours. VAT, stock and cash stay company-wide when only some branches are shown, and say so.
+
+The colours live in `modules.jsx`; the switcher and picker in `group.jsx`; the chips and Branches tab in `dashdoc.jsx`.
+
 ## The dashboard, laid out like an invoice (3.24)
 
 The dashboard is one sheet that reads in the same order as an invoice or quotation:
@@ -140,7 +149,7 @@ In the apps dashboard InvoEez opens on **Home**: search everything and open any 
 | Bank & cash | Receipts and payments, post-dated cheques, bank and cash · Configuration: payment methods | `invoeez-source.jsx`, `pdc.jsx` |
 | VAT & e-invoicing | VAT return (FTA 201), PINT AE e-invoices | `invoeez-source.jsx` |
 | Reports | All reports, P&L, balance sheet, ledgers, ageing, profit analysis, branch and group | `reports.jsx`, `compare.jsx`, `ifrs.jsx`, `pro.jsx` (PDF/Excel), `group.jsx` |
-| Dashboard | Live dashboard, laid out like a document (header, progress, key figures, tabs, totals) | `dashboard.jsx`, `dashdoc.jsx`, `dash.jsx`, `motion.jsx`, `reports.jsx` |
+| Dashboard | Live dashboard, laid out like a document (header, progress, key figures, tabs, totals), branch chips and the Branches tab | `dashboard.jsx`, `dashdoc.jsx`, `dash.jsx`, `motion.jsx`, `reports.jsx` |
 | Contacts, Companies, Settings | Customers and vendors; companies and branches; settings and backup | `group.jsx`, `sync.jsx`, `invoeez-source.jsx` |
 | Users & access | People, roles, access rules, who can do what | `access.jsx`, `users.jsx`, `invoeez-source.jsx` |
 | Home and app overviews | — | `apps.jsx` |
@@ -282,11 +291,12 @@ npm test
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
 | `dashboard.jsx` | The dashboard: figures, tabs and panels (3.24: laid out as one document-style sheet). |
-| `dashdoc.jsx` | 3.24 dashboard layout like an invoice: header with period, status and net profit; progress through the period; key figures as fields; month-by-month lines; profit-and-loss totals; the bar at the foot. |
+| `dashdoc.jsx` | 3.24 dashboard layout like an invoice: header with period, status and net profit; progress through the period; key figures as fields; month-by-month lines; profit-and-loss totals; the bar at the foot. 3.25: branch chips, the Branches tab, key figures and tabs in their modules' colours. |
+| `modules.jsx` | 3.25 module colours: each app's colour (light, dark, deep and bright), which module a screen belongs to, and the styles that give a module's screens its colour (screen only, so print keeps the company's colours). |
 | `access.jsx` | 3.23 access rights: areas and actions, the eight built-in roles and your own, access rules (apps and menus, actions, fields, records, buttons and tabs, read-only, no exports or search), effective rights per person, Roles and Access rules screens, Who can do what. |
 | `costing.jsx` | 3.23 cost centres (field, screen, profit by cost centre) and budgets (start from run rate or last year, monthly editor, budget vs actual). |
 | `apps.jsx` | 3.20–3.23 apps dashboard (3.23: Home and Your work for each job, Create new at the end of the search bar, the themed top bar and page banners): the app definitions and `APP_MENUS` (one pattern for every app), Home (search and every app in one view), the top bar (app switcher, tabs, Reporting/Configuration dropdowns, More, phone menu), app overviews (figures, Transactions/Master data cards, latest activity, Reporting/Configuration panels), and Settings › Navigation. |
-| `group.jsx` | 3.18–3.19 several companies (registry, switcher, add a company, Companies screen, colour per company, edit or back up any company) and branches (guided set-up, Branches screen, numbering per branch, working branch, users limited to a branch, Branch field and picker, branch ledgers), Branch performance and Group report. |
+| `group.jsx` | 3.18–3.19 several companies (registry, switcher, add a company, Companies screen, colour per company, edit or back up any company; 3.25: the companies & branches switcher, several branches at once, the branch tick list, opening another company on a branch) and branches (guided set-up, Branches screen, numbering per branch, working branch, users limited to a branch, Branch field and picker, branch ledgers), Branch performance and Group report. |
 | `delivery.jsx` | 3.17 delivery addresses: branches on customers, Deliver to on documents, add a branch from a document, address preview, print styles for Deliver to and the delivery note. |
 | `refine.jsx` | 3.16 gliding highlights for switches and tabs, rolling total, totals panel with the discount on the whole document, motion and editor refinements. |
 | `sync.jsx` | 3.15 offline-first cloud sync: record-by-record three-way merge, renumbering, sync engine, top-bar status chip, Settings › Cloud sync, installable app. |
@@ -309,6 +319,7 @@ npm test
 | `tests/browser-access.cjs` | 3.23 checks: a user for each job with a live preview, Who can do what, roles (adjust, new role), access rules from a template and from scratch, switching rules off and on; then signing in as each person: Home and apps for the job, own documents only, search limited to what they may open, no costs, the discount limit, no delete or reset, hidden apps, read-only prices, a purchaser who can't post, a viewer without exports, administrators unrestricted, and the sidebar following the same rights. |
 | `tests/browser-costing.cjs` | 3.23 checks: cost centres (quick start and form, unique codes), tagging an invoice, an expense and a journal line, profit by cost centre adding up to the company, a used cost centre that can't be deleted, budgets from the run rate (spreading a year evenly, Budget vs actual with figures and Excel), a budget for one cost centre, and every new screen in the classic menu. |
 | `tests/browser-apps.cjs` | 3.20–3.21 checks: Sidebar mode (classic menu, no Home), switching from Settings, the user menu and Ctrl K, the apps dashboard (app bars, dropdowns, More, context, every screen reachable), plus Home, card counts, filters, search, Create new, Jump back in, every app overview, the menu grouped by app with every screen still in it, All apps and g h, apps limited by role, dark mode, phone. |
+| `tests/browser-companies.cjs` | 3.25 checks: module colours (each app, dark, Home and dashboard on the theme, print, switched off), the companies & branches switcher (tree, picking a branch, all branches), dashboard branch chips (one, two, back to all; figures from the branches), the Branches tab adding up to the company, the branch tick list on reports, lists following the choice, opening another company on its branch. |
 | `tests/browser-branches.cjs` | 3.18–3.19 checks: guided branch set-up, branch details on print, numbering per branch, working branch, a user limited to one branch, Companies screen (edit, colour, back up another company), company colours; setting up branches (head office, next branch, rules), home branch, Branch field on invoice, payment and journal (a payment follows its invoice), printed branch address, Branch performance adds up to the P&L, branch filter on P&L, trial balance, balance sheet, dashboard and lists, VAT return company-wide, adding a company and switching back, Group report, phone. |
 | `tests/browser-delivery.cjs` | 3.17 checks: % / AED line discounts (switching keeps the money off, limits, saved), branches on a customer and the default, Deliver to and place of supply, adding a branch from the quotation, print, delivery note on screen and as PDF, carried to the invoice, list and search, phone. |
 | `tests/browser-refine.cjs` | 3.16 checks: menu unfolds with one layout and a glide (and reverses smoothly), sections fold, phone drawer, gliding highlights, documents glide in, discount on the whole quotation (amount, %, limits, save, reload, print, convert, post), save bar position, dark, reduced motion. |

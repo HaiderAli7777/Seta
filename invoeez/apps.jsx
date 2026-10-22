@@ -343,7 +343,7 @@ function AppsHome({ state, whole, books, user, go, openApp, quickAdd, allowed, c
       <span className="ah-ic"><a.icon size={25} strokeWidth={2} /></span>
       <AppArt kind={a.art} tone={a.tone} />
       <span className="ah-txt"><b>{a.name}</b><small>{a.desc}</small></span>
-      <em>{a.records(ctx)}</em>
+      <em><span>{a.records(ctx)}</span></em>
       <span className="ah-go" aria-hidden="true"><ArrowUpRight size={15} strokeWidth={2.3} /></span>
     </button>)}</div>
   </div>;
@@ -577,8 +577,10 @@ const APPS_CSS = `
 .ah-txt{position:relative;z-index:1;display:flex;flex-direction:column;min-width:0;width:100%;margin-top:auto;padding-top:16px}
 .ah-txt b{font-size:16px;font-weight:700;letter-spacing:-.015em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ah-txt small{font-size:12.5px;line-height:1.4;color:var(--ink-3);margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.8em}
-.ah-card em{position:relative;z-index:1;display:inline-flex;align-items:center;gap:7px;max-width:calc(100% - 30px);margin-top:10px;font-style:normal;font-size:11.5px;font-weight:600;color:var(--ink-2);
+.ah-card em{position:relative;z-index:1;display:inline-flex;align-items:center;gap:7px;max-width:100%;margin-top:10px;font-style:normal;font-size:11.5px;font-weight:600;color:var(--ink-2);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+/* the count uses the card's full width; room is made for the arrow only while it shows, and a long count ends in an ellipsis */
+.ah-card em>span{min-width:0;overflow:hidden;text-overflow:ellipsis}.ah-card:hover em,.ah-card:focus-visible em{max-width:calc(100% - 30px)}
 .ah-card em::before{content:"";flex:0 0 6px;width:6px;height:6px;border-radius:50%;background:var(--a1);box-shadow:0 0 0 3px color-mix(in srgb,var(--a1) 22%,transparent)}
 .ah-go{position:absolute;right:14px;bottom:14px;z-index:1;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;background:var(--a2);opacity:0;transform:translate(-4px,4px) scale(.8);transition:opacity .25s,transform .3s cubic-bezier(.22,1,.36,1)}
 .ah-card:hover .ah-go,.ah-card:focus-visible .ah-go{opacity:1;transform:none}
@@ -594,7 +596,7 @@ const APPS_CSS = `
 
 /* ---- apps mode: the top bar in the colour theme, like the dashboard (3.23) ---- */
 .mz[data-nav="apps"]{--hdr-1:var(--sb-2);--hdr-2:var(--sb-1);--hdr-3:color-mix(in srgb,var(--pri-b) 70%,var(--sb-1));--hdr-ink:#fff;--hdr-ink-2:rgba(255,255,255,.76);--hdr-glass:rgba(255,255,255,.11);--hdr-glass-2:rgba(255,255,255,.18);--hdr-line:rgba(255,255,255,.18)}
-.mz[data-nav="apps"][data-theme="dark"][data-accent="graphite"]{--hdr-3:#2A3038}
+.mz[data-nav="apps"][data-theme="dark"][data-accent="graphite"]:not([data-module]){--hdr-3:#2A3038}
 .mz[data-nav="apps"] .topbar{display:flex;align-items:center;grid-template-columns:none;position:sticky;top:0;z-index:40;height:64px;flex:0 0 64px;min-height:64px;padding:0 18px 0 12px;gap:10px;isolation:isolate;overflow:visible;
   background:linear-gradient(100deg,var(--hdr-1) 0%,var(--hdr-2) 45%,var(--hdr-3) 100%);border-bottom:0;color:var(--hdr-ink);
   box-shadow:0 12px 30px -16px var(--pri-sh,rgba(10,20,40,.5)),inset 0 -1px 0 rgba(255,255,255,.07)}
@@ -684,7 +686,7 @@ const APPS_CSS = `
 .mz[data-nav="apps"] .page-head::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:.1;
   background-image:linear-gradient(rgba(255,255,255,.6) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.6) 1px,transparent 1px);background-size:30px 30px;
   -webkit-mask-image:radial-gradient(ellipse at 80% 20%,#000 10%,transparent 70%);mask-image:radial-gradient(ellipse at 80% 20%,#000 10%,transparent 70%)}
-.mz[data-nav="apps"][data-theme="dark"][data-accent="graphite"] .page-head{background:linear-gradient(120deg,#15181C,#1D2127 45%,#2A3038)}
+.mz[data-nav="apps"][data-theme="dark"][data-accent="graphite"]:not([data-module]) .page-head{background:linear-gradient(120deg,#15181C,#1D2127 45%,#2A3038)}
 .mz[data-nav="apps"] .page-head h1{color:#fff;letter-spacing:-.03em}
 .mz[data-nav="apps"] .page-head p{color:rgba(255,255,255,.8)}
 .mz[data-nav="apps"] .page-head .micro{display:inline-flex;align-items:center;gap:7px;width:max-content;padding:4px 10px 4px 8px;border-radius:999px;background:rgba(255,255,255,.14);color:#fff!important;letter-spacing:.12em;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
@@ -699,7 +701,10 @@ const APPS_CSS = `
 .mz[data-nav="apps"] .page-head .acts .seg button{color:rgba(255,255,255,.85)}.mz[data-nav="apps"] .page-head .acts .seg button.on{background:#fff;color:var(--sb-2)}
 /* The summary tiles under a page title get the dashboard's top edge. */
 .mz[data-nav="apps"] .doc-sum>button,.mz[data-nav="apps"] .doc-sum>div{border-radius:18px}
-@media(max-width:1500px){.mz[data-nav="apps"] .coswitch .cx{display:none}.mz[data-nav="apps"] .topbar .coswitch{padding:0 8px 0 6px}}
+/* the company and branch stay named in the bar when there is more than one to switch between (3.25) */
+@media(max-width:1500px){.mz[data-nav="apps"] .coswitch:not(.ctx) .cx{display:none}.mz[data-nav="apps"] .topbar .coswitch:not(.ctx){padding:0 8px 0 6px}
+  .mz[data-nav="apps"] .coswitch .cx b{max-width:130px}.mz[data-nav="apps"] .coswitch .cx span{max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+@media(max-width:1280px){.mz[data-nav="apps"] .coswitch .cx{display:none}.mz[data-nav="apps"] .topbar .coswitch{padding:0 8px 0 6px}}
 @media(max-width:1420px){.ab-tab{padding:0 10px;font-size:13px}.ab-tabs{margin-left:4px;padding-left:8px}.ab-tab.on::after{left:10px;right:10px}}
 @media(max-width:1599px){.mz[data-nav="apps"] .omni .ot,.mz[data-nav="apps"] .omni kbd{display:none}.ab-find{flex:0 0 auto}.mz[data-nav="apps"] .ab-find .omni{flex:0 0 36px;width:36px;padding:0;justify-content:center}}
 @media(max-width:900px){.ab-tabs{display:none}.mz[data-nav="apps"] .topbar{padding:0 8px;gap:6px}.ab-word{font-size:18px}.ab-mark{width:34px;height:34px;flex-basis:34px}.ab-mark img{width:27px;height:27px}
@@ -736,7 +741,7 @@ const APPS_CSS = `
 .ao-head{position:relative;overflow:hidden;isolation:isolate;display:flex;align-items:center;gap:18px;min-height:118px;padding:22px 210px 22px 24px;border-radius:24px;color:#fff;
   background:radial-gradient(460px 240px at 6% 120%,color-mix(in srgb,var(--a1) 45%,transparent),transparent 70%),radial-gradient(420px 220px at 90% -20%,color-mix(in srgb,var(--sb-acc,#5CC8FF) 40%,transparent),transparent 70%),
     linear-gradient(120deg,var(--sb-2) 0%,var(--sb-1) 40%,var(--pri-b) 82%,var(--pri-a) 100%);box-shadow:0 20px 44px -22px var(--pri-sh),inset 0 1px 0 rgba(255,255,255,.12)}
-.mz[data-theme="dark"][data-accent="graphite"] .ao-head{background:linear-gradient(120deg,#15181C,#1D2127 45%,#2A3038)}
+.mz[data-theme="dark"][data-accent="graphite"]:not([data-module]) .ao-head{background:linear-gradient(120deg,#15181C,#1D2127 45%,#2A3038)}
 .ao-head .btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.24);color:#fff}.ao-head .btn:hover{background:rgba(255,255,255,.2)}.ao-head .btn svg{color:currentColor}
 .ao-head .btn.pri{background:#fff;color:var(--sb-2);border-color:#fff;box-shadow:0 8px 20px -8px rgba(0,0,0,.45)}
 .ao-ic{width:62px;height:62px;flex:0 0 62px;border-radius:19px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,var(--a1),var(--a2));box-shadow:0 0 0 3px rgba(255,255,255,.2),0 14px 26px -10px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.35)}

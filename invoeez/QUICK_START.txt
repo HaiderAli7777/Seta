@@ -24,6 +24,18 @@ THE DASHBOARD (3.24)
 - Settings > Appearance > Colour theme: Ocean blue, Lagoon teal, Royal
   violet, Graphite or Desert sand.
 
+COLOURS, COMPANIES AND BRANCHES (3.25)
+- Each module uses the colour of its icon: Sales blue, Purchase violet,
+  Inventory orange, Accounting green, and so on. Home and the dashboard keep
+  your colour theme. Settings > Appearance > Module colours turns it off.
+- Click the company button at the top: every company is listed with its
+  branches under it. Pick All branches or one branch, or click a branch of
+  another company to open that company on that branch.
+- Several branches at once: on the dashboard, click branch chips to add or
+  remove them; on reports, tick branches in the Branch list (Only picks just
+  one). The dashboard, reports and lists all follow the same choice.
+- Dashboard > Branches tab: the branches side by side, with Show only.
+
 WHO CAN DO WHAT (3.23)
 - Users & access > People > New user: pick a role (Accountant, Salesperson,
   Sales manager, Purchaser, Procurement manager, Storekeeper, Viewer or
@@ -80,7 +92,8 @@ SEVERAL COMPANIES AND BRANCHES (3.18, 3.19)
 - Utilities & tools > Branches > Set up branches: three steps — head office,
   your other branches, then who works where and how documents are numbered
   (one series, or a series per branch such as INV/DRA/2026/0001).
-- Working somewhere else today? Click the company name > Working in.
+- Working somewhere else today? Click the company name and pick the branch;
+  it is marked Working here and new records go to it.
 - Every report has a Branch filter. Reports > Branch performance compares the
   branches; Reports > Group report adds the companies together.
 

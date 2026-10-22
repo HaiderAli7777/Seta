@@ -29,6 +29,11 @@ const near = (a, b) => Math.abs(a - b) < 0.02;
   const toasts = (p) => p.evaluate(() => [...document.querySelectorAll('.toast')].map((t) => t.innerText).join(' / '));
   const pick = async (p, sel, text) => { await sel.click(); await p.waitForTimeout(250); await p.locator('[role=option]', { hasText: text }).first().click(); await p.waitForTimeout(500); };
   const branchSel = (p) => p.locator('button.inp.sel[aria-label="Branch"]');
+  /* 3.25: lists, reports and the dashboard pick one, several or all branches. */
+  const brBtn = (p) => p.locator('.br-btn').first();
+  const brPick = async (p, text) => { await brBtn(p).click(); await p.waitForTimeout(250);
+    if (text === 'All branches') await p.locator('.br-menu .br-opt.all').click(); else { await p.locator('.br-menu .br-row', { hasText: text }).locator('.br-only').click(); }
+    await p.waitForTimeout(500); if (await p.locator('.br-menu').count()) { await p.keyboard.press('Escape'); await p.mouse.click(5, 990); } };
   /* A financial table as { row label: [numbers…] }. */
   const table = (p, sel) => p.locator(sel).first().evaluate((t) => { const out = {}; t.querySelectorAll('tbody tr').forEach((r) => { const c = [...r.children].map((x) => x.innerText.trim());
     if (c.length > 1) out[c[0]] = c.slice(1); }); return out; });
@@ -38,7 +43,7 @@ const near = (a, b) => Math.abs(a - b) < 0.02;
   await nav(p, 'invoices'); await p.locator('.doc-list-tbl tbody tr.click').first().click(); await p.waitForTimeout(800);
   check(await branchSel(p).count() === 0, 'with one company and no branches, documents have no Branch field');
   await nav(p, 'r_pnl');
-  check(await branchSel(p).count() === 0, 'and reports have no branch filter');
+  check(await p.locator('.br-btn').count() === 0, 'and reports have no branch filter');
   await nav(p, 'r_branch');
   check(/Add branches to compare them/.test(await p.locator('.page').innerText()), 'Branch performance explains how to start');
 
@@ -80,7 +85,11 @@ const near = (a, b) => Math.abs(a - b) < 0.02;
   const hoDocs = num(await p.locator('.br-own').first().locator('.bo-stats > div').nth(2).locator('b').innerText());
   check(hoDocs > 100, 'everything recorded before branches belongs to Head office (' + hoDocs + ' documents)');
   check(/You work here/.test(await p.locator('.br-own').nth(1).innerText()) && await p.locator('.br-own').nth(1).locator('.bo-people span').count() === 1, 'the Deira card shows its user and that you work there');
-  check(/Deira shop/.test(await p.locator('.sb-co').innerText()), 'the menu shows the branch you work in');
+  /* 3.25: the company button names the branches on view; the switcher marks the one you work in */
+  check(/All branches/.test(await p.locator('.sb-co').innerText()), 'the menu shows the branches on view (all of them)');
+  await p.locator('.sb-co').click(); await p.waitForTimeout(400);
+  check(/Working here/.test(await p.locator(`.co-pop .co-br[data-branch="${DRA}"]`).innerText()), 'the company list marks Deira shop as the branch you work in');
+  await p.locator('.pop-scrim').click({ position: { x: 5, y: 400 } }); await p.waitForTimeout(300);
   // edit a branch: more details
   await p.locator('.br-own').nth(1).locator('.btn', { hasText: 'Edit' }).click(); await p.waitForTimeout(400);
   const ef = p.locator('.card', { has: p.locator('.br-form') });
@@ -141,10 +150,10 @@ const near = (a, b) => Math.abs(a - b) < 0.02;
   await pf.locator('input[type=number]').fill('100'); await p.locator('.btn.pri', { hasText: 'Record' }).click(); await p.waitForTimeout(500);
   s = await books(p); const rc2 = s.payments[s.payments.length - 1];
   check(rc2.amount === 100 && rc2.branch === HO, 'saved in Head office');
-  await pick(p, branchSel(p), 'Deira shop');
+  await brPick(p, 'Deira shop');
   const pRows = await p.locator('.card:has(.toolbar) tbody tr').allInnerTexts();
   check(pRows.length === 1 && pRows[0].includes(rc.number), 'the receipts list filters by branch (' + pRows.length + ')');
-  await pick(p, branchSel(p), 'All branches');
+  await brPick(p, 'All branches');
   // a journal in a chosen branch
   await nav(p, 'journal');
   await p.locator('.btn.pri', { hasText: /New (journal )?entry/ }).first().click(); await p.waitForTimeout(500);
@@ -186,17 +195,21 @@ const near = (a, b) => Math.abs(a - b) < 0.02;
 
   // ---------- 4c. the working branch ----------
   await p.locator('.sb-co').click(); await p.waitForTimeout(400);
-  check(await p.locator('.co-pop .co-wb').count() === 3 && /Deira shop/.test(await p.locator('.co-pop .co-wb.on').innerText()), 'the switcher shows where you work (Deira shop, your home branch)');
-  await p.locator('.co-pop .co-wb', { hasText: 'Abu Dhabi branch' }).click(); await p.waitForTimeout(400);
-  check(/Abu Dhabi branch/.test(await p.locator('.sb-co').innerText()) && /Working in Abu Dhabi branch/.test(await toasts(p)), 'working in Abu Dhabi today: the menu says so');
+  check(await p.locator('.co-pop .co-grp.on .co-br').count() === 4 && /Deira shop/.test(await p.locator('.co-pop .co-br', { has: p.locator('.co-here') }).innerText()),
+    'the switcher lists the company\'s branches under it and shows where you work (Deira shop, your home branch)');
+  await p.locator('.co-pop .co-br', { hasText: 'Abu Dhabi branch' }).click(); await p.waitForTimeout(400);
+  check(/Abu Dhabi branch/.test(await p.locator('.sb-co').innerText()) && /Abu Dhabi branch — its figures, and new records go there/.test(await toasts(p)), 'working in Abu Dhabi today: the menu says so');
   await nav(p, 'journal'); await p.locator('.btn.pri', { hasText: /New (journal )?entry/ }).first().click(); await p.waitForTimeout(500);
   check(/Abu Dhabi branch/.test(await branchSel(p).innerText()), 'and new records go there');
   await p.locator('.btn', { hasText: 'Cancel' }).first().click(); await p.waitForTimeout(300);
   await p.reload(); await p.waitForTimeout(1500);
   check(/Abu Dhabi branch/.test(await p.locator('.sb-co').innerText()), 'the working branch lasts for this browser tab');
   await p.locator('.sb-co').click(); await p.waitForTimeout(400);
-  await p.locator('.co-pop .co-wb', { hasText: 'Deira shop' }).click(); await p.waitForTimeout(400);
+  await p.locator('.co-pop .co-br', { hasText: 'Deira shop' }).click(); await p.waitForTimeout(400);
   check(/Deira shop/.test(await p.locator('.sb-co').innerText()) && !(await p.evaluate(() => Object.keys(sessionStorage).some((k) => k.startsWith('mizan.workBranch')))), 'back to the home branch');
+  await p.locator('.sb-co').click(); await p.waitForTimeout(400);
+  await p.locator('.co-pop .co-br.all').click(); await p.waitForTimeout(400);
+  check(/All branches/.test(await p.locator('.sb-co').innerText()), 'and back to the whole company\'s figures');
 
   // ---------- 5. reports by branch ----------
   await nav(p, 'r_branch');
@@ -210,16 +223,16 @@ const near = (a, b) => Math.abs(a - b) < 0.02;
   await p.waitForTimeout(1200); await shot(p, 'branches-08-performance');
   // P&L, all branches vs one branch
   await nav(p, 'r_pnl');
-  check(/All branches/.test(await branchSel(p).innerText()), 'P&L: branch filter, all branches by default');
+  check(/All branches/.test(await brBtn(p).innerText()), 'P&L: branch filter, all branches by default');
   const pnlRev = async () => num((await table(p, '.fin-tbl'))['Revenue'][0]);
   const allRev = await pnlRev();
   check(near(allRev, rev[3]), 'All branches equals the company P&L (' + allRev + ')');
-  await pick(p, branchSel(p), 'Deira shop'); await p.waitForTimeout(1500);
+  await brPick(p, 'Deira shop'); await p.waitForTimeout(1500);
   check(near(await pnlRev(), rev[1]) && /Branch: Deira shop/.test(await p.locator('.page').innerText()), 'Deira\'s P&L matches its column and says which branch it is');
   await shot(p, 'branches-09-pnl-branch');
   // the filter carries to the trial balance and balance sheet, which balance per branch
   await nav(p, 'r_tb');
-  check(/Deira shop/.test(await branchSel(p).innerText()), 'the branch filter stays on across reports');
+  check(/Deira shop/.test(await brBtn(p).innerText()), 'the branch filter stays on across reports');
   const tbTot = (await p.locator('.page table tr', { hasText: /^\s*Totals/ }).last().innerText()).split(/\t|\n/).map((x) => x.trim()).filter((x) => /\d/.test(x)).map(num);
   check(tbTot.length >= 2 && tbTot[0] > 0 && near(tbTot[tbTot.length - 2], tbTot[tbTot.length - 1]), 'Deira\'s trial balance balances (' + tbTot.join(' / ') + ')');
   await nav(p, 'r_bs');
@@ -229,24 +242,24 @@ const near = (a, b) => Math.abs(a - b) < 0.02;
   for (const k of ['r_gl', 'r_partner', 'r_aged_ar', 'r_aged_ap', 'r_stmt', 'r_prod', 'r_cust', 'r_method', 'r_stock', 'banking', 'expenses', 'pdc', 'assets', 'stock_count', 'reports']) {
     await nav(p, k); if ((await p.locator('.page').innerText()).length > 80) shown++; }
   check(errs.length === errsBefore && shown === 15, 'all other reports and screens open with a branch chosen (' + shown + ')');
-  await nav(p, 'r_pnl'); await pick(p, branchSel(p), 'All branches');
+  await nav(p, 'r_pnl'); await brPick(p, 'All branches');
   await nav(p, 'r_vat');
-  check(await branchSel(p).count() === 0, 'the VAT return stays one return for the whole company');
+  check(await p.locator('.br-btn').count() === 0, 'the VAT return stays one return for the whole company');
   // dashboard
   await nav(p, 'dash');
   const heroNet = async () => num(await p.locator('.ds-net .countup').innerText());
-  await pick(p, branchSel(p), 'Deira shop'); await p.waitForTimeout(1600);
-  check(/Deira shop/.test(await branchSel(p).innerText()) && near(await heroNet(), net[1]) && /My Company · Deira shop/.test(await p.locator('.ds-crumb').textContent()), 'dashboard for one branch (net profit ' + net[1] + ')');
+  await p.locator('.ds-br', { hasText: 'Deira shop' }).click(); await p.waitForTimeout(1600);
+  check(/Deira shop/.test(await p.locator('.ds-br.on').innerText()) && near(await heroNet(), net[1]) && /My Company · Deira shop/.test(await p.locator('.ds-crumb').textContent()), 'dashboard for one branch (net profit ' + net[1] + ')');
   const stockTile = await p.locator('.ds-field', { hasText: 'Stock value' }).last().innerText();
   check(/whole company/.test(stockTile) && !/\(/.test(stockTile.split('\n').find((x) => /\d/.test(x)) || ''), 'stock value stays the whole company\'s, never negative for a branch');
   await shot(p, 'branches-10-dashboard');
-  await pick(p, branchSel(p), 'All branches');
+  await p.locator('.ds-br.all').click(); await p.waitForTimeout(600);
   // document list filter
   await nav(p, 'invoices');
-  await pick(p, branchSel(p), 'Deira shop');
+  await brPick(p, 'Deira shop');
   const rows = await p.locator('.doc-list-tbl tbody tr.click').allInnerTexts();
   check(rows.length === 1 && rows[0].includes(invNo) && /Deira shop/.test(rows[0]), 'the invoice list filters by branch and names it');
-  await pick(p, branchSel(p), 'All branches');
+  await brPick(p, 'All branches');
 
   // ---------- 5b. someone who works in one branch only ----------
   await nav(p, 'users');

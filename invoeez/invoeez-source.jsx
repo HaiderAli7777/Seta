@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.24.0";
+const BUILD = "3.25.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -2473,8 +2473,9 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
   const [editing, setEditing] = useState(null);
   const [q, setQ] = useState("");
   const [f, setF] = useState("all");
-  const [brPick, setBrF] = useState("");
-  const brF = LOCK_BRANCH || brPick;
+  /* Lists start on the branches picked for the dashboard and reports, and can look at one, several or all (3.25). */
+  const [brPick, setBrF] = useState(() => REPORT_BRANCH_ID || "");
+  const brF = LOCK_BRANCH || (brIsAll(brPick) ? "" : brPick), inBr = brF ? brInSel(brF) : null;
   const [sort, setSort] = useState({ k: "date", dir: "desc" });
   const [limit, setLimit] = useState(100);
   const meta = DOCMETA[type], sale = meta.side === "sale";
@@ -2507,7 +2508,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
   if (editing) return <DocEditor key={editing.id} doc={editing} state={state} setState={setState} books={books}
     toast={toast} fta={fta} go={go} user={user} users={users} readOnly={readOnly} close={() => setEditing(null)} />;
 
-  const filtered = state.docs.filter((d) => d.type === type && (!brF || branchOfRecord(state, d) === brF) && vis(d))
+  const filtered = state.docs.filter((d) => d.type === type && (!inBr || inBr(branchOfRecord(state, d))) && vis(d))
     .filter((d) => f === "all" || (f === "open" ? (openMap[d.id] || 0) > 0.004 : f === "overdue" ? (openMap[d.id] || 0) > 0.004 && d.due < TODAY
       : f === "soon" ? (openMap[d.id] || 0) > 0.004 && d.due >= TODAY && d.due <= addDays(TODAY, 7) : f === "approved" && isPO ? ["approved", "sent"].includes(d.state) : d.state === f))
     .filter((d) => hits(q, d.number, PMAP[d.partner].name, PMAP[d.partner].trn, d.ref, d.emirate, d.delivery && d.delivery.name,
@@ -2526,7 +2527,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
   const t = list.filter(live).reduce((s, d) => { const a = amounts(d);
     return { net: R2(s.net + a.net), vat: R2(s.vat + a.vat), total: R2(s.total + a.total) }; }, { net: 0, vat: 0, total: 0 });
   const totalOpen = R2(list.reduce((s, d) => s + (openMap[d.id] || 0), 0));
-  const tiles = summaryTiles(type, state.docs.filter((d) => d.type === type && (!brF || branchOfRecord(state, d) === brF) && vis(d)), openMap);
+  const tiles = summaryTiles(type, state.docs.filter((d) => d.type === type && (!inBr || inBr(branchOfRecord(state, d))) && vis(d)), openMap);
 
   return (
     <div className="doc-list-view">
@@ -3511,10 +3512,10 @@ function PaymentsScreen({ state, setState, toast, create }) {
       date: TODAY, amount: "", method: m.id, account: m.account, memo: "" };
   };
   const pickMethod = (id) => setNw((p) => ({ ...p, method: id, account: MET[id] ? MET[id].account : p.account }));
-  const [brPick, setBrPick] = useState("");
-  const brF = LOCK_BRANCH || brPick;
+  const [brPick, setBrPick] = useState(() => REPORT_BRANCH_ID || "");
+  const brF = LOCK_BRANCH || (brIsAll(brPick) ? "" : brPick), inBr = brF ? brInSel(brF) : null;
   const list = state.payments.slice().sort((a, b) => b.date.localeCompare(a.date))
-    .filter((p) => !brF || branchOfPayment(state, p) === brF)
+    .filter((p) => !inBr || inBr(branchOfPayment(state, p)))
     .filter((p) => hits(q, p.number, PMAP[p.partner] ? PMAP[p.partner].name : "", p.memo,
       methodName(p.method), ACC[p.account] ? ACC[p.account].name : "", String(p.amount)));
   const rec = R2(list.filter((p) => p.kind === "in").reduce((s, p) => s + p.amount, 0));
@@ -6180,7 +6181,7 @@ function UsersScreen({ state, setState, me, setMe, toast, create, go }) {
   );
 }
 
-function SettingsScreen({ accent, setAccent, company, setCompany, theme, setTheme, density, setDensity, backup, restore, reset, startCompany, go, toast, books, state, fta, setFta, setCosting, setSettings, cloud, pwa, param, onAddCompany, navMode, setNavMode }) {
+function SettingsScreen({ accent, setAccent, modColors, setModColors, company, setCompany, theme, setTheme, density, setDensity, backup, restore, reset, startCompany, go, toast, books, state, fta, setFta, setCosting, setSettings, cloud, pwa, param, onAddCompany, navMode, setNavMode }) {
   const [d, setD] = useState(company);
   const dirty = JSON.stringify(d) !== JSON.stringify(company);
   /* A profile changed by cloud sync or another window replaces the form, unless you have unsaved edits. */
@@ -6383,6 +6384,9 @@ function SettingsScreen({ accent, setAccent, company, setCompany, theme, setThem
                 <div className="accent-picks" style={{ marginTop: 10 }}>{Object.entries(ACCENTS).map(([k, a]) => (
                   <button key={k} className={cx("accent-pick", accent === k && "on")} onClick={() => { setAccent(k); toast(`${a.name} colour theme`); }} aria-pressed={accent === k}>
                     <span className="ap-sw">{a.sw.map((c) => <i key={c} style={{ background: c }} />)}</span><b>{a.name}</b><span>{a.note}</span></button>))}</div></div>
+              {setModColors && <div className="setrow mod-row"><div className="st"><b>Module colours</b><span>Each module takes the colour of its icon — Sales blue, Purchase violet, Inventory orange, Accounting green. Home and the dashboard keep the colour theme</span>
+                <span className="mod-dots" aria-hidden="true">{Object.keys(MODULE_COLORS).map((k) => <i key={k} className="mod-dot" style={{ "--md": MODULE_COLORS[k].m }} />)}</span></div>
+                <button className="mod-sw" role="switch" aria-checked={modColors} aria-label="Module colours" onClick={() => { setModColors(!modColors); toast(modColors ? "One colour everywhere — the colour theme" : "Each module in the colour of its icon"); }}><Switch on={modColors} /></button></div>}
               <div className="setrow"><div className="st"><b>Theme</b><span>Follows your system on first run</span></div>
                 <div className="seg">{[["light", "Light"], ["dark", "Dark"]].map(([k, l]) => (
                   <button key={k} className={cx(theme === k && "on")} onClick={() => setTheme(k)}>{l}</button>))}</div></div>
@@ -6547,8 +6551,10 @@ function Invoeez() {
   const landing = appsNav ? "home" : "dash";
   const [view, setView] = useState(() => (readStr(NAVMODE_KEY) === "apps" ? "home" : "dash"));
   const [param, setParam] = useState(null);
-  const [period, setPeriod] = useState(() => ({ preset: "ytd", from: TODAY.slice(0,4)+"-01-01", to: TODAY, asOf: TODAY, ...cmpDefaults() }));
-  const [range, setRange] = useState({ preset: "ytd", from: TODAY.slice(0,4)+"-01-01", to: TODAY });
+  /* One branch selection for the dashboard and every report (3.25), remembered for this tab; a branch picked in another company opens with it. */
+  const [jump] = useState(readViewBranch);
+  const [period, setPeriod] = useState(() => ({ preset: "ytd", from: TODAY.slice(0,4)+"-01-01", to: TODAY, asOf: TODAY, ...cmpDefaults(), branch: jump.b }));
+  const [range, setRange] = useState({ preset: "ytd", from: TODAY.slice(0,4)+"-01-01", to: TODAY, branch: jump.b });
   const [toasts, setToasts] = useState([]);
   const [cmdk, setCmdk] = useState(false);
   const [create, setCreate] = useState(null);
@@ -6587,6 +6593,9 @@ function Invoeez() {
   });
   /* Each company keeps its own colour theme (3.19). */
   const [accent, setAccent] = useState(() => { const a = readStr(coKey(ACCENT_KEY)); return ACCENTS[a] ? a : "ocean"; });
+  /* 3.25: each module in the colour of its icon (on unless turned off on this device). */
+  const [modColors, setModColorsS] = useState(readModColors);
+  const setModColors = (on) => { setModColorsS(on); try { window.localStorage.setItem(MODCOLOR_KEY, on ? "on" : "off"); } catch (e) {} };
   React.useEffect(() => { try { window.localStorage.setItem(coKey(ACCENT_KEY), accent); document.documentElement.setAttribute("data-mz-accent", accent); } catch (e) {} }, [accent]);
   const [theme, setTheme] = useState(() => {
     try {
@@ -6611,13 +6620,15 @@ function Invoeez() {
   LOCK_BRANCH = meNow && (meNow.branchOnly || acc.branchOnly) && meNow.role !== "admin" && meNow.branch && BR[meNow.branch] && branchOn() ? meNow.branch : "";
   const [workBr, setWorkBr] = useState(() => readWorkBranch(me));
   React.useEffect(() => { setWorkBr(readWorkBranch(me)); }, [me]);
+  React.useEffect(() => { if (jump.work && me && BR[jump.b] && !LOCK_BRANCH) { saveWorkBranch(me, jump.b); setWorkBr(jump.b); } }, [me]);
   /* Reports and the dashboard can look at one branch; the VAT return, stock and statements stay company-wide. */
-  const rb = LOCK_BRANCH || (branchOn() && period.branch && BR[period.branch] ? period.branch : "");
-  const db = LOCK_BRANCH || (branchOn() && range.branch && BR[range.branch] ? range.branch : "");
+  const rb = LOCK_BRANCH || (branchOn() ? brNorm(period.branch) : "");
+  const db = LOCK_BRANCH || (branchOn() ? brNorm(range.branch) : "");
   const rbooks = useMemo(() => branchBooks(books, rb), [books, rb]), rstate = useMemo(() => branchState(state, rb), [state, rb]);
   const dbooks = useMemo(() => branchBooks(books, db), [books, db]), dstate = useMemo(() => branchState(state, db), [state, db]);
-  REPORT_BRANCH = rb ? BR[rb].name : ""; REPORT_BRANCH_ID = rb;
-  REPORT_SET_BRANCH = (b) => setPeriod((x) => ({ ...x, branch: b }));
+  REPORT_BRANCH = rb ? brLabel(rb) : ""; REPORT_BRANCH_ID = rb;
+  const setViewBranch = (b) => { const v = brNorm(b); setPeriod((x) => ({ ...x, branch: v })); setRange((x) => ({ ...x, branch: v })); saveViewBranch(v); };
+  REPORT_SET_BRANCH = setViewBranch;
   const palette = { ...PALETTE[theme], c1: ACCENTS[accent][theme === "dark" ? "c1d" : "c1"], c2: ACCENTS[accent][theme === "dark" ? "c2d" : "c2"] };
 
   React.useEffect(() => {
@@ -6628,7 +6639,8 @@ function Invoeez() {
     try { window.localStorage.setItem(CO_KEY, JSON.stringify(company)); } catch (e) {}
   }, [company]);
   /* The company list remembers each company's name, TRN, colour and number of branches, for the switcher. */
-  React.useEffect(() => { touchCompany(company, { accent, branches: (state.branches || []).length }); }, [company, accent, state.branches]);
+  React.useEffect(() => { touchCompany(company, { accent, branches: (state.branches || []).length,
+    brs: JSON.stringify((state.branches || []).filter((b) => b.active !== false).map((b) => ({ id: b.id, name: b.name, code: b.code || "", emirate: b.emirate || "" }))) }); }, [company, accent, state.branches]);
   React.useEffect(() => {
     try { window.localStorage.setItem(DENSITY_KEY, density); } catch (e) {}
   }, [density]);
@@ -6739,6 +6751,12 @@ function Invoeez() {
     saveWorkBranch(meUser.id, keep); setWorkBr(keep); setCoPop(null);
     if (b && BR[b]) toast(`Working in ${BR[b].name} — new records go there`);
   };
+  /* A branch picked in the company list: see its figures and work in it; "" is the whole company. */
+  const openBranch = (b) => {
+    setViewBranch(b); setCoPop(null);
+    if (b && BR[b]) { const keep = b !== (meUser.branch || defaultBranchId(state)) ? b : ""; saveWorkBranch(meUser.id, keep); setWorkBr(keep); toast(`${BR[b].name} — its figures, and new records go there`); }
+    else toast(`${company.name} — all branches`);
+  };
   const role = ROLES[meUser.role] || ROLES.viewer;
   const signOut = () => { setSwitching(false); setMenu(false); setMe(null); setView(landing); };
   const can = (p) => legacyCan(acc, p);
@@ -6767,6 +6785,7 @@ function Invoeez() {
   const viewAcc = { "data-noc": deny("create") ? "" : undefined, "data-noe": deny("edit") ? "" : undefined, "data-nod": deny("delete") ? "" : undefined,
     "data-nox": deny("export") ? "" : undefined, "data-nos": deny("send") ? "" : undefined };
   const appTone = curApp ? { "--a1": curApp.tone[0], "--a2": curApp.tone[1] } : undefined;
+  const modId = modColors ? moduleOf(view, curApp) : null;
   const openApp = (a) => { appRef.current = a.id; go(a.home); };
   const here = NAV_FLAT.find((i) => i.k === view) || (appOfView(view) && { l: appOfView(view).name + " overview", g: appOfView(view).name }) || { l: "Home", g: "Home" };
   const canAdd = (k) => allowedScreen(k) && screenCan(acc, k, "create");
@@ -6820,7 +6839,7 @@ function Invoeez() {
     switch (view) {
       case "home": return <AppsHome state={sState} whole={state} books={books} company={company} user={meUser} acc={acc} go={go} openApp={openApp} quickAdd={quickAdd} allowed={allowed} canAdd={canAdd} counts={counts}
         cmdItems={cmdItems} openSearch={() => setCmdk(true)} />;
-      case "dash": return <Dashboard state={dstate} whole={state} books={dbooks} go={go} newDoc={newDoc} range={range} setRange={setRange} user={meUser} canAdd={canAdd}
+      case "dash": return <Dashboard state={dstate} whole={state} wholeBooks={books} books={dbooks} go={go} newDoc={newDoc} range={range} setRange={setRange} setBranches={setViewBranch} user={meUser} canAdd={canAdd}
         setup={!state.sample && !(state.setup && state.setup.hidden) && <SetupProgress state={state} company={company} go={go} />} />;
       case "opening": return <OpeningScreen state={state} setState={setState} books={books} toast={toast} go={go} />;
       case "setup": return <SetupScreen state={state} setState={setState} books={books} company={company} go={go} newDoc={newDoc} toast={toast}
@@ -6850,7 +6869,7 @@ function Invoeez() {
       case "users": return <UsersScreen create={cr("users")} state={state} setState={setState} me={me} setMe={setMe} toast={toast} go={go} />;
       case "roles": return <RolesScreen create={cr("roles")} state={state} setState={setState} toast={toast} go={go} />;
       case "access_rules": return <AccessRulesScreen create={cr("access_rules")} state={state} setState={setState} toast={toast} go={go} />;
-      case "settings": return <SettingsScreen accent={accent} setAccent={setAccent} setCosting={(k) => setState((x) => ({ ...x, costing: k }))} setSettings={(patch) => setState((x) => ({ ...x, settings: { ...(x.settings || {}), ...patch } }))} fta={fta} setFta={setFta} company={company} setCompany={setCompany} theme={theme} setTheme={setTheme}
+      case "settings": return <SettingsScreen accent={accent} setAccent={setAccent} modColors={modColors} setModColors={setModColors} setCosting={(k) => setState((x) => ({ ...x, costing: k }))} setSettings={(patch) => setState((x) => ({ ...x, settings: { ...(x.settings || {}), ...patch } }))} fta={fta} setFta={setFta} company={company} setCompany={setCompany} theme={theme} setTheme={setTheme}
         density={density} setDensity={setDensity} backup={backup} restore={restore} reset={reset} startCompany={startCompany} go={go}
         toast={toast} books={books} state={state} cloud={cloud} pwa={pwa} param={param} onAddCompany={() => setAddingCo(true)} navMode={navMode} setNavMode={setNavMode} />;
       case "branches": return <BranchesScreen state={state} setState={setState} books={books} company={company} toast={toast} go={go} users={users} create={cr("branches")}
@@ -6879,7 +6898,7 @@ function Invoeez() {
     }
   };
 
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS + REFINE_CSS + DELIVERY_CSS + GROUP_CSS + APPS_CSS + COSTING_CSS + ACCESS_CSS + DASHDOC_CSS;
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS + REFINE_CSS + DELIVERY_CSS + GROUP_CSS + APPS_CSS + COSTING_CSS + ACCESS_CSS + DASHDOC_CSS + MODCOLOR_CSS;
   /* Nobody signed in in this tab: show the sign-in screen. */
   if (!meFound) return (
     <ThemeCtx.Provider value={palette}>
@@ -6895,7 +6914,7 @@ function Invoeez() {
   return (
     <ThemeCtx.Provider value={palette}>
     <CompanyCtx.Provider value={company}>
-    <div className={cx("mz", appsNav && view === "home" && "on-home")} data-theme={theme} data-accent={accent} data-density={density} data-nav={navMode} style={{ height: "100vh" }}
+    <div className={cx("mz", appsNav && view === "home" && "on-home")} data-theme={theme} data-accent={accent} data-density={density} data-nav={navMode} data-module={modId || undefined} style={{ height: "100vh" }}
       data-hidecost={acc.hideCost ? "" : undefined} data-hidebal={acc.fields.balance === "hide" ? "" : undefined} data-noexport={acc.noExport ? "" : undefined}
       data-noimport={acc.buttons.has("import") ? "" : undefined} data-nosearch={acc.noSearch ? "" : undefined}>
       <style>{ALL_CSS}</style>
@@ -6904,7 +6923,8 @@ function Invoeez() {
         onDone={(b, prof, acc) => { const r = createCompany(b, prof, acc); if (r.error) toast(r.error, "warn"); else { setAddingCo(false); toast(`${prof.name} created — opening it`); } }} />}
       {coPop && <CompanySwitcher company={company} accent={accent} at={coPop} close={() => setCoPop(null)} add={() => { setCoPop(null); setAddingCo(true); }}
         manage={() => { setCoPop(null); go(allowed("companies") ? "companies" : "settings", allowed("companies") ? undefined : "__companies__"); }}
-        work={branchOn() ? homeBranch(state) : ""} setWork={setWork} home={meUser.branch || defaultBranchId(state)} />}
+        work={branchOn() ? homeBranch(state) : ""} setWork={setWork} home={meUser.branch || defaultBranchId(state)} view={db} setView={setViewBranch} onBranch={openBranch}
+        branches={allowed("branches") ? () => { setCoPop(null); go("branches"); } : null} />}
       {cmdk && <CommandPalette items={cmdItems} close={() => setCmdk(false)} run={(i) => i.act()} />}
       <Toasts items={toasts} dismiss={dismissToast} />
 
@@ -6913,7 +6933,7 @@ function Invoeez() {
       {!appsNav && <Sidebar view={view} go={go} quickAdd={quickAdd} allowed={allowed} counts={counts} closed={closed} setClosed={setClosed}
         mini={mini} setMini={setMini} drawer={drawer} company={company} meUser={meUser} role={role}
         canAdd={canAdd} onSwitchUser={() => setSwitching(true)} onSignOut={signOut}
-        branch={branchOn() ? branchName(homeBranch(state)) : ""} onCompany={openCoPop} />}
+        branch={branchOn() ? brLabel(db) : ""} onCompany={openCoPop} />}
       {keysOpen && <ShortcutSheet allowed={allowed} canAdd={canAdd} close={() => setKeysOpen(false)} />}
       <ChordHint chord={chord} allowed={allowed} canAdd={canAdd} />
       {switching && <SwitchUserDialog users={users} me={me} isAdmin={can("settings")} go={go} close={() => setSwitching(false)} onSignOut={signOut}
@@ -6966,11 +6986,11 @@ function Invoeez() {
             </button>
           </div>
           <span className="tb-div" />
-          <button className="coswitch" onClick={(e) => openCoPop(e.currentTarget)} title="Companies — switch or add" aria-haspopup="dialog">
+          <button className={cx("coswitch", (branchOn() || companyList().length > 1) && "ctx")} onClick={(e) => openCoPop(e.currentTarget)} title="Companies and branches — switch or add" aria-haspopup="dialog">
             {company.logo ? <img src={company.logo} alt="" style={{ width: 26, height: 26, borderRadius: 7, objectFit: "contain", background: "#fff" }} />
               : <span className="gt sm" style={{ width: 26, height: 26, flexBasis: 26, borderRadius: 7 }}>
                   <Building2 size={14} strokeWidth={2} /></span>}
-            <span className="cx"><b>{company.name}</b><span>{branchOn() ? branchName(homeBranch(state)) : "Company"}</span></span>
+            <span className="cx"><b>{company.name}</b><span>{branchOn() ? brLabel(db) : "Company"}</span></span>
             <ChevronDown size={14} strokeWidth={2} style={{ opacity: .55 }} /></button>
           <button className="userchip" onClick={() => setMenu(true)} aria-label="Account menu">
             <span className="me">{initials(meUser.name)}</span>

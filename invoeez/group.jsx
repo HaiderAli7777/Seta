@@ -166,22 +166,43 @@ function tagBranches(state, entries) {
     e.branch = ok(e.docId ? bd.get(e.docId) : e.payId ? bp.get(e.payId) : e.stockOpId ? bo.get(e.stockOpId) : e.pdcId ? bc.get(e.pdcId) : e.branch);
   });
 }
+/* A branch selection (3.25): "" for the whole company, one branch id, or several ids joined with commas. */
+const brList = (v) => [...new Set(String(v || "").split(",").filter((id) => BR[id]))];
+const brIsAll = (v) => { const l = brList(v); return !l.length || l.length >= BRANCHES.length; };
+const brNorm = (v) => (brIsAll(v) ? "" : BRANCHES.map((b) => b.id).filter((id) => brList(v).includes(id)).join(","));
+const brLabel = (v) => { const l = brList(v); return brIsAll(v) ? "All branches" : l.length === 1 ? BR[l[0]].name : l.length === 2 ? `${BR[l[0]].name} + ${BR[l[1]].name}` : `${l.length} branches`; };
+const brInSel = (v) => { const set = new Set(brList(v)); return (id) => set.has(id); };
 function branchBooks(books, b) {
-  if (!b) return books;
-  const entries = books.entries.filter((e) => e.branch === b), flat = books.flat.filter((l) => l.branch === b);
+  if (!b || brIsAll(b)) return books;
+  const inSel = brInSel(b);
+  const entries = books.entries.filter((e) => inSel(e.branch)), flat = books.flat.filter((l) => inSel(l.branch));
   const totalD = R2(flat.reduce((s, l) => s + l.debit, 0)), totalC = R2(flat.reduce((s, l) => s + l.credit, 0));
   return { ...books, entries, flat, totalD, totalC, balanced: Math.abs(totalD - totalC) < 0.01, branch: b };
 }
 /* Transactions of one branch. A payment against a document follows that document, so what a customer owes a branch is right. */
 function branchState(state, b) {
-  if (!b) return state;
+  if (!b || brIsAll(b)) return state;
+  const inSel = brInSel(b);
   const DEF = defaultBranchId(state), of = (x) => (x.branch && (state.branches || []).some((y) => y.id === x.branch) ? x.branch : DEF);
   const docB = new Map(state.docs.map((d) => [d.id, of(d)]));
-  const mine = (x) => of(x) === b;
+  const mine = (x) => inSel(of(x));
   return { ...state, docs: state.docs.filter(mine), manual: state.manual.filter(mine), stockOps: (state.stockOps || []).filter(mine),
-    payments: state.payments.filter((p) => (p.doc && docB.has(p.doc) ? docB.get(p.doc) : of(p)) === b),
-    pdcs: (state.pdcs || []).filter((c) => (c.doc && docB.has(c.doc) ? docB.get(c.doc) : of(c)) === b) };
+    payments: state.payments.filter((p) => inSel(p.doc && docB.has(p.doc) ? docB.get(p.doc) : of(p))),
+    pdcs: (state.pdcs || []).filter((c) => inSel(c.doc && docB.has(c.doc) ? docB.get(c.doc) : of(c))) };
 }
+/* The branch selection lasts for this browser tab, per company; a branch picked in another company's list opens with it. */
+const viewKey = () => coKey("mizan.viewBranch");
+function readViewBranch() {
+  try {
+    const jump = JSON.parse(window.sessionStorage.getItem("mizan.openBranch") || "null");
+    if (jump && jump.co === activeCompanyId()) { window.sessionStorage.removeItem("mizan.openBranch"); window.sessionStorage.setItem(viewKey(), jump.b || ""); return { b: jump.b || "", work: !!jump.b }; }
+    return { b: window.sessionStorage.getItem(viewKey()) || "", work: false };
+  } catch (e) { return { b: "", work: false }; }
+}
+function saveViewBranch(v) { try { if (v) window.sessionStorage.setItem(viewKey(), v); else window.sessionStorage.removeItem(viewKey()); } catch (e) {} }
+function openCompanyBranch(co, b) { try { window.sessionStorage.setItem("mizan.openBranch", JSON.stringify({ co, b })); } catch (e) {} switchCompany(co); }
+/* The registry keeps each company's branch names, so the switcher can list them without opening the company. */
+const registryBranches = (c) => { try { const l = JSON.parse(c.brs || "[]"); return Array.isArray(l) ? l : []; } catch (e) { return []; } };
 
 /* ------------------------------------------------------------- controls */
 function BranchField({ value, onChange, disabled, label = "Branch", span, free }) {
@@ -193,40 +214,74 @@ function BranchField({ value, onChange, disabled, label = "Branch", span, free }
     {BRANCHES.filter((b) => b.active !== false || b.id === v).map((b) => <option key={b.id} value={b.id}>{b.name + (b.code ? " · " + b.code : "")}</option>)}
   </Select></Field>;
 }
+/* Branches to look at: all of them, one, or several (3.25). */
 function BranchPick({ value, onChange, dark }) {
+  /* The list is placed on the screen, under the button, so a card's edge never cuts it off. */
+  const [open, setOpenS] = useState(null);
+  const setOpen = (f) => setOpenS((cur) => { const want = typeof f === "function" ? f(!!cur) : f; return want ? cur || true : null; });
   if (!branchOn()) return null;
   if (LOCK_BRANCH && BR[LOCK_BRANCH]) return <div className={cx("br-pick locked", dark && "dark")} title="You see your own branch only"><Lock size={13} /><span>{BR[LOCK_BRANCH].name}</span></div>;
-  return <div className={cx("br-pick", dark && "dark")}><Store size={14} />
-    <Select value={value || ""} aria-label="Branch" onChange={(e) => onChange(e.target.value)}>
-      <option value="">All branches</option>
-      {BRANCHES.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-    </Select></div>;
+  const all = brIsAll(value), sel = all ? BRANCHES.map((b) => b.id) : brList(value);
+  const set = (l) => onChange(brNorm(l.join(",")));
+  const toggle = (id) => { const next = sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id]; if (next.length) set(next); };
+  return <div className={cx("br-pick", dark && "dark", !all && "some")}>
+    <button className="br-btn" aria-haspopup="listbox" aria-expanded={!!open} aria-label="Branches" onClick={(e) => { if (open) return setOpenS(null);
+      const r = e.currentTarget.getBoundingClientRect(), w = Math.min(300, window.innerWidth - 24), right = r.left + w > window.innerWidth - 12;
+      setOpenS({ top: Math.min(r.bottom + 6, window.innerHeight - 200), left: right ? Math.max(12, r.right - w) : Math.max(12, r.left), width: w }); }}>
+      <Store size={14} /><span className="br-l">{brLabel(value)}</span>{!all && <em>{sel.length}/{BRANCHES.length}</em>}<ChevronDown size={13} /></button>
+    {open && <><div className="pop-scrim" onMouseDown={() => setOpen(false)} />
+      <div className="br-menu" role="listbox" aria-multiselectable="true" aria-label="Branches" style={open && open.top != null ? { top: open.top, left: open.left, width: open.width } : undefined}>
+        <button role="option" aria-selected={all} className={cx("br-opt all", all && "on")} onClick={() => { onChange(""); setOpen(false); }}>
+          <span className="br-cb">{all && <Check size={12} strokeWidth={3} />}</span><span className="br-t"><b>All branches</b><small>The whole company · {BRANCHES.length} branches</small></span></button>
+        <div className="br-sep" />
+        {BRANCHES.map((b) => { const on = sel.includes(b.id);
+          return <div key={b.id} className="br-row">
+            <button role="option" aria-selected={!all && on} className={cx("br-opt", on && "on")} onClick={() => toggle(b.id)} title={on && sel.length === 1 ? "At least one branch stays selected" : ""}>
+              <span className="br-cb">{on && <Check size={12} strokeWidth={3} />}</span><span className="br-t"><b>{b.name}</b><small>{[b.code, b.emirate, b.active === false ? "closed" : ""].filter(Boolean).join(" · ")}</small></span></button>
+            <button className="br-only" onClick={() => { onChange(b.id); setOpen(false); }} title={`Only ${b.name}`}>Only</button></div>; })}
+        <div className="br-foot">{all ? "Tick off the branches to leave out" : `${sel.length} of ${BRANCHES.length} branches`}<button className="linkish" onClick={() => setOpen(false)}>Done</button></div>
+      </div></>}
+  </div>;
 }
 
 /* --------------------------------------------------- company switcher */
-/* The menu's company card opens this: every company with its colour, the working branch, and Add / Manage. */
-function CompanySwitcher({ company, accent, close, add, manage, at, work, setWork, home }) {
+/* The menu's company card opens this: every company with its branches underneath. A branch of the open company shows its
+   figures and becomes the working branch; a branch of another company opens that company on it (3.25). */
+function CompanySwitcher({ company, accent, close, add, manage, branches, at, work, setWork, home, view = "", setView, onBranch }) {
   const all = companyList(), active = activeCompanyId();
   const [q, setQ] = useState("");
-  const list = all.filter((c) => !q || hits(q, c.id === active ? company.name : c.name, c.trn, c.emirate));
-  const brs = branchOn() && !LOCK_BRANCH ? BRANCHES.filter((b) => b.active !== false) : [];
+  const list = all.filter((c) => !q || hits(q, c.id === active ? company.name : c.name, c.trn, c.emirate, ...registryBranches(c).map((b) => b.name)));
   const logoOf = (c, on) => (on ? company.logo : c.logo ? (readJSONKey(coKey("mizan.company", c.id)) || {}).logo : "");
+  const viewAll = brIsAll(view), viewOne = !viewAll && brList(view).length === 1 ? brList(view)[0] : "";
+  const pickBranch = (id) => { if (onBranch) onBranch(id); else { if (setView) setView(id); if (id) setWork(id); } close(); };
   return <><div className="pop-scrim" onMouseDown={close} />
-    <div className="co-pop" role="dialog" aria-label="Companies" style={at}>
-      <header><b>Companies</b><small>Each company has its own books, users and VAT settings</small></header>
-      {all.length > 4 && <label className="co-search"><Search size={14} /><input autoFocus placeholder="Find a company" aria-label="Find a company" value={q} onChange={(e) => setQ(e.target.value)} /></label>}
+    <div className="co-pop" role="dialog" aria-label="Companies and branches" style={at}>
+      <header><b>Companies & branches</b><small>Open a company, then the branch whose figures you want</small></header>
+      {(all.length > 4 || all.reduce((n, c) => n + registryBranches(c).length, 0) > 8) && <label className="co-search"><Search size={14} /><input autoFocus placeholder="Find a company or branch" aria-label="Find a company or branch" value={q} onChange={(e) => setQ(e.target.value)} /></label>}
       <div className="co-list">{list.map((c) => {
         const on = c.id === active, nm = on ? company.name : c.name, trn = on ? company.trn : c.trn, logo = logoOf(c, on);
-        return <button key={c.id} className={cx("co-row", on && "on")} onClick={() => { if (!on) switchCompany(c.id); else close(); }}>
-          {logo ? <img className="co-av img" src={logo} alt="" /> : <span className="co-av" style={{ "--co": on ? accentTag(accent) : coColor(c) }}>{initials(nm)}</span>}
-          <span className="co-t"><b>{nm}</b><small>{trn ? "TRN " + trn : "Not VAT registered"}{c.emirate ? " · " + c.emirate : ""}{c.branches > 1 ? ` · ${c.branches} branches` : ""}</small></span>
-          {on ? <Pill tone="ok">Open</Pill> : <ArrowRight size={15} />}</button>; })}
-        {!list.length && <div className="co-none">No company matches “{q}”</div>}</div>
-      {brs.length > 1 && <div className="co-work">
-        <div className="co-work-h"><MapPin size={13} /><b>Working in</b><small>New records go to this branch</small></div>
-        <div className="co-work-list" role="radiogroup" aria-label="Working branch">{brs.map((b) => <button key={b.id} role="radio" aria-checked={work === b.id}
-          className={cx("co-wb", work === b.id && "on")} onClick={() => setWork(b.id)}>{work === b.id && <Check size={12} />}{b.name}{b.id === home && <em>home</em>}</button>)}</div></div>}
-      <footer><Btn size="sm" kind="pri" icon={Plus} onClick={add}>Add a company</Btn><button className="linkish" onClick={manage}>Manage companies</button></footer>
+        const brs = on ? BRANCHES.filter((b) => b.active !== false) : registryBranches(c);
+        return <div key={c.id} className={cx("co-grp", on && "on")} data-company={c.id}>
+          <button className={cx("co-row", on && "on")} onClick={() => { if (!on) switchCompany(c.id); else { if (setView && !LOCK_BRANCH) setView(""); close(); } }}>
+            {logo ? <img className="co-av img" src={logo} alt="" /> : <span className="co-av" style={{ "--co": on ? accentTag(accent) : coColor(c) }}>{initials(nm)}</span>}
+            <span className="co-t"><b>{nm}</b><small>{trn ? "TRN " + trn : "Not VAT registered"}{c.emirate ? " · " + c.emirate : ""}{brs.length > 1 ? ` · ${brs.length} branches` : ""}</small></span>
+            {on ? <Pill tone="ok">Open</Pill> : <ArrowRight size={15} />}</button>
+          {brs.length > 1 && <div className="co-tree" role="group" aria-label={`Branches of ${nm}`}>
+            {on && LOCK_BRANCH && BR[LOCK_BRANCH] ? <div className="co-br on locked"><Lock size={13} /><span className="co-bt"><b>{BR[LOCK_BRANCH].name}</b><small>You work in this branch only</small></span></div> : <>
+              {on && <button className={cx("co-br all", viewAll && "on")} onClick={() => pickBranch("")}><Layers size={13} />
+                <span className="co-bt"><b>All branches</b><small>The whole company's figures</small></span>{viewAll && <Check size={14} strokeWidth={2.6} />}</button>}
+              {brs.map((b) => { const sel = on && viewOne === b.id, some = on && !viewAll && !viewOne && brList(view).includes(b.id);
+                return <button key={b.id} className={cx("co-br", sel && "on", some && "some")} data-branch={b.id} onClick={() => (on ? pickBranch(b.id) : openCompanyBranch(c.id, b.id))}>
+                  <Store size={13} /><span className="co-bt"><b>{b.name}</b><small>{[b.code, b.emirate].filter(Boolean).join(" · ") || "Branch"}</small></span>
+                  {on && work === b.id && <em className="co-here" title="New records go to this branch">Working here</em>}
+                  {on && b.id === home && work !== b.id && <em className="co-home">Home</em>}
+                  {sel || some ? <Check size={14} strokeWidth={2.6} /> : !on ? <ArrowRight size={13} /> : null}</button>; })}
+              {on && !viewAll && !viewOne && <div className="co-sel-note"><Layers size={12} />Showing {brLabel(view)} — pick one branch or all of them above</div>}</>}
+          </div>}
+        </div>; })}
+        {!list.length && <div className="co-none">Nothing matches “{q}”</div>}</div>
+      <footer><Btn size="sm" kind="pri" icon={Plus} onClick={add}>Add a company</Btn>
+        <span className="co-links">{branches && <button className="linkish" onClick={branches}>Branches</button>}<button className="linkish" onClick={manage}>Companies</button></span></footer>
     </div></>;
 }
 
@@ -657,15 +712,46 @@ function GroupReport({ state, books, company, p, setP, toast, onAdd }) {
 }
 
 const GROUP_CSS = `
-.br-pick{display:inline-flex;align-items:center;gap:7px;min-width:190px}
+.br-pick{position:relative;display:inline-flex;align-items:center;gap:7px}
+.mz .br-btn{display:inline-flex;align-items:center;gap:7px;height:34px;max-width:260px;padding:0 10px 0 11px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;font-weight:600;color:var(--ink-2);transition:border-color .15s,box-shadow .15s}
+.mz .br-btn:hover{border-color:color-mix(in srgb,var(--brand) 40%,var(--line))}
+.br-btn>svg{color:var(--ink-4);flex:0 0 auto}.br-l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.br-btn em{font-style:normal;font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:999px;background:var(--brand-50);color:var(--brand)}
+.br-pick.some .br-btn{border-color:color-mix(in srgb,var(--brand) 45%,var(--line));box-shadow:0 0 0 3px var(--brand-50)}.br-pick.some .br-btn>svg:first-child{color:var(--brand)}
+.br-menu{position:fixed;z-index:950;width:300px;max-height:min(420px,calc(100vh - 120px));overflow:auto;padding:6px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-3);animation:du-pop .14s ease-out}
+.br-opt{display:flex;align-items:center;gap:10px;flex:1;min-width:0;padding:7px 8px;border-radius:9px;text-align:left;color:var(--ink)}
+.br-opt:hover{background:var(--surface-2)}
+.br-cb{width:18px;height:18px;flex:0 0 18px;display:grid;place-items:center;border-radius:6px;border:1.5px solid var(--line);background:var(--surface);color:#fff;transition:background .15s,border-color .15s}
+.br-opt.on .br-cb{background:var(--brand);border-color:var(--brand)}
+.br-t{min-width:0}.br-t b{display:block;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.br-t small{display:block;font-size:11px;color:var(--ink-4)}
+.br-row{display:flex;align-items:center;gap:4px}.br-only{flex:0 0 auto;font-size:11px;font-weight:600;color:var(--brand);padding:4px 8px;border-radius:7px;opacity:0;transition:opacity .15s,background .15s}
+.br-row:hover .br-only,.br-only:focus-visible{opacity:1}.br-only:hover{background:var(--brand-50)}
+.br-sep{height:1px;background:var(--line-2);margin:4px 6px}
+.br-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 8px 4px;margin-top:4px;border-top:1px solid var(--line-2);font-size:11.5px;color:var(--ink-3)}
+.br-pick.dark .br-btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);color:#fff}.br-pick.dark .br-btn>svg{color:rgba(255,255,255,.8)}
+@media(max-width:650px){.br-only{opacity:1}}
 .br-pick>svg{color:var(--ink-3);flex:0 0 auto}
 .br-pick .inp.sel{min-width:160px}
 .br-pick.dark>svg{color:rgba(255,255,255,.8)}
 .br-pick.dark .inp.sel{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.18);color:#fff}
-.co-pop{position:fixed;z-index:1300;width:340px;max-width:calc(100vw - 24px);background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh-3);overflow:hidden;animation:ntIn .22s cubic-bezier(.22,1,.36,1) both}
+.co-pop{position:fixed;z-index:1300;width:372px;max-width:calc(100vw - 24px);background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh-3);overflow:hidden;animation:ntIn .22s cubic-bezier(.22,1,.36,1) both}
 .co-pop header{padding:14px 16px 10px;border-bottom:1px solid var(--line-2)}
 .co-pop header b{display:block;font-size:14px;color:var(--ink)}.co-pop header small{display:block;font-size:12px;color:var(--ink-3);margin-top:2px}
-.co-list{max-height:320px;overflow:auto;padding:6px}
+.co-list{max-height:min(460px,calc(100vh - 220px));overflow:auto;padding:6px;display:flex;flex-direction:column;gap:4px}
+.co-grp{border-radius:13px;transition:background .2s}.co-grp.on{background:color-mix(in srgb,var(--brand-50) 55%,transparent);box-shadow:inset 0 0 0 1px var(--brand-100)}
+.co-grp.on>.co-row{background:transparent}
+.co-tree{position:relative;margin:0 6px 6px 27px;padding-left:14px;display:flex;flex-direction:column;gap:2px}
+.co-tree::before{content:"";position:absolute;left:0;top:0;bottom:16px;width:2px;border-radius:2px;background:var(--line)}
+.co-br{position:relative;display:flex;align-items:center;gap:9px;width:100%;min-height:38px;padding:5px 9px;border-radius:9px;text-align:left;color:var(--ink-2);transition:background .15s,color .15s}
+.co-br::before{content:"";position:absolute;left:-14px;top:50%;width:11px;height:2px;border-radius:2px;background:var(--line)}
+.co-br:hover{background:var(--surface-2)}.co-br>svg{color:var(--ink-4);flex:0 0 auto}
+.co-br.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(16,24,40,.06),inset 0 0 0 1px var(--brand-100)}.co-br.on>svg,.co-br.some>svg:last-child{color:var(--brand)}
+.co-br.on::before{background:var(--brand)}.co-br.locked{cursor:default}
+.co-bt{flex:1;min-width:0}.co-bt b{display:block;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.co-bt small{display:block;font-size:11px;color:var(--ink-4)}
+.co-here,.co-home{flex:0 0 auto;font-style:normal;font-size:10px;font-weight:700;letter-spacing:.03em;padding:2px 7px;border-radius:999px;background:var(--pos-50);color:var(--pos)}
+.co-home{background:var(--surface-3);color:var(--ink-3)}
+.co-sel-note{display:flex;align-items:center;gap:6px;padding:6px 9px 2px;font-size:11px;color:var(--ink-3)}
+.co-links{display:flex;align-items:center;gap:14px;white-space:nowrap}.co-links .linkish{font-size:12.5px;font-weight:600}
 .co-row{display:flex;align-items:center;gap:11px;width:100%;padding:9px 10px;border-radius:11px;text-align:left;transition:background .15s}
 .co-row:hover{background:var(--surface-2)}.co-row.on{background:var(--brand-50)}
 .co-row svg{color:var(--ink-3)}

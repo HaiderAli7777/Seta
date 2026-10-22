@@ -48,13 +48,13 @@ function periodSteps(range) {
 }
 
 /* Header and progress bar — the dashboard's "document header". */
-function DashDocHead({ user, company, range, setRange, P, prior, comparable, drafts, low, balanced, go, newDoc, canAdd = () => true, bars = [] }) {
+function DashDocHead({ user, company, range, setRange, setBranches, branchRows = [], P, prior, comparable, drafts, low, balanced, go, newDoc, canAdd = () => true, bars = [] }) {
   const [more, setMore] = useState(false);
   const d = comparable && Math.abs(prior.net) > 0.004 ? ((P.net - prior.net) / Math.abs(prior.net)) * 100 : null;
   const dayName = new Date(TODAY + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" });
   const yr = TODAY.slice(0, 4), elapsed = daysBetween(yr + "-01-01", range.to) + 1, yearDays = daysBetween(yr + "-01-01", yr + "-12-31") + 1;
   const pace = range.preset === "ytd" && P.revenue > 0.004 && elapsed >= 30 ? (P.revenue / elapsed) * yearDays : null;
-  const branch = LOCK_BRANCH || range.branch, steps = periodSteps(range);
+  const branch = LOCK_BRANCH || range.branch, steps = periodSteps(range), chips = branchOn() && !LOCK_BRANCH && setBranches;
   const setPreset = (key) => { const [f, t] = PRESETS.find((x) => x[0] === key)[2](); setRange({ ...range, preset: key, from: f, to: t }); };
   const quick = [["invoices", "New invoice", FileText, () => newDoc("invoice")], ["bills", "New vendor bill", ShoppingCart, () => newDoc("bill")],
     ["payments", "Receive a payment", ArrowDownLeft, () => go("payments")], ["stock_count", "Count stock", Boxes, () => go("stock_count")]].filter(([k]) => canAdd(k));
@@ -63,7 +63,7 @@ function DashDocHead({ user, company, range, setRange, P, prior, comparable, dra
     <header className="ds-head">
       <div className="ds-deco" aria-hidden="true"><i className="g1" /><i className="g2" /><i className="gr" /></div>
       <div className="ds-id">
-        <div className="ds-crumb"><span className="ds-live"><i />Live</span><span className="micro">Company dashboard · {company.name}{branch && BR[branch] ? " · " + BR[branch].name : ""}</span></div>
+        <div className="ds-crumb"><span className="ds-live"><i />Live</span><span className="micro">Company dashboard · {company.name}{branchOn() ? " · " + brLabel(branch) : ""}</span></div>
         <h1><span className="ds-title">{periodTitle(range)}</span>
           <span className={cx("ds-state", balanced ? "ok" : "warn")} title={balanced ? "Every journal balances" : "Some entries do not balance — see the trial balance"}><i />{balanced ? "Books balanced" : "Books need review"}</span></h1>
         <div className="ds-sub">
@@ -93,7 +93,7 @@ function DashDocHead({ user, company, range, setRange, P, prior, comparable, dra
         <div className="seg ds-seg" aria-label="Dashboard period">{[["mtd", "Month"], ["qtd", "Quarter"], ["ytd", "Year"], ["d365", "12 months"]].map(([key, l]) =>
           <button key={key} className={range.preset === key ? "on" : ""} onClick={() => setPreset(key)}>{l}</button>)}</div>
         <RangePicker value={range} onChange={(r) => setRange({ ...range, ...r })} />
-        <BranchPick value={range.branch} onChange={(b) => setRange({ ...range, branch: b })} />
+        {!chips && <BranchPick value={range.branch} onChange={(b) => (setBranches ? setBranches(b) : setRange({ ...range, branch: b }))} />}
         <div className="ds-more">
           <Btn icon={MoreHorizontal} aria-haspopup="menu" aria-expanded={more} onClick={() => setMore((v) => !v)}>More</Btn>
           {more && <><div className="pop-scrim" onMouseDown={() => setMore(false)} />
@@ -107,7 +107,59 @@ function DashDocHead({ user, company, range, setRange, P, prior, comparable, dra
         {quick.some(([k]) => k === "invoices") && <Btn kind="pri" icon={Plus} onClick={() => newDoc("invoice")}>New invoice</Btn>}
       </div>
     </div>
+    {chips && <BranchChips value={range.branch} rows={branchRows} onChange={setBranches} />}
   </div>;
+}
+
+/* The company's branches as chips under the progress, with each one's sales: click one to see it alone, then add others (3.25). */
+const BRANCH_TONES = ["var(--k1)", "var(--k2)", "var(--k3)", "var(--k4)", "var(--k5)"];
+function BranchChips({ value, rows, onChange }) {
+  const all = brIsAll(value), sel = brList(value), total = rows.reduce((t, r) => t + r.revenue, 0);
+  const toggle = (id) => { if (all) return onChange(id); const next = sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id]; onChange(next.length ? next.join(",") : ""); };
+  return <div className="ds-brs" role="group" aria-label="Branches to show">
+    <span className="ds-brs-l"><Store size={14} />Branches</span>
+    <button className={cx("ds-br all", all && "on")} aria-pressed={all} onClick={() => onChange("")}><span className="dot" /><b>All</b><small>AED {short(total)}</small></button>
+    {BRANCHES.map((b, i) => { const on = !all && sel.includes(b.id), r = rows.find((x) => x.id === b.id) || { revenue: 0 };
+      return <button key={b.id} className={cx("ds-br", on && "on")} data-branch={b.id} aria-pressed={on} onClick={() => toggle(b.id)} style={{ "--bc": BRANCH_TONES[i % 5] }}
+        title={all ? `Show ${b.name} only` : on ? `Leave out ${b.name}` : `Add ${b.name}`}>
+        <span className="dot" /><b>{b.name}</b><small>AED {short(r.revenue)}{total > 0.004 ? ` · ${Math.round((r.revenue / total) * 100)}%` : ""}</small></button>; })}
+    <span className="ds-brs-hint">{all ? "Click a branch to see it on its own" : `${brLabel(value)} · click to add or leave out`}</span>
+  </div>;
+}
+
+/* Every branch side by side for the period, whichever are shown above (3.25). */
+function DashBranches({ rows, value, onChange, from, to, go }) {
+  const t = rows.reduce((a, r) => ({ revenue: a.revenue + r.revenue, gross: a.gross + r.gross, net: a.net + r.net, ar: a.ar + r.ar }), { revenue: 0, gross: 0, net: 0, ar: 0 });
+  const all = brIsAll(value), sel = brList(value), best = rows.slice().sort((a, b) => b.net - a.net)[0];
+  const pc = (a, b) => (Math.abs(b) > 0.004 ? ((a / b) * 100).toFixed(1) + "%" : "—");
+  return <>
+    {best && best.net > 0.004 && <Insight><b>{best.name}</b> made the most profit: <b>AED {money(best.net, false)}</b> on sales of AED {money(best.revenue, false)} ({best.nm.toFixed(1)}% net margin). All branches together: sales AED {money(t.revenue, false)}, net profit AED {money(t.net, false)}.</Insight>}
+    <div className="dash-row r1">
+      <Card className="ds-br-card" title="Branches side by side" sub={`${dmy(from)} – ${dmy(to)} · AED · the ticked ones are on the dashboard`} pad={false}>
+        <div className="tbl-wrap"><table className="tbl ds-lines ds-br-tbl">
+          <thead><tr><th>Branch</th><th className="n">Sales</th><th>Share of sales</th><th className="n cost-data">Gross profit</th><th className="n">Net profit</th><th className="n">Margin</th><th className="n">To collect</th><th /></tr></thead>
+          <tbody>{rows.map((r, i) => { const on = all || sel.includes(r.id), share = t.revenue > 0.004 ? (r.revenue / t.revenue) * 100 : 0;
+            return <tr key={r.id} className={cx(on && "on")} data-branch={r.id} style={{ "--bc": BRANCH_TONES[i % 5], "--i": i }}>
+              <td><span className="ds-bn"><i className="dot" /><span><b>{r.name}</b><small>{[r.code, r.emirate].filter(Boolean).join(" · ") || "Branch"}</small></span></span></td>
+              <td className="n"><b>{money(r.revenue, false)}</b></td>
+              <td><span className="ds-share"><span><i style={{ width: share + "%" }} /></span><small>{share.toFixed(0)}%</small></span></td>
+              <td className="n cost-data">{money(r.gross, false)}</td><td className={cx("n", r.net < -0.004 ? "neg" : "pos")}><b>{money(r.net, false)}</b></td>
+              <td className="n">{pc(r.net, r.revenue)}</td><td className="n">{money(r.ar, false)}</td>
+              <td className="r"><Btn size="sm" onClick={() => onChange(r.id)} disabled={!all && sel.length === 1 && sel[0] === r.id}>{!all && sel.length === 1 && sel[0] === r.id ? "Shown" : "Show only"}</Btn></td></tr>; })}</tbody>
+          <tfoot><tr><td>All branches</td><td className="n">{money(t.revenue, false)}</td><td /><td className="n cost-data">{money(t.gross, false)}</td>
+            <td className={cx("n", t.net < -0.004 ? "neg" : "pos")}>{money(t.net, false)}</td><td className="n">{pc(t.net, t.revenue)}</td><td className="n">{money(t.ar, false)}</td>
+            <td className="r">{!all && <Btn size="sm" onClick={() => onChange("")}>Show all</Btn>}</td></tr></tfoot>
+        </table></div>
+      </Card>
+    </div>
+    <div className="dash-row r21">
+      <VizCard title="Sales and net profit by branch" sub="Hover a branch for its figures" legend={[{ name: "Sales", color: "var(--s1)" }, { name: "Net profit", color: "var(--s3)" }]}>
+        <ColumnChart data={rows.map((r) => ({ label: r.code || r.name, full: r.name, revenue: r.revenue, net: r.net }))} height={250}
+          series={[{ key: "revenue", name: "Sales", color: "var(--s1)" }, { key: "net", name: "Net profit", color: "var(--s3)" }]} ariaLabel="Sales and net profit by branch" />
+      </VizCard>
+      <VizCard className="ds-br-meters" title="Share of sales" sub="Each branch's part of the company's sales"><ShareMeters items={rows.map((r) => ({ id: r.id, name: r.name, r }))} total={t.revenue} /></VizCard>
+    </div>
+  </>;
 }
 
 /* Net profit period by period, as small white columns under the bottom line (losses hang below the line). */
@@ -118,17 +170,18 @@ function NetBars({ bars }) {
 }
 
 /* A key figure as a labelled field: label above, the value in a box, a note below — like the fields of a document. */
-function DashField({ label, value, sub, delta, goodUp = true, spark, color = "var(--s1)", tone, meter, meterTone, onClick, cls, icon: I }) {
+function DashField({ label, value, sub, delta, goodUp = true, spark, color, tone, meter, meterTone, onClick, cls, icon: I, mod }) {
   const dir = delta == null ? 0 : delta > 0.05 ? 1 : delta < -0.05 ? -1 : 0, good = dir === 0 ? null : (dir > 0) === goodUp;
-  return <button className={cx("ds-field", tone, cls)} onClick={onClick}>
-    <span className="ds-fl">{I && <I size={13} />}{label}</span>
+  const mc = MODULE_COLORS[mod], st = mc ? { "--md": mc.m, "--mdl": mc.l } : undefined;
+  return <button className={cx("ds-field", tone, cls, mc && "mod")} onClick={onClick} style={st} data-mod={mod}>
+    <span className="ds-fl">{I && <span className="ds-ic"><I size={13} /></span>}{label}</span>
     <span className="ds-box">
       <span className="ds-row">
         <span className="ds-val"><small>AED</small><CountUp value={value} /></span>
         {delta != null && <em className={cx("ds-delta", good === true && "up", good === false && "down")} title="Compared with the previous period">
           {dir > 0 ? "▲" : dir < 0 ? "▼" : "•"} {Math.abs(delta) >= 1000 ? ">999" : Math.abs(delta).toFixed(1)}%</em>}
       </span>
-      {spark && spark.length > 1 ? <span className="ds-trend"><MiniSpark data={spark} color={color} w={240} h={22} /></span>
+      {spark && spark.length > 1 ? <span className="ds-trend"><MiniSpark data={spark} color={color || (mc ? "var(--mdc)" : "var(--s1)")} w={240} h={22} /></span>
         : meter != null ? <span className={cx("ds-meter", meterTone)}><i style={{ width: Math.max(0, Math.min(100, meter)) + "%" }} /></span> : <span className="ds-trend none" />}
     </span>
     <span className="ds-hint">{sub}</span>
@@ -169,7 +222,8 @@ function DashLines({ series, P, gran, go }) {
 }
 
 const DASH_TAB_KEY = "mizan.dashtab";
-const DASH_TABS = [["perf", "Performance", BarChart3], ["money", "Money in & out", Wallet], ["items", "Products & customers", Package], ["activity", "Activity", Clock], ["detail", "Financial detail", Scale]];
+const DASH_TABS = [["perf", "Performance", BarChart3, "reports"], ["money", "Money in & out", Wallet, "bank"], ["items", "Products & customers", Package, "inventory"],
+  ["branches", "Branches", Store, "org"], ["activity", "Activity", Clock, "sales"], ["detail", "Financial detail", Scale, "accounting"]];
 const readDashTab = () => { try { const t = localStorage.getItem(DASH_TAB_KEY); return DASH_TABS.some((x) => x[0] === t) ? t : "perf"; } catch (e) { return "perf"; } };
 
 const DASHDOC_CSS = `
@@ -228,7 +282,7 @@ const DASHDOC_CSS = `
 .mz .ds-seg{background:var(--surface)}
 .mz .ds-seg button{font-size:11.5px;padding:6px 12px}
 .ds-more{position:relative}
-.mz .ds-menu{right:0;left:auto;top:calc(100% + 6px);min-width:220px}
+.mz .ds-menu{right:0;left:auto;top:calc(100% + 6px);min-width:220px;z-index:950}
 /* key figures as fields */
 .mz .ds-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px 18px;padding:18px 26px 20px}
 .mz .ds-field{display:flex;flex-direction:column;gap:6px;text-align:left;min-width:0;border-radius:12px;position:relative}
@@ -292,6 +346,36 @@ const DASHDOC_CSS = `
 .ds-dk-t{text-align:right;line-height:1.1}.ds-dk-t small{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4);font-weight:650}
 .ds-dk-t b{font-size:20px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--ink)}.ds-dk-t b.neg{color:var(--neg)}
 .mz .ds-dock .btn{height:36px}
+
+/* ---- 3.25: branches on the dashboard ---- */
+.mz .ds-brs{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 16px 10px 26px;border-bottom:1px solid var(--line-2);background:linear-gradient(180deg,var(--surface-2),var(--surface))}
+.ds-brs-l{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-right:4px}.ds-brs-l svg{color:var(--ink-4)}
+.mz .ds-br{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 13px 0 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);
+  transition:background .2s,border-color .2s,box-shadow .2s,transform .14s;--bc:var(--brand)}
+.mz .ds-br:hover{border-color:color-mix(in srgb,var(--bc) 45%,var(--line))}.mz .ds-br:active{transform:scale(.98)}
+.ds-br .dot{width:10px;height:10px;border-radius:50%;background:var(--bc);box-shadow:0 0 0 3px color-mix(in srgb,var(--bc) 18%,transparent);flex:0 0 10px}
+.ds-br.all .dot{background:conic-gradient(var(--k1) 0 25%,var(--k2) 0 50%,var(--k3) 0 75%,var(--k4) 0)}
+.ds-br b{font-size:12.5px;font-weight:650;color:var(--ink)}.ds-br small{font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.mz .ds-br.on{background:color-mix(in srgb,var(--bc) 10%,var(--surface));border-color:color-mix(in srgb,var(--bc) 60%,var(--line));box-shadow:0 0 0 3px color-mix(in srgb,var(--bc) 14%,transparent)}
+.mz .ds-br.all.on{--bc:var(--brand)}
+.ds-brs-hint{margin-left:auto;font-size:11.5px;color:var(--ink-4)}
+.ds-bn{display:inline-flex;align-items:center;gap:10px;min-width:0}.ds-bn .dot{width:10px;height:10px;border-radius:50%;background:var(--bc);flex:0 0 10px}
+.ds-bn b{display:block;font-size:13px;white-space:nowrap}.ds-bn{min-width:180px}.mz .ds-pane>.dash-row.r1{display:block}.ds-bn small{display:block;font-size:11px;color:var(--ink-4)}
+/* the row animation holds opacity on the row, so branches left out are dimmed cell by cell */
+.mz .ds-br-tbl tbody tr:not(.on) td:not(.r){opacity:.5}.mz .ds-br-tbl tbody tr:not(.on) .ds-bn .dot{filter:saturate(.4)}.mz .ds-br-tbl tbody tr.on td:first-child{box-shadow:inset 3px 0 0 var(--bc)}
+.mz .ds-br-tbl td.r{text-align:right;white-space:nowrap}
+/* each branch keeps its own colour in the share meters (a branch at a loss stays red) */
+.mz .ds-br-meters .meter:not(.neg):nth-child(5n+1) .mt-track i{background:var(--k1)}.mz .ds-br-meters .meter:not(.neg):nth-child(5n+2) .mt-track i{background:var(--k2)}.mz .ds-br-meters .meter:not(.neg):nth-child(5n+3) .mt-track i{background:var(--k3)}.mz .ds-br-meters .meter:not(.neg):nth-child(5n+4) .mt-track i{background:var(--k4)}.mz .ds-br-meters .meter:not(.neg):nth-child(5n+5) .mt-track i{background:var(--k5)}
+.ds-share{display:flex;align-items:center;gap:8px;min-width:120px}.ds-share>span{flex:1;height:7px;border-radius:7px;background:var(--surface-3);overflow:hidden}
+.ds-share i{display:block;height:100%;border-radius:7px;background:var(--bc);transform-origin:left;animation:barGrowX .9s cubic-bezier(.22,1,.36,1) both}.ds-share small{font-size:11px;color:var(--ink-3);min-width:30px;text-align:right}
+/* key figures and tabs in the colour of their module */
+.mz .ds-field{--mdc:var(--md,var(--s1))}.mz[data-theme="dark"] .ds-field{--mdc:var(--mdl,var(--s1))}
+.ds-ic{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:7px;background:color-mix(in srgb,var(--mdc) 13%,var(--surface));color:var(--mdc);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mdc) 22%,transparent)}
+.mz .ds-field.mod .ds-fl svg{color:var(--mdc)}
+.mz .ds-field.mod:hover .ds-box{border-color:color-mix(in srgb,var(--mdc) 45%,var(--line));box-shadow:0 0 0 3px color-mix(in srgb,var(--mdc) 12%,transparent),0 10px 22px -16px rgba(16,24,40,.4)}
+.mz .ds-sheet>.document-toolbar .doc-tabs button>svg{color:var(--tcm,var(--ink-4));opacity:.9}.mz[data-theme="dark"] .ds-sheet>.document-toolbar .doc-tabs button>svg{color:var(--tcl,var(--ink-4))}
+.mz .ds-sheet>.document-toolbar .doc-tabs button.on>svg{opacity:1}
+@media(max-width:760px){.mz .ds-brs{padding:10px 14px}.ds-brs-hint{display:none}.mz .ds-br small{display:none}}
 /* dark theme */
 .mz[data-theme="dark"] .ds-sheet{box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 24px 48px -28px rgba(0,0,0,.7)}
 .mz[data-theme="dark"] .ds-box{background:color-mix(in srgb,var(--surface-2) 80%,var(--bg))}
