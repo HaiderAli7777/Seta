@@ -67,7 +67,7 @@ const addUser=async(name,role,approver)=>{await p.locator('.btn.pri',{hasText:'N
   if(approver)await p.locator('.appr-toggle').click();await p.locator('.btn.pri',{hasText:'Create user'}).click();await p.waitForTimeout(400);};
 await addUser('Aisha Khan','Accountant',true);
 await addUser('Omar Saeed','Viewer',true);
-await addUser('Sam Clerk','Purchase clerk',false);
+await addUser('Sam Clerk','Purchaser',false);
 let s=await books();
 check(s.users.find(u=>u.name==='Aisha Khan').approver===true&&s.users.find(u=>u.name==='Omar Saeed').approver===true&&!s.users.find(u=>u.name==='Sam Clerk').approver,'approver flag saved on the user');
 check(await p.locator('tr',{hasText:'Aisha Khan'}).locator('.su-appr').count()===1&&await p.locator('tr',{hasText:'Sam Clerk'}).locator('.su-appr').count()===0,'approvers are marked in the user list');

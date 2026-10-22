@@ -1,9 +1,9 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{transformSync}=require('esbuild'),path=require('node:path');
 const root=path.join(__dirname,'..');
-const source=['invoeez-source.jsx','enhancements-data.jsx','company-template.jsx','enhancements-ui.jsx','dashboard.jsx','design.jsx','onboarding.jsx','brand-assets.jsx','brand.jsx','clarity.jsx','sidebar.jsx','select.jsx','features.jsx','pdc.jsx','reports.jsx','dash.jsx','compare.jsx','users.jsx','ifrs.jsx','pro.jsx','approval.jsx','ux.jsx','motion.jsx','sync.jsx','refine.jsx','delivery.jsx','group.jsx','apps.jsx'].concat(['tests/sample-fixture.jsx']).map(f=>fs.readFileSync(path.join(root,f),'utf8')).join('\n');
+const source=['invoeez-source.jsx','enhancements-data.jsx','company-template.jsx','enhancements-ui.jsx','dashboard.jsx','design.jsx','onboarding.jsx','brand-assets.jsx','brand.jsx','clarity.jsx','sidebar.jsx','select.jsx','features.jsx','pdc.jsx','reports.jsx','dash.jsx','compare.jsx','users.jsx','ifrs.jsx','pro.jsx','approval.jsx','ux.jsx','motion.jsx','sync.jsx','refine.jsx','delivery.jsx','group.jsx','costing.jsx','apps.jsx','access.jsx'].concat(['tests/sample-fixture.jsx']).map(f=>fs.readFileSync(path.join(root,f),'utf8')).join('\n');
 const icons=[...fs.readFileSync(path.join(root,'runtime-prefix.js'),'utf8').matchAll(/var ([A-Z]\w+) = __mk/g)].map(m=>m[1]);
 const ctx={console,Intl,Date,Math,Number,crypto:require('node:crypto').webcrypto,React:{createContext:v=>v},window:{},setTimeout};icons.forEach(n=>ctx[n]=()=>null);vm.createContext(ctx);
-vm.runInContext(transformSync(source,{loader:'jsx',target:'es2020'}).code+`\n globalThis.api={nextNumber,nextPay,suggestCode,cleanCode,branchOfPayment,syncBranches,branchBooks,branchState,defaultBranchId,coKey,activeCompanyId,companyFigures,pnl,balanceSheet,lineNetOf,unitNetOf,discLabel,isAmtDisc,snapDelivery,deliveryText,branchesOf,normDisc,buildPINT,stable,merge3,mergePayload,countChanges,aging,buildSampleBooks,freshBooks,LEGACY_PARTNERS,LEGACY_PRODUCTS,TEMPLATE_ACCOUNTS,TEMPLATE_CATEGORIES,TEMPLATE_EXPENSE_ITEMS,DEMO,migrateBooks,deriveBooks,syncProducts,syncPartners,syncAccounts,syncMethods,pricingFor,productHistory,freezeAccounts,amounts,searchScore,cashMovement,validateStockOperation,PRODUCTS_SEED,DEFAULT_CATEGORIES,TODAY,learnPurchasePrices,nextProductCode,autoCodes,currentCost,PRODUCTS,syncProducts,pdcStatus,pdcEntries,partySpecial,stockMovement,inRange,cmpRange,cmpAsOf,cmpCoverage,mergeRows,chg,pnl,balanceSheet,plStatement,bsStatement,sectionOf,seedGroups,groupsOf,statementCols,generalLedger,settlementsOf,docStatus,poRights,awaitingMe,orList,ACC:()=>ACC};`,ctx);
+vm.runInContext(transformSync(source,{loader:'jsx',target:'es2020'}).code+`\n globalThis.api={nextNumber,nextPay,suggestCode,cleanCode,branchOfPayment,syncBranches,branchBooks,branchState,defaultBranchId,coKey,activeCompanyId,companyFigures,pnl,balanceSheet,lineNetOf,unitNetOf,discLabel,isAmtDisc,snapDelivery,deliveryText,branchesOf,normDisc,buildPINT,stable,merge3,mergePayload,countChanges,aging,buildSampleBooks,freshBooks,LEGACY_PARTNERS,LEGACY_PRODUCTS,TEMPLATE_ACCOUNTS,TEMPLATE_CATEGORIES,TEMPLATE_EXPENSE_ITEMS,DEMO,migrateBooks,deriveBooks,syncProducts,syncPartners,syncAccounts,syncMethods,pricingFor,productHistory,freezeAccounts,amounts,searchScore,cashMovement,validateStockOperation,PRODUCTS_SEED,DEFAULT_CATEGORIES,TODAY,learnPurchasePrices,nextProductCode,autoCodes,currentCost,PRODUCTS,syncProducts,pdcStatus,pdcEntries,partySpecial,stockMovement,inRange,cmpRange,cmpAsOf,cmpCoverage,mergeRows,chg,pnl,balanceSheet,plStatement,bsStatement,sectionOf,seedGroups,groupsOf,statementCols,generalLedger,settlementsOf,docStatus,poRights,awaitingMe,orList,ACC:()=>ACC,syncCostCenters,ccFlat,ccProfit,budgetVsActual,budgetFrom,monthShares,budgetByMonth,accessFor,screenOpen,screenCan,legacyCan,isMine,scopeDocs,roleDefs,levelOf,levelActs,AREAS,appLevels};`,ctx);
 const a=ctx.api;const clean=a.migrateBooks(a.DEMO());assert.equal(clean.docs.length+clean.payments.length+clean.manual.length+clean.stockOps.length,0);assert(!clean.sample&&clean.partners.length===0&&clean.accounts.length>=30&&clean.categories.length>=20);assert.equal(clean.users.length,1);
 let s=a.migrateBooks(a.buildSampleBooks(a.TODAY));a.syncAccounts(s.accounts);a.syncProducts(s.products,s.categories);a.syncPartners(s.partners);a.syncMethods(s.methods);
 const base=a.deriveBooks(s);assert(base.balanced);for(const e of base.entries)assert(Math.abs(e.lines.reduce((n,l)=>n+l.debit-l.credit,0))<.011,e.number);
@@ -335,4 +335,72 @@ const R=(n)=>Math.round(n*100)/100;
  assert.equal(a.suggestCode('Deira shop',['DEI']),'DE2','suggested codes stay unique');assert.equal(a.cleanCode('d-r a/1'),'DRA1','codes: letters and digits in capitals');
  assert.equal(a.branchOfPayment(st2,pay),'bd','a payment\'s branch is its invoice\'s');
  a.syncBranches([]);}
+
+// 3.23 cost centres: a document's cost centre reaches its income and expense lines; the cost centres plus "unassigned" add up to the company.
+{const sc=a.migrateBooks(a.buildSampleBooks(a.TODAY));a.syncAccounts(sc.accounts);a.syncProducts(sc.products,sc.categories);a.syncPartners(sc.partners);a.syncMethods(sc.methods);
+ sc.costCenters=[{id:'c1',code:'SAL',name:'Sales',active:true},{id:'c2',code:'OPS',name:'Operations',active:true}];a.syncCostCenters(sc.costCenters);
+ const posted=sc.docs.filter(d=>d.state==='posted'&&['invoice','bill'].includes(d.type)&&d.date>=a.TODAY.slice(0,4)+'-01-01');
+ const tagged=posted.slice(0,40).map(d=>d.id);
+ sc.docs=sc.docs.map((d,i)=>tagged.includes(d.id)?{...d,cc:d.type==='invoice'?'c1':'c2'}:d);
+ sc.manual=[...sc.manual,{id:'jcc',number:'JE/CC/1',date:a.TODAY,ref:'Rent split',journal:'Miscellaneous',lines:[{acc:'6200',debit:1000,credit:0,label:'Rent',cc:'c2'},{acc:'1120',debit:0,credit:1000,label:'Bank'}]}];
+ const bk=a.deriveBooks(sc);assert(bk.balanced,'tagging keeps the books balanced');
+ const inv=sc.docs.find(d=>d.cc==='c1'&&d.type==='invoice');
+ const lines=bk.flat.filter(l=>l.docId===inv.id);
+ assert(lines.filter(l=>a.ACC[l.acc]&&a.ACC[l.acc].type==='income').every(l=>l.cc==='c1'),'an invoice\'s income lines carry its cost centre');
+ assert(lines.filter(l=>a.ACC[l.acc]&&a.ACC[l.acc].type==='receivable').every(l=>!l.cc),'its receivable line does not');
+ assert(lines.filter(l=>a.ACC[l.acc]&&a.ACC[l.acc].type==='cogs').every(l=>l.cc==='c1'),'cost of goods sold follows the invoice\'s cost centre');
+ assert(bk.flat.some(l=>l.entryId==='jcc'&&l.cc==='c2'&&l.acc==='6200'),'a journal line keeps its cost centre');
+ const y0=a.TODAY.slice(0,4)+'-01-01',f=a.ccProfit(bk.flat,y0,a.TODAY),R=x=>Math.round(x*100)/100;
+ const rev=R(f.cols.reduce((n,c)=>n+c.r.revenue,0)+f.none.revenue),net=R(f.cols.reduce((n,c)=>n+c.r.net,0)+f.none.net);
+ assert(Math.abs(rev-f.all.revenue)<0.02&&Math.abs(net-f.all.net)<0.02,'cost centres plus unassigned equal the company ('+net+' = '+f.all.net+')');
+ assert(f.cols.find(c=>c.c.id==='c1').r.revenue>0&&f.cols.find(c=>c.c.id==='c2').r.expense>=1000,'each cost centre has its own figures');
+ const undoc=a.deriveBooks({...sc,costCenters:[],docs:sc.docs.map(d=>({...d,cc:undefined})),manual:sc.manual.filter(m=>m.id!=='jcc')});
+ assert.equal(JSON.stringify(undoc.flat.map(l=>[l.acc,l.debit,l.credit])),JSON.stringify(a.deriveBooks({...sc,docs:sc.docs.map(d=>({...d,cc:undefined})),manual:sc.manual.filter(m=>m.id!=='jcc')}).flat.map(l=>[l.acc,l.debit,l.credit])),'without cost centres the ledger is unchanged');
+ // budgets: whole months and part months, variance helps profit when positive, a cost-centre budget reads only its lines
+ const sh=a.monthShares(2026,'2026-01-01','2026-01-31');assert(sh[0]===1&&sh.slice(1).every(x=>x===0),'a whole month counts once');
+ const half=a.monthShares(2026,'2026-04-01','2026-04-15');assert(Math.abs(half[3]-0.5)<1e-9,'half of April counts half');
+ const yr=+a.TODAY.slice(0,4),bud={id:'b1',name:'B',year:yr,cc:'',amounts:{'4100':Array(12).fill(1000),'6200':Array(12).fill(500)}};
+ const full=a.budgetVsActual(bud,bk.flat,yr+'-01-01',yr+'-12-31');
+ assert.equal(full.B.income,12000);assert.equal(full.B.expense,6000);assert.equal(full.net.budget,6000);
+ const act=a.pnl(bk.flat,yr+'-01-01',yr+'-12-31');assert(Math.abs(full.net.actual-act.net)<0.02,'actual net profit equals the P&L ('+full.net.actual+' = '+act.net+')');
+ const r4100=full.rows.find(r=>r.acc.code==='4100');assert.equal(r4100.variance,Math.round((r4100.actual-12000)*100)/100,'income above budget is a positive variance');
+ const r6200=full.rows.find(r=>r.acc.code==='6200');assert.equal(r6200.variance,Math.round((6000-r6200.actual)*100)/100,'costs below budget are a positive variance');
+ const ccb=a.budgetVsActual({...bud,cc:'c2'},bk.flat,yr+'-01-01',yr+'-12-31');assert(ccb.A.expense<act.expense&&ccb.A.expense>=1000,'a cost-centre budget compares with that cost centre only');
+ const out=a.budgetVsActual(bud,bk.flat,(yr+1)+'-01-01',(yr+1)+'-03-31');assert(out.empty,'dates outside the budget year are flagged');
+ const run=a.budgetFrom(bk.flat,yr,'run','',0),last=a.budgetFrom(bk.flat,yr,'last','',10),blank=a.budgetFrom(bk.flat,yr,'blank','',0);
+ assert(Object.keys(run).length>3&&run['4100'].length===12&&run['4100'].every(v=>v===run['4100'][0]),'run rate: the same amount every month');
+ assert.equal(Object.keys(blank).length,0,'blank starts empty');
+ assert(Object.values(last).every(v=>v.length===12),'last year: twelve months each');
+ a.syncCostCenters([]);}
+// 3.23 access: roles, rules that only restrict, administrators never restricted.
+{const st={roles:{},accessRules:[],docs:[{id:'d1',type:'invoice',salesman:'sp1',date:a.TODAY},{id:'d2',type:'invoice',createdBy:'u5',date:a.TODAY},{id:'d3',type:'invoice',salesman:'sp2',date:'2020-01-01'}]};
+ const sales={id:'u5',role:'sales',salesperson:'sp1'},acct={id:'u6',role:'accountant'},adm={id:'u1',role:'admin'},viewer={id:'u7',role:'viewer'},clerk={id:'u8',role:'clerk'};
+ const s1=a.accessFor(sales,st);assert(s1.ownOnly&&s1.hideCost&&s1.maxDisc===10,'a salesperson: own documents, no cost, 10% discount');
+ assert(s1.rights.sales.create&&s1.rights.sales.post&&!s1.rights.finance_reports.view&&!s1.rights.dashboard.view,'sells, but no statements or dashboard');
+ assert(!a.screenOpen(s1,'r_prod')&&!a.screenOpen(s1,'r_pnl')&&a.screenOpen(s1,'invoices')&&a.screenOpen(s1,'r_aged_ar'),'cost screens and statements closed, invoices and ageing open');
+ assert.deepEqual(a.scopeDocs(st,s1,sales).docs.map(d=>d.id),['d1','d2'],'own documents: as salesperson or creator');
+ const c1=a.accessFor(clerk,st);assert(c1.rights.purchase.create&&!c1.rights.purchase.post&&!c1.rights.purchase.delete,'a purchaser raises but cannot post or delete');
+ assert(a.legacyCan(c1,'buy')&&!a.legacyCan(c1,'post')&&!a.legacyCan(c1,'settings'),'older checks read the same rights');
+ const v=a.accessFor(viewer,st);assert(v.rights.dashboard.view&&v.rights.finance_reports.view&&!v.rights.sales.view,'a viewer sees the dashboard and reports only');
+ const ac=a.accessFor(acct,st);assert(ac.rights.journal.delete&&!ac.rights.admin.view,'an accountant: the books, no administration');
+ // rules
+ const rules=[{id:'r1',name:'No delete',active:true,users:['u6'],deny:{sales:['delete','post']},buttons:['reset'],hide:['banking'],fields:{price:'readonly'},maxDisc:5},
+   {id:'r2',name:'Everyone in sales',active:true,roles:['sales'],fields:{cost:'hide'},days:30,maxDisc:15},
+   {id:'r3',name:'Off',active:false,users:['u6'],readOnly:true},{id:'r4',name:'Admin',active:true,users:['u1'],readOnly:true,hide:['users']}];
+ const st2={...st,accessRules:rules};
+ const ac2=a.accessFor(acct,st2);assert(!ac2.rights.sales.delete&&!ac2.rights.sales.post&&ac2.rights.sales.create,'a rule blocks chosen actions only');
+ assert(ac2.buttons.has('reset')&&ac2.fields.price==='readonly'&&ac2.maxDisc===5&&!a.screenOpen(ac2,'banking'),'buttons, fields, discount limit and hidden screens');
+ assert(!ac2.readOnly,'a switched-off rule does nothing');
+ const s2=a.accessFor(sales,st2);assert(s2.days===30&&s2.maxDisc===10,'rules for a role apply; the lower discount limit wins');
+ assert.deepEqual(a.scopeDocs(st2,s2,sales).docs.map(d=>d.id),['d1','d2'],'older documents drop out');
+ const ad=a.accessFor(adm,st2);assert(!ad.readOnly&&a.screenOpen(ad,'users')&&ad.rights.admin.edit&&ad.rules.length===0,'administrators are never restricted');
+ const ro=a.accessFor(acct,{...st,accessRules:[{id:'ro',active:true,users:['u6'],readOnly:true}]});assert(ro.rights.journal.view&&!ro.rights.journal.create&&ro.rights.finance_reports.export,'read-only: look and export, never change');
+ const nx=a.accessFor(acct,{...st,accessRules:[{id:'nx',active:true,users:['u6'],noExport:true}]});assert(!nx.rights.finance_reports.export&&!nx.rights.sales.export,'no exports anywhere');
+ // roles can be adjusted, and new ones added
+ const st3={...st,roles:{sales:{rights:{dashboard:['view']},opts:{ownOnly:false,maxDisc:20}},r_cash:{label:'Cashier',rights:{payments:['view','create']},opts:{}}}};
+ const s3=a.accessFor(sales,st3);assert(s3.rights.dashboard.view&&!s3.ownOnly&&s3.maxDisc===20&&s3.rights.sales.create,'an adjusted role keeps the rest of its rights');
+ const cash=a.accessFor({id:'u9',role:'r_cash'},st3);assert(cash.rights.payments.create&&!cash.rights.sales.view,'a custom role has exactly its rights');
+ assert(a.roleDefs(st3).r_cash.custom&&a.roleDefs(st3).sales.changed,'custom and adjusted roles are marked');
+ const area=a.AREAS.find(x=>x.k==='sales');assert.equal(a.levelOf(area,a.levelActs(area,'use')),'use');assert.equal(a.levelOf(area,['view','delete']),'custom');}
+console.log('PASS: cost centres (lines tagged, journal lines, columns add up to the company, ledger unchanged without them), budgets (whole and part months, variance, cost-centre budgets, run rate, last year), access (roles, own documents, rules restrict only, read-only, no export, administrators exempt, adjusted and custom roles).');
 console.log('PASS: branches (every entry tagged, each branch balances, branches add up to the company, payments follow their invoice, numbering per branch), line discounts as % or amount, delivery addresses (copy kept on the document, e-invoice delivery location), discount on the whole document (shared before VAT, capped, balanced journal, stock cost, e-invoice allowances), offline sync merge (field-level master data, cloud-wins documents with conflicts kept, deletions, renumbering), purchase-order approval rules and off-ledger orders, document payments and balance due, IFRS 18 statements, account groups and drill-down, report comparison periods and comparative statements, dashboard fast/slow movers, post-dated cheques (received, cleared, bounced with charges, issued), party specials, last price, empty price, product codes, first-purchase cost, last purchase price, clean new company, document-specific settlement, sample fixture, legacy master-data migration, start-fresh template, ledger balance, historical account preservation, inherited accounts, pricing tiers, date validity, manual discounts, retired-rule migration, cash movement, stock counts, scrap, costing methods, validation, search and history.');

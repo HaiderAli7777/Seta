@@ -5,14 +5,37 @@ TRY IT
 2. You are in the SAMPLE COMPANY (Zenith General Trading): a full year of
    invoices, bills, payments, stock and reports. Try anything — it is not real.
 
-FIND YOUR WAY (3.22)
+FIND YOUR WAY (3.23)
 - Settings > Navigation: choose Sidebar (a menu on the left, the default)
   or Apps dashboard (no sidebar: Home shows the search box and every app,
   and each app has its own menu across the top).
-- In the apps dashboard, the dotted button at the top left (or g then h)
-  brings you back Home; click the app's name to jump to another app.
+- In the apps dashboard, Create new is at the end of the search bar on Home;
+  inside an app, Create sits next to the search button at the top right.
+- The dotted button at the top left (or g then h) brings you back Home;
+  click the app's name to jump to another app.
 - Every app's menu reads the same way: Overview, its work and records,
   then Reporting, then Configuration.
+
+WHO CAN DO WHAT (3.23)
+- Users & access > People > New user: pick a role (Accountant, Salesperson,
+  Sales manager, Purchaser, Procurement manager, Storekeeper, Viewer or
+  Administrator). The form shows exactly what that person will be able to do.
+- Users & access > Roles: adjust a role (areas: None / View / Create & edit /
+  Full; own documents only; hide costs; discount limit) or add your own.
+- Users & access > Access rules: start from a ready-made rule (hide costs from
+  sales, read-only auditor, no deleting, own documents only, no exports,
+  fixed prices) and pick the people or roles. Rules only take rights away;
+  administrators are never restricted.
+- "Who can do what" and View as show it through each person's eyes. Each
+  person's Home puts the apps for their job first, with their work for today.
+
+COST CENTRES AND BUDGETS (3.23)
+- Accounting > Configuration > Cost centres: one click adds Head office,
+  Sales & marketing, Operations, Warehouse and Projects. Documents, expenses
+  and journal lines then carry a Cost centre.
+- Accounting > Budgets > Create a budget: start from this year's run rate or
+  last year, adjust any month, then see Budget vs actual (Accounting >
+  Reporting, or Reports).
 
 START YOUR OWN COMPANY
 3. Click "Start my company" (banner at the top, or Settings, or the user menu).

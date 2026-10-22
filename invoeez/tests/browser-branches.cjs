@@ -258,7 +258,7 @@ const near = (a, b) => Math.abs(a - b) < 0.02;
   await p.locator('.btn.pri', { hasText: 'Create user' }).click(); await p.waitForTimeout(500);
   s = await books(p); const sara = s.users.find((u) => u.name === 'Sara Accounts');
   check(sara && sara.branch === DRA && sara.branchOnly === true, 'a user who sees only Deira shop');
-  check(/Deira shop/.test(await p.locator('tr', { hasText: 'Sara Accounts' }).innerText()) && /only/.test(await p.locator('tr', { hasText: 'Sara Accounts' }).innerText()), 'the users list marks it');
+  check(/Deira shop/.test(await p.locator('tr:not([data-user])', { hasText: 'Sara Accounts' }).innerText()) && /only/.test(await p.locator('tr:not([data-user])', { hasText: 'Sara Accounts' }).innerText()), 'the users list marks it');
   const asUser = async (id) => { await p.evaluate((id) => { sessionStorage.setItem('mizan.me', id); localStorage.setItem('mizan.me', id); }, id); await p.reload(); await p.waitForTimeout(1600); };
   await asUser(sara.id);
   check(await p.locator('.sbar [data-k="branches"]').count() === 0 && await p.locator('.sbar [data-k="companies"]').count() === 0 && await p.locator('.sbar [data-k="r_branch"]').count() === 0 && await p.locator('.sbar [data-k="r_group"]').count() === 0,

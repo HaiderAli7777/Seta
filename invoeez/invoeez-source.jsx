@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.22.0";
+const BUILD = "3.23.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -355,10 +355,12 @@ function deriveBooks(state) {
     }
     const am = amounts(d);
     const L = [];
-    const add = (acc, debit, credit, label, partner) => {
+    /* A line from the document carries its cost centre (the line's own, else the document's) — 3.23. */
+    const add = (acc, debit, credit, label, partner, cc) => {
       if (R2(debit) === 0 && R2(credit) === 0) return;
-      L.push({ acc, debit: R2(debit), credit: R2(credit), label, partner: partner || null });
+      L.push({ acc, debit: R2(debit), credit: R2(credit), label, partner: partner || null, ...(cc ? { cc } : {}) });
     };
+    const ccOf = (l) => l.cc || d.cc || "";
     const bucket = {};
     const push = (acc, v) => { bucket[acc] = R2((bucket[acc] || 0) + v); };
 
@@ -367,7 +369,7 @@ function deriveBooks(state) {
       add(A.AR, s > 0 ? am.total : 0, s > 0 ? 0 : am.total, s > 0 ? "Trade receivable" : "Receivable reversed", d.partner);
       am.lines.forEach((l) => {
         const acc = l.account || l.accounts?.income || (PROD[l.product] ? PROD[l.product].income : "4100");
-        add(acc, s > 0 ? 0 : l.amount, s > 0 ? l.amount : 0, l.desc);
+        add(acc, s > 0 ? 0 : l.amount, s > 0 ? l.amount : 0, l.desc, null, ccOf(l));
       });
       add(A.VOUT, s > 0 ? 0 : am.vat, s > 0 ? am.vat : 0, "Output VAT");
       am.lines.forEach((l) => {
@@ -376,16 +378,16 @@ function deriveBooks(state) {
         if (s > 0) {                       // invoice — relieve stock
           const val = drain(l.product, l.qty);
           move(d, l.product, -l.qty, -val);
-          push((l.accounts?.expense || p.expense || A.COGS)+"|"+(l.accounts?.inventory||p.inventory||A.INV), val);
+          push((l.accounts?.expense || p.expense || A.COGS)+"|"+(l.accounts?.inventory||p.inventory||A.INV)+"|"+ccOf(l), val);
         } else {                           // credit note — goods come back
           const val = R2(cost(l.product) * l.qty);
           move(d, l.product, l.qty, val);
-          push((l.accounts?.expense || p.expense || A.COGS)+"|"+(l.accounts?.inventory||p.inventory||A.INV), -val);
+          push((l.accounts?.expense || p.expense || A.COGS)+"|"+(l.accounts?.inventory||p.inventory||A.INV)+"|"+ccOf(l), -val);
         }
       });
       Object.entries(bucket).forEach(([key, v]) => {
-        const [acc,inventory]=key.split("|");
-        add(acc, v > 0 ? v : 0, v > 0 ? 0 : -v, "Cost of goods sold");
+        const [acc,inventory,cc]=key.split("|");
+        add(acc, v > 0 ? v : 0, v > 0 ? 0 : -v, "Cost of goods sold", null, cc);
         add(inventory || A.INV, v > 0 ? 0 : -v, v > 0 ? v : 0, v > 0 ? "Inventory relieved" : "Inventory returned");
       });
     } else {
@@ -394,7 +396,7 @@ function deriveBooks(state) {
         const p = PROD[l.product];
         const goods = p && p.kind === "goods";
         const acc = goods ? (l.accounts?.inventory||p.inventory||A.INV) : l.account || l.accounts?.expense || (p ? p.expense : "6900");
-        add(acc, s > 0 ? l.amount : 0, s > 0 ? 0 : l.amount, l.desc);
+        add(acc, s > 0 ? l.amount : 0, s > 0 ? 0 : l.amount, l.desc, null, ccOf(l));
         if (goods) move(d, l.product, l.qty * s, R2(l.amount * s));
       });
       add(A.VIN, s > 0 ? am.vat : 0, s > 0 ? 0 : am.vat, "Input VAT recoverable");
@@ -1617,8 +1619,8 @@ const initials = (s) => s.replace(/[^A-Za-z ]/g, "").split(/\s+/).filter(Boolean
 const AV_TONES = ["#2F62C4", "#4A5562", "#A9741A", "#6A7480", "#1F6C8A", "#A2452F"];
 const toneFor = (s) => AV_TONES[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % AV_TONES.length];
 
-const Btn = ({ kind, size, icon: Ic, children, ...p }) => (
-  <button className={cx("btn", kind, size)} {...p}>{Ic && <Ic size={14} strokeWidth={1.9} />}{children}</button>
+const Btn = ({ kind, size, icon: Ic, children, className, ...p }) => (
+  <button className={cx("btn", kind, size, className)} {...p}>{Ic && <Ic size={14} strokeWidth={1.9} />}{children}</button>
 );
 const Card = ({ title, sub, right, children, pad = true, style, className }) => (
   <div className={cx("card", className)} style={style}>
@@ -2477,14 +2479,19 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
   const payable = type === "invoice" || type === "bill";
   const isPO = type === "purchase_order", isQ = type === "quote";
   const mineToApprove = useMemo(() => new Set(isPO ? awaitingMe(state, user).map((d) => d.id) : []), [state, user, isPO]);
+  /* Access rules can limit the list to someone's own, or recent, documents (3.23). */
+  const cut = ACC_NOW && ACC_NOW.days ? addDays(TODAY, -ACC_NOW.days) : "";
+  const vis = (d) => !ACC_NOW || ((!ACC_NOW.ownOnly || isMine(user, d) || mineToApprove.has(d.id)) && (!cut || d.date >= cut));
+  const canNew = !readOnly && accOk(SCREEN_AREA[LIST_OF[type]], "create");
+  const fresh = () => ({ ...blankDoc(state.docs, type, homeBranch(state)), createdBy: user && user.id });
 
   React.useEffect(() => {
     if (!openId) return;
     if (openId === "__list__") setEditing(null);
     else if (openId === "__pending__") { setEditing(null); setF("pending"); }
     else if (openId.startsWith("__f:")) { setEditing(null); setF(openId.slice(4)); }
-    else if (openId === "__new__") { if (!readOnly) setEditing(blankDoc(state.docs, type, homeBranch(state))); }
-    else { const d = state.docs.find((x) => x.id === openId); if (d) setEditing(d); }
+    else if (openId === "__new__") { if (canNew) setEditing(fresh()); }
+    else { const d = state.docs.find((x) => x.id === openId); if (d && vis(d)) setEditing(d); }
     clearOpen();
   }, [openId]);
 
@@ -2498,7 +2505,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
   if (editing) return <DocEditor key={editing.id} doc={editing} state={state} setState={setState} books={books}
     toast={toast} fta={fta} go={go} user={user} users={users} readOnly={readOnly} close={() => setEditing(null)} />;
 
-  const filtered = state.docs.filter((d) => d.type === type && (!brF || branchOfRecord(state, d) === brF))
+  const filtered = state.docs.filter((d) => d.type === type && (!brF || branchOfRecord(state, d) === brF) && vis(d))
     .filter((d) => f === "all" || (f === "open" ? (openMap[d.id] || 0) > 0.004 : f === "overdue" ? (openMap[d.id] || 0) > 0.004 && d.due < TODAY
       : f === "soon" ? (openMap[d.id] || 0) > 0.004 && d.due >= TODAY && d.due <= addDays(TODAY, 7) : f === "approved" && isPO ? ["approved", "sent"].includes(d.state) : d.state === f))
     .filter((d) => hits(q, d.number, PMAP[d.partner].name, PMAP[d.partner].trn, d.ref, d.emirate, d.delivery && d.delivery.name,
@@ -2517,7 +2524,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
   const t = list.filter(live).reduce((s, d) => { const a = amounts(d);
     return { net: R2(s.net + a.net), vat: R2(s.vat + a.vat), total: R2(s.total + a.total) }; }, { net: 0, vat: 0, total: 0 });
   const totalOpen = R2(list.reduce((s, d) => s + (openMap[d.id] || 0), 0));
-  const tiles = summaryTiles(type, state.docs.filter((d) => d.type === type && (!brF || branchOfRecord(state, d) === brF)), openMap);
+  const tiles = summaryTiles(type, state.docs.filter((d) => d.type === type && (!brF || branchOfRecord(state, d) === brF) && vis(d)), openMap);
 
   return (
     <div className="doc-list-view">
@@ -2527,7 +2534,7 @@ function DocumentsScreen({ type, state, setState, books, openId, clearOpen, toas
           : isPO
           ? `${list.length} purchase orders · ${pendingCount} awaiting approval · ${money(t.total, false)} on order · nothing posts until one becomes a bill`
           : `${list.length} documents · ${money(t.total, false)} posted${totalOpen > 0.004 ? ` · ${money(totalOpen, false)} outstanding` : ""}`}>
-        {!readOnly && <Btn kind="pri" icon={Plus} onClick={() => setEditing(blankDoc(state.docs, type, homeBranch(state)))}>New {meta.short.toLowerCase()}</Btn>}
+        {canNew && <Btn kind="pri" icon={Plus} onClick={() => setEditing(fresh())}>New {meta.short.toLowerCase()}</Btn>}
       </PageHead>
 
       {tiles && <DocSummary tiles={tiles} f={f} setF={(v) => { setF(v); setLimit(100); }} />}
@@ -2608,7 +2615,10 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   const meta = DOCMETA[d.type], sale = meta.side === "sale";
   const isQuote = d.type === "quote", isPO = d.type === "purchase_order", off = !!meta.offLedger;
   /* An approver whose role cannot raise purchases may only approve or reject. */
-  const locked = !!readOnly || (isQuote ? d.state === "invoiced" : isPO ? !["draft", "rejected"].includes(d.state) : d.state === "posted");
+  /* What this person may do here (3.23): the area's rights and any access rule on buttons, tabs and fields. */
+  const area = SCREEN_AREA[LIST_OF[d.type]], R = (x) => accOk(area, x);
+  const ro = (f) => accField(f) === "readonly", hideCost = accField("cost") === "hide";
+  const locked = !!readOnly || (!d.isNew && !R("edit")) || (isQuote ? d.state === "invoiced" : isPO ? !["draft", "rejected"].includes(d.state) : d.state === "posted");
   const am = amounts(d);
 
   const preview = useMemo(() => {
@@ -2655,6 +2665,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     {const i=d.lines.findIndex(l=>isAmtDisc(l)&&+l.disc>R2(+l.qty*+l.price)+0.004);if(i>=0)return `The discount on line ${i+1} (AED ${money(+d.lines[i].disc,false)}) is more than the line is worth (AED ${money(R2(+d.lines[i].qty*+d.lines[i].price),false)}).`;}
     if(d.docDisc&&d.docDisc.value!==''&&d.docDisc.value!=null&&!(Number.isFinite(+d.docDisc.value)&&+d.docDisc.value>=0))return 'Enter the discount as a number, or remove it.';
     if(d.docDisc&&+d.docDisc.value>0&&(d.docDisc.mode==='percent'?+d.docDisc.value>100:+d.docDisc.value>am.gross+0.004))return d.docDisc.mode==='percent'?'The discount cannot be more than 100%.':`The discount is more than the ${meta.short.toLowerCase()} is worth (AED ${money(am.gross,false)} before VAT).`;
+    if(sale&&ACC_NOW&&ACC_NOW.maxDisc!=null){const i=am.lines.findIndex(l=>{const list=(+l.qty||0)*(+l.price||0);return list>0&&((list-l.amount)/list)*100>ACC_NOW.maxDisc+0.01;});
+      if(i>=0){const l=am.lines[i],list=(+l.qty||0)*(+l.price||0);return `The discount on line ${i+1} is ${(((list-l.amount)/list)*100).toFixed(1)}% — above your limit of ${ACC_NOW.maxDisc}%. Ask a manager to give this discount.`;}}
     if(posting&&state.stockOps.some(o=>o.date>d.date&&o.lines.some(x=>d.lines.some(l=>l.product===x.product))))return 'A later stock adjustment exists for one of these products. Use a date on or after that adjustment.';
     return '';
   };
@@ -2851,9 +2863,9 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
         {["draft", "sent", "accepted", "declined"].map((k) => <button key={k} className={cx(k, d.state === k && "on")} aria-pressed={d.state === k}
           onClick={() => setQuoteState(k)}><i />{QUOTE_STATES[k].label}</button>)}</div></>
     : <DocSteps steps={steps} />;
-  const canPrint = sale || (isPO && ["approved", "sent", "billed"].includes(d.state));
+  const canPrint = (sale || (isPO && ["approved", "sent", "billed"].includes(d.state))) && (R("export") || R("send")) && accBtn("print");
   const primary = isQuote
-    ? (!locked ? <Btn kind="pri" icon={ArrowRight} disabled={!d.lines.length} onClick={convertQuote}>Convert to invoice</Btn> : openLinked)
+    ? (!locked ? (accBtn("convert") && R("create") ? <Btn kind="pri" icon={ArrowRight} disabled={!d.lines.length} onClick={convertQuote}>Convert to invoice</Btn> : null) : openLinked)
     : isPO
     ? (readOnly ? (d.state === "pending" && rights.canApprove ? <Btn kind="pri" icon={Check} onClick={approvePO}>Approve</Btn> : null)
         : ["draft", "rejected"].includes(d.state)
@@ -2862,8 +2874,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
         : d.state === "pending" ? (rights.canApprove ? <Btn kind="pri" icon={Check} onClick={approvePO}>Approve</Btn> : null)
         : ["approved", "sent"].includes(d.state) ? <Btn kind="pri" icon={ArrowRight} onClick={billPO}>Convert to bill</Btn>
         : openLinked)
-    : !locked ? <Btn kind="pri" icon={Check} onClick={post} disabled={!d.lines.length}>Post to ledger</Btn>
-    : outstanding > 0.004 ? <Btn kind="pri" icon={Wallet} onClick={() => setPayOpen((v) => !v)}>Record payment</Btn> : null;
+    : !locked ? (R("post") ? <Btn kind="pri" icon={Check} onClick={post} disabled={!d.lines.length}>Post to ledger</Btn> : null)
+    : outstanding > 0.004 && accOk("payments", "create") && accBtn("payment") ? <Btn kind="pri" icon={Wallet} onClick={() => setPayOpen((v) => !v)}>Record payment</Btn> : null;
   const secondary = <>
     {isPO && d.state === "pending" && rights.canApprove && <Btn kind="danger" icon={X} onClick={() => setRejecting(true)}>Reject</Btn>}
     {isPO && d.state === "pending" && rights.own && !rights.canApprove && <Btn icon={Undo2} onClick={withdrawPO}>Withdraw</Btn>}
@@ -2875,12 +2887,12 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     isPO && d.state === "pending" && rights.own && rights.canApprove && { label: "Withdraw", icon: Undo2, onClick: withdrawPO, hint: "Back to draft to make changes" },
     isPO && ["approved", "sent"].includes(d.state) && { label: "Reopen for changes", icon: Pencil, onClick: revisePO, hint: "The order then needs approval again" },
     isPO && d.state === "billed" && !linked && { label: "Reopen for changes", icon: Pencil, onClick: revisePO, hint: "Its bill was deleted; the order needs approval again" },
-    locked && outstanding > 0.004 && isInvBill && { label: "Post-dated cheque", icon: CalendarClock, onClick: () => setPdcOpen(true), hint: sale ? "Receive a cheque dated in the future" : "Issue a cheque dated in the future" },
-    locked && isInvBill && { label: d.type === "invoice" ? "Credit note" : "Debit note", icon: FileMinus, onClick: reverseDoc, hint: `Reverses ${d.number}; adjust lines for a partial` },
-    !d.isNew && { label: "Duplicate", icon: Copy, onClick: duplicate, hint: "A new draft with the same lines" },
-    locked && !off && { label: "Reset to draft", icon: RotateCcw, onClick: unpost, hint: "Takes it back out of the ledger" },
-    !locked && !d.isNew && { sep: true },
-    !locked && !d.isNew && { label: "Delete", icon: Trash2, onClick: remove, danger: true, hint: "Removes this draft for good" },
+    locked && outstanding > 0.004 && isInvBill && accOk("payments", "create") && accBtn("pdc") && { label: "Post-dated cheque", icon: CalendarClock, onClick: () => setPdcOpen(true), hint: sale ? "Receive a cheque dated in the future" : "Issue a cheque dated in the future" },
+    locked && isInvBill && R("create") && accBtn("reverse") && { label: d.type === "invoice" ? "Credit note" : "Debit note", icon: FileMinus, onClick: reverseDoc, hint: `Reverses ${d.number}; adjust lines for a partial` },
+    !d.isNew && R("create") && accBtn("duplicate") && { label: "Duplicate", icon: Copy, onClick: duplicate, hint: "A new draft with the same lines" },
+    locked && !off && R("post") && accBtn("reset") && { label: "Reset to draft", icon: RotateCcw, onClick: unpost, hint: "Takes it back out of the ledger" },
+    !locked && !d.isNew && R("delete") && { sep: true },
+    !locked && !d.isNew && R("delete") && { label: "Delete", icon: Trash2, onClick: remove, danger: true, hint: "Removes this draft for good" },
   ];
   const activity = isQuote
     ? ['draft','sent','accepted','invoiced'].map(k=>({t:QUOTE_STATES[k].label,done:['draft','sent','accepted','invoiced'].indexOf(d.state)>=['draft','sent','accepted','invoiced'].indexOf(k)}))
@@ -2921,8 +2933,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
           <div className={cx("document-fields",sale&&"sales-document-fields")}>
             <Field label={sale?'Customer':'Vendor'} span={2}><SmartPicker items={partnerOptions(meta.side)} value={d.partner} disabled={locked} autoFocus={!!d.isNew&&!d.partner} onChange={pickPartner} label={sale?'Select customer':'Select vendor'} placeholder={'Search '+(sale?'customers':'vendors')+'…'} onCreate={!locked?name=>setQuick({kind:sale?'customer':'vendor',record:{...newPartner(sale?'customer':'vendor'),name}}):undefined}/></Field>
             <Field label="Counterparty TRN"><div className="readonly">{PMAP[d.partner]?.trn||'Not registered'}</div></Field>
-            {sale&&<Field label="Salesperson"><CreatableSelect value={d.salesman} disabled={locked} onChange={v=>set('salesman',v)} options={(state.salespeople||[]).filter(p=>p.active!==false||p.id===d.salesman).map(p=>({value:p.id,label:p.name+(p.active===false?' (inactive)':'')}))} placeholder="Unassigned" createLabel="New salesperson" onCreate={addSalesperson(setState)} ariaLabel="Salesperson"/></Field>}
-            <Field label="Price list"><Select value={d.pricelist||''} disabled={locked} onChange={e=>changePricing({pricelist:e.target.value},true)}><option value="">Product {sale?'sales prices':'costs'}</option>{state.priceLists.filter(x=>x.side===meta.side).map(x=><option key={x.id} value={x.id}>{x.name}{x.active?'':' (inactive)'}</option>)}</Select></Field>
+            {sale&&<Field label="Salesperson"><CreatableSelect value={d.salesman} disabled={locked||ro('salesman')} onChange={v=>set('salesman',v)} options={(state.salespeople||[]).filter(p=>p.active!==false||p.id===d.salesman).map(p=>({value:p.id,label:p.name+(p.active===false?' (inactive)':'')}))} placeholder="Unassigned" createLabel="New salesperson" onCreate={addSalesperson(setState)} ariaLabel="Salesperson"/></Field>}
+            <Field label="Price list"><Select value={d.pricelist||''} disabled={locked||ro('pricelist')} onChange={e=>changePricing({pricelist:e.target.value},true)}><option value="">Product {sale?'sales prices':'costs'}</option>{state.priceLists.filter(x=>x.side===meta.side).map(x=><option key={x.id} value={x.id}>{x.name}{x.active?'':' (inactive)'}</option>)}</Select></Field>
             <Field label={isPO?'Order date':isQuote?'Quotation date':sale?'Invoice date':'Bill date'}><Input type="date" value={d.date} disabled={locked} onChange={e=>changePricing({date:e.target.value})}/></Field>
             <Field label={isQuote?'Valid until':isPO?'Deliver by':'Payment due'}><Input type="date" value={d.due} disabled={locked} onChange={e=>set('due',e.target.value)}/></Field>
             <Field label="Place of supply"><Select value={d.emirate} disabled={locked} onChange={e=>set('emirate',e.target.value)}>{[...EMIRATES,'Export','Import'].map(x=><option key={x}>{x}</option>)}</Select></Field>
@@ -2930,6 +2942,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
             {sale&&<Field span={2} label="Deliver to"><DeliverToField d={d} locked={locked} pick={id=>pickBranch(id)} addBranch={addBranch}/></Field>}
             {sale&&<div className="fld dl-fld" style={{gridColumn:branchOn()?'span 2':'span 3'}}><span className="lb" aria-hidden="true">&nbsp;</span><DeliveryPreview d={d}/></div>}
             <BranchField value={branchOfRecord(state,d)} disabled={locked} onChange={v=>setD(p=>({...p,branch:v,...(p.isNew?{number:nextNumber(state.docs,p.type,v)}:{})}))}/>
+            <CostCentreField value={d.cc} disabled={locked} onChange={v=>set('cc',v)}/>
           </div>
         </DocUnit>
 
@@ -2948,12 +2961,12 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
                   <Btn onClick={() => setPayAmt(R2(outstanding / 2))}>Half</Btn></div></Field>
             </div>
           </Card>)}
-        <div className="document-toolbar"><div className="doc-tabs" role="tablist" aria-label="Document views">{[['items','Line items',Layers],...(!off?[['journal','Journal entry',BookOpen]]:[]),['history','Price history',Clock],['status',isPO?'Approval & activity':'Activity',CircleCheck]].map(([k,label,I])=><button role="tab" aria-selected={tab===k} key={k} className={tab===k?'on':''} onClick={()=>setTab(k)}><I size={15}/>{label}{k==='items'&&<span>{d.lines.length}</span>}</button>)}</div><div className="acts">{tab==='items'&&<><Btn size="sm" aria-pressed={showAccounts} onClick={()=>setShowAccounts(x=>!x)}>{showAccounts?'Hide accounts':'Show accounts'}</Btn><Btn size="sm" aria-pressed={showCost} onClick={()=>setShowCost(x=>!x)}>{showCost?'Hide cost':'Show cost'}</Btn>{!locked&&<Btn size="sm" onClick={()=>changePricing({},true)}>Reapply pricing</Btn>}</>}</div></div>
+        <div className="document-toolbar"><div className="doc-tabs" role="tablist" aria-label="Document views">{[['items','Line items',Layers],...(!off&&accTab('journal')?[['journal','Journal entry',BookOpen]]:[]),...(accTab('history')?[['history','Price history',Clock]]:[]),...(accTab('activity')?[['status',isPO?'Approval & activity':'Activity',CircleCheck]]:[])].map(([k,label,I])=><button role="tab" aria-selected={tab===k} key={k} className={tab===k?'on':''} onClick={()=>setTab(k)}><I size={15}/>{label}{k==='items'&&<span>{d.lines.length}</span>}</button>)}</div><div className="acts">{tab==='items'&&<><Btn size="sm" aria-pressed={showAccounts} onClick={()=>setShowAccounts(x=>!x)}>{showAccounts?'Hide accounts':'Show accounts'}</Btn>{!hideCost&&<Btn size="sm" aria-pressed={showCost} onClick={()=>setShowCost(x=>!x)}>{showCost?'Hide cost':'Show cost'}</Btn>}{!locked&&<Btn size="sm" onClick={()=>changePricing({},true)}>Reapply pricing</Btn>}</>}</div></div>
         {tab==='items'&&<>
           {lineView!=='compact'&&<div className="line-section-head"><div><h2>Products & services</h2><p>Search by name, code or barcode. Select a product to fill the line.</p></div>{!locked&&<Btn icon={Plus} kind="pri" onClick={addLine}>Add line</Btn>}</div>}
           {!d.lines.length&&lineView!=='compact'&&<Card><EmptyState icon={Package} title="Start with your first product">Add a blank line, then search or scan a product.</EmptyState>{!locked&&<div className="center"><Btn kind="pri" icon={Plus} onClick={addLine}>Add first line</Btn></div>}</Card>}
           {lineView==='compact'&&<div className="line-grid-wrap"><table className="line-grid">
-            <thead><tr><th className="lg-n">#</th><th className="lg-p">Product</th><th className="lg-d">Description</th><th className="lg-q">Qty</th><th className="lg-u">Unit</th><th className="lg-pr">Unit price</th><th className="lg-di">Discount</th><th className="lg-t">VAT</th>{showAccounts&&<th className="lg-a">Account</th>}{showCost&&<th className="lg-c">Cost / margin</th>}<th className="lg-am">Amount</th><th className="lg-x"/></tr></thead>
+            <thead><tr><th className="lg-n">#</th><th className="lg-p">Product</th><th className="lg-d">Description</th><th className="lg-q">Qty</th><th className="lg-u">Unit</th><th className="lg-pr">Unit price</th><th className="lg-di">Discount</th><th className="lg-t">VAT</th>{showAccounts&&<th className="lg-a">Account</th>}{showCost&&!hideCost&&<th className="lg-c">Cost / margin</th>}<th className="lg-am">Amount</th><th className="lg-x"/></tr></thead>
             <tbody>{am.lines.map((l,i)=>{const p=PROD[l.product],st=p&&books.stock[p.id]||{qty:0,value:0},cost=p?currentCost(p,books):0;
               const def=sale?(l.accounts?.income||p?.income):(p?.kind==='goods'?(l.accounts?.inventory||p?.inventory):(l.accounts?.expense||p?.expense));
               const last=i===am.lines.length-1;
@@ -2966,11 +2979,11 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
                 <td className="lg-d"><input className="inp" value={l.desc} disabled={locked||!p} onChange={e=>setLine(l.id,'desc',e.target.value)} aria-label={'Description on line '+(i+1)}/></td>
                 <td className="lg-q"><input className="inp n q-qty" type="number" min="0" step="any" placeholder="0" value={l.qty} disabled={locked||!p} onKeyDown={enter} onChange={e=>setLine(l.id,'qty',e.target.value)} aria-label={'Quantity on line '+(i+1)}/></td>
                 <td className="lg-u">{p?p.uom:''}</td>
-                <td className={cx("lg-pr",l.priceSource==='Party special'&&'special')}>{l.priceSource==='Party special'&&<Star size={10} className="lg-star" aria-label="Party special price"/>}<input className="inp n q-price" type="number" min="0" step="0.01" value={l.price} placeholder={p?'Price':''} disabled={locked||!p} onKeyDown={enter} onChange={e=>setLine(l.id,'price',e.target.value)} aria-label={'Unit price on line '+(i+1)} title={l.priceChoice==='once'?"Changed for this document only (Don't store)":l.manualPricing?'Manual price':l.priceSource||'Product price'}/></td>
-                <td className="lg-di"><DiscCell l={l} n={i+1} disabled={locked||!p} onKeyDown={enter} onValue={v=>setLine(l.id,'disc',v)} onMode={m=>setDiscMode(l.id,m)}/></td>
+                <td className={cx("lg-pr",l.priceSource==='Party special'&&'special')}>{l.priceSource==='Party special'&&<Star size={10} className="lg-star" aria-label="Party special price"/>}<input className="inp n q-price" type="number" min="0" step="0.01" value={l.price} placeholder={p?'Price':''} disabled={locked||!p||ro('price')} onKeyDown={enter} onChange={e=>setLine(l.id,'price',e.target.value)} aria-label={'Unit price on line '+(i+1)} title={l.priceChoice==='once'?"Changed for this document only (Don't store)":l.manualPricing?'Manual price':l.priceSource||'Product price'}/></td>
+                <td className="lg-di"><DiscCell l={l} n={i+1} disabled={locked||!p||ro('discount')} onKeyDown={enter} onValue={v=>setLine(l.id,'disc',v)} onMode={m=>setDiscMode(l.id,m)}/></td>
                 <td className="lg-t"><Select compact value={l.tax} disabled={locked||!p} onChange={e=>setLine(l.id,'tax',e.target.value)} aria-label={'VAT on line '+(i+1)}>{taxes.map(t=><option key={t.id} value={t.id}>{t.short||t.name}</option>)}</Select></td>
                 {showAccounts&&<td className="lg-a">{p?.kind==='goods'&&!sale?<span className="lg-ro">{def}</span>:<Select compact value={l.account||def||''} disabled={locked||!p} onChange={e=>setLine(l.id,'account',e.target.value)} aria-label={'Account on line '+(i+1)}><option value="">—</option>{accounts.map(a=><option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}</Select>}</td>}
-                {showCost&&<td className="lg-c">{p?<><span>{money(cost,false)}</span>{sale&&<small className={unitNetOf(l)-cost<0?'neg':'pos'}>{money(unitNetOf(l)-cost,false)}</small>}</>:''}</td>}
+                {showCost&&!hideCost&&<td className="lg-c">{p?<><span>{money(cost,false)}</span>{sale&&<small className={unitNetOf(l)-cost<0?'neg':'pos'}>{money(unitNetOf(l)-cost,false)}</small>}</>:''}</td>}
                 <td className="lg-am"><b>{money(l.preDisc??l.amount,false)}</b>{l.docShare?<small className="lg-after" title={`After this line's share of the discount on the whole ${meta.short.toLowerCase()}: ${money(l.amount,false)}${l.taxAmt?` + VAT ${money(l.taxAmt,false)}`:''}`}>net {money(l.amount,false)}</small>:l.taxAmt?<small>VAT {money(l.taxAmt,false)}</small>:null}</td>
                 <td className="lg-x">{!locked&&<button className="icon-btn" title={'Remove line '+(i+1)} aria-label={'Remove line '+(i+1)} onClick={()=>setD(s=>({...s,lines:s.lines.filter(x=>x.id!==l.id)}))}><Trash2 size={14}/></button>}</td>
               </tr>{open&&lineInfo(l,p,st)}{priceAskRow(l,20)}</React.Fragment>;})}
@@ -2997,7 +3010,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
               {askPrice(l)&&<table className="price-ask-card"><tbody>{priceAskRow(l,1)}</tbody></table>}
               {p&&<div className="line-insights"><button className="line-detail-toggle" aria-expanded={!!expandedLines[l.id]} onClick={()=>setExpandedLines(x=>({...x,[l.id]:!x[l.id]}))}><ChevronDown size={13}/>{expandedLines[l.id]?"Hide description":"Description"}</button><span className="price-source">{l.manualPricing?'Manual price':l.priceSource||'Product price'}</span><span>{last?<>Last {sale?'sold':'purchased'}: <b>AED {money(last.unitNet,false)}</b> / {p.uom.toLowerCase()} · {dmy(last.date)} · Qty {last.qty}</>:<>No previous {sale?'sale to this customer':'purchase from this vendor'}</>}</span><button onClick={()=>setHistoryLine(l)}><Clock size={13}/>View history</button>{showCost&&<div className="runtime-cost"><span>Cost price <b>{money(p.cost,false)}</b></span><span>Current unit cost ({(books.method||'avco').toUpperCase()}) <b>{money(cost,false)}</b></span>{sale&&<span>Est. margin / unit <b className={unitNetOf(l)-cost<0?'neg':'pos'}>{money(unitNetOf(l)-cost,false)}</b></span>}<small>Current costs · AED · before VAT</small></div>}{showAccounts&&<div className="runtime-account"><Field label="Account">{p?.kind==='goods'&&!sale?<div className="readonly">{def} · {ACC[def]?.name}</div>:<Select aria-label={'Account on line '+(i+1)} value={l.account||def||''} disabled={locked||!p} onChange={e=>setLine(l.id,'account',e.target.value)}><option value="">Select product first</option>{accounts.map(a=><option key={a.code} value={a.code}>{a.code} · {a.name}</option>)}</Select>}</Field><span className="account-source">{p.kind==='goods'&&!sale?'Inventory account from product category':l.account?'Line account override':'Default from product category'}</span>{!locked&&l.account&&!(p.kind==='goods'&&!sale)&&<button onClick={()=>setLine(l.id,'account',null)}><RotateCcw size={13}/>Use category default</button>}</div>}</div>}
             </article>;})}</div>}
-          <div className="df-foot"><div className="document-bottom"><Field label="Internal note"><textarea className="inp" rows={3} value={d.note} disabled={locked} placeholder="Delivery terms, references or notes…" onChange={e=>set('note',e.target.value)}/></Field><DocTotals d={d} am={am} locked={locked} set={set} settle={settle}/></div></div>
+          <div className="df-foot"><div className="document-bottom"><Field label="Internal note"><textarea className="inp" rows={3} value={d.note} disabled={locked} placeholder="Delivery terms, references or notes…" onChange={e=>set('note',e.target.value)}/></Field><DocTotals d={d} am={am} locked={locked||ro('discount')} set={set} settle={settle}/></div></div>
         </>}
         {tab==='journal'&&<div className="journal-tab"><div className="info-strip"><BookOpen size={20}/><span><b>{locked?'Posted journal entry':'Journal preview'}</b><br/>{locked?'The ledger entry for this document.':'This preview updates as you edit. Posting creates the ledger entry.'}</span></div><PostingPreview lines={preview} title={locked?'Posted journal entry':'Journal preview · AED'}/></div>}
         {tab==='history'&&<Card className="df-tab" title={sale?'Price history for this customer':'Price history for this vendor'} sub={`Every product on this document${d.partner?' for '+(PMAP[d.partner]?.name||''):''} — or search any other product.`}><div className="history-pick"><SmartPicker items={productOptions(books)} value={historyProduct} label="History product" placeholder="Search any product…" onChange={setHistoryProduct}/>{historyProduct&&<Btn size="sm" onClick={()=>setHistoryProduct('')}>Products on this document</Btn>}</div>{historyProduct?<HistoryTable key={historyProduct+d.partner} title={PROD[historyProduct]?.name} state={state} product={historyProduct} side={meta.side} partner={d.partner} exclude={d.id} date={d.date}/>
@@ -3356,10 +3369,10 @@ function PrintDoc({ d, close, fta, toast, settle }) {
           {canDn && <div className="seg dn-seg" role="group" aria-label="Print as">
             <button className={cx(!dn && "on")} onClick={() => setDn(false)}>{isQ ? "Quotation" : "Tax invoice"}</button>
             <button className={cx(dn && "on")} onClick={() => setDn(true)}><Truck size={13} />Delivery note</button></div>}
-          <Btn icon={FileDown} onClick={savePdf}>Download PDF</Btn>
-          <Btn icon={Printer} onClick={() => window.print()}>Print</Btn>
-          <Btn icon={Mail} onClick={() => setSendTo("mail")}>Email</Btn>
-          <Btn kind="wa" icon={MessageCircle} onClick={() => setSendTo("wa")}>WhatsApp</Btn>
+          <Btn icon={FileDown} className="act-export" onClick={savePdf}>Download PDF</Btn>
+          <Btn icon={Printer} className="act-export" onClick={() => window.print()}>Print</Btn>
+          <Btn icon={Mail} className="act-send" onClick={() => setSendTo("mail")}>Email</Btn>
+          <Btn kind="wa" icon={MessageCircle} className="act-send" onClick={() => setSendTo("wa")}>WhatsApp</Btn>
           <Btn icon={X} onClick={close}>Close</Btn>
         </div>
         <div className={cx("sheet", "sheet-chrome", bi && "bi")}>
@@ -3631,7 +3644,7 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed, creat
       <PageHead eyebrow={fixed === "vendor" ? "Purchases" : "Sales"} title={fixed === "vendor" ? "Vendors" : fixed === "customer" ? "Customers" : "Customers & vendors"}
         sub={fixed === "vendor" ? `${PARTNERS.filter((p) => p.role === "vendor").length} vendors — the businesses that bill you. Total you owe them is shown on each row.`
           : `${PARTNERS.filter((p) => p.role === "customer").length} customers — the businesses you invoice. What each one owes you is shown on the row.`}>
-        <Btn icon={FileSpreadsheet} onClick={() => setImp(true)}>Import from Excel</Btn>
+        <Btn icon={FileSpreadsheet} className="act-create act-import" onClick={() => setImp(true)}>Import from Excel</Btn>
         <Btn kind="pri" icon={Plus} onClick={() => setEd(blank(fixed || "customer"))}>New {noun}</Btn>
       </PageHead>
       {imp && <ImportDialog kind="partners" state={state} setState={setState} books={books} toast={toast} close={() => setImp(false)} />}
@@ -3698,12 +3711,12 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed, creat
         </div>
         <div className="tbl-wrap"><table className="tbl">
           <thead><tr><th>Name</th>{!fixed && <th>Role</th>}<th>TRN</th><th>Territory &amp; address</th>
-            <th className="n">Terms</th><th className="n">{fixed === "vendor" ? "You owe" : fixed === "customer" ? "Owes you" : "Open balance"}</th><th style={{ width: 150 }} /></tr></thead>
+            <th className="n">Terms</th><th className="n bal-data">{fixed === "vendor" ? "You owe" : fixed === "customer" ? "Owes you" : "Open balance"}</th><th style={{ width: 150 }} /></tr></thead>
           <tbody>{!list.length && <tr><td colSpan={8}>
             <EmptyState icon={Users} title={q ? "Nothing matches this search" : `No ${noun === "customer or vendor" ? "customers or vendors" : noun + "s"} yet`}>
               {q ? "Clear the search to see everyone." : "Add them one by one, or import a list from Excel with TRN, payment terms and opening balances."}</EmptyState>
             {!q && <div className="row-btns" style={{ justifyContent: "center", paddingBottom: 18 }}>
-              <Btn icon={FileSpreadsheet} onClick={() => setImp(true)}>Import from Excel</Btn>
+              <Btn icon={FileSpreadsheet} className="act-create act-import" onClick={() => setImp(true)}>Import from Excel</Btn>
               <Btn kind="pri" icon={Plus} onClick={() => setEd(blank(fixed || "customer"))}>New {noun}</Btn></div>}</td></tr>}
             {list.map((p) => (
             <tr key={p.id}>
@@ -3714,7 +3727,7 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed, creat
                 {addrText(p) && <small title={addrText(p)}>{addrText(p)}</small>}
                 {branchesOf(p).length > 0 && <span className="br-count" title={branchesOf(p).map((b) => b.name).join(", ")}><Truck size={12} />{branchesOf(p).length} delivery address{branchesOf(p).length === 1 ? "" : "es"}</span>}</td>
               <td className="n nowrap">{p.terms ? `${p.terms} days` : "Cash"}</td>
-              <td className="n" style={{ fontWeight: 600 }}>{money(balOf(p))}</td>
+              <td className="n bal-data" style={{ fontWeight: 600 }}>{money(balOf(p))}</td>
               <td style={{ whiteSpace: "nowrap" }}>
                 <button className="icon-btn" style={{ width: 28, height: 28, display: "inline-grid", verticalAlign: "-8px" }}
                   title="Statement of account" onClick={() => go("r_stmt", p.id)}><Send size={13} /></button>
@@ -3976,7 +3989,7 @@ function JournalScreen({ books, state, setState, toast, create }) {
     const clean = { id: nw.id, number: nw.number, date: nw.date, ref: nw.ref || "Manual journal entry", branch: nw.branch || homeBranch(state) || undefined,
       journal: nw.journal, lines: nw.lines.filter((l) => (+l.debit || 0) || (+l.credit || 0))
         .map((l) => ({ acc: l.acc, label: l.label || (ACC[l.acc] ? ACC[l.acc].name : l.acc),
-          debit: R2(+l.debit || 0), credit: R2(+l.credit || 0), partner: l.partner || null })) };
+          debit: R2(+l.debit || 0), credit: R2(+l.credit || 0), partner: l.partner || null, ...(l.cc ? { cc: l.cc } : {}) })) };
     setState((x) => ({ ...x, manual: [...x.manual, clean] }));
     toast(`${nw.number} posted to the ledger`); setNw(null);
   };
@@ -4005,7 +4018,7 @@ function JournalScreen({ books, state, setState, toast, create }) {
           </div>
           <div className="tbl-wrap" style={{ marginTop: 16 }}><table className="lines">
             <thead><tr><th style={{ minWidth: 240 }}>Account</th><th style={{ minWidth: 170 }}>Label</th>
-              <th style={{ minWidth: 150 }}>Counterparty</th><th className="n" style={{ width: 130 }}>Debit</th>
+              <th style={{ minWidth: 150 }}>Counterparty</th>{ccOn() && <th style={{ minWidth: 160 }}>Cost centre</th>}<th className="n" style={{ width: 130 }}>Debit</th>
               <th className="n" style={{ width: 130 }}>Credit</th><th style={{ width: 42 }} /></tr></thead>
             <tbody>{nw.lines.map((l) => (
               <tr key={l.id}>
@@ -4016,6 +4029,8 @@ function JournalScreen({ books, state, setState, toast, create }) {
                 <td><Select value={l.partner} onChange={(e) => setL(l.id, "partner", e.target.value)}>
                   <option value="">None</option>
                   {PARTNERS.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></td>
+                {ccOn() && <td><Select value={l.cc || ""} aria-label="Cost centre" onChange={(e) => setL(l.id, "cc", e.target.value)}>
+                  <option value="">None</option>{COST_CENTERS.filter((c) => c.active !== false).map((c) => <option key={c.id} value={c.id}>{(c.code ? c.code + " · " : "") + c.name}</option>)}</Select></td>}
                 <td><Input n type="number" step="0.01" value={l.debit || ""}
                   onChange={(e) => setL(l.id, "debit", e.target.value ? +e.target.value : 0)} /></td>
                 <td><Input n type="number" step="0.01" value={l.credit || ""}
@@ -4805,7 +4820,7 @@ function ExpensesScreen({ state, setState, books, toast, create }) {
       partner: ex.vendor, date: ex.date, due: ex.paid ? ex.date : addDays(ex.date, v.terms),
       lines: [{ id: uid("l"), product: base.id, desc: ex.memo || ACC[ex.acc].name, qty: 1,
         price: net, disc: 0, tax: ex.vat, account: ex.acc }],
-      ref: "", note: "Recorded through Expenses", state: "posted",
+      ref: "", note: "Recorded through Expenses", state: "posted", ...(ex.cc ? { cc: ex.cc } : {}),
       seq: Math.max(0, ...state.docs.map((x) => x.seq||0), ...(state.stockOps||[]).map(x=>x.seq||0)) + 1, emirate: v.emirate };
     const gross = amounts(bill).total;
     const m = MET[ex.method] || METHODS[0];
@@ -4844,6 +4859,7 @@ function ExpensesScreen({ state, setState, books, toast, create }) {
                 {TAXES.filter((t) => t.scope !== "sale").map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select></Field>
             <Field label="Date"><Input type="date" value={ex.date} onChange={(e) => setEx({ ...ex, date: e.target.value })} /></Field>
             <BranchField value={ex.branch || homeBranch(state)} onChange={(b) => setEx({ ...ex, branch: b })} />
+            <CostCentreField value={ex.cc} onChange={(v) => setEx({ ...ex, cc: v })} />
             <Field label="Supplier">
               <Select value={ex.vendor} onChange={(e) => setEx({ ...ex, vendor: e.target.value })}>
                 {PARTNERS.filter((p) => p.role === "vendor").map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
@@ -5110,10 +5126,10 @@ function StatementSheet({ close, party, g, buckets, due, p, msg, toast, isCust }
     <div className="scrim" onMouseDown={close}>
       <div style={{ maxWidth: 880, width: "100%", margin: "0 auto" }} onMouseDown={(e) => e.stopPropagation()}>
         <div className="sendbar noprint">
-          <Btn icon={FileDown} onClick={savePdf}>Download PDF</Btn>
-          <Btn icon={Printer} onClick={() => window.print()}>Print</Btn>
-          <Btn icon={Mail} onClick={() => deliver("mail")}>Email</Btn>
-          <Btn kind="wa" icon={MessageCircle} onClick={() => deliver("wa")}>WhatsApp</Btn>
+          <Btn icon={FileDown} className="act-export" onClick={savePdf}>Download PDF</Btn>
+          <Btn icon={Printer} className="act-export" onClick={() => window.print()}>Print</Btn>
+          <Btn icon={Mail} className="act-send" onClick={() => deliver("mail")}>Email</Btn>
+          <Btn kind="wa" icon={MessageCircle} className="act-send" onClick={() => deliver("wa")}>WhatsApp</Btn>
           <Btn icon={X} onClick={close}>Close</Btn>
         </div>
         <div className="sheet">
@@ -6010,66 +6026,41 @@ function FtaScreen({ state, setState, books, company, fta, setFta, p, setP, toas
    Enforced in the interface here. Real enforcement belongs on the server —
    a browser can only ever hide a button, never protect the data behind it.
    ========================================================================== */
-const PERMS = [
-  ["view",     "View the books",        "Dashboard, documents and reports"],
-  ["sell",     "Raise sales documents", "Invoices, credit notes and customer receipts"],
-  ["buy",      "Raise purchases",       "Vendor bills, debit notes, expenses and payments"],
-  ["post",     "Post to the ledger",    "Move a draft into the accounts"],
-  ["bank",     "Treasury",              "Bank transfers and fixed assets"],
-  ["master",   "Manage master data",    "Customers, vendors, products and the chart of accounts"],
-  ["journal",  "Manual journals",       "Free-form entries straight to the ledger"],
-  ["reports",  "Financial statements",  "P&L, balance sheet, ledgers and profitability"],
-  ["tax",      "Tax and compliance",    "VAT return, audit file and e-invoicing"],
-  ["settings", "Company settings",      "Profile, costing method, backups and users"],
-];
-const ROLES = {
-  admin:      { label: "Administrator", note: "Everything, including users and settings", grad: "g6",
-                perms: PERMS.map((p) => p[0]) },
-  accountant: { label: "Accountant", note: "Full books and filing, no user administration", grad: "g1",
-                perms: ["view", "sell", "buy", "post", "bank", "master", "journal", "reports", "tax"] },
-  sales:      { label: "Sales", note: "Raise and send customer documents only", grad: "g3",
-                perms: ["view", "sell", "post"] },
-  clerk:      { label: "Purchase clerk", note: "Enter bills and expenses, cannot post", grad: "g5",
-                perms: ["view", "buy"] },
-  viewer:     { label: "Viewer", note: "Read-only access to reports", grad: "g4",
-                perms: ["view", "reports"] },
-};
+/* Roles and their rights live in access.jsx (3.23); ROLES is refreshed from them on each render. */
+const ROLES = {};
 const SEED_USERS = [
   { id: "u1", name: "Administrator", email: "", role: "admin", active: true },
 ];
-const SCREEN_PERM = {
-  categories:"master",pricelists:"master",salespeople:"master",stock_count:"journal",scrap:"journal",
-  dash: "view", quotes: "sell", invoices: "sell", credit_notes: "sell", partners: "master", bills: "buy", debit_notes: "buy", purchase_orders: "buy",
-  banking: "bank", expenses: "buy", assets: "bank", payments: "buy", products: "master", methods: "bank", r_method: "reports", r_stmt: "reports",
-  accounts: "master", acct_groups: "master", journal: "journal", r_stock: "reports", r_pnl: "reports", r_bs: "reports",
-  r_tb: "reports", r_gl: "reports", r_partner: "reports", r_aged_ar: "reports", r_aged_ap: "reports",
-  r_prod: "reports", r_cust: "reports", r_vat: "tax", fta: "tax", settings: "settings", users: "settings", setup: "master",
-  customers: "master", vendors: "master", reports: "reports", opening: "master", pdc: "bank",
-  branches: "settings", companies: "settings", r_branch: "reports", r_group: "reports",
-};
 
-function UsersScreen({ state, setState, me, setMe, toast, create }) {
+function UsersScreen({ state, setState, me, setMe, toast, create, go }) {
   useCreate(create, () => { setEd(blank()); });
   const [ed, setEd] = useState(null);
   const [q, setQ] = useState("");
   const users = state.users || SEED_USERS;
-  const list = users.filter((u) => hits(q, u.name, u.email, ROLES[u.role].label));
+  const defs = roleDefs(state), rules = state.accessRules || [];
+  const list = users.filter((u) => hits(q, u.name, u.email, (defs[u.role] || defs.viewer).label));
   const blank = () => ({ id: uid("u"), name: "", email: "", role: "sales", active: true });
   const isNew = ed && !users.some((u) => u.id === ed.id);
   const valid = ed && ed.name.trim().length > 1 && (!ed.email.trim() || /.+@.+\..+/.test(ed.email.trim()));
   const pinBad = ed && ed.newPin && !pinOk(ed.newPin);
+  /* The rules this person is named in, editable on their form. */
+  const ruleIds = ed ? (ed.ruleIds || rules.filter((r) => (r.users || []).includes(ed.id)).map((r) => r.id)) : [];
   const save = async () => {
     if (pinBad) return;
     const rec = { ...ed, name: ed.name.trim(), email: ed.email.trim() };
     if (ed.newPin) rec.pinHash = await pinHash(rec.id, ed.newPin);
     if (ed.clearPin) delete rec.pinHash;
-    delete rec.newPin; delete rec.clearPin;
+    delete rec.newPin; delete rec.clearPin; delete rec.ruleIds;
     if (!rec.branchOnly || rec.role === "admin" || !rec.branch) delete rec.branchOnly;
-    setState((x) => { const l = x.users || SEED_USERS;
-      return { ...x, users: l.some((u) => u.id === rec.id) ? l.map((u) => (u.id === rec.id ? rec : u)) : [...l, rec] }; });
     if (!rec.approver) delete rec.approver;
     if (!rec.branch) delete rec.branch;
-    toast(`${rec.name} saved as ${ROLES[rec.role].label}${rec.approver ? " · purchase approver" : ""}${rec.branch && BR[rec.branch] ? " · " + BR[rec.branch].name + (rec.branchOnly ? " only" : "") : ""}`); setEd(null);
+    if (!rec.salesperson) delete rec.salesperson;
+    setState((x) => { const l = x.users || SEED_USERS;
+      const out = { ...x, users: l.some((u) => u.id === rec.id) ? l.map((u) => (u.id === rec.id ? rec : u)) : [...l, rec] };
+      if (ed.ruleIds) out.accessRules = (x.accessRules || []).map((r) => { const has = (r.users || []).includes(rec.id), want = ed.ruleIds.includes(r.id);
+        return has === want ? r : { ...r, users: want ? [...(r.users || []), rec.id] : (r.users || []).filter((id) => id !== rec.id) }; });
+      return out; });
+    toast(`${rec.name} saved as ${(defs[rec.role] || defs.viewer).label}${rec.approver ? " · purchase approver" : ""}${rec.branch && BR[rec.branch] ? " · " + BR[rec.branch].name + (rec.branchOnly ? " only" : "") : ""}`); setEd(null);
   };
   const toggle = (u) => {
     if (u.id === me) { toast("You cannot deactivate the account you are signed in as", "warn"); return; }
@@ -6080,20 +6071,31 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
     if (u.id === me) { toast("You cannot delete the account you are signed in as", "warn"); return; }
     removeWithUndo({ setState, toast, key: "users", rec: u, label: u.name, fallback: SEED_USERS, verb: "removed" });
   };
+  const preview = ed ? accessFor({ ...ed, active: true }, { ...state, accessRules: rules.map((r) => ({ ...r, users: ruleIds.includes(r.id) ? [...new Set([...(r.users || []), ed.id])] : (r.users || []).filter((id) => id !== ed.id) })) }) : null;
+  const pv = preview ? appLevels(preview) : {};
+  const approvers = activeApprovers(users).length;
 
   return (
     <div>
       <PageHead eyebrow="Configuration" title="Users &amp; access rights"
-        sub="Roles decide what each person can reach. Sign in as any of them to see the effect; anyone can switch back from the account menu › Switch user.">
+        sub="Give each person a role that matches their job; fine-tune with access rules. Use View as to see InvoEez through their eyes; anyone can switch back from the account menu › Switch user.">
+        {go && <Btn icon={UserCog} onClick={() => go("roles")}>Roles</Btn>}
+        {go && <Btn icon={ShieldBan} onClick={() => go("access_rules")}>Access rules</Btn>}
         <Btn kind="pri" icon={Plus} onClick={() => setEd(blank())}>New user</Btn>
       </PageHead>
+      <div className="u-kpis">
+        <div><small>Active people</small><b>{users.filter((u) => u.active).length}</b><span>of {users.length}</span></div>
+        <div><small>Roles in use</small><b>{new Set(users.filter((u) => u.active).map((u) => u.role)).size}</b><span>of {Object.keys(defs).length} roles</span></div>
+        <div><small>Access rules on</small><b>{rules.filter((r) => r.active !== false).length}</b><span>{rules.length ? `${rules.length} in all` : "none yet"}</span></div>
+        <div><small>Purchase approvers</small><b>{approvers}</b><span>{approvers ? "can sign off orders" : "orders confirm directly"}</span></div>
+      </div>
 
       {ed && (
         <Card title={isNew ? "New user" : `Edit ${ed.name || "user"}`}
           sub="Pick the role that matches what this person actually does day to day"
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 16 }} className="u-ed"
           right={<><Btn onClick={() => setEd(null)}>Cancel</Btn>
-            <Btn kind="pri" icon={Check} disabled={!valid || pinBad} onClick={save}>{isNew ? "Create user" : "Save changes"}</Btn></>}>
+            <Btn kind="pri" icon={Check} className="keep" disabled={!valid || pinBad} onClick={save}>{isNew ? "Create user" : "Save changes"}</Btn></>}>
           <div className="setgrid" style={{ marginBottom: 18 }}>
             <Field label="Full name"><Input value={ed.name} placeholder="Aisha Khan"
               onChange={(e) => setEd({ ...ed, name: e.target.value })} /></Field>
@@ -6116,78 +6118,61 @@ function UsersScreen({ state, setState, me, setMe, toast, create }) {
               {pinBad ? <div style={{ fontSize: 11.5, color: "var(--neg)", marginTop: 5 }}>Use 4 to 6 digits</div>
                 : ed.pinHash && !ed.clearPin ? <button className="linkish" style={{ fontSize: 11.5, marginTop: 5 }} onClick={() => setEd({ ...ed, clearPin: true, newPin: "" })}>Remove PIN</button>
                 : <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 5 }}>Asked when someone switches to this user</div>}</Field>
+            {(state.salespeople || []).length > 0 && <Field label="Sells as (salesperson)">
+              <Select value={ed.salesperson || ""} aria-label="Sells as" onChange={(e) => setEd({ ...ed, salesperson: e.target.value })}>
+                <option value="">Not a salesperson</option>{(state.salespeople || []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select>
+              <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 5 }}>Their documents and figures follow this salesperson</div></Field>}
           </div>
           <ApproverToggle value={ed.approver} onChange={(v) => setEd({ ...ed, approver: v })} />
           <div className="micro" style={{ marginBottom: 11 }}>Role</div>
-          <div className="picks" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", marginBottom: 16 }}>
-            {Object.entries(ROLES).map(([k, r]) => (
-              <button key={k} className={cx("pick", ed.role === k && "on")} onClick={() => setEd({ ...ed, role: k })}>
-                <span className={cx("gt sm", r.grad)}><Users size={15} strokeWidth={1.9} /></span>
+          <div className="picks u-roles" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", marginBottom: 16 }}>
+            {Object.values(defs).map((r) => (
+              <button key={r.key} className={cx("pick", ed.role === r.key && "on")} data-role={r.key} onClick={() => setEd({ ...ed, role: r.key })}>
+                <span className={cx("gt sm", r.grad)}><UserCog size={15} strokeWidth={1.9} /></span>
                 <span className="pt"><b>{r.label}</b><span>{r.note}</span></span>
-                <span className="chk">{ed.role === k && <Check size={11} strokeWidth={3.2} />}</span>
+                <span className="chk">{ed.role === r.key && <Check size={11} strokeWidth={3.2} />}</span>
               </button>))}
           </div>
-          <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-            {PERMS.map(([k, l]) => (
-              <Pill key={k} tone={ROLES[ed.role].perms.includes(k) ? "ok" : ""}>
-                {ROLES[ed.role].perms.includes(k) ? "✓" : "✕"} {l}</Pill>))}
-          </div>
+          {preview && <div className="u-preview">
+            <h4>What {ed.name.split(" ")[0] || "they"} can do</h4>
+            <div className="rl-sum">{AREA_GROUPS.map(([g, l, I]) => <span key={g} className={cx("rl-app", "lv-" + (pv[g] || "none"))}><I size={13} />{l}<b>{LV_TXT[pv[g] || ""]}</b></span>)}</div>
+            {accessNotes(preview).length > 0 && <div className="u-acc">{accessNotes(preview).map((n) => <Pill key={n} tone="info">{n}</Pill>)}</div>}
+            {rules.length > 0 && ed.role !== "admin" && <><h4>Access rules for {ed.name.split(" ")[0] || "this person"}</h4>
+              <div className="u-rules">{rules.map((r) => { const on = ruleIds.includes(r.id), byRole = (r.roles || []).includes(ed.role);
+                return <button key={r.id} className={cx("chipbtn", (on || byRole) && "on")} disabled={byRole} title={byRole ? "Applies to everyone with this role" : ""}
+                  onClick={() => setEd({ ...ed, ruleIds: on ? ruleIds.filter((x) => x !== r.id) : [...ruleIds, r.id] })}>{(on || byRole) && <Check size={12} strokeWidth={3} />}{r.name}{r.active === false ? " (off)" : ""}</button>; })}</div></>}
+            <button className="linkish" style={{ alignSelf: "flex-start", fontSize: 12.5 }} onClick={() => go && go("roles")}>Change what a role can do › Roles</button>
+          </div>}
         </Card>)}
 
       <div className="grid" style={{ gridTemplateColumns: "minmax(0,1fr)" }}>
-        <Card title="People" pad={false} sub={`${users.filter((u) => u.active).length} active of ${users.length} · ${activeApprovers(users).length ? `${activeApprovers(users).length} purchase ${activeApprovers(users).length === 1 ? "approver" : "approvers"}` : "no purchase approver yet"}`}
+        <Card title="People" pad={false} sub={`${users.filter((u) => u.active).length} active of ${users.length} · ${approvers ? `${approvers} purchase ${approvers === 1 ? "approver" : "approvers"}` : "no purchase approver yet"}`}
           right={<SearchBox value={q} onChange={setQ} placeholder="Search name, email or role" width={250} />}>
           <div className="tbl-wrap"><table className="tbl">
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th>{branchOn() && <th>Branch</th>}<th>Status</th><th className="n">Permissions</th>
+            <thead><tr><th>Name</th><th>Role</th><th>Access</th>{branchOn() && <th>Branch</th>}<th>Status</th>
               <th style={{ width: 190 }} /></tr></thead>
             <tbody>
-              {list.length === 0 && <tr><td colSpan={branchOn() ? 7 : 6}><EmptyState icon={Users} title={`Nothing matches “${q}”`} /></td></tr>}
-              {list.map((u) => (
-                <tr key={u.id} style={u.active ? undefined : { opacity: .55 }}>
-                  <td><Party name={u.name} meta={u.id === me ? "Signed in as this user" : ""} /></td>
-                  <td className="muted">{u.email}</td>
-                  <td><Pill tone={u.role === "admin" ? "gold" : u.role === "viewer" ? "" : "info"}>{ROLES[u.role].label}</Pill>{u.pinHash && <span className="su-lock" style={{ marginLeft: 6 }} title="Switching to this user asks for a PIN"><Lock size={12} />PIN</span>}{u.approver && <span className="su-appr" title="Can approve purchase orders"><ClipboardCheck size={12} />Approver</span>}</td>
+              {list.length === 0 && <tr><td colSpan={branchOn() ? 6 : 5}><EmptyState icon={Users} title={`Nothing matches “${q}”`} /></td></tr>}
+              {list.map((u) => { const r = defs[u.role] || defs.viewer, notes = accessNotes(accessFor(u, state));
+                return <tr key={u.id} style={u.active ? undefined : { opacity: .55 }}>
+                  <td><Party name={u.name} meta={u.id === me ? "Signed in as this user" : u.email} /></td>
+                  <td><Pill tone={u.role === "admin" ? "gold" : u.role === "viewer" ? "" : "info"}>{r.label}</Pill>{u.pinHash && <span className="su-lock" style={{ marginLeft: 6 }} title="Switching to this user asks for a PIN"><Lock size={12} />PIN</span>}{u.approver && <span className="su-appr" title="Can approve purchase orders"><ClipboardCheck size={12} />Approver</span>}</td>
+                  <td><div className="u-acc">{notes.slice(0, 3).map((n) => <Pill key={n}>{n}</Pill>)}{notes.length > 3 && <Pill>+{notes.length - 3}</Pill>}{!notes.length && <span className="muted">As the role</span>}</div></td>
                   {branchOn() && <td className="u-br">{branchName(u.branch && BR[u.branch] ? u.branch : defaultBranchId(state))}{u.branchOnly && u.role !== "admin" && <span title="Sees only this branch"><Lock size={12} /> only</span>}</td>}
                   <td><Pill tone={u.active ? "ok" : "bad"} dot>{u.active ? "Active" : "Suspended"}</Pill></td>
-                  <td className="n">{ROLES[u.role].perms.length} of {PERMS.length}</td>
-                  <td style={{ whiteSpace: "nowrap" }}>
+                  <td><div className="u-acts">
                     {u.id !== me && u.active &&
                       <Btn size="sm" onClick={() => { setMe(u.id); toast(`Now signed in as ${u.name}`); }}>Sign in as</Btn>}
-                    <button className="icon-btn" style={{ width: 27, height: 27, display: "inline-grid", verticalAlign: "-8px" }}
-                      title="Edit" onClick={() => setEd({ ...u })}><Pencil size={13} /></button>
-                    <button className="icon-btn" style={{ width: 27, height: 27, display: "inline-grid", verticalAlign: "-8px" }}
-                      title={u.active ? "Suspend" : "Reactivate"} onClick={() => toggle(u)}>
+                    <button className="icon-btn" title="Edit" onClick={() => setEd({ ...u })}><Pencil size={13} /></button>
+                    <button className="icon-btn" title={u.active ? "Suspend" : "Reactivate"} onClick={() => toggle(u)}>
                       {u.active ? <X size={13} /> : <Check size={13} />}</button>
-                    <button className="icon-btn" style={{ width: 27, height: 27, display: "inline-grid", verticalAlign: "-8px" }}
-                      title="Remove" onClick={() => remove(u)}><Trash2 size={13} /></button>
-                  </td>
-                </tr>))}
+                    <button className="icon-btn" title="Remove" onClick={() => remove(u)}><Trash2 size={13} /></button>
+                  </div></td>
+                </tr>; })}
             </tbody>
           </table></div>
         </Card>
-
-        <Card title="Permission matrix" pad={false}
-          sub="What each role can reach. The interface hides or disables anything outside it.">
-          <div className="tbl-wrap"><table className="tbl">
-            <thead><tr><th style={{ minWidth: 230 }}>Capability</th>
-              {Object.entries(ROLES).map(([k, r]) => <th key={k} className="n">{r.label}</th>)}</tr></thead>
-            <tbody>{PERMS.map(([k, l, note]) => (
-              <tr key={k}>
-                <td><b style={{ fontWeight: 500 }}>{l}</b>
-                  <div style={{ fontSize: 11.5, color: "var(--ink-4)" }}>{note}</div></td>
-                {Object.entries(ROLES).map(([rk, r]) => (
-                  <td key={rk} className="n">
-                    {r.perms.includes(k)
-                      ? <Check size={15} strokeWidth={2.6} style={{ color: "var(--pos)" }} />
-                      : <X size={15} strokeWidth={2.2} style={{ color: "var(--ink-4)", opacity: .5 }} />}</td>))}
-              </tr>))}</tbody>
-          </table></div>
-          <div className="savebar">
-            <CircleAlert size={15} strokeWidth={1.9} style={{ color: "var(--warn)" }} />
-            <span>These rules are applied in the interface. Once the server backend lands they move behind
-              the API, which is the only place they can actually protect data.</span>
-          </div>
-        </Card>
+        <AccessOverview state={state} me={me} setMe={setMe} toast={toast} onEdit={(u) => { setEd({ ...u }); scrollPageTop(); }} />
       </div>
     </div>
   );
@@ -6452,7 +6437,7 @@ function SettingsScreen({ accent, setAccent, company, setCompany, theme, setThem
 const NAV_CLASSIC = [
  { g: "Dashboard", i: LayoutDashboard, k: "dash" },
  { g: "Master", i: Database, items: [
-   { s: "Accounts master", items: [{ k: "accounts", l: "Chart of accounts", i: BookOpen, add: 1 }, { k: "acct_groups", l: "Account groups", i: Layers }, { k: "customers", l: "Customers", i: Users, add: 1 }, { k: "vendors", l: "Vendors", i: Truck, add: 1 }] },
+   { s: "Accounts master", items: [{ k: "accounts", l: "Chart of accounts", i: BookOpen, add: 1 }, { k: "acct_groups", l: "Account groups", i: Layers }, { k: "customers", l: "Customers", i: Users, add: 1 }, { k: "vendors", l: "Vendors", i: Truck, add: 1 }, { k: "cost_centers", l: "Cost centres", i: Target, add: 1 }] },
    { s: "Inventory master", items: [{ k: "products", l: "Products & services", i: Package, add: 1 }, { k: "categories", l: "Product categories", i: Layers, add: 1 }] },
    { s: "Rate master", items: [{ k: "pricelists", l: "Price lists", i: Tag, add: 1 }] },
    { s: "Other master", items: [{ k: "salespeople", l: "Sales team", i: Users, add: 1 }, { k: "methods", l: "Payment methods", i: CreditCard, add: 1 }] },
@@ -6460,7 +6445,7 @@ const NAV_CLASSIC = [
  { g: "Sale", i: ShoppingBag, items: [{ k: "quotes", l: "Quotations", i: FileText, add: 1 }, { k: "invoices", l: "Invoices", i: Receipt, add: 1 }, { k: "credit_notes", l: "Credit notes", i: FileMinus, add: 1 }] },
  { g: "Purchase", i: ShoppingCart, items: [{ k: "purchase_orders", l: "Purchase orders", i: ClipboardCheck, add: 1 }, { k: "bills", l: "Vendor bills", i: ShoppingCart, add: 1 }, { k: "debit_notes", l: "Debit notes", i: FilePlus, add: 1 }, { k: "expenses", l: "Expenses", i: Wallet, add: 1 }] },
  { g: "Banking", i: Landmark, items: [{ k: "payments", l: "Receipts & payments", i: ArrowDownLeft, add: 1 }, { k: "pdc", l: "Post-dated cheques", i: CalendarClock, add: 1 }, { k: "banking", l: "Bank & cash", i: Landmark, add: 1 }] },
- { g: "Accounting trans.", i: Calculator, items: [{ k: "journal", l: "Journal entries", i: BookOpen, add: 1 }, { k: "assets", l: "Fixed assets", i: Layers, add: 1 }] },
+ { g: "Accounting trans.", i: Calculator, items: [{ k: "journal", l: "Journal entries", i: BookOpen, add: 1 }, { k: "assets", l: "Fixed assets", i: Layers, add: 1 }, { k: "budgets", l: "Budgets", i: PiggyBank, add: 1 }] },
  { g: "Stock management", i: Warehouse, items: [{ k: "stock_count", l: "Stock counts & adjustments", i: Boxes, add: 1 }, { k: "scrap", l: "Damage & scrap", i: Trash2, add: 1 }, { k: "r_stock", l: "Inventory valuation", i: Package }] },
  { g: "Reports", i: PieChart, items: [
     { k: "reports", l: "All reports", i: PieChart },
@@ -6476,9 +6461,11 @@ const NAV_CLASSIC = [
     { k: "r_method", l: "Payments by method", i: Banknote },
     { k: "r_tb", l: "Trial balance", i: CircleDot },
     { k: "r_gl", l: "General ledger", i: BookOpen },
-    { k: "r_partner", l: "Partner ledger", i: Users }] },
+    { k: "r_partner", l: "Partner ledger", i: Users },
+    { k: "r_budget", l: "Budget vs actual", i: PiggyBank },
+    { k: "r_cc", l: "Profit by cost centre", i: Target }] },
  { g: "VAT & e-invoicing", i: ShieldCheck, items: [{ k: "r_vat", l: "VAT return — FTA 201", i: Building2 }, { k: "fta", l: "FTA & e-invoicing", i: ShieldCheck }] },
- { g: "Utilities & tools", i: Wrench, items: [{ k: "setup", l: "Setup guide", i: ListChecks }, { k: "users", l: "Users & access", i: Users, add: 1 }, { k: "companies", l: "Companies", i: Building2 }, { k: "branches", l: "Branches", i: Store, add: 1 }, { k: "settings", l: "Settings & backup", i: Settings }] },
+ { g: "Utilities & tools", i: Wrench, items: [{ k: "setup", l: "Setup guide", i: ListChecks }, { k: "users", l: "Users & access", i: Users, add: 1 }, { k: "roles", l: "Roles", i: UserCog, add: 1 }, { k: "access_rules", l: "Access rules", i: ShieldBan, add: 1 }, { k: "companies", l: "Companies", i: Building2 }, { k: "branches", l: "Branches", i: Store, add: 1 }, { k: "settings", l: "Settings & backup", i: Settings }] },
 ];
 /* 3.20: every screen grouped by app, each with its colour (from APPS) and an overview as its first item. */
 const NAV = [
@@ -6491,7 +6478,8 @@ const NAV = [
  { g: "Inventory", i: Warehouse, app: "inventory", items: [{ k: "app_inventory", l: "Inventory overview", i: LayoutGrid }, { k: "products", l: "Products & services", i: Package, add: 1 },
    { k: "categories", l: "Product categories", i: Layers, add: 1 }, { k: "stock_count", l: "Stock counts & adjustments", i: Boxes, add: 1 }, { k: "scrap", l: "Damage & scrap", i: Trash2, add: 1 }, { k: "r_stock", l: "Inventory valuation", i: Package }] },
  { g: "Accounting", i: Calculator, app: "accounting", items: [{ k: "app_accounting", l: "Accounting overview", i: LayoutGrid }, { k: "accounts", l: "Chart of accounts", i: BookOpen, add: 1 },
-   { k: "acct_groups", l: "Account groups", i: Layers }, { k: "journal", l: "Journal entries", i: BookOpen, add: 1 }, { k: "assets", l: "Fixed assets", i: Layers, add: 1 }, { k: "opening", l: "Opening balances", i: Scale }] },
+   { k: "acct_groups", l: "Account groups", i: Layers }, { k: "journal", l: "Journal entries", i: BookOpen, add: 1 }, { k: "assets", l: "Fixed assets", i: Layers, add: 1 }, { k: "opening", l: "Opening balances", i: Scale },
+   { k: "budgets", l: "Budgets", i: PiggyBank, add: 1 }, { k: "cost_centers", l: "Cost centres", i: Target, add: 1 }] },
  { g: "Bank & cash", i: Landmark, app: "bank", items: [{ k: "app_bank", l: "Bank & cash overview", i: LayoutGrid }, { k: "payments", l: "Receipts & payments", i: ArrowDownLeft, add: 1 },
    { k: "pdc", l: "Post-dated cheques", i: CalendarClock, add: 1 }, { k: "banking", l: "Bank & cash", i: Landmark, add: 1 }, { k: "methods", l: "Payment methods", i: CreditCard, add: 1 }] },
  { g: "Reports", i: PieChart, app: "reports", items: [
@@ -6508,9 +6496,12 @@ const NAV = [
     { k: "r_method", l: "Payments by method", i: Banknote },
     { k: "r_tb", l: "Trial balance", i: CircleDot },
     { k: "r_gl", l: "General ledger", i: BookOpen },
-    { k: "r_partner", l: "Partner ledger", i: Users }] },
+    { k: "r_partner", l: "Partner ledger", i: Users },
+    { k: "r_budget", l: "Budget vs actual", i: PiggyBank },
+    { k: "r_cc", l: "Profit by cost centre", i: Target }] },
  { g: "VAT & e-invoicing", i: ShieldCheck, app: "vat", items: [{ k: "app_vat", l: "VAT overview", i: LayoutGrid }, { k: "r_vat", l: "VAT return — FTA 201", i: Building2 }, { k: "fta", l: "FTA & e-invoicing", i: ShieldCheck }] },
- { g: "Administration", i: Settings, app: "settings", items: [{ k: "setup", l: "Setup guide", i: ListChecks }, { k: "users", l: "Users & access", i: Users, add: 1 }, { k: "companies", l: "Companies", i: Building2 },
+ { g: "Administration", i: Settings, app: "settings", items: [{ k: "setup", l: "Setup guide", i: ListChecks }, { k: "users", l: "Users & access", i: Users, add: 1 }, { k: "roles", l: "Roles", i: UserCog, add: 1 },
+   { k: "access_rules", l: "Access rules", i: ShieldBan, add: 1 }, { k: "companies", l: "Companies", i: Building2 },
    { k: "branches", l: "Branches", i: Store, add: 1 }, { k: "settings", l: "Settings & backup", i: Settings }] },
 ];
 const NAV_FLAT_CLASSIC = navFlat(NAV_CLASSIC), NAV_FLAT_APPS = navFlat(NAV);
@@ -6607,10 +6598,15 @@ function Invoeez() {
   useMemo(() => syncProducts(state.products || [], state.categories || DEFAULT_CATEGORIES), [state.products, state.categories]);
   useMemo(() => syncMethods(state.methods || []), [state.methods]);
   useMemo(() => syncBranches(state.branches || [], branchCfg(state)), [state.branches, state.branchSeries, state.defaultBranch]);
+  useMemo(() => syncCostCenters(state.costCenters || []), [state.costCenters]);
   const books = useMemo(() => deriveBooks(state), [state]);
   /* Someone limited to their branch sees and records only that branch (3.19); everyone else can switch their working branch. */
   const meNow = (state.users || SEED_USERS).find((u) => u.id === me && u.active);
-  LOCK_BRANCH = meNow && meNow.branchOnly && meNow.role !== "admin" && meNow.branch && BR[meNow.branch] && branchOn() ? meNow.branch : "";
+  /* What the signed-in person may do: their role, less any access rule that names them (3.23). */
+  useMemo(() => syncRoles(state), [state.roles]);
+  const acc = useMemo(() => accessFor(meNow || { id: null, role: "viewer" }, state), [meNow, state.roles, state.accessRules]);
+  ACC_NOW = acc;
+  LOCK_BRANCH = meNow && (meNow.branchOnly || acc.branchOnly) && meNow.role !== "admin" && meNow.branch && BR[meNow.branch] && branchOn() ? meNow.branch : "";
   const [workBr, setWorkBr] = useState(() => readWorkBranch(me));
   React.useEffect(() => { setWorkBr(readWorkBranch(me)); }, [me]);
   /* Reports and the dashboard can look at one branch; the VAT return, stock and statements stay company-wide. */
@@ -6657,7 +6653,7 @@ function Invoeez() {
   }, []);
   React.useEffect(() => {
     const h = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setCmdk((v) => !v); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); if (!(ACC_NOW && ACC_NOW.noSearch)) setCmdk((v) => !v); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
@@ -6743,12 +6739,14 @@ function Invoeez() {
   };
   const role = ROLES[meUser.role] || ROLES.viewer;
   const signOut = () => { setSwitching(false); setMenu(false); setMe(null); setView(landing); };
-  const can = (p) => role.perms.indexOf(p) >= 0;
+  const can = (p) => legacyCan(acc, p);
   /* Approvers reach purchase orders even when their role does not raise purchases. */
-  const allowedScreen = (k) => !(LOCK_BRANCH && BRANCH_WIDE.includes(k)) && (!SCREEN_PERM[k] || can(SCREEN_PERM[k]) || (k === "purchase_orders" && !!meUser.approver));
+  const allowedScreen = (k) => !(LOCK_BRANCH && BRANCH_WIDE.includes(k)) && (screenOpen(acc, k) || (k === "purchase_orders" && !!meUser.approver));
   /* An app's overview is open to anyone who can use at least one screen in it. */
-  const allowed = (k) => ((k === "home" || appOfView(k)) && !appsNav ? false : appOfView(k) ? appScreens(appOfView(k)).some(allowedScreen) : allowedScreen(k));
-  React.useEffect(() => { if (!allowed(view)) setView(landing); }, [me, view, navMode]);
+  const allowed = (k) => ((k === "home" || appOfView(k)) && !appsNav ? false : appOfView(k) ? appMain(appOfView(k)).some(allowedScreen) : allowedScreen(k));
+  /* Where someone lands: Home in the apps mode, else the dashboard, else the first screen their role opens. */
+  const landHere = appsNav ? "home" : allowed("dash") ? "dash" : ((NAV_FLAT.find((n) => n.k && allowed(n.k)) || { k: "dash" }).k);
+  React.useEffect(() => { if (!allowed(view)) setView(landHere); }, [me, view, navMode, acc]);
   const setNavMode = (m) => {
     if (m === navMode) return;
     try { window.localStorage.setItem(NAVMODE_KEY, m); } catch (e) {}
@@ -6760,10 +6758,16 @@ function Invoeez() {
   if (appsNav) { if (view === "home") appRef.current = null; else if (!(appRef.current && menuKeys(appRef.current).includes(view))) appRef.current = primaryAppOf(view); }
   const curApp = appsNav && appRef.current ? APP_BY[appRef.current] : null;
   PAGE_APP = curApp ? curApp.name : null;
+  /* Home and the app overviews count only the documents this person may see. */
+  const sState = useMemo(() => scopeDocs(state, acc, meUser), [state, acc, meUser]);
+  /* The screen's own rights, for the interface to hide what this person can't do there. */
+  const vArea = AREA_BY[SCREEN_AREA[view]], vR = vArea ? acc.rights[vArea.k] : null, deny = (x) => !!vR && vArea.a.includes(x) && !vR[x];
+  const viewAcc = { "data-noc": deny("create") ? "" : undefined, "data-noe": deny("edit") ? "" : undefined, "data-nod": deny("delete") ? "" : undefined,
+    "data-nox": deny("export") ? "" : undefined, "data-nos": deny("send") ? "" : undefined };
   const appTone = curApp ? { "--a1": curApp.tone[0], "--a2": curApp.tone[1] } : undefined;
   const openApp = (a) => { appRef.current = a.id; go(a.home); };
   const here = NAV_FLAT.find((i) => i.k === view) || (appOfView(view) && { l: appOfView(view).name + " overview", g: appOfView(view).name }) || { l: "Home", g: "Home" };
-  const canAdd = (k) => !SCREEN_PERM[k] || can(SCREEN_PERM[k]);
+  const canAdd = (k) => allowedScreen(k) && screenCan(acc, k, "create");
   const attention = useMemo(() => attentionItems({ state, books, user: meUser, can, allowed, backup }), [state, books, meUser]);
   const alerts = attention.length;
   const [notif, setNotif] = useState(false);
@@ -6775,26 +6779,27 @@ function Invoeez() {
   useSlideThumbs();
   const cloudRef = React.useRef(null); cloudRef.current = cloud;
 
+  /* Search finds only what this person may open: their screens, the documents they may see, and records in areas they can use. */
   const cmdItems = useMemo(() => [
-    ...NAV_FLAT.map((i) => ({ key: i.k, label: i.l, hint: i.sg ? i.g + " · " + i.sg : i.g, icon: i.i, act: () => go(i.k) })),
-    { key: "new_inv", label: "Create a new invoice", hint: "Action", icon: Plus, act: () => newDoc("invoice") },
-    { key: "new_bill", label: "Create a new vendor bill", hint: "Action", icon: Plus, act: () => newDoc("bill") },
-    { key: "new_po", label: "Create a new purchase order", hint: "Action", icon: Plus, act: () => newDoc("purchase_order") },
-    { key: "backup", label: "Back up the books to JSON", hint: "Action", icon: Download, act: backup },
-    { key: "start_company", label: state.sample ? "Start my company (clear the sample data)" : "Start a new company", hint: "Action", icon: Rocket, act: startCompany },
-    { key: "setup_guide", label: "Setup guide — import products, customers, opening balances", hint: "Action", icon: ListChecks, act: () => go("setup") },
-    ...APPS.filter((a) => appsNav && a.home.startsWith("app_") && !NAV_FLAT.some((n) => n.k === a.home)).map((a) => ({ key: a.home, label: `${a.name} overview`, hint: "App", icon: a.icon, act: () => go(a.home) })),
+    ...NAV_FLAT.filter((i) => allowed(i.k)).map((i) => ({ key: i.k, label: i.l, hint: i.sg ? i.g + " · " + i.sg : i.g, icon: i.i, act: () => go(i.k) })),
+    canAdd("invoices") && { key: "new_inv", label: "Create a new invoice", hint: "Action", icon: Plus, act: () => newDoc("invoice") },
+    canAdd("bills") && { key: "new_bill", label: "Create a new vendor bill", hint: "Action", icon: Plus, act: () => newDoc("bill") },
+    canAdd("purchase_orders") && { key: "new_po", label: "Create a new purchase order", hint: "Action", icon: Plus, act: () => newDoc("purchase_order") },
+    allowed("settings") && !acc.noExport && { key: "backup", label: "Back up the books to JSON", hint: "Action", icon: Download, act: backup },
+    allowed("settings") && { key: "start_company", label: state.sample ? "Start my company (clear the sample data)" : "Start a new company", hint: "Action", icon: Rocket, act: startCompany },
+    allowed("setup") && { key: "setup_guide", label: "Setup guide — import products, customers, opening balances", hint: "Action", icon: ListChecks, act: () => go("setup") },
+    ...APPS.filter((a) => appsNav && a.home.startsWith("app_") && !NAV_FLAT.some((n) => n.k === a.home) && appOpen(a, allowed)).map((a) => ({ key: a.home, label: `${a.name} overview`, hint: "App", icon: a.icon, act: () => go(a.home) })),
     ...companyList().filter((c) => c.id !== activeCompanyId()).map((c) => ({ key: "co_" + c.id, label: `Switch to ${c.name}`, hint: "Company", icon: Building2, act: () => switchCompany(c.id) })),
-    { key: "add_company", label: "Add a company", hint: "Action", icon: Plus, act: () => setAddingCo(true) },
+    allowed("companies") && { key: "add_company", label: "Add a company", hint: "Action", icon: Plus, act: () => setAddingCo(true) },
     { key: "nav_mode", label: appsNav ? "Switch to the sidebar menu" : "Switch to the apps dashboard", hint: "Navigation", icon: LayoutGrid, act: () => setNavMode(appsNav ? "sidebar" : "apps") },
     ...(branchOn() && !LOCK_BRANCH ? BRANCHES.filter((b) => b.active !== false).map((b) => ({ key: "work_" + b.id, label: `Work in ${b.name}`, hint: "Branch", icon: MapPin, act: () => setWork(b.id) })) : []),
-    ...state.docs.map((d) => ({ key: d.id, label: `${d.number} · ${PMAP[d.partner].name}`,
+    ...sState.docs.filter((d) => allowed(LIST_OF[d.type])).map((d) => ({ key: d.id, label: `${d.number} · ${PMAP[d.partner].name}`,
       hint: DOCMETA[d.type].short, search:d.lines.map(l=>productText(PROD[l.product])).join(" "), icon: FileText, act: () => go(LIST_OF[d.type], d.id) })),
-    ...PRODUCTS.map(p=>({key:"product_"+p.id,label:prodLabel(p),hint:[p.id,p.barcode,p.brand,p.packing].filter(Boolean).join(" · "),icon:Package,act:()=>go("products",p.id)})),
-    ...PARTNERS.map(p=>({key:"partner_"+p.id,label:p.name,hint:[p.role,p.phone,p.contact,p.trn].join(" · "),icon:Users,act:()=>go("partners",p.id)})),
-    ...ACCOUNTS.map((a) => ({ key: a.code, label: `${a.code} — ${a.name}`, hint: "Ledger", icon: BookOpen,
+    ...(allowed("products") ? PRODUCTS : []).map(p=>({key:"product_"+p.id,label:prodLabel(p),hint:[p.id,p.barcode,p.brand,p.packing].filter(Boolean).join(" · "),icon:Package,act:()=>go("products",p.id)})),
+    ...PARTNERS.filter((p) => allowed(p.role === "vendor" ? "vendors" : "customers")).map(p=>({key:"partner_"+p.id,label:p.name,hint:[p.role,p.phone,p.contact,p.trn].join(" · "),icon:Users,act:()=>go("partners",p.id)})),
+    ...(allowed("r_gl") ? ACCOUNTS : []).map((a) => ({ key: a.code, label: `${a.code} — ${a.name}`, hint: "Ledger", icon: BookOpen,
       act: () => go("r_gl", a.code) })),
-  ], [state, me, navMode]);
+  ].filter(Boolean), [state, sState, acc, me, navMode]);
 
   const body = () => {
     if (!allowed(view)) return (
@@ -6803,16 +6808,15 @@ function Invoeez() {
           sub={`You are signed in as ${meUser.name}, a ${role.label.toLowerCase()}.`} />
         <Card>
           <EmptyState icon={ShieldCheck} title="This area is restricted">
-            {role.label} accounts do not have the “{(PERMS.find((p) => p[0] === SCREEN_PERM[view]) || ["", view])[1]}”
-            permission. An administrator can change that under Users &amp; access.</EmptyState>
+            {role.label} accounts cannot open “{tabLabel(view)}”{SCREEN_AREA[view] ? ` (${AREA_BY[SCREEN_AREA[view]].l})` : ""}, or an access rule hides it. An administrator can change that under Users &amp; access › Roles or Access rules.</EmptyState>
         </Card>
       </div>);
     if (DOC_VIEWS[view]) return <DocumentsScreen key={view} type={DOC_VIEWS[view]} state={state} setState={setState}
       books={books} openId={param} clearOpen={() => setParam(null)} toast={toast} go={go} fta={fta} user={meUser} users={users}
-      readOnly={!!SCREEN_PERM[view] && !can(SCREEN_PERM[view])} />;
-    if (appOfView(view)) return <AppOverview key={view} app={appOfView(view)} state={state} books={books} user={meUser} go={go} quickAdd={quickAdd} allowed={allowed} canAdd={canAdd} counts={counts} />;
+      readOnly={!screenCan(acc, view, "create") && !screenCan(acc, view, "edit")} />;
+    if (appOfView(view)) return <AppOverview key={view} app={appOfView(view)} state={sState} books={books} user={meUser} go={go} quickAdd={quickAdd} allowed={allowed} canAdd={canAdd} counts={counts} />;
     switch (view) {
-      case "home": return <AppsHome state={state} books={books} company={company} user={meUser} go={go} openApp={openApp} quickAdd={quickAdd} allowed={allowed} canAdd={canAdd} counts={counts}
+      case "home": return <AppsHome state={sState} whole={state} books={books} company={company} user={meUser} acc={acc} go={go} openApp={openApp} quickAdd={quickAdd} allowed={allowed} canAdd={canAdd} counts={counts}
         cmdItems={cmdItems} openSearch={() => setCmdk(true)} />;
       case "dash": return <Dashboard state={dstate} whole={state} books={dbooks} go={go} newDoc={newDoc} range={range} setRange={setRange} user={meUser}
         setup={!state.sample && !(state.setup && state.setup.hidden) && <SetupProgress state={state} company={company} go={go} />} />;
@@ -6841,7 +6845,9 @@ function Invoeez() {
       case "journal": return <JournalScreen create={cr("journal")} books={books} state={state} setState={setState} toast={toast} />;
       case "fta": return <FtaScreen state={state} setState={setState} books={books} company={company} fta={fta} setFta={setFta}
         p={period} setP={setPeriod} toast={toast} go={go} />;
-      case "users": return <UsersScreen create={cr("users")} state={state} setState={setState} me={me} setMe={setMe} toast={toast} />;
+      case "users": return <UsersScreen create={cr("users")} state={state} setState={setState} me={me} setMe={setMe} toast={toast} go={go} />;
+      case "roles": return <RolesScreen create={cr("roles")} state={state} setState={setState} toast={toast} go={go} />;
+      case "access_rules": return <AccessRulesScreen create={cr("access_rules")} state={state} setState={setState} toast={toast} go={go} />;
       case "settings": return <SettingsScreen accent={accent} setAccent={setAccent} setCosting={(k) => setState((x) => ({ ...x, costing: k }))} setSettings={(patch) => setState((x) => ({ ...x, settings: { ...(x.settings || {}), ...patch } }))} fta={fta} setFta={setFta} company={company} setCompany={setCompany} theme={theme} setTheme={setTheme}
         density={density} setDensity={setDensity} backup={backup} restore={restore} reset={reset} startCompany={startCompany} go={go}
         toast={toast} books={books} state={state} cloud={cloud} pwa={pwa} param={param} onAddCompany={() => setAddingCo(true)} navMode={navMode} setNavMode={setNavMode} />;
@@ -6849,6 +6855,10 @@ function Invoeez() {
         work={branchOn() ? homeBranch(state) : ""} setWork={setWork} />;
       case "companies": return <CompaniesScreen state={state} books={books} company={company} setCompany={setCompany} accent={accent} setAccent={setAccent} toast={toast}
         onAdd={() => setAddingCo(true)} backup={backup} go={go} />;
+      case "cost_centers": return <CostCentersScreen state={state} setState={setState} books={books} toast={toast} go={go} create={cr("cost_centers")} />;
+      case "budgets": return <BudgetsScreen state={state} setState={setState} books={books} toast={toast} go={go} create={cr("budgets")} param={param} />;
+      case "r_cc": return <CostCentreReport state={state} books={rbooks} p={period} setP={setPeriod} toast={toast} go={go} />;
+      case "r_budget": return <BudgetReport state={state} books={books} p={period} setP={setPeriod} toast={toast} go={go} param={param} />;
       case "r_branch": return <BranchPerformance state={state} books={books} p={period} setP={setPeriod} toast={toast} go={go} />;
       case "r_group": return <GroupReport state={state} books={books} company={company} p={period} setP={setPeriod} toast={toast} onAdd={() => setAddingCo(true)} />;
       case "r_tb": return <TrialBalance books={rbooks} p={period} setP={setPeriod} toast={toast} drill={drill} />;
@@ -6867,7 +6877,7 @@ function Invoeez() {
     }
   };
 
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS + REFINE_CSS + DELIVERY_CSS + GROUP_CSS + APPS_CSS;
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS + REFINE_CSS + DELIVERY_CSS + GROUP_CSS + APPS_CSS + COSTING_CSS + ACCESS_CSS;
   /* Nobody signed in in this tab: show the sign-in screen. */
   if (!meFound) return (
     <ThemeCtx.Provider value={palette}>
@@ -6883,7 +6893,9 @@ function Invoeez() {
   return (
     <ThemeCtx.Provider value={palette}>
     <CompanyCtx.Provider value={company}>
-    <div className={cx("mz", appsNav && view === "home" && "on-home")} data-theme={theme} data-accent={accent} data-density={density} data-nav={navMode} style={{ height: "100vh" }}>
+    <div className={cx("mz", appsNav && view === "home" && "on-home")} data-theme={theme} data-accent={accent} data-density={density} data-nav={navMode} style={{ height: "100vh" }}
+      data-hidecost={acc.hideCost ? "" : undefined} data-hidebal={acc.fields.balance === "hide" ? "" : undefined} data-noexport={acc.noExport ? "" : undefined}
+      data-noimport={acc.buttons.has("import") ? "" : undefined} data-nosearch={acc.noSearch ? "" : undefined}>
       <style>{ALL_CSS}</style>
       {starting && <StartCompanyDialog state={state} company={company} backup={backup} close={() => setStarting(false)} onDone={companyStarted} />}
       {addingCo && <StartCompanyDialog mode="add" state={state} company={company} backup={backup} close={() => setAddingCo(false)}
@@ -6917,19 +6929,24 @@ function Invoeez() {
               <Scale size={13} strokeWidth={1.9} />
               <span className="lbl">{books.balanced ? "Balanced" : `Out by ${money(books.totalD - books.totalC)}`}</span></span>
           </div>}
-          <button className="omni" onClick={() => setCmdk(true)}>
+          {(() => { const omni = <button className="omni" onClick={() => setCmdk(true)}>
             <span className="oi"><Search size={15} strokeWidth={2.2} /></span>
-            <span className="ot">Search products, barcode, invoices…</span><kbd>{MOD === "⌘" ? "⌘K" : "Ctrl K"}</kbd></button>
-          <div className="tb-r">
-          <SyncChip sync={cloud} go={go} />
-          <div style={{ position: "relative" }}>
-            <button className="btn pri" ref={newRef} onClick={() => {
-              const el = newRef.current;
+            <span className="ot">Search products, barcode, invoices…</span><kbd>{MOD === "⌘" ? "⌘K" : "Ctrl K"}</kbd></button>;
+            const openNew = () => { const el = newRef.current;
               if (el && el.getBoundingClientRect) { const r = el.getBoundingClientRect();
                 setNewAt({ top: Math.round(r.bottom + 8), left: Math.round(Math.max(8, r.right - 250)) }); }
-              setNewMenu((v) => !v);
-            }}><Plus size={15} strokeWidth={2.1} />New</button>
-          </div>
+              setNewMenu((v) => !v); };
+            /* Apps mode: one Create, joined to the search — on Home it sits at the end of the big search box instead (3.23). */
+            return appsNav ? (view !== "home" && <div className="ab-find">{!acc.noSearch && omni}
+              {(can("sell") || can("buy") || can("journal") || can("master")) && <button className="ab-create" ref={newRef} onClick={openNew} aria-haspopup="menu" aria-expanded={newMenu}><Plus size={16} strokeWidth={2.4} /><span>Create</span></button>}</div>)
+              : omni; })()}
+          <div className="tb-r">
+          <SyncChip sync={cloud} go={go} />
+          {!appsNav && <div style={{ position: "relative" }}>
+            <button className="btn pri" ref={newRef} onClick={() => { const el = newRef.current;
+              if (el && el.getBoundingClientRect) { const r = el.getBoundingClientRect(); setNewAt({ top: Math.round(r.bottom + 8), left: Math.round(Math.max(8, r.right - 250)) }); }
+              setNewMenu((v) => !v); }}><Plus size={15} strokeWidth={2.1} />New</button>
+          </div>}
           <span className="tb-div" />
           <div className="tb-icons">
             <div className="nt-wrap">
@@ -7018,7 +7035,7 @@ function Invoeez() {
             </div></>)}
           </div>
         </div>
-        <div className={cx("page", curApp && "in-app")} style={appTone}><div className="view" key={view}>
+        <div className={cx("page", curApp && "in-app")} style={appTone}><div className="view" key={view} {...viewAcc}>
           {trail.length > 0 && <nav className="drill-trail noprint" aria-label="Drill-down path">
             <button className="back" onClick={() => backTo(trail.length - 1)}><ArrowLeft size={14} />Back</button>
             {trail.map((t, i) => <React.Fragment key={i}><button className="crumb" onClick={() => backTo(i)}>{t.label}</button><ChevronRight size={13} className="sep" /></React.Fragment>)}

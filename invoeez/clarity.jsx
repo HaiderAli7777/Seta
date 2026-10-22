@@ -61,6 +61,9 @@ function ReportsHub({ state, books, go, allowed }) {
       ["r_bs", Scale, "Balance sheet", "Everything the business owns, owes, and is worth today.", `Net worth ${aed(B.totE)}`, ""],
       ["banking", Landmark, "Bank & cash", "Balances of every bank and cash account.", null],
       ["r_stock", Boxes, "Inventory valuation", "Stock on hand and what it cost.", `Stock value ${aed(stock)}`, ""]]],
+    ["Budgets & cost centres", [
+      ["r_budget", PiggyBank, "Budget vs actual", "Are income and costs on plan this year?", (state.budgets || []).length ? `${nPlural(state.budgets.length, "budget")}` : "No budget yet", ""],
+      ["r_cc", Target, "Profit by cost centre", "Which department, project or location earns its keep.", (state.costCenters || []).length ? `${nPlural(state.costCenters.length, "cost centre")}` : "No cost centres yet", ""]]],
     ["Tax", [
       ["r_vat", Building2, "VAT return — FTA 201", "The figures for your VAT return, box by box.", v.due >= 0 ? `This quarter so far: ${aed(v.due)} payable` : `This quarter so far: ${aed(-v.due)} refundable`, ""],
       ["fta", ShieldCheck, "FTA & e-invoicing", "Audit file and e-invoicing readiness.", null]]],

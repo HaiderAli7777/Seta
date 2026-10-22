@@ -1,3 +1,55 @@
+# 3.23.0 — Access rights made simple, a Home for each job, cost centres and budgets
+
+- **One Create, in one place.** On Home, **Create new** sits at the end of the search bar and opens a menu grouped by Sales, Purchases, Money & stock and Accounting, showing only what you may create. The **New** button is gone from the top bar. Inside an app, the search button and **Create** sit together on the right.
+- **The top bar takes your theme.** In the apps dashboard it uses the same deep gradient as the dashboard banner (Ocean, Teal, Royal or Graphite; dark in dark mode) instead of plain white. Each page inside an app opens with a matching banner: the app's name, the page title, a short line about it and its main buttons. The dashboard itself is unchanged. The picture in Settings › Navigation shows the new bar.
+- **A Home for each job.** Home puts the apps for that person's job first and shows **Your work**, the three or four things they act on most, each one click from where to act:
+  - **Accountant**: drafts to post, overdue invoices to collect, bills due this week and the VAT due (orders waiting for their approval come first when there are any). Apps: Accounting, Bank & cash, VAT, Reports, Dashboard.
+  - **Salesperson**: what they sold this month, their open quotations and their overdue invoices. Apps: Sales, Contacts, Inventory, Reports.
+  - **Sales manager**: the team's sales this month, open quotations and overdue invoices. Apps: Sales, Contacts, Reports, Dashboard, Inventory.
+  - **Procurement manager**: up to four of orders to approve, orders awaiting approval, orders to receive and bill, bills due this week and spend this month. Apps: Purchase, Inventory, Contacts, Reports, Dashboard.
+  - **Purchaser**: draft orders to submit, orders to receive and bill, and bills to finish. Apps: Purchase, Inventory, Contacts.
+  - **Storekeeper**: items to reorder and items out of stock. Apps: Inventory first.
+  - **Viewer**: profit this year, cash and bank, and what customers owe. Apps: Dashboard and Reports only.
+
+  Apps a person can't use are not shown. An app holding only reports they may read stays off Home; those reports are in the Reports app, whose count matches what they can open. With fewer apps, the tiles centre under the search bar. For a salesperson, app overviews read "My sales this month", "My open quotations" and so on.
+- **Users & access, redesigned** (the Users & access app: People, Roles, Access rules):
+  - **People**: four figures (active people, roles in use, access rules on, purchase approvers), a searchable list, and each person's restrictions at a glance ("Own documents only", "No cost prices or margins", "Discounts up to 10%").
+  - **Adding someone** is one form: name and email, a role picked from cards, the salesperson they sell as, purchase approver, their home branch (when you use branches), a PIN, and a live preview of exactly what they will be able to do.
+  - **Who can do what**: one table showing each person's access to every app (Full, Edit, View or none) and their restrictions, with **View as** to see InvoEez through their eyes.
+- **Roles**: eight built in: Administrator, Accountant, Salesperson, Sales manager, Purchaser, Procurement manager, Storekeeper and Viewer.
+  - **How a role is set**: for each area of the business (sales documents, customers, price lists, purchase documents, expenses, vendors, products, stock, journals, chart of accounts, cost centres and budgets, statements, receipts and payments, bank, VAT, dashboard, administration), pick None, View, Create & edit or Full. Fine-tune single actions: view, create, edit, delete, post, export and send.
+  - **Options**: own documents only, hide cost prices and margins, read-only, a discount limit, and what Home shows first.
+  - **Adjusting**: change a built-in role (it is marked **Adjusted**, with a way back to standard), copy one as a new role, or start a new role from scratch. Changes apply straight away to everyone with that role.
+  - Purchase clerk is now called **Purchaser**; existing users keep their role.
+- **Access rules**, in the spirit of Odoo's *Simplify Access Management*. A rule only ever takes rights away and never applies to administrators. Start from one of six ready-made rules or a blank one, then pick the people or roles it applies to. The rule's side panel always shows what it does and who it affects. What a rule can do:
+  - **Apps & menus**: hide whole apps or single screens.
+  - **Actions**: block create, edit, delete, post, export or send, area by area.
+  - **Fields**: hide cost prices and margins, or customer and vendor balances. Make unit price, discounts, salesperson or price list read-only on documents. Cap discounts.
+  - **Records**: own documents only, home branch only, or only the last N days.
+  - **Buttons & tabs**: hide Duplicate, Reset to draft, Credit/debit note, Record payment, Post-dated cheque, Print/send, Convert quotation or Import from Excel. Hide the journal entry, price history or activity trail on documents.
+  - **General**: read-only user; no exports, printing or downloads; no search. Each rule can be switched off and on without losing it.
+
+  The six ready-made rules: Hide cost prices from sales, Read-only auditor, No deleting or resetting documents, Own documents only, No exports or printing, Fixed prices and a 5% discount limit.
+- **Rights are applied everywhere**, in both navigation modes:
+  - **Screens**: menus, Home, search, app overviews and the sidebar show only what a person may open.
+  - **Lists**: lists, overviews and reports count only the documents they may see.
+  - **Buttons**: create, edit, delete, post, export, print and send buttons follow their rights.
+  - **Discounts**: a discount above someone's limit is stopped with a clear message.
+  - **Purchasers** can raise orders and enter bills but not post them.
+  - **Cost prices** disappear from products, documents, valuation and profit reports for anyone who may not see them.
+- **Cost centres** (Accounting › Configuration › Cost centres): departments, projects, branches of activity or vehicles, each with a code and colour.
+  - **Setting up**: start from five suggestions in one click (Head office, Sales & marketing, Operations, Warehouse, Projects) or add your own. A cost centre in use can't be deleted, only switched off.
+  - **Tagging**: once you have one, invoices, bills, credit and debit notes, and expenses get a **Cost centre** field, and journal entries get one on each line.
+  - **Report** (Accounting › Reporting › Profit by cost centre, also in Reports): the P&L in columns, one per cost centre plus Unassigned. The columns add up to the whole company.
+- **Budgets** (Accounting › Budgets): a budget for the whole company or one cost centre, by account and month.
+  - **Starting**: from this year's run rate, last year's actuals or blank, with an optional growth or saving %.
+  - **Editing**: type any month, or a yearly total that spreads evenly; add any income or expense account.
+  - **Budget vs actual** (Accounting › Reporting, also in Reports): budget, actual and variance for any period, with part months pro-rated. Variance is shown as good or bad for profit, not just up or down.
+- **Fixes**:
+  - The People table's action buttons line up on every row.
+  - "Who can do what" rows line up across all columns.
+  - All reports names its new group "Budgets & cost centres", the same as the Reports menu.
+
 # 3.22.0 — A cleaner apps dashboard: new top bar, Home in one view, clearer apps
 
 - **Home is just the search box and your apps.** The greeting, headline, "Jump back in", the four figures, Create new and the category filters are gone. All twelve apps now fit on one screen without scrolling: six to a row at 1920×880 (100% zoom on a full-HD monitor), and still in view at 1366×657 and 1280×600 laptops. Each app is a tile with its icon, illustration, a short description and a live count. When purchase orders are waiting for your approval, a single line under the search box says so, with **Review**.

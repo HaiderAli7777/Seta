@@ -28,15 +28,19 @@ const SCREEN_INFO = {
   setup: "Step-by-step setup: company, products, opening balances", users: "Who can sign in, their role, PIN and branch", companies: "Every company in this InvoEez",
   branches: "Shops, warehouses and offices, with their numbering", settings: "Company profile, appearance, cloud sync and backup",
   r_branch: "Branches side by side", r_group: "Companies side by side",
+  cost_centers: "Departments, projects and locations to split profit by", budgets: "Planned income and costs, month by month",
+  r_budget: "How the year is going against the budget", r_cc: "Income, costs and profit for each cost centre",
+  roles: "Ready-made sets of rights for each job", access_rules: "Hide apps, block actions, lock fields for chosen people",
 };
 /* The kind of each screen an app's menu lists at the top: the day-to-day work, the records it keeps, or filing. */
 const SCREEN_KIND = { customers: "records", vendors: "records", products: "records", salespeople: "records", accounts: "records", assets: "records",
-  companies: "records", branches: "records", r_vat: "filing", fta: "filing" };
-const KIND_TITLE = { work: "Transactions", records: "Master data", filing: "Filing" };
+  companies: "records", branches: "records", r_vat: "filing", fta: "filing", budgets: "planning" };
+const KIND_TITLE = { work: "Transactions", records: "Master data", filing: "Filing", planning: "Planning" };
 
 const CREATE_LABEL = { invoices: "New invoice", quotes: "New quotation", credit_notes: "New credit note", customers: "New customer", purchase_orders: "New purchase order",
   bills: "New vendor bill", expenses: "New expense", vendors: "New vendor", products: "New product", stock_count: "New stock count", scrap: "Record scrap", categories: "New category",
-  journal: "New journal entry", accounts: "New account", assets: "New fixed asset", payments: "Record a receipt", pdc: "New cheque", banking: "New transfer", salespeople: "New salesperson" };
+  journal: "New journal entry", accounts: "New account", assets: "New fixed asset", payments: "Record a receipt", pdc: "New cheque", banking: "New transfer", salespeople: "New salesperson",
+  budgets: "New budget", cost_centers: "New cost centre", roles: "New role", access_rules: "New access rule", users: "New user" };
 const monthStart = () => TODAY.slice(0, 8) + "01";
 const quarterStart = () => { const m = +TODAY.slice(5, 7); return `${TODAY.slice(0, 4)}-${String(m - ((m - 1) % 3)).padStart(2, "0")}-01`; };
 const nPlural = (n, one, many) => `${(+n || 0).toLocaleString("en-US")} ${n === 1 ? one : many || one + "s"}`;
@@ -84,7 +88,7 @@ const APPS = [
         rows: low.map((p) => ({ key: p.id, k: "products", p: p.id, icon: Package, t: p.name, s: `${p.code || "No code"} · reorder at ${p.reorder ?? 5}`,
           amtText: `${q(p).toLocaleString("en-US")} ${(p.uom || "units").toLowerCase()}`, st: q(p) <= 0 ? { label: "Out of stock", tone: "bad" } : { label: "Low", tone: "warn" } })) }; } },
   { id: "accounting", name: "Accounting", icon: Calculator, cat: "finance", tone: ["#34D399", "#047857"], home: "app_accounting", art: "accounting",
-    desc: "Ledger, journals and assets", about: "Journal entries, the chart of accounts, fixed assets and opening balances", create: ["journal", "accounts", "assets"],
+    desc: "Ledger, journals, budgets", about: "Journal entries, the chart of accounts, fixed assets, budgets and cost centres", create: ["journal", "accounts", "assets", "budgets"],
     records: (c) => nPlural(ACCOUNTS.length, "account"),
     kpis: (c) => { const y = TODAY.slice(0, 4) + "-01-01", r = pnl(c.books.flat, y, TODAY);
       return [["Net profit this year", money(r.net, false), `${r.nm.toFixed(1)}% of sales`, r.net < 0 ? "neg" : ""], ["Journal entries", String(c.state.manual.length), "entered by hand"],
@@ -114,7 +118,7 @@ const APPS = [
       return { key: qs, k: "r_vat", icon: ShieldCheck, t: `Q${n} ${qs.slice(0, 4)}`, s: `${dmy(qs)} – ${dmy(qe)}${i === 0 ? " · so far" : ""}`, amtText: "AED " + money(Math.abs(v.due), false),
         st: v.due >= 0 ? { label: i === 0 ? "Due so far" : "Due", tone: "warn" } : { label: "Refund", tone: "ok" } }; }) }) },
   { id: "reports", name: "Reports", icon: PieChart, cat: "insights", tone: ["#818CF8", "#4338CA"], home: "reports", art: "reports",
-    desc: "Statements, ledgers, analysis", records: () => "15 reports" },
+    desc: "Statements, ledgers, analysis", records: (c) => nPlural([...new Set(menuKeys("reports").slice(1))].filter((k) => !c.allowed || c.allowed(k)).length, "report") },
   { id: "dash", name: "Dashboard", icon: LayoutDashboard, cat: "insights", tone: ["#38BDF8", "#2563EB"], home: "dash", art: "dash",
     desc: "Live sales, cash and profit", records: () => "Live" },
   { id: "contacts", name: "Contacts", icon: Users, cat: "people", tone: ["#F472B6", "#BE185D"], home: "app_contacts", art: "contacts",
@@ -146,27 +150,30 @@ const APP_MENUS = {
   sales: ["app_sales", "quotes", "invoices", "credit_notes", "customers", ["Reporting", ["r_cust", "r_prod", "r_aged_ar", "r_stmt"]], ["Configuration", ["pricelists", "salespeople"]]],
   purchase: ["app_purchase", "purchase_orders", "bills", "debit_notes", "expenses", "vendors", ["Reporting", ["r_aged_ap", "r_partner"]]],
   inventory: ["app_inventory", "products", "stock_count", "scrap", ["Reporting", ["r_stock", "r_prod"]], ["Configuration", ["categories"]]],
-  accounting: ["app_accounting", "journal", "accounts", "assets", ["Reporting", ["r_pnl", "r_bs", "r_tb", "r_gl"]], ["Configuration", ["acct_groups", "opening"]]],
+  accounting: ["app_accounting", "journal", "accounts", "assets", "budgets", ["Reporting", ["r_pnl", "r_bs", "r_tb", "r_gl", "r_budget", "r_cc"]], ["Configuration", ["cost_centers", "acct_groups", "opening"]]],
   bank: ["app_bank", "payments", "pdc", "banking", ["Reporting", ["r_method"]], ["Configuration", ["methods"]]],
   vat: ["app_vat", "r_vat", "fta"],
   reports: ["reports", ["Statements", ["r_pnl", "r_bs", "r_tb"]], ["Ledgers", ["r_gl", "r_partner", "r_stmt"]], ["Ageing", ["r_aged_ar", "r_aged_ap"]],
-    ["Analysis", ["r_prod", "r_cust", "r_method", "r_stock"]], ["Branches & group", ["r_branch", "r_group"]]],
+    ["Analysis", ["r_prod", "r_cust", "r_method", "r_stock"]], ["Budgets & cost centres", ["r_budget", "r_cc"]], ["Branches & group", ["r_branch", "r_group"]]],
   dash: ["dash"],
   contacts: ["app_contacts", "customers", "vendors", "salespeople"],
   org: ["companies", "branches", ["Reporting", ["r_branch", "r_group"]]],
-  users: ["users"],
+  users: ["users", "roles", "access_rules"],
   settings: ["settings", "setup"],
 };
 /* Where a screen opens when it is reached from search or a link, rather than from an app's own menu. */
-const PRIMARY_APP = { companies: "org", branches: "org", users: "users", r_vat: "vat", r_stock: "inventory", salespeople: "sales", customers: "sales", vendors: "purchase" };
+const PRIMARY_APP = { companies: "org", branches: "org", users: "users", roles: "users", access_rules: "users", r_vat: "vat", r_stock: "inventory", salespeople: "sales", customers: "sales", vendors: "purchase" };
 const TAB_LABEL = { quotes: "Quotations", invoices: "Invoices", credit_notes: "Credit notes", purchase_orders: "Purchase orders", bills: "Vendor bills", products: "Products",
   stock_count: "Stock counts", scrap: "Damage & scrap", r_stock: "Stock valuation", journal: "Journal entries", accounts: "Chart of accounts", assets: "Fixed assets", payments: "Receipts & payments",
   pdc: "Cheques", banking: "Bank & cash", r_vat: "VAT return", fta: "E-invoicing", reports: "All reports", dash: "Dashboard", settings: "Company & settings", setup: "Setup guide",
-  categories: "Product categories", methods: "Payment methods", pricelists: "Price lists", salespeople: "Sales team" };
+  categories: "Product categories", methods: "Payment methods", pricelists: "Price lists", salespeople: "Sales team",
+  budgets: "Budgets", cost_centers: "Cost centres", r_budget: "Budget vs actual", r_cc: "Profit by cost centre", users: "People", roles: "Roles", access_rules: "Access rules" };
 const menuKeys = (id) => (APP_MENUS[id] || []).flatMap((x) => (typeof x === "string" ? [x] : x[1]));
 /* The screens of an app (its menu without the overview). */
 const appScreens = (a) => menuKeys(a.id).filter((k) => !k.startsWith("app_"));
-const appOpen = (a, allowed) => (a.home.startsWith("app_") ? appScreens(a).some(allowed) : allowed(a.home));
+/* Its working screens: an app whose only open screens are reports stays off Home; those reports are in the Reports app. */
+const appMain = (a) => (APP_MENUS[a.id] || []).flatMap((x) => (typeof x === "string" ? (x.startsWith("app_") ? [] : [x]) : x[0] === "Reporting" ? [] : x[1]));
+const appOpen = (a, allowed) => (a.home.startsWith("app_") ? appMain(a).some(allowed) : allowed(a.home));
 function primaryAppOf(k) {
   if (appOfView(k)) return appOfView(k).id;
   if (PRIMARY_APP[k]) return PRIMARY_APP[k];
@@ -179,7 +186,7 @@ const tabLabel = (k) => TAB_LABEL[k] || (appOfView(k) ? "Overview" : (navItem(k)
 const tabIcon = (k) => (appOfView(k) ? LayoutGrid : (navItem(k) || { i: FileText }).i || FileText);
 /* An app's overview: the menu's top-level screens, split into work and records, and its dropdown groups. */
 function appSections(id, allowed) {
-  const top = { work: [], records: [], filing: [] }, groups = [];
+  const top = { work: [], records: [], filing: [], planning: [] }, groups = [];
   (APP_MENUS[id] || []).forEach((x) => {
     if (typeof x === "string") { if (!x.startsWith("app_") && allowed(x)) top[SCREEN_KIND[x] || "work"].push(x); }
     else { const ks = x[1].filter(allowed); if (ks.length) groups.push([x[0], ks]); }
@@ -239,38 +246,100 @@ const Skyline = () => <svg className="ah-sky" viewBox="0 0 1200 220" preserveAsp
 </svg>;
 
 /* ------------------------------------------------------------------- home */
-/* Just the search box and the apps — all of them in one view, with nothing to scroll. */
-function AppsHome({ state, books, user, go, openApp, allowed, counts, cmdItems, openSearch }) {
-  const [q, setQ] = useState(""), [hi, setHi] = useState(0);
-  const ctx = { state, books, counts };
-  const apps = APPS.filter((a) => appOpen(a, allowed));
+/* Which apps come first on Home for each kind of work (3.23); the rest follow in the usual order. */
+const PERSONA_APPS = { sales: ["sales", "contacts", "inventory", "reports"], sales_manager: ["sales", "contacts", "reports", "dash", "inventory"],
+  accounting: ["accounting", "bank", "vat", "reports", "dash"], procurement: ["purchase", "inventory", "contacts", "reports", "dash"],
+  purchasing: ["purchase", "inventory", "contacts"], stock: ["inventory", "purchase"], viewer: ["dash", "reports"], admin: [] };
+const PERSONA_LABEL = { admin: "Owner", accounting: "Accounting", sales_manager: "Sales management", sales: "Selling", procurement: "Procurement", purchasing: "Purchasing", stock: "Warehouse", viewer: "Overview" };
+/* "Your work": the three or four things that person acts on most, each opening where to act. */
+function workItems(persona, { state, books, user, allowed }) {
+  const docs = (t, f) => state.docs.filter((d) => d.type === t && (!f || f(d)));
+  const sum = (l) => R2(l.reduce((s, d) => s + amounts(d).total, 0));
+  const ar = aging(state, "receivable", TODAY), ap = aging(state, "payable", TODAY), week = addDays(TODAY, 7), m0 = monthStart();
+  const lateAr = ar.rows.reduce((n, r) => n + r.items.filter((i) => i.due < TODAY).length, 0), lateArV = overdueOf(ar);
+  const dueAp = ap.rows.reduce((a, r) => a.concat(r.items.filter((i) => i.due <= week)), []);
+  const quotes = docs("quote", (d) => ["draft", "sent", "accepted"].includes(d.state));
+  const sold = sum(docs("invoice", (d) => d.state === "posted" && d.date >= m0)) - sum(docs("credit_note", (d) => d.state === "posted" && d.date >= m0));
+  const drafts = state.docs.filter((d) => d.state === "draft" && !(DOCMETA[d.type] || {}).offLedger);
+  const pend = docs("purchase_order", (d) => d.state === "pending"), waiting = awaitingMe(state, user);
+  const goods = PRODUCTS.filter((p) => p.kind === "goods"), qty = (p) => (books.stock[p.id] || {}).qty || 0;
+  const low = goods.filter((p) => qty(p) <= (p.reorder ?? 5)), out = goods.filter((p) => qty(p) <= 0);
+  const qs = quarterStart(), v = vat201(state, qs, TODAY), qEnd = addDays(addMonths(qs, 3), -1);
+  const aedS = (x) => "AED " + shortAmt(Math.abs(x));
+  const I = {
+    approvals: waiting.length ? { k: "purchase_orders", p: "__pending__", icon: ClipboardCheck, v: String(waiting.length), l: waiting.length === 1 ? "order to approve" : "orders to approve", tone: "warn" } : null,
+    drafts: { k: "invoices", p: "__f:draft", icon: FileText, v: String(drafts.length), l: drafts.length === 1 ? "draft to post" : "drafts to post", tone: drafts.length ? "warn" : "" },
+    collect: { k: "invoices", p: "__f:overdue", icon: ArrowDownLeft, v: aedS(lateArV), l: `overdue · ${nPlural(lateAr, "invoice")}`, tone: lateArV > 0 ? "neg" : "" },
+    pay: { k: "bills", p: "__f:open", icon: ArrowUpRight, v: String(dueAp.length), l: dueAp.length === 1 ? "bill due this week" : "bills due this week" },
+    vat: { k: "r_vat", icon: ShieldCheck, v: aedS(v.due), l: `VAT ${v.due >= 0 ? "due" : "refund"} · file by ${dmy(addDays(qEnd, 28)).slice(0, 6)}` },
+    sold: { k: "invoices", icon: TrendingUp, v: aedS(sold), l: "sold this month", tone: "pos" },
+    quotes: { k: "quotes", p: "__f:sent", icon: FileText, v: String(quotes.length), l: `open quotations · ${aedS(sum(quotes))}` },
+    pos: { k: "purchase_orders", p: "__f:approved", icon: ClipboardCheck, v: String(docs("purchase_order", (d) => ["approved", "sent"].includes(d.state)).length), l: "orders to receive & bill" },
+    pending: { k: "purchase_orders", p: "__pending__", icon: ClipboardCheck, v: String(pend.length), l: pend.length === 1 ? "order awaiting approval" : "orders awaiting approval", tone: pend.length ? "warn" : "" },
+    poDraft: { k: "purchase_orders", p: "__f:draft", icon: FileText, v: String(docs("purchase_order", (d) => d.state === "draft").length), l: "draft orders to submit" },
+    billDraft: { k: "bills", p: "__f:draft", icon: ShoppingCart, v: String(docs("bill", (d) => d.state === "draft").length), l: "bills to finish" },
+    spend: { k: "bills", icon: ShoppingCart, v: aedS(sum(docs("bill", (d) => d.state === "posted" && d.date >= m0))), l: "bought this month" },
+    low: { k: "products", p: "__low_stock__", icon: Package, v: String(low.length), l: low.length === 1 ? "item to reorder" : "items to reorder", tone: low.length ? "warn" : "" },
+    out: { k: "products", p: "__low_stock__", icon: Boxes, v: String(out.length), l: "out of stock", tone: out.length ? "neg" : "" },
+    cash: { k: allowed("banking") ? "banking" : "dash", icon: Landmark, v: aedS(bankBalance(books)), l: "cash and bank" },
+    profit: { k: "r_pnl", icon: BarChart3, v: aedS(pnl(books.flat, TODAY.slice(0, 4) + "-01-01", TODAY).net), l: "net profit this year" },
+    owed: { k: "r_aged_ar", icon: Receipt, v: aedS(ar.grand), l: "customers owe" },
+  };
+  const plan = { admin: ["approvals", "drafts", "collect", "cash"], accounting: ["approvals", "drafts", "collect", "pay", "vat"], sales_manager: ["sold", "quotes", "collect", "approvals"],
+    sales: ["sold", "quotes", "collect"], procurement: ["approvals", "pending", "pos", "pay", "spend"], purchasing: ["poDraft", "pos", "billDraft", "approvals"],
+    stock: ["low", "out", "pos"], viewer: ["profit", "cash", "owed"] }[persona] || ["drafts", "collect", "cash"];
+  return plan.map((k) => I[k] && { key: k, ...I[k] }).filter((x) => x && allowed(x.k)).slice(0, 4);
+}
+
+/* The search box with Create new at its end, the person's work for today, and the apps — all in one view. */
+function AppsHome({ state, whole, books, user, go, openApp, quickAdd, allowed, canAdd, counts, cmdItems, openSearch, acc }) {
+  const [q, setQ] = useState(""), [hi, setHi] = useState(0), [mk, setMk] = useState(false);
+  const ctx = { state, books, counts, allowed };
+  const persona = (acc && acc.role && acc.role.persona) || "admin", first = PERSONA_APPS[persona] || [];
+  const apps = APPS.filter((a) => appOpen(a, allowed)).sort((a, b) => { const x = first.indexOf(a.id), y = first.indexOf(b.id); return (x < 0 ? 99 : x) - (y < 0 ? 99 : y); });
   const results = useMemo(() => (q.trim() ? cmdItems.map((i) => ({ i, s: searchScore(q, i.label + " " + (i.hint || "") + " " + (i.search || ""), [i.label]) })).filter((x) => x.s > 0)
     .sort((a, b) => b.s - a.s).slice(0, 8).map((x) => x.i) : []), [q, cmdItems]);
   const run = (i) => { setQ(""); i.act(); };
-  /* Approvers are told what waits for them, in one line. */
-  const waiting = allowed("purchase_orders") ? awaitingMe(state, user) : [];
+  const work = useMemo(() => workItems(persona, { state, books, user, allowed }), [state, books, user, persona]);
+  const CREATE = [["Sales", [["quotes", "Quotation", FileText], ["invoices", "Invoice", Receipt], ["credit_notes", "Credit note", FileMinus], ["customers", "Customer", Users]]],
+    ["Purchases", [["purchase_orders", "Purchase order", ClipboardCheck], ["bills", "Vendor bill", ShoppingCart], ["expenses", "Expense", Wallet], ["vendors", "Vendor", Truck]]],
+    ["Money & stock", [["payments", "Receipt or payment", ArrowDownLeft], ["products", "Product or service", Package], ["stock_count", "Stock count", Boxes]]],
+    ["Accounting", [["journal", "Journal entry", BookOpen], ["budgets", "Budget", PiggyBank], ["cost_centers", "Cost centre", Target]]]]
+    .map(([g, items]) => [g, items.filter(([k]) => canAdd(k) && allowed(k))]).filter(([, items]) => items.length);
+  const noSearch = acc && acc.noSearch;
   return <div className="ah">
     <div className="ah-bg" aria-hidden="true"><div className="ah-glow g1" /><div className="ah-glow g2" /><Skyline /></div>
-    <div className="ah-search-wrap">
-      <label className={cx("ah-search", q && "typing")}>
-        <Search size={21} strokeWidth={2.2} />
-        <input value={q} placeholder="Search invoices, customers, products, reports…" aria-label="Search everything"
-          onChange={(e) => { setQ(e.target.value); setHi(0); }}
-          onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); setHi((h) => Math.min(h + 1, results.length - 1)); }
-            else if (e.key === "ArrowUp") { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
-            else if (e.key === "Enter" && results[hi]) run(results[hi]); else if (e.key === "Escape") setQ(""); }} />
-        <kbd>{MOD === "⌘" ? "⌘ K" : "Ctrl K"}</kbd>
-        <button type="button" className="ah-spark" title="Open the full search" aria-label="Open the full search" onClick={openSearch}><Sparkles size={17} /></button>
-      </label>
+    <div className={cx("ah-search-wrap", noSearch && "no-search")}>
+      <div className="ah-bar">
+        {!noSearch && <label className={cx("ah-search", q && "typing")}>
+          <Search size={21} strokeWidth={2.2} />
+          <input value={q} placeholder="Search invoices, customers, products, reports…" aria-label="Search everything"
+            onChange={(e) => { setQ(e.target.value); setHi(0); }}
+            onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); setHi((h) => Math.min(h + 1, results.length - 1)); }
+              else if (e.key === "ArrowUp") { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
+              else if (e.key === "Enter" && results[hi]) run(results[hi]); else if (e.key === "Escape") setQ(""); }} />
+          <kbd>{MOD === "⌘" ? "⌘ K" : "Ctrl K"}</kbd>
+          <button type="button" className="ah-spark" title="Open the full search" aria-label="Open the full search" onClick={openSearch}><Sparkles size={17} /></button>
+        </label>}
+        {CREATE.length > 0 && <div className="ah-create-wrap">
+          <button className="ah-create" onClick={() => setMk((v) => !v)} aria-haspopup="menu" aria-expanded={mk}><Plus size={17} strokeWidth={2.6} /><span>Create new</span><ChevronDown size={15} /></button>
+          {mk && <><div className="pop-scrim" onMouseDown={() => setMk(false)} />
+            <div className="ah-menu" role="menu">{CREATE.map(([g, items]) => <div key={g} className="ah-mg"><div className="gl">{g}</div>
+              {items.map(([k, l, I]) => <button key={k} role="menuitem" data-k={k} onClick={() => { setMk(false); quickAdd(k); }}><span className="ic"><I size={15} /></span>{l}</button>)}</div>)}</div></>}
+        </div>}
+      </div>
       {q.trim() && <div className="ah-results" role="listbox" aria-label="Search results">
         {results.length ? results.map((r, i) => { const I = r.icon || Search; return <button key={r.key} role="option" aria-selected={i === hi} className={cx("ah-res", i === hi && "on")}
           onMouseEnter={() => setHi(i)} onClick={() => run(r)}><span className="ic"><I size={15} /></span><span className="t">{r.label}</span>{r.hint && <span className="h">{r.hint}</span>}</button>; })
           : <div className="ah-nores">Nothing matches “{q}”</div>}
       </div>}
-      {waiting.length > 0 && <button className="ah-note" onClick={() => go("purchase_orders", "__pending__")}><i />
-        {nPlural(waiting.length, "purchase order")} waiting for your approval<b>Review<ChevronRight size={14} strokeWidth={2.4} /></b></button>}
     </div>
-    <div className="ah-grid" role="list" aria-label="Apps">{apps.map((a, i) => <button key={a.id} role="listitem" className="ah-card" data-app={a.id} style={{ "--a1": a.tone[0], "--a2": a.tone[1], "--i": i }} onClick={() => openApp(a)}>
+    {work.length > 0 && <div className="ah-work" aria-label="Your work">
+      <span className="aw-who"><b>Your work</b><small>{(acc && acc.role && acc.role.label) || PERSONA_LABEL[persona]}{acc && acc.ownOnly ? " · your documents" : ""}</small></span>
+      {work.map((w) => <button key={w.key} className={cx("aw", w.tone)} data-w={w.key} onClick={() => go(w.k, w.p)}>
+        <span className="aw-ic"><w.icon size={16} strokeWidth={2.1} /></span><span className="aw-t"><b>{w.v}</b><small>{w.l}</small></span></button>)}
+    </div>}
+    <div className={cx("ah-grid", apps.length < 6 && "few6", apps.length < 4 && "few4")} style={{ "--cols": apps.length }} role="list" aria-label="Apps">{apps.map((a, i) => <button key={a.id} role="listitem" className={cx("ah-card", first.includes(a.id) && "for-you")} data-app={a.id} style={{ "--a1": a.tone[0], "--a2": a.tone[1], "--i": i }} onClick={() => openApp(a)}>
       <span className="ah-ic"><a.icon size={25} strokeWidth={2} /></span>
       <AppArt kind={a.art} tone={a.tone} />
       <span className="ah-txt"><b>{a.name}</b><small>{a.desc}</small></span>
@@ -293,10 +362,12 @@ const countOf = (k, state, counts) => {
 
 function AppOverview({ app, state, books, user, go, quickAdd, allowed, canAdd, counts }) {
   let _open; const ctx = { state, books, counts, open: () => _open || (_open = openAmounts(state)) };
-  const kpis = app.kpis ? app.kpis(ctx) : [];
+  /* Someone who sees only their own documents reads "My …" figures (3.23). */
+  const mine = ACC_NOW && ACC_NOW.ownOnly && ["sales", "purchase"].includes(app.id);
+  const kpis = (app.kpis ? app.kpis(ctx) : []).map((k) => (mine && /^(Sales|Open|Customers owe|Overdue|Bought|You owe)/.test(k[0]) ? ["My " + k[0].charAt(0).toLowerCase() + k[0].slice(1), ...k.slice(1)] : k));
   const { top, groups } = appSections(app.id, allowed);
   /* The cards are what you operate — transactions and master data; Reporting and Configuration sit on the side. Up to five cards share one row. */
-  const cards = ["work", "filing", "records"].filter((k) => top[k].length).map((k) => [KIND_TITLE[k], top[k]]);
+  const cards = ["work", "filing", "records", "planning"].filter((k) => top[k].length).map((k) => [KIND_TITLE[k], top[k]]);
   const row = cards.reduce((n, [, ks]) => n + ks.length, 0) <= 5, side = groups;
   const creates = (app.create || []).filter((k) => allowed(k) && canAdd(k));
   const recent = app.recent ? app.recent(ctx) : null;
@@ -446,11 +517,31 @@ const APPS_CSS = `
 .ah-glow.g1{width:460px;height:460px;left:4%;top:-200px;background:color-mix(in srgb,var(--brand) 20%,transparent)}
 .ah-glow.g2{width:420px;height:420px;right:3%;top:32%;background:rgba(255,170,120,.2)}
 .ah-sky{position:absolute;left:0;right:0;bottom:0;width:100%;height:180px;opacity:.5}
-.ah-search-wrap{position:relative;z-index:6;width:100%;max-width:720px;margin:0 auto 34px;display:flex;flex-direction:column;align-items:center;animation:ahUp .6s cubic-bezier(.22,1,.36,1) both}
-.ah-search{display:flex;align-items:center;gap:13px;width:100%;height:60px;padding:0 9px 0 22px;border-radius:999px;background:var(--surface);color:var(--ink-3);
+.ah-search-wrap{position:relative;z-index:6;width:100%;max-width:820px;margin:0 auto 34px;display:flex;flex-direction:column;align-items:center;animation:ahUp .6s cubic-bezier(.22,1,.36,1) both}
+.ah-bar{display:flex;align-items:center;gap:8px;width:100%;height:62px;padding:0 7px 0 0;border-radius:999px;background:var(--surface);color:var(--ink-3);
   border:1px solid color-mix(in srgb,var(--brand) 14%,var(--line));box-shadow:0 1px 2px rgba(19,26,43,.05),0 18px 40px -14px rgba(40,70,140,.26);transition:box-shadow .25s,border-color .25s}
-.ah-search:focus-within{border-color:color-mix(in srgb,var(--brand) 55%,var(--line));box-shadow:0 0 0 5px color-mix(in srgb,var(--brand) 13%,transparent),0 18px 44px -12px color-mix(in srgb,var(--brand) 35%,transparent)}
-.mz[data-theme="dark"] .ah-search{box-shadow:0 18px 44px -14px rgba(0,0,0,.6)}
+.ah-bar:focus-within{border-color:color-mix(in srgb,var(--brand) 55%,var(--line));box-shadow:0 0 0 5px color-mix(in srgb,var(--brand) 13%,transparent),0 18px 44px -12px color-mix(in srgb,var(--brand) 35%,transparent)}
+.mz[data-theme="dark"] .ah-bar{box-shadow:0 18px 44px -14px rgba(0,0,0,.6)}
+.ah-search{flex:1;min-width:0;display:flex;align-items:center;gap:13px;height:100%;padding:0 4px 0 22px;color:var(--ink-3)}
+.no-search .ah-bar{width:auto;background:none;border:0;box-shadow:none}
+.ah-create-wrap{position:relative;flex:0 0 auto;z-index:5}
+.ah-create{display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 16px 0 14px;border-radius:999px;color:#fff;font-size:14.5px;font-weight:650;white-space:nowrap;
+  background:linear-gradient(120deg,var(--sb-1),var(--pri-b) 55%,var(--pri-a));box-shadow:0 10px 22px -8px var(--pri-sh,rgba(30,80,200,.5)),inset 0 1px 0 rgba(255,255,255,.25);transition:transform .2s,box-shadow .2s}
+.ah-create:hover{transform:translateY(-1px);box-shadow:0 14px 26px -8px var(--pri-sh,rgba(30,80,200,.6))}
+.mz[data-theme="dark"][data-accent="graphite"] .ah-create{color:#15181C;background:#F5F6F8}
+.ah-menu{position:absolute;right:0;top:58px;z-index:1300;width:520px;display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;padding:10px;border-radius:18px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-3);text-align:left;animation:ahUp .2s ease both}
+.ah-menu .gl{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4);font-weight:650;padding:8px 10px 4px}
+.ah-menu button{display:flex;align-items:center;gap:11px;width:100%;padding:7px 10px;border-radius:10px;font-size:13.5px;color:var(--ink)}
+.ah-menu button:hover{background:var(--surface-2)}.ah-menu .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--brand-50);color:var(--brand)}
+/* Your work: what this person acts on most, under the search. */
+.ah-work{position:relative;z-index:2;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px;margin:-14px auto 26px;animation:ahUp .6s .08s cubic-bezier(.22,1,.36,1) both}
+.aw-who{display:flex;flex-direction:column;align-items:flex-end;padding:0 6px 0 0;line-height:1.2}.aw-who b{font-size:13px;color:var(--ink)}.aw-who small{font-size:11.5px;color:var(--ink-3)}
+.aw{display:flex;align-items:center;gap:10px;height:52px;padding:0 16px 0 9px;border-radius:16px;background:color-mix(in srgb,var(--surface) 88%,transparent);border:1px solid var(--line);box-shadow:0 8px 20px -14px rgba(19,26,43,.35);text-align:left;transition:transform .2s,border-color .2s,box-shadow .2s}
+.aw:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--brand) 40%,var(--line));box-shadow:0 14px 26px -14px rgba(19,26,43,.4)}
+.aw-ic{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--brand-50);color:var(--brand)}
+.aw.warn .aw-ic{background:#FEF3C7;color:#B45309}.aw.neg .aw-ic{background:color-mix(in srgb,var(--neg) 12%,var(--surface));color:var(--neg)}.aw.pos .aw-ic{background:color-mix(in srgb,var(--pos) 13%,var(--surface));color:var(--pos)}
+.mz[data-theme="dark"] .aw.warn .aw-ic{background:rgba(245,158,11,.16);color:#FBBF24}
+.aw-t{display:flex;flex-direction:column;line-height:1.2}.aw-t b{font-size:15px;font-weight:750;letter-spacing:-.01em;color:var(--ink);font-variant-numeric:tabular-nums}.aw-t small{font-size:11.5px;color:var(--ink-3);white-space:nowrap}
 .ah-search input{flex:1;min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:16.5px;color:var(--ink)}
 .ah-search input::placeholder{color:var(--ink-3)}
 .ah-search kbd{font-family:var(--sans);font-size:11.5px;font-weight:600;padding:5px 9px;border-radius:8px;background:var(--surface-2);color:var(--ink-3);border:1px solid var(--line)}
@@ -488,41 +579,49 @@ const APPS_CSS = `
 .ah-go{position:absolute;right:14px;bottom:14px;z-index:1;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;background:var(--a2);opacity:0;transform:translate(-4px,4px) scale(.8);transition:opacity .25s,transform .3s cubic-bezier(.22,1,.36,1)}
 .ah-card:hover .ah-go,.ah-card:focus-visible .ah-go{opacity:1;transform:none}
 @media(max-width:1180px){.ah-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(min-width:1181px){.ah-grid.few6{grid-template-columns:repeat(var(--cols),minmax(0,226px));justify-content:center}}
+@media(min-width:821px) and (max-width:1180px){.ah-grid.few4{grid-template-columns:repeat(var(--cols),minmax(0,226px));justify-content:center}}
 @media(max-width:820px){.ah-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}}
-@media(max-height:760px) and (min-width:901px){.ah{padding:12px 0 24px}.ah-search-wrap{margin-bottom:24px}.ah-search{height:54px}.ah-card{min-height:168px;padding:15px 16px 14px}.ah-ic{width:48px;height:48px;flex-basis:48px;border-radius:15px}.ah-txt{padding-top:12px}}
-@media(max-width:650px){.ah{min-height:0;padding:18px 0 28px;justify-content:flex-start}.ah-search{height:52px;padding-left:16px}.ah-search kbd{display:none}.ah-spark{width:38px;height:38px;flex-basis:38px}
+@media(max-height:760px) and (min-width:901px){.ah{padding:12px 0 24px}.ah-search-wrap{margin-bottom:24px}.ah-bar{height:54px}.ah-create{height:42px}.ah-work{margin:-10px auto 16px}.aw{height:46px}.ah-card{min-height:168px;padding:15px 16px 14px}.ah-ic{width:48px;height:48px;flex-basis:48px;border-radius:15px}.ah-txt{padding-top:12px}}
+@media(max-width:650px){.ah{min-height:0;padding:18px 0 28px;justify-content:flex-start}.ah-bar{height:54px}.ah-search{padding-left:16px}.ah-search kbd,.ah-spark{display:none}.ah-create span{display:none}.ah-create{width:42px;height:42px;padding:0;justify-content:center}.ah-create svg:last-child{display:none}
+  .ah-menu{width:calc(100vw - 32px);grid-template-columns:1fr}.ah-work{justify-content:flex-start;margin-top:-10px}.aw-who{display:none}.aw{height:48px;padding-right:12px}
   .ah-search-wrap{margin-bottom:20px}.ah-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.ah-card{min-height:150px;padding:14px;border-radius:18px}.ah-ic{width:44px;height:44px;flex-basis:44px;border-radius:14px}
   .ah-card .app-art{width:76px}.ah-txt b{font-size:14.5px}.ah-txt small{font-size:11.5px}.ah-go{display:none}}
 
-/* ---- apps mode: a light top bar with the app and its menu ---- */
-.mz[data-nav="apps"] .topbar{display:flex;align-items:center;grid-template-columns:none;position:sticky;top:0;z-index:40;height:64px;flex:0 0 64px;min-height:64px;padding:0 18px 0 12px;gap:10px;
-  background:var(--surface);border-bottom:1px solid var(--line);box-shadow:0 1px 2px rgba(19,26,43,.03),0 10px 24px -18px rgba(19,26,43,.22);color:var(--ink)}
+/* ---- apps mode: the top bar in the colour theme, like the dashboard (3.23) ---- */
+.mz[data-nav="apps"]{--hdr-1:var(--sb-2);--hdr-2:var(--sb-1);--hdr-3:color-mix(in srgb,var(--pri-b) 70%,var(--sb-1));--hdr-ink:#fff;--hdr-ink-2:rgba(255,255,255,.76);--hdr-glass:rgba(255,255,255,.11);--hdr-glass-2:rgba(255,255,255,.18);--hdr-line:rgba(255,255,255,.18)}
+.mz[data-nav="apps"][data-theme="dark"][data-accent="graphite"]{--hdr-3:#2A3038}
+.mz[data-nav="apps"] .topbar{display:flex;align-items:center;grid-template-columns:none;position:sticky;top:0;z-index:40;height:64px;flex:0 0 64px;min-height:64px;padding:0 18px 0 12px;gap:10px;isolation:isolate;overflow:visible;
+  background:linear-gradient(100deg,var(--hdr-1) 0%,var(--hdr-2) 45%,var(--hdr-3) 100%);border-bottom:0;color:var(--hdr-ink);
+  box-shadow:0 12px 30px -16px var(--pri-sh,rgba(10,20,40,.5)),inset 0 -1px 0 rgba(255,255,255,.07)}
 /* Opaque, so no backdrop blur: a blur would make the bar the frame for its pop-ups and keep them from covering the page. */
 .mz[data-nav="apps"] .topbar{backdrop-filter:none;-webkit-backdrop-filter:none}
-.mz[data-nav="apps"] .topbar.in-app{background-image:linear-gradient(90deg,color-mix(in srgb,var(--a1) 10%,transparent),transparent 36%)}
+.mz[data-nav="apps"] .topbar::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden;
+  background:radial-gradient(420px 120px at 78% -30%,color-mix(in srgb,var(--sb-acc,#5CC8FF) 38%,transparent),transparent 70%),radial-gradient(360px 120px at 22% 140%,color-mix(in srgb,var(--sb-acc,#5CC8FF) 18%,transparent),transparent 70%)}
+.mz[data-nav="apps"] .topbar.in-app::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,var(--a1),var(--a2));opacity:.95}
 .ab-l{display:flex;align-items:center;gap:4px;min-width:0;flex:1 1 0;height:100%}
 .ab-brand{display:flex;align-items:center;gap:10px;height:46px;padding:0 12px 0 4px;border-radius:14px;transition:background .15s}
-.ab-brand:hover{background:var(--surface-2)}
-.ab-mark{width:40px;height:40px;flex:0 0 40px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(145deg,#22365E,#0E1830);box-shadow:0 8px 16px -8px rgba(14,24,48,.7),inset 0 1px 0 rgba(255,255,255,.12)}
+.ab-brand:hover{background:var(--hdr-glass)}
+.ab-mark{width:40px;height:40px;flex:0 0 40px;border-radius:12px;display:grid;place-items:center;background:var(--hdr-glass);box-shadow:inset 0 0 0 1px var(--hdr-line),0 8px 18px -8px rgba(0,0,0,.5)}
 .ab-mark img{width:31px;height:31px;object-fit:contain}
-.ab-word{font-size:21px;font-weight:800;letter-spacing:-.035em;color:var(--ink);line-height:1}
-.ab-word em{font-style:normal;background:linear-gradient(90deg,var(--brand),#7C5CF5);-webkit-background-clip:text;background-clip:text;color:transparent}
-.ab-grid{width:40px;height:40px;flex:0 0 40px;border-radius:12px;display:grid;place-items:center;color:var(--ink-2);transition:background .15s,color .15s}
-.ab-grid:hover{background:var(--surface-2);color:var(--ink)}
+.ab-word{font-size:21px;font-weight:800;letter-spacing:-.035em;color:var(--hdr-ink);line-height:1}
+.ab-word em{font-style:normal;color:var(--sb-acc,#7CC8FF)}
+.ab-grid{width:40px;height:40px;flex:0 0 40px;border-radius:12px;display:grid;place-items:center;color:var(--hdr-ink-2);transition:background .15s,color .15s}
+.ab-grid:hover{background:var(--hdr-glass);color:#fff}
 .ab-appwrap{position:relative;flex:0 0 auto}
-.ab-app{display:flex;align-items:center;gap:10px;height:44px;padding:0 9px 0 6px;border-radius:13px;color:var(--ink);transition:background .15s}
-.ab-app:hover,.ab-app.open{background:var(--surface-2)}
+.ab-app{display:flex;align-items:center;gap:10px;height:44px;padding:0 9px 0 6px;border-radius:13px;color:#fff;transition:background .15s}
+.ab-app:hover,.ab-app.open{background:var(--hdr-glass)}
 .ab-app b{font-size:15.5px;font-weight:720;letter-spacing:-.015em;white-space:nowrap}
-.ab-ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,var(--a1),var(--a2));box-shadow:0 6px 14px -4px color-mix(in srgb,var(--a2) 60%,transparent),inset 0 1px 0 rgba(255,255,255,.3)}
-.ab-cv{color:var(--ink-3);transition:transform .2s}.ab-app.open .ab-cv{transform:rotate(180deg)}
+.ab-ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,var(--a1),var(--a2));box-shadow:0 0 0 2px rgba(255,255,255,.22),0 6px 14px -4px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.3)}
+.ab-cv{color:var(--hdr-ink-2);transition:transform .2s}.ab-app.open .ab-cv{transform:rotate(180deg)}
 .ab-tabs{position:relative;display:flex;align-items:center;gap:2px;min-width:0;flex:1 1 auto;height:100%;margin-left:8px;padding-left:12px;overflow:visible}
-.ab-tabs::before{content:"";position:absolute;left:0;top:20px;bottom:20px;width:1px;background:var(--line)}
+.ab-tabs::before{content:"";position:absolute;left:0;top:20px;bottom:20px;width:1px;background:var(--hdr-line)}
 .ab-measure{position:absolute;left:0;top:0;width:0;height:0;overflow:hidden;display:flex;gap:2px;visibility:hidden;pointer-events:none;white-space:nowrap}.ab-measure>*{flex:0 0 auto}
-.ab-tab{position:relative;display:inline-flex;align-items:center;gap:4px;height:38px;padding:0 13px;border-radius:10px;font-size:13.5px;font-weight:560;color:var(--ink-2);white-space:nowrap;transition:color .15s,background .15s}
-.ab-tab:hover,.ab-tab.open{color:var(--ink);background:var(--surface-2)}
-.ab-tab.on{color:var(--ink);font-weight:650}
-.ab-tab.on::after{content:"";position:absolute;left:13px;right:13px;bottom:-13px;height:3px;border-radius:3px 3px 0 0;background:linear-gradient(90deg,var(--a1),var(--a2))}
-.ab-tab svg{opacity:.6}
+.ab-tab{position:relative;display:inline-flex;align-items:center;gap:4px;height:38px;padding:0 13px;border-radius:10px;font-size:13.5px;font-weight:560;color:var(--hdr-ink-2);white-space:nowrap;transition:color .15s,background .15s}
+.ab-tab:hover,.ab-tab.open{color:#fff;background:var(--hdr-glass)}
+.ab-tab.on{color:#fff;font-weight:650;background:var(--hdr-glass)}
+.ab-tab.on::after{content:"";position:absolute;left:13px;right:13px;bottom:-13px;height:3px;border-radius:3px 3px 0 0;background:#fff;box-shadow:0 0 12px rgba(255,255,255,.6)}
+.ab-tab svg{opacity:.7}
 .ab-dd{position:relative}
 .ab-menu{position:absolute;top:calc(100% + 19px);left:0;z-index:1300;min-width:240px;padding:6px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-3);animation:ahUp .18s ease both}
 .ab-menu.right{left:auto;right:0}
@@ -542,41 +641,66 @@ const APPS_CSS = `
 .sw-n{font-size:12px;font-weight:600;color:var(--ink);line-height:1.25}
 .ab-sheet{position:fixed;left:10px;right:10px;top:70px;z-index:1300;max-height:calc(100vh - 84px);overflow:auto;padding:8px;border-radius:18px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--sh-3);animation:ahUp .2s ease both}
 .ab-sheet-home{color:var(--ink-2)!important;border-bottom:1px solid var(--line-2)!important;border-radius:9px 9px 0 0!important;margin-bottom:4px}
-/* The right of the bar: search, New, alerts, the company and you. */
-.mz[data-nav="apps"] .omni{flex:0 1 290px;min-width:40px;height:40px;margin-left:0;padding:0 7px 0 6px;gap:8px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-3);box-shadow:none}
-.mz[data-nav="apps"] .omni:hover{background:var(--surface);border-color:color-mix(in srgb,var(--brand) 35%,var(--line))}
-.mz[data-nav="apps"] .omni .oi{width:28px;height:28px;flex:0 0 28px;border-radius:8px;background:transparent;color:var(--ink-2)}
-.mz[data-nav="apps"] .omni .ot{font-size:13px;color:var(--ink-3)}
-.mz[data-nav="apps"] .omni kbd{margin-right:0;font-family:var(--sans);font-size:11px;font-weight:600;padding:3px 7px;border-radius:7px;background:var(--surface);border:1px solid var(--line);color:var(--ink-3)}
-.mz[data-nav="apps"].on-home .omni{display:none}
+/* Search and Create, joined. */
+.ab-find{display:flex;align-items:center;flex:0 1 360px;min-width:0;height:42px;border-radius:13px;background:var(--hdr-glass);box-shadow:inset 0 0 0 1px var(--hdr-line);padding:3px}
+.mz[data-nav="apps"] .ab-find .omni{flex:1 1 auto;min-width:36px;height:36px;margin:0;padding:0 8px 0 4px;gap:8px;border-radius:10px;background:transparent;border:0;color:var(--hdr-ink-2);box-shadow:none}
+.mz[data-nav="apps"] .ab-find .omni:hover{background:var(--hdr-glass)}
+.mz[data-nav="apps"] .omni .oi{width:28px;height:28px;flex:0 0 28px;border-radius:8px;background:transparent;color:#fff}
+.mz[data-nav="apps"] .omni .ot{font-size:13px;color:var(--hdr-ink-2)}
+.mz[data-nav="apps"] .omni kbd{margin-right:0;font-family:var(--sans);font-size:11px;font-weight:600;padding:3px 7px;border-radius:7px;background:var(--hdr-glass);border:0;color:#fff}
+.ab-create{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px 0 11px;border-radius:10px;flex:0 0 auto;font-size:13px;font-weight:650;color:var(--sb-2);background:#fff;box-shadow:0 6px 16px -6px rgba(0,0,0,.45);transition:transform .15s,box-shadow .15s}
+.ab-create:hover{transform:translateY(-1px);box-shadow:0 10px 20px -8px rgba(0,0,0,.5)}
+.mz[data-nav="apps"][data-theme="dark"][data-accent="graphite"] .ab-create{color:#15181C}
 .mz[data-nav="apps"] .tb-r{gap:8px;margin-left:0}
 .mz[data-nav="apps"] .tb-div{display:none}
 .mz[data-nav="apps"] .tb-icons{background:none;border:0;padding:0;gap:0}
 .mz[data-nav="apps"] .tb-icons>.icon-btn{display:none}
-.mz[data-nav="apps"] .topbar .icon-btn{width:40px;height:40px;border-radius:12px;color:var(--ink-2);background:transparent;border-color:transparent;box-shadow:none}
-.mz[data-nav="apps"] .topbar .icon-btn:hover,.mz[data-nav="apps"] .topbar .icon-btn.on{background:var(--surface-2);color:var(--ink)}
-.mz[data-nav="apps"] .topbar .btn.pri{height:40px;padding:0 16px 0 13px;border-radius:12px;font-size:13px;font-weight:600;gap:7px;box-shadow:0 8px 18px -8px color-mix(in srgb,var(--brand) 70%,transparent)}
-.mz[data-nav="apps"] .topbar .coswitch{display:flex;height:42px;padding:0 10px 0 6px;gap:9px;border-radius:12px;background:var(--surface);border:1px solid var(--line);color:var(--ink)}
-.mz[data-nav="apps"] .topbar .coswitch:hover{border-color:color-mix(in srgb,var(--brand) 40%,var(--line));background:var(--surface-2)}
-.mz[data-nav="apps"] .coswitch .gt{background:linear-gradient(145deg,var(--brand),#7C5CF5);box-shadow:none}
-.mz[data-nav="apps"] .coswitch .cx b{font-size:13px;color:var(--ink);max-width:170px}.mz[data-nav="apps"] .coswitch .cx span{font-size:11px;color:var(--ink-3)}
+.mz[data-nav="apps"] .topbar .icon-btn{width:40px;height:40px;border-radius:12px;color:var(--hdr-ink-2);background:transparent;border-color:transparent;box-shadow:none}
+.mz[data-nav="apps"] .topbar .icon-btn:hover,.mz[data-nav="apps"] .topbar .icon-btn.on{background:var(--hdr-glass);color:#fff}
+.mz[data-nav="apps"] .topbar .bell .dot{box-shadow:0 0 0 2px var(--hdr-2)}
+.mz[data-nav="apps"] .topbar .coswitch{display:flex;height:42px;padding:0 10px 0 6px;gap:9px;border-radius:12px;background:var(--hdr-glass);border:1px solid var(--hdr-line);color:#fff}
+.mz[data-nav="apps"] .topbar .coswitch:hover{background:var(--hdr-glass-2);border-color:rgba(255,255,255,.3)}
+.mz[data-nav="apps"] .coswitch .gt{background:rgba(255,255,255,.16);box-shadow:none;color:#fff}
+.mz[data-nav="apps"] .coswitch .cx b{font-size:13px;color:#fff;max-width:170px}.mz[data-nav="apps"] .coswitch .cx span{font-size:11px;color:var(--hdr-ink-2)}
+.mz[data-nav="apps"] .coswitch>svg{color:var(--hdr-ink-2)}
 .mz[data-nav="apps"] .topbar .userchip{display:flex;height:42px;padding:0;gap:0;border:0;border-radius:50%;background:transparent}
 .mz[data-nav="apps"] .topbar .userchip .ux,.mz[data-nav="apps"] .topbar .userchip>svg{display:none}
-.mz[data-nav="apps"] .topbar .userchip .me{width:38px;height:38px;flex:0 0 38px;box-shadow:0 0 0 2px var(--surface),0 0 0 4px color-mix(in srgb,var(--brand) 22%,transparent);transition:box-shadow .2s}
-.mz[data-nav="apps"] .topbar .userchip:hover .me{box-shadow:0 0 0 2px var(--surface),0 0 0 4px color-mix(in srgb,var(--brand) 50%,transparent)}
+.mz[data-nav="apps"] .topbar .userchip .me{width:38px;height:38px;flex:0 0 38px;background:#fff;color:var(--sb-2);font-weight:750;box-shadow:0 0 0 2px rgba(255,255,255,.25),0 6px 14px -6px rgba(0,0,0,.5);transition:box-shadow .2s}
+.mz[data-nav="apps"] .topbar .userchip:hover .me{box-shadow:0 0 0 3px rgba(255,255,255,.45)}
 .mz[data-nav="apps"] .pop{top:70px}
 .mz[data-nav="apps"] .pop-head b{color:var(--ink);font-weight:650}
 .mz[data-nav="apps"] .main{width:100%}
 .mz[data-nav="apps"] .page>.view{max-width:1480px;margin-left:auto;margin-right:auto}
-/* Inside an app the page takes a faint wash of the app's colour, and page titles carry its name. */
-.mz[data-nav="apps"] .page.in-app{background-image:radial-gradient(1400px 340px at 0 0,color-mix(in srgb,var(--a1) 8%,transparent),transparent 70%);background-repeat:no-repeat}
-.mz[data-nav="apps"] .page.in-app .page-head .micro{color:var(--a2);font-weight:700}
+/* ---- inside an app: the page title is a hero in the theme's colours, like the dashboard, with a hint of the app's colour ---- */
+.mz[data-nav="apps"] .page.in-app{background-image:radial-gradient(1400px 340px at 0 0,color-mix(in srgb,var(--a1) 7%,transparent),transparent 70%);background-repeat:no-repeat}
+.mz[data-nav="apps"] .page-head{position:relative;overflow:hidden;isolation:isolate;align-items:center;margin:22px 0 18px;padding:22px 26px;border-radius:24px;color:#fff;
+  background:linear-gradient(120deg,var(--sb-2) 0%,var(--sb-1) 40%,var(--pri-b) 82%,var(--pri-a) 100%);box-shadow:0 20px 44px -22px var(--pri-sh),inset 0 1px 0 rgba(255,255,255,.12)}
+.mz[data-nav="apps"] .page-head::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(420px 220px at 88% -20%,color-mix(in srgb,var(--sb-acc,#5CC8FF) 42%,transparent),transparent 70%),radial-gradient(360px 200px at 8% 130%,color-mix(in srgb,var(--a1,var(--sb-acc)) 34%,transparent),transparent 70%)}
+.mz[data-nav="apps"] .page-head::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:.1;
+  background-image:linear-gradient(rgba(255,255,255,.6) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.6) 1px,transparent 1px);background-size:30px 30px;
+  -webkit-mask-image:radial-gradient(ellipse at 80% 20%,#000 10%,transparent 70%);mask-image:radial-gradient(ellipse at 80% 20%,#000 10%,transparent 70%)}
+.mz[data-nav="apps"][data-theme="dark"][data-accent="graphite"] .page-head{background:linear-gradient(120deg,#15181C,#1D2127 45%,#2A3038)}
+.mz[data-nav="apps"] .page-head h1{color:#fff;letter-spacing:-.03em}
+.mz[data-nav="apps"] .page-head p{color:rgba(255,255,255,.8)}
+.mz[data-nav="apps"] .page-head .micro{display:inline-flex;align-items:center;gap:7px;width:max-content;padding:4px 10px 4px 8px;border-radius:999px;background:rgba(255,255,255,.14);color:#fff!important;letter-spacing:.12em;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+.mz[data-nav="apps"] .page.in-app .page-head .micro::before{content:"";width:8px;height:8px;border-radius:50%;background:linear-gradient(145deg,var(--a1),var(--a2));box-shadow:0 0 0 2px rgba(255,255,255,.5)}
+.mz[data-nav="apps"] .page-head .acts .btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.24);color:#fff;box-shadow:none}
+.mz[data-nav="apps"] .page-head .acts .btn:hover{background:rgba(255,255,255,.2)}
+.mz[data-nav="apps"] .page-head .acts .btn svg{color:currentColor}
+.mz[data-nav="apps"] .page-head .acts .btn.pri{background:#fff;color:var(--sb-2);border-color:#fff;box-shadow:0 8px 20px -8px rgba(0,0,0,.45)}
+.mz[data-nav="apps"] .page-head .acts .btn.pri:hover{background:#F3F6FC}
+.mz[data-nav="apps"][data-theme="dark"][data-accent="graphite"] .page-head .acts .btn.pri{color:#15181C}
+.mz[data-nav="apps"] .page-head .acts .seg{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2)}
+.mz[data-nav="apps"] .page-head .acts .seg button{color:rgba(255,255,255,.85)}.mz[data-nav="apps"] .page-head .acts .seg button.on{background:#fff;color:var(--sb-2)}
+/* The summary tiles under a page title get the dashboard's top edge. */
+.mz[data-nav="apps"] .doc-sum>button,.mz[data-nav="apps"] .doc-sum>div{border-radius:18px}
 @media(max-width:1500px){.mz[data-nav="apps"] .coswitch .cx{display:none}.mz[data-nav="apps"] .topbar .coswitch{padding:0 8px 0 6px}}
 @media(max-width:1420px){.ab-tab{padding:0 10px;font-size:13px}.ab-tabs{margin-left:4px;padding-left:8px}.ab-tab.on::after{left:10px;right:10px}}
-@media(max-width:1599px){.mz[data-nav="apps"] .omni .ot,.mz[data-nav="apps"] .omni kbd{display:none}.mz[data-nav="apps"] .omni{flex:0 0 40px;width:40px;min-width:40px;padding:0;justify-content:center}}
+@media(max-width:1599px){.mz[data-nav="apps"] .omni .ot,.mz[data-nav="apps"] .omni kbd{display:none}.ab-find{flex:0 0 auto}.mz[data-nav="apps"] .ab-find .omni{flex:0 0 36px;width:36px;padding:0;justify-content:center}}
 @media(max-width:900px){.ab-tabs{display:none}.mz[data-nav="apps"] .topbar{padding:0 8px;gap:6px}.ab-word{font-size:18px}.ab-mark{width:34px;height:34px;flex-basis:34px}.ab-mark img{width:27px;height:27px}
-  .mz[data-nav="apps"] .topbar .coswitch,.mz[data-nav="apps"] .omni{display:none}.ab-app b{max-width:130px;overflow:hidden;text-overflow:ellipsis}
-  .mz[data-nav="apps"] .topbar .btn.pri{padding:0 12px}}
+  .mz[data-nav="apps"] .topbar .coswitch{display:none}.ab-app b{max-width:120px;overflow:hidden;text-overflow:ellipsis}.ab-create span{display:none}.ab-create{padding:0 10px}
+  .mz[data-nav="apps"] .page-head{margin:14px 0;padding:18px;border-radius:20px}}
 
 /* ---- Settings › Navigation ---- */
 .nav-choice{display:grid;grid-template-columns:1fr 1fr;gap:14px}
@@ -597,20 +721,23 @@ const APPS_CSS = `
 .nc-prev .pv-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.nc-prev .pv-cards i{height:20px;border-radius:5px;background:var(--surface);border:1px solid var(--line-2)}
 .nc-prev .pv-rows{display:flex;flex-direction:column;gap:4px}.nc-prev .pv-rows i{height:6px;border-radius:3px;background:var(--line)}
 .nc-prev.apps{flex-direction:column}
-.nc-prev.apps .pv-bar{height:20px;background:var(--surface);display:flex;align-items:center;gap:6px;padding:0 8px;border-bottom:2px solid var(--brand);box-shadow:0 2px 6px rgba(19,26,43,.06)}
-.nc-prev.apps .pv-bar i{width:20px;height:5px;border-radius:3px;background:var(--line)}.nc-prev.apps .pv-bar i:first-child{width:9px;height:9px;border-radius:3px;background:var(--brand)}
+.nc-prev.apps .pv-bar{height:20px;background:linear-gradient(100deg,var(--sb-2),var(--sb-1) 45%,color-mix(in srgb,var(--pri-b) 70%,var(--sb-1)));display:flex;align-items:center;gap:6px;padding:0 8px;box-shadow:0 2px 6px rgba(19,26,43,.12)}
+.nc-prev.apps .pv-bar i{width:20px;height:5px;border-radius:3px;background:rgba(255,255,255,.32)}.nc-prev.apps .pv-bar i:first-child{width:9px;height:9px;border-radius:3px;background:#fff}
 .nc-prev.apps .pv-apps{flex:1;display:grid;grid-template-columns:repeat(6,1fr);gap:8px;padding:14px 16px;align-content:center}
 .nc-prev.apps .pv-apps i{aspect-ratio:1;border-radius:7px;box-shadow:0 3px 8px rgba(0,0,0,.15)}
 @media(max-width:650px){.nav-choice{grid-template-columns:1fr}}
 
 /* ---- app overview ---- */
 .ao{display:flex;flex-direction:column;gap:18px;padding-top:22px}
-.ao-head{position:relative;overflow:hidden;display:flex;align-items:center;gap:18px;min-height:112px;padding:22px 210px 22px 24px;border-radius:24px;
-  background:radial-gradient(520px 220px at 0% 0%,color-mix(in srgb,var(--a1) 18%,transparent),transparent 70%),linear-gradient(110deg,var(--surface) 40%,color-mix(in srgb,var(--a1) 13%,var(--surface)));
-  border:1px solid color-mix(in srgb,var(--a1) 22%,var(--line));box-shadow:var(--sh-1)}
-.ao-ic{width:62px;height:62px;flex:0 0 62px;border-radius:19px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,var(--a1),var(--a2));box-shadow:0 14px 26px -10px color-mix(in srgb,var(--a2) 70%,transparent),inset 0 1px 0 rgba(255,255,255,.35)}
+.ao-head{position:relative;overflow:hidden;isolation:isolate;display:flex;align-items:center;gap:18px;min-height:118px;padding:22px 210px 22px 24px;border-radius:24px;color:#fff;
+  background:radial-gradient(460px 240px at 6% 120%,color-mix(in srgb,var(--a1) 45%,transparent),transparent 70%),radial-gradient(420px 220px at 90% -20%,color-mix(in srgb,var(--sb-acc,#5CC8FF) 40%,transparent),transparent 70%),
+    linear-gradient(120deg,var(--sb-2) 0%,var(--sb-1) 40%,var(--pri-b) 82%,var(--pri-a) 100%);box-shadow:0 20px 44px -22px var(--pri-sh),inset 0 1px 0 rgba(255,255,255,.12)}
+.mz[data-theme="dark"][data-accent="graphite"] .ao-head{background:linear-gradient(120deg,#15181C,#1D2127 45%,#2A3038)}
+.ao-head .btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.24);color:#fff}.ao-head .btn:hover{background:rgba(255,255,255,.2)}.ao-head .btn svg{color:currentColor}
+.ao-head .btn.pri{background:#fff;color:var(--sb-2);border-color:#fff;box-shadow:0 8px 20px -8px rgba(0,0,0,.45)}
+.ao-ic{width:62px;height:62px;flex:0 0 62px;border-radius:19px;display:grid;place-items:center;color:#fff;background:linear-gradient(145deg,var(--a1),var(--a2));box-shadow:0 0 0 3px rgba(255,255,255,.2),0 14px 26px -10px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.35)}
 .ao-t{flex:1;min-width:0;position:relative;z-index:1}
-.mz .ao-t h1{font-size:27px;font-weight:760;letter-spacing:-.03em;margin:0;color:var(--ink)}.mz .ao-t p{margin:3px 0 0;color:var(--ink-2);font-size:14px}
+.mz .ao-t h1{font-size:27px;font-weight:760;letter-spacing:-.03em;margin:0;color:#fff}.mz .ao-t p{margin:3px 0 0;color:rgba(255,255,255,.8);font-size:14px}
 .ao-acts{position:relative;z-index:1;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;max-width:56%}
 .ao-head .app-art{position:absolute;right:22px;top:50%;transform:translateY(-50%);opacity:.95}
 .ao-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}

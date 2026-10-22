@@ -13,7 +13,8 @@ const errs = [], ok = []; const check = (c, m) => (c ? ok : errs).push(m);
 /* Every screen InvoEez has — each must be reachable in both kinds of navigation. */
 const SCREENS = ['dash', 'accounts', 'acct_groups', 'customers', 'vendors', 'products', 'categories', 'pricelists', 'salespeople', 'methods', 'opening', 'quotes', 'invoices', 'credit_notes',
   'purchase_orders', 'bills', 'debit_notes', 'expenses', 'payments', 'pdc', 'banking', 'journal', 'assets', 'stock_count', 'scrap', 'r_stock', 'reports', 'r_pnl', 'r_branch', 'r_group', 'r_bs',
-  'r_aged_ar', 'r_aged_ap', 'r_stmt', 'r_prod', 'r_cust', 'r_method', 'r_tb', 'r_gl', 'r_partner', 'r_vat', 'fta', 'setup', 'users', 'companies', 'branches', 'settings'];
+  'r_aged_ar', 'r_aged_ap', 'r_stmt', 'r_prod', 'r_cust', 'r_method', 'r_tb', 'r_gl', 'r_partner', 'r_vat', 'fta', 'setup', 'users', 'companies', 'branches', 'settings',
+  'cost_centers', 'budgets', 'r_cc', 'r_budget', 'roles', 'access_rules'];
 (async () => {
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   const open = async (o = {}) => {
@@ -77,14 +78,21 @@ const SCREENS = ['dash', 'accounts', 'acct_groups', 'customers', 'vendors', 'pro
   // ---------- 3. Home in the apps dashboard: just the search and the apps ----------
   ({ ctx, p } = await open({ apps: true }));
   await p.waitForTimeout(800); await shot(p, 'nav-02-home');
-  check(await p.locator('.ah-eyebrow, .ah-title, .ah-sub, .ah-recent, .ah-glance, .ah-g, .ah-create, .ah-chips').count() === 0 && await p.locator('.ah-search input').count() === 1,
+  check(await p.locator('.ah-eyebrow, .ah-title, .ah-sub, .ah-recent, .ah-glance, .ah-g, .ah-chips').count() === 0 && await p.locator('.ah-search input').count() === 1,
     'Home: no greeting, headline, shortcuts, figures or filters — the search box and the apps');
+  check(await p.locator('.ah-bar > .ah-create-wrap:last-child .ah-create').count() === 1 && await p.locator('.ab-find, .ab-new').count() === 0,
+    '3.23: Create new sits at the end of the search bar, and the top bar on Home has no second one');
   const cards = await p.locator('.ah-card').evaluateAll((els) => els.map((e) => e.getAttribute('data-app')));
   check(cards.join(',') === 'sales,purchase,inventory,accounting,bank,vat,reports,dash,contacts,org,users,settings', 'twelve apps');
   check(new RegExp(nInv + ' invoices').test(await p.locator('.ah-card[data-app="sales"] em').innerText()), 'each app counts its records (Sales: ' + nInv + ' invoices)');
-  check(await p.locator('.topbar .ab-brand .ab-word').innerText() === 'InvoEez' && !(await p.locator('.topbar .omni').isVisible()) && await p.locator('.topbar .tb-icons > .icon-btn:visible').count() === 0,
-    'the top bar on Home: the logo, New, alerts, the company and you — no second search box');
-  check(await p.locator('.topbar .tb-r .btn.pri', { hasText: 'New' }).isVisible() && await p.locator('.topbar .bell').isVisible() && await p.locator('.topbar .coswitch').isVisible() && await p.locator('.topbar .userchip').isVisible(), 'New, alerts, company and account are in the bar');
+  check(await p.locator('.topbar .ab-brand .ab-word').innerText() === 'InvoEez' && await p.locator('.topbar .omni').count() === 0 && await p.locator('.topbar .tb-icons > .icon-btn:visible').count() === 0,
+    'the top bar on Home: the logo, alerts, the company and you — no second search box');
+  check(await p.locator('.topbar .btn.pri, .topbar .ab-create').count() === 0 && await p.locator('.topbar .bell').isVisible() && await p.locator('.topbar .coswitch').isVisible() && await p.locator('.topbar .userchip').isVisible(),
+    'no New button in the bar on Home — Create new is once, at the end of the search box');
+  const hdrBg = await p.evaluate(() => getComputedStyle(document.querySelector('.topbar')).backgroundImage);
+  check(/linear-gradient/.test(hdrBg) && !/rgb\(255, 255, 255\)/.test(hdrBg), 'the top bar is in the colour theme, not white');
+  check(await p.locator('.ah-bar .ah-search + .ah-create-wrap .ah-create').isVisible(), 'Create new sits at the end of the search box');
+  check(await p.locator('.ah-work .aw').count() >= 3, 'Home shows the person their work (' + (await p.locator('.ah-work .aw').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ')).join(' | ') + ')');
   // search
   await p.locator('.ah-search input').fill('fujairah port'); await p.waitForTimeout(400);
   check(await p.locator('.ah-res').count() > 2, 'search finds as you type');
@@ -92,10 +100,13 @@ const SCREENS = ['dash', 'accounts', 'acct_groups', 'customers', 'vendors', 'pro
   check(await appName(p) === 'Reports' && await onTab(p) === 'Statements', 'Profit & loss opens in Reports › Statements');
   await home(p);
   check(await p.locator('.ah-grid').count() === 1, 'the apps button returns Home');
-  // New in the top bar
-  await p.locator('.topbar .tb-r .btn.pri', { hasText: 'New' }).click(); await p.waitForTimeout(300);
-  await p.locator('.newpop button', { hasText: 'Customer invoice' }).click(); await p.waitForTimeout(900);
-  check(/^INV\/\d{4}\/\d{4}$/.test((await p.locator('.du-no').innerText()).trim()) && await appName(p) === 'Sales' && await onTab(p) === 'Invoices', 'New › Customer invoice opens a new invoice in Sales › Invoices');
+  // Create new, at the end of the search box
+  await p.locator('.ah-create').click(); await p.waitForTimeout(300);
+  check(await p.locator('.ah-menu button[data-k="budgets"]').count() === 1 && await p.locator('.ah-menu button[data-k="cost_centers"]').count() === 1, 'Create new offers documents, records, budgets and cost centres');
+  await p.locator('.ah-menu button[data-k="invoices"]').click(); await p.waitForTimeout(900);
+  check(/^INV\/\d{4}\/\d{4}$/.test((await p.locator('.du-no').innerText()).trim()) && await appName(p) === 'Sales' && await onTab(p) === 'Invoices', 'Create new › Invoice opens a new invoice in Sales › Invoices');
+  check(await p.locator('.topbar .ab-find .omni').count() === 1 && await p.locator('.topbar .ab-find .ab-create').count() === 1 && await p.locator('.topbar .tb-r .btn.pri').count() === 0,
+    'inside an app, Create is joined to the search in the bar — still only once');
   await p.keyboard.press('Escape');
   await ctx.close();
   // every app in one view, without scrolling, at 100% zoom on a full-HD screen and on a laptop
@@ -175,12 +186,13 @@ const SCREENS = ['dash', 'accounts', 'acct_groups', 'customers', 'vendors', 'pro
   await card(p, 'users');
   await p.locator('.btn.pri', { hasText: 'New user' }).click(); await p.waitForTimeout(300);
   await p.locator('.fld', { hasText: 'Full name' }).locator('input').fill('Sami Sales');
-  await p.locator('.pick', { hasText: 'Sales' }).first().click();
+  await p.locator('.pick[data-role="sales"]').click();
   await p.locator('.btn.pri', { hasText: 'Create user' }).click(); await p.waitForTimeout(500);
   const sami = (await books(p)).users.find((u) => u.name === 'Sami Sales');
   await p.evaluate((id) => { sessionStorage.setItem('mizan.me', id); localStorage.setItem('mizan.me', id); }, sami.id); await p.reload(); await p.waitForTimeout(1600);
   const mine = await p.locator('.ah-card').evaluateAll((els) => els.map((e) => e.getAttribute('data-app')));
-  check(mine.includes('sales') && !mine.includes('accounting') && !mine.includes('bank') && !mine.includes('settings'), 'a salesperson sees only the apps their role opens (' + mine.join(', ') + ')');
+  check(mine[0] === 'sales' && !mine.includes('accounting') && !mine.includes('bank') && !mine.includes('settings') && !mine.includes('dash'), 'a salesperson sees only the apps their role opens, Sales first (' + mine.join(', ') + ')');
+  check(/Salesperson/.test(await p.locator('.aw-who').innerText()) && /sold this month/.test(await p.locator('.ah-work').innerText()), 'and Home shows a salesperson’s work');
   await ctx.close();
 
   // ---------- 7. dark and phone ----------

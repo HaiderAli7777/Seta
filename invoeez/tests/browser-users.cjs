@@ -67,7 +67,7 @@ check((await who(c))==='Sara Sales'&&(await who(a))==='Administrator','two tabs 
 await a.reload();await a.waitForTimeout(1400);await c.reload();await c.waitForTimeout(1400);
 check((await who(a))==='Administrator'&&(await who(c))==='Sara Sales','each tab keeps its user after reload');
 await a.locator('.sbar [data-k="users"]').first().click();await a.waitForTimeout(400);
-await newUser(a,'Tom Temp','tom@example.ae','Purchase clerk');
+await newUser(a,'Tom Temp','tom@example.ae','Purchaser');
 await c.waitForTimeout(600);
 check(/another window/.test(await c.locator('.toasts').innerText().catch(()=>'')),'other tab is told about the change');
 await c.locator('.sb-foot .who-btn').click();await c.waitForTimeout(250);
@@ -77,5 +77,5 @@ await c.locator('.sbar [data-k="users"]').first().click();await c.waitForTimeout
 await newUser(c,'Uma Two','uma@example.ae','Accountant');await a.waitForTimeout(600);
 const names=JSON.parse(await a.evaluate(()=>localStorage.getItem('mizan.books.v2'))).users.map(u=>u.name);
 check(['Tom Temp','Uma Two','Sara Sales','Vera Viewer'].every(n=>names.includes(n)),'no change lost between tabs ('+names.join(', ')+')');
-check(await a.locator('tr',{hasText:'Uma Two'}).count()===1,'first tab shows the second tab’s user');
+check(await a.locator('.card',{hasText:'People'}).first().locator('tr',{hasText:'Uma Two'}).count()===1,'first tab shows the second tab’s user');
 console.log('OK',ok.length);console.log('ERR',errs);await b.close();process.exit(errs.length?1:0);})();

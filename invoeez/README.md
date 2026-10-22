@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.21)
+# InvoEez — Invoice Made Easy (3.23)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -75,12 +75,44 @@ Company profile, theme, user selection and connection settings use their existin
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
 
-## Navigation: Sidebar or Apps dashboard (3.21–3.22)
+## Access rights and a Home for each job (3.23)
+
+**Users & access** has three tabs: **People**, **Roles** and **Access rules**.
+
+- **Roles** come ready for each job: Administrator, Accountant, Salesperson, Sales manager, Purchaser, Procurement manager, Storekeeper and Viewer.
+  - For each area of the business, choose None, View, Create & edit or Full, then fine-tune single actions: view, create, edit, delete, post, export, send.
+  - Options: own documents only, no cost prices, read-only, a discount limit, and what Home shows first.
+  - Built-in roles can be adjusted (and reset to standard), copied, or joined by your own roles.
+- **Access rules** work like Odoo's *Simplify Access Management*. A rule applies to chosen people or roles and only takes rights away; administrators are never restricted. It can:
+  - hide apps or screens;
+  - block actions per area;
+  - hide cost prices or balances;
+  - make price, discount, salesperson or price list read-only on documents;
+  - limit records to own documents, the home branch or the last N days;
+  - hide buttons such as Reset to draft or Print, and document tabs such as the journal entry or activity trail;
+  - make a person read-only, or switch off exports and search.
+
+  Six ready-made rules cover the common cases, and the side panel always says what a rule does and who it affects.
+- **Who can do what** shows each person's access to every app, with **View as** to check it through their eyes.
+- **Rights are enforced everywhere**: menus, Home, search, lists, buttons, document fields, discounts and reports, in both Sidebar and Apps modes.
+
+**Home is shaped by the job.** Apps for the person's role come first (Sales for a salesperson, Purchase for procurement, Accounting for an accountant), and **Your work** shows the three or four figures they act on, each opening where to act. **Create new** sits at the end of the search bar. The top bar uses the theme's colours.
+
+## Cost centres and budgets (3.23)
+
+- **Cost centres** (Accounting › Configuration): departments, projects, branches of activity or vehicles.
+  - Once one exists, invoices, bills, credit and debit notes, and expenses get a **Cost centre** field, and journal entries get one on each line.
+  - **Profit by cost centre** splits the P&L into columns that add up to the company total.
+- **Budgets** (Accounting › Budgets): by account and month, for the company or one cost centre.
+  - Start from this year's run rate, last year's actuals or blank, plus a growth %.
+  - **Budget vs actual** compares any period, pro-rating part months.
+
+## Navigation: Sidebar or Apps dashboard (3.21–3.23)
 
 **Settings › Navigation** switches the whole interface between two modes (also in Ctrl K):
 
 - **Sidebar** (default): the classic menu on the left with every screen; opens on the dashboard; no Home launcher or app overviews.
-- **Apps dashboard**: no sidebar. Home is the search box and every app, all in one view. A light top bar shows the apps button, the app you are in (click its name to switch app) and that app's menu: tabs, then **Reporting** and **Configuration** dropdowns, **More** on narrow screens, and a menu sheet on phones. Every app follows the same pattern and each screen has one home app. The menus are defined in `APP_MENUS` in `apps.jsx`.
+- **Apps dashboard**: no sidebar. Home is the search box (with **Create new** at its end) and every app, all in one view. A top bar in the theme's colours shows the apps button, the app you are in (click its name to switch app) and that app's menu: tabs, then **Reporting** and **Configuration** dropdowns, **More** on narrow screens, and a menu sheet on phones. Every app follows the same pattern and each screen has one home app. The menus are defined in `APP_MENUS` in `apps.jsx`.
 
 ## Apps (3.20)
 
@@ -91,12 +123,13 @@ In the apps dashboard InvoEez opens on **Home**: search everything and open any 
 | Sales | Quotations, invoices, credit notes, customers · Configuration: price lists, sales team | `invoeez-source.jsx` (documents, print, WhatsApp/email), `refine.jsx` (discounts), `delivery.jsx`, `enhancements-ui.jsx` (price lists, sales team), `features.jsx` (party special prices), `enhancements-data.jsx` (pricing and history) |
 | Purchase | Purchase orders, vendor bills, debit notes, expenses, vendors | `invoeez-source.jsx`, `approval.jsx` (PO approval) |
 | Inventory | Products, stock counts, scrap · Reporting: valuation · Configuration: categories | `enhancements-ui.jsx` (products, counts, scrap), `invoeez-source.jsx` (costing, valuation) |
-| Accounting | Journals, chart of accounts, fixed assets · Configuration: account groups, opening balances | `invoeez-source.jsx`, `ifrs.jsx`, `onboarding.jsx` |
+| Accounting | Journals, chart of accounts, fixed assets, budgets · Reporting: budget vs actual, profit by cost centre · Configuration: cost centres, account groups, opening balances | `invoeez-source.jsx`, `ifrs.jsx`, `onboarding.jsx`, `costing.jsx` |
 | Bank & cash | Receipts and payments, post-dated cheques, bank and cash · Configuration: payment methods | `invoeez-source.jsx`, `pdc.jsx` |
 | VAT & e-invoicing | VAT return (FTA 201), PINT AE e-invoices | `invoeez-source.jsx` |
 | Reports | All reports, P&L, balance sheet, ledgers, ageing, profit analysis, branch and group | `reports.jsx`, `compare.jsx`, `ifrs.jsx`, `pro.jsx` (PDF/Excel), `group.jsx` |
 | Dashboard | Live dashboard | `dashboard.jsx`, `dash.jsx`, `motion.jsx` |
-| Contacts, Companies, Users, Settings | Customers and vendors; companies and branches; users and access; settings and backup | `group.jsx`, `users.jsx`, `sync.jsx`, `invoeez-source.jsx` |
+| Contacts, Companies, Settings | Customers and vendors; companies and branches; settings and backup | `group.jsx`, `sync.jsx`, `invoeez-source.jsx` |
+| Users & access | People, roles, access rules, who can do what | `access.jsx`, `users.jsx`, `invoeez-source.jsx` |
 | Home and app overviews | — | `apps.jsx` |
 
 ## Company and branch set-up (3.19)
@@ -145,7 +178,7 @@ A posted invoice or bill lists every receipt, post-dated cheque and credit note 
 
 ## Users, sign-in and testing several users (3.8.2)
 
-Add people in **Users & access** with a role (Administrator, Accountant, Sales, Purchase clerk, Viewer) and, optionally, a 4–6 digit PIN. With more than one user the app opens on a sign-in screen; **Sign out** and **Switch user** are in the account menu and at the foot of the sidebar. Each browser tab keeps its own user and the tabs stay in step, so two roles can be tested side by side in two tabs of the same browser. Different browsers, Chrome profiles, Incognito windows and other computers each keep their own separate books — sharing one set of books between computers needs the server database. The PIN keeps colleagues in their own role on a shared computer; it is not protection against someone who can read the browser's stored data.
+Add people in **Users & access** with a role (see Access rights above) and, optionally, a 4–6 digit PIN. With more than one user the app opens on a sign-in screen; **Sign out** and **Switch user** are in the account menu and at the foot of the sidebar. Each browser tab keeps its own user and the tabs stay in step, so two roles can be tested side by side in two tabs of the same browser. Different browsers, Chrome profiles, Incognito windows and other computers each keep their own separate books — sharing one set of books between computers needs the server database. The PIN keeps colleagues in their own role on a shared computer; it is not protection against someone who can read the browser's stored data.
 
 ## Comparing periods (3.8.1)
 
@@ -236,7 +269,9 @@ npm test
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
 | `dashboard.jsx` | New overview dashboard. |
-| `apps.jsx` | 3.20–3.22 apps dashboard: the app definitions and `APP_MENUS` (one pattern for every app), Home (search and every app in one view), the top bar (app switcher, tabs, Reporting/Configuration dropdowns, More, phone menu), app overviews (figures, Transactions/Master data cards, latest activity, Reporting/Configuration panels), and Settings › Navigation. |
+| `access.jsx` | 3.23 access rights: areas and actions, the eight built-in roles and your own, access rules (apps and menus, actions, fields, records, buttons and tabs, read-only, no exports or search), effective rights per person, Roles and Access rules screens, Who can do what. |
+| `costing.jsx` | 3.23 cost centres (field, screen, profit by cost centre) and budgets (start from run rate or last year, monthly editor, budget vs actual). |
+| `apps.jsx` | 3.20–3.23 apps dashboard (3.23: Home and Your work for each job, Create new at the end of the search bar, the themed top bar and page banners): the app definitions and `APP_MENUS` (one pattern for every app), Home (search and every app in one view), the top bar (app switcher, tabs, Reporting/Configuration dropdowns, More, phone menu), app overviews (figures, Transactions/Master data cards, latest activity, Reporting/Configuration panels), and Settings › Navigation. |
 | `group.jsx` | 3.18–3.19 several companies (registry, switcher, add a company, Companies screen, colour per company, edit or back up any company) and branches (guided set-up, Branches screen, numbering per branch, working branch, users limited to a branch, Branch field and picker, branch ledgers), Branch performance and Group report. |
 | `delivery.jsx` | 3.17 delivery addresses: branches on customers, Deliver to on documents, add a branch from a document, address preview, print styles for Deliver to and the delivery note. |
 | `refine.jsx` | 3.16 gliding highlights for switches and tabs, rolling total, totals panel with the discount on the whole document, motion and editor refinements. |
@@ -257,6 +292,8 @@ npm test
 | `shell.html` | Original standalone shell and bundled libraries/fonts. |
 | `build.mjs` | Reproducible JSX compilation and standalone packaging. |
 | `tests/engine.cjs` | Executable accounting, pricing, migration and inventory regression checks. |
+| `tests/browser-access.cjs` | 3.23 checks: a user for each job with a live preview, Who can do what, roles (adjust, new role), access rules from a template and from scratch, switching rules off and on; then signing in as each person: Home and apps for the job, own documents only, search limited to what they may open, no costs, the discount limit, no delete or reset, hidden apps, read-only prices, a purchaser who can't post, a viewer without exports, administrators unrestricted, and the sidebar following the same rights. |
+| `tests/browser-costing.cjs` | 3.23 checks: cost centres (quick start and form, unique codes), tagging an invoice, an expense and a journal line, profit by cost centre adding up to the company, a used cost centre that can't be deleted, budgets from the run rate (spreading a year evenly, Budget vs actual with figures and Excel), a budget for one cost centre, and every new screen in the classic menu. |
 | `tests/browser-apps.cjs` | 3.20–3.21 checks: Sidebar mode (classic menu, no Home), switching from Settings, the user menu and Ctrl K, the apps dashboard (app bars, dropdowns, More, context, every screen reachable), plus Home, card counts, filters, search, Create new, Jump back in, every app overview, the menu grouped by app with every screen still in it, All apps and g h, apps limited by role, dark mode, phone. |
 | `tests/browser-branches.cjs` | 3.18–3.19 checks: guided branch set-up, branch details on print, numbering per branch, working branch, a user limited to one branch, Companies screen (edit, colour, back up another company), company colours; setting up branches (head office, next branch, rules), home branch, Branch field on invoice, payment and journal (a payment follows its invoice), printed branch address, Branch performance adds up to the P&L, branch filter on P&L, trial balance, balance sheet, dashboard and lists, VAT return company-wide, adding a company and switching back, Group report, phone. |
 | `tests/browser-delivery.cjs` | 3.17 checks: % / AED line discounts (switching keeps the money off, limits, saved), branches on a customer and the default, Deliver to and place of supply, adding a branch from the quotation, print, delivery note on screen and as PDF, carried to the invoice, list and search, phone. |
@@ -284,4 +321,4 @@ Settings › Invoice language: **English only** (default) or **English + Arabic*
 
 Browser checks for 3.3 covered every screen in the sample and in a brand-new company, Start my company, the setup guide, importing a compressed Excel workbook and a semicolon CSV (including invalid and duplicate rows), round-tripping the app's own templates, opening balances, a first invoice with imported stock, Unpaid/Overdue filters and paging, invoice print and PDF download, account rename, reloading the sample, an in-place upgrade from the original 3.2 file, and light, dark and mobile layouts. The 3.2 checks listed in `tests/browser-checks.json` remain part of the record.
 
-Books stay on the device first. The optional sync server (3.15) shares one set of books per company between devices and keeps every version; access is by a company access key over HTTPS. Users, roles, PINs and approvals are still enforced by the app, not by the server, so they are not a server security boundary. External e-invoicing/provider submission and message delivery were not exercised against a live service.
+Books stay on the device first. The optional sync server (3.15) shares one set of books per company between devices and keeps every version; access is by a company access key over HTTPS. Users, roles, access rules, PINs and approvals are still enforced by the app, not by the server, so they are not a server security boundary. External e-invoicing/provider submission and message delivery were not exercised against a live service.
