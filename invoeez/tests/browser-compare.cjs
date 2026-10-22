@@ -73,6 +73,6 @@ check(await p.locator('.viz-card h3',{hasText:'Then and now'}).count()===1,'then
 await nav('r_cust');
 check(await p.locator('.cmp-tbl thead th',{hasText:'Revenue'}).count()===2&&await p.locator('.viz-card h3',{hasText:'Growing customers'}).count()===1&&await p.locator('.viz-card h3',{hasText:'Declining customers'}).count()===1,'customer revenue vs comparison, growing and declining');
 await nav('dash');
-const foot=await p.locator('.dashboard-footer').innerText();
-check(new RegExp('Period comparison: 01 Jan '+(t.getFullYear()-1)).test(foot),'dashboard compares year to date with last year to date ('+foot.split('Period comparison: ')[1]+')');
+const foot=await p.locator('.ds-meta').innerText();
+check(new RegExp('Compared with 01 Jan '+(t.getFullYear()-1)).test(foot),'dashboard compares year to date with last year to date ('+foot.split('Compared with ')[1]+')');
 console.log('OK',ok.length);console.log('ERR',errs);await b.close();process.exit(errs.length?1:0);})();

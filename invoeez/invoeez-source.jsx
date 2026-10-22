@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.23.0";
+const BUILD = "3.24.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -2107,14 +2107,16 @@ function LegacyDashboard({ state, books, go, newDoc, range, setRange, user = { n
   const ap = useMemo(() => aging(state, "payable", TODAY), [state]);
   const q3 = useMemo(() => vat201(state, "2026-07-01", "2026-09-30"), [state]);
   const balAt = (codes, d) => R2(books.flat.filter((l) => codes.includes(l.acc) && l.date <= d).reduce((s, l) => s + l.debit - l.credit, 0));
-  const cash = balAt([A.BANK, A.CASH], TODAY);
+  /* Every cash and bank account, as on the dashboard's Cash & bank figure. */
+  const cashCodes = ACCOUNTS.filter((a) => a.type === "bank").map((a) => a.code);
+  const cash = balAt(cashCodes, TODAY);
   const stockVal = R2(Object.values(books.stock).reduce((s, x) => s + x.value, 0));
 
   const bk = useMemo(() => bucketize(from, to, gran), [from, to, gran]);
   const months = useMemo(() => bk.rows.map((b) => {
     const r = pnl(books.flat, b.from, b.to);
     return { label: b.label, full: b.full, revenue: r.revenue, cost: R2(r.cost + r.expense),
-      profit: r.net, cash: balAt([A.BANK, A.CASH], b.to) };
+      profit: r.net, cash: balAt(cashCodes, b.to) };
   }), [books, bk]);
   const labelEvery = Math.ceil(months.length / 12);
   const pct = (a, b) => (b ? ((a - b) / Math.abs(b)) * 100 : 0);
@@ -6380,7 +6382,7 @@ function SettingsScreen({ accent, setAccent, company, setCompany, theme, setThem
               <div className="setrow" style={{ display: "block" }}><div className="st"><b>Colour theme</b><span>Sidebar, buttons, highlights and the invoice letterhead follow it</span></div>
                 <div className="accent-picks" style={{ marginTop: 10 }}>{Object.entries(ACCENTS).map(([k, a]) => (
                   <button key={k} className={cx("accent-pick", accent === k && "on")} onClick={() => { setAccent(k); toast(`${a.name} colour theme`); }} aria-pressed={accent === k}>
-                    <span className="sw">{a.sw.map((c) => <i key={c} style={{ background: c }} />)}</span><b>{a.name}</b><span>{a.note}</span></button>))}</div></div>
+                    <span className="ap-sw">{a.sw.map((c) => <i key={c} style={{ background: c }} />)}</span><b>{a.name}</b><span>{a.note}</span></button>))}</div></div>
               <div className="setrow"><div className="st"><b>Theme</b><span>Follows your system on first run</span></div>
                 <div className="seg">{[["light", "Light"], ["dark", "Dark"]].map(([k, l]) => (
                   <button key={k} className={cx(theme === k && "on")} onClick={() => setTheme(k)}>{l}</button>))}</div></div>
@@ -6818,7 +6820,7 @@ function Invoeez() {
     switch (view) {
       case "home": return <AppsHome state={sState} whole={state} books={books} company={company} user={meUser} acc={acc} go={go} openApp={openApp} quickAdd={quickAdd} allowed={allowed} canAdd={canAdd} counts={counts}
         cmdItems={cmdItems} openSearch={() => setCmdk(true)} />;
-      case "dash": return <Dashboard state={dstate} whole={state} books={dbooks} go={go} newDoc={newDoc} range={range} setRange={setRange} user={meUser}
+      case "dash": return <Dashboard state={dstate} whole={state} books={dbooks} go={go} newDoc={newDoc} range={range} setRange={setRange} user={meUser} canAdd={canAdd}
         setup={!state.sample && !(state.setup && state.setup.hidden) && <SetupProgress state={state} company={company} go={go} />} />;
       case "opening": return <OpeningScreen state={state} setState={setState} books={books} toast={toast} go={go} />;
       case "setup": return <SetupScreen state={state} setState={setState} books={books} company={company} go={go} newDoc={newDoc} toast={toast}
@@ -6877,7 +6879,7 @@ function Invoeez() {
     }
   };
 
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS + REFINE_CSS + DELIVERY_CSS + GROUP_CSS + APPS_CSS + COSTING_CSS + ACCESS_CSS;
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS + REFINE_CSS + DELIVERY_CSS + GROUP_CSS + APPS_CSS + COSTING_CSS + ACCESS_CSS + DASHDOC_CSS;
   /* Nobody signed in in this tab: show the sign-in screen. */
   if (!meFound) return (
     <ThemeCtx.Provider value={palette}>

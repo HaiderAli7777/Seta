@@ -1,15 +1,16 @@
 /* ============================================================================
    INVOEEZ BRAND LAYER — loads after the base and design layers.
    The chrome logo sits on a deep, coloured sidebar; one accent colour carries
-   actions, links, focus and selection. Four colour themes share one set of
+   actions, links, focus and selection. Five colour themes share one set of
    variables (Settings → Appearance). Green and red stay reserved for money
    meaning (paid / received, overdue / owed).
    ========================================================================== */
 const ACCENTS = {
-  ocean:    { name: "Ocean blue", note: "Midnight navy with azure — the default", sw: ["#15233F", "#1D63ED", "#5CC8FF"], c1: "#1D63ED", c1d: "#6EA6FF", c2: "#14B8A6", c2d: "#2DD4BF", sheet: ["#0E1B38", "#1A3F8C"] },
-  teal:     { name: "Teal", note: "Deep teal slate, like a classic ledger", sw: ["#123236", "#0A7C78", "#4FE3D6"], c1: "#0A7C78", c1d: "#4FD1C5", c2: "#F59E0B", c2d: "#FBBF24", sheet: ["#0B2326", "#125E5A"] },
-  royal:    { name: "Royal violet", note: "Indigo night with violet", sw: ["#1E1848", "#5145CD", "#B4A6FF"], c1: "#5145CD", c1d: "#A99CFF", c2: "#EC4899", c2d: "#F472B6", sheet: ["#160F3A", "#3A2E9E"] },
+  ocean:    { name: "Ocean blue", note: "Midnight navy with azure — the default", sw: ["#0E1A3A", "#1E5BE6", "#5CC8FF"], c1: "#1E5BE6", c1d: "#7AAEFF", c2: "#14B8A6", c2d: "#2DD4BF", sheet: ["#08132E", "#163C99"] },
+  teal:     { name: "Lagoon teal", note: "Deep lagoon teal, calm like a classic ledger", sw: ["#0E3135", "#0B7A73", "#5EEAD4"], c1: "#0B7A73", c1d: "#4FD1C5", c2: "#F59E0B", c2d: "#FBBF24", sheet: ["#062124", "#0D5E58"] },
+  royal:    { name: "Royal violet", note: "Indigo night with violet", sw: ["#1C1645", "#5241D8", "#C4B5FD"], c1: "#5241D8", c1d: "#AFA3FF", c2: "#EC4899", c2d: "#F472B6", sheet: ["#120C33", "#3A2EA8"] },
   graphite: { name: "Graphite", note: "Chrome and graphite, monochrome", sw: ["#1B1F25", "#2F62C4", "#C9CED4"], c1: "#2F62C4", c1d: "#8DB3F5", c2: "#AEB6C1", c2d: "#6B737E", sheet: ["#15181D", "#353C46"] },
+  desert:   { name: "Desert sand", note: "Espresso and copper, warm like the dunes", sw: ["#2A1D15", "#A9531C", "#F2C48D"], c1: "#A9531C", c1d: "#F0A86B", c2: "#0F766E", c2d: "#2DD4BF", sheet: ["#1E140D", "#6B3D1B"] },
 };
 const ACCENT_KEY = "mizan.accent";
 const accentOf = () => { try { const a = document.querySelector(".mz")?.getAttribute("data-accent"); return ACCENTS[a] ? a : "ocean"; } catch (e) { return "ocean"; } };
@@ -20,11 +21,11 @@ const BRAND_CSS = `
 .mz{
   --ink:#131A2B;--ink-2:#39435C;--ink-3:#5B6681;--ink-4:#95A0B8;
   --bg:#F2F5FA;--surface:#FFFFFF;--surface-2:#F7F9FC;--surface-3:#ECF0F7;
-  --line:#DFE5EF;--line-2:#EBEFF6;
+  --line:#E0E6F0;--line-2:#ECF0F6;
   --royal:var(--brand);--violet:#6B5BD6;--violet-50:#F1EFFF;
   --graphite:#1B1F25;--silver:#C9CED4;
-  --sh-1:0 1px 2px rgba(19,26,43,.05),0 1px 3px rgba(19,26,43,.04);
-  --sh-2:0 2px 6px rgba(19,26,43,.06),0 10px 26px rgba(19,26,43,.08);
+  --sh-1:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.04);
+  --sh-2:0 1px 2px rgba(16,24,40,.04),0 4px 10px -2px rgba(16,24,40,.05),0 16px 36px -14px rgba(16,24,40,.14);
   --sh-3:0 24px 64px rgba(19,26,43,.20),0 6px 18px rgba(19,26,43,.10);
   --app-bg:radial-gradient(1100px 560px at 82% -12%,var(--app-tint),transparent 62%),
            radial-gradient(900px 480px at 0% 0%,var(--app-tint2),transparent 60%),var(--bg);
@@ -40,45 +41,45 @@ const BRAND_CSS = `
 
 /* ---- Ocean blue (default) ---- */
 .mz,.mz[data-accent="ocean"]{
-  --brand:#1D63ED;--brand-600:#1650C4;--brand-50:#EBF2FF;--brand-100:#D4E3FF;--ring:0 0 0 3px rgba(29,99,237,.20);--sel:#D4E3FF;
-  --pri-a:#2370F0;--pri-b:#1A56DB;--pri-ha:#1E6AEB;--pri-hb:#1448B5;--pri-sh:rgba(29,99,237,.30);
-  --sb-1:#15233F;--sb-2:#0F1A31;--sb-3:#0A1224;--sb-acc:#5CC8FF;--sb-on:rgba(92,200,255,.15);
-  --hero:linear-gradient(125deg,#0E1B38 0%,#163A80 55%,#1D63ED 100%);
-  --sheet-1:#0E1B38;--sheet-2:#1A3F8C;--app-tint:rgba(29,99,237,.075);--app-tint2:rgba(92,200,255,.07);
-  --c1:#1D63ED;--c2:#14B8A6;--c3:#6B5BD6;
+  --brand:#1E5BE6;--brand-600:#1748C0;--brand-50:#EBF1FF;--brand-100:#D3E1FF;--ring:0 0 0 3px rgba(30,91,230,.20);--sel:#D3E1FF;
+  --pri-a:#2A67F0;--pri-b:#1A4FD0;--pri-ha:#2560E8;--pri-hb:#1544B8;--pri-sh:rgba(30,91,230,.30);
+  --sb-1:#0E1A3A;--sb-2:#0A1430;--sb-3:#070E22;--sb-acc:#5CC8FF;--sb-on:rgba(92,200,255,.15);
+  --hero:linear-gradient(120deg,#08132E 0%,#0F2A6B 46%,#1E5BE6 100%);
+  --sheet-1:#08132E;--sheet-2:#163C99;--app-tint:rgba(30,91,230,.075);--app-tint2:rgba(92,200,255,.07);
+  --c1:#1E5BE6;--c2:#14B8A6;--c3:#6B5BD6;
 }
 .mz[data-theme="dark"],.mz[data-theme="dark"][data-accent="ocean"]{
-  --brand:#6EA6FF;--brand-600:#97BFFF;--brand-50:#14223D;--brand-100:#1C3156;--ring:0 0 0 3px rgba(110,166,255,.30);--sel:#1C3156;
-  --sb-1:#0D1830;--sb-2:#091226;--sb-3:#060C1A;--app-tint:rgba(110,166,255,.08);--app-tint2:rgba(92,200,255,.04);
-  --c1:#6EA6FF;--c2:#2DD4BF;--c3:#A99CFF;
+  --brand:#7AAEFF;--brand-600:#A0C5FF;--brand-50:#16223D;--brand-100:#1E3259;--ring:0 0 0 3px rgba(122,174,255,.30);--sel:#1E3259;
+  --sb-1:#0C1730;--sb-2:#081124;--sb-3:#050B18;--app-tint:rgba(122,174,255,.08);--app-tint2:rgba(92,200,255,.04);
+  --c1:#7AAEFF;--c2:#2DD4BF;--c3:#A99CFF;
 }
 /* ---- Teal ---- */
 .mz[data-accent="teal"]{
-  --brand:#0A7C78;--brand-600:#08625F;--brand-50:#E5F5F4;--brand-100:#C6EAE7;--ring:0 0 0 3px rgba(10,124,120,.20);--sel:#C6EAE7;
-  --pri-a:#0B847E;--pri-b:#08625F;--pri-ha:#0A7C78;--pri-hb:#075955;--pri-sh:rgba(10,124,120,.30);
-  --sb-1:#123236;--sb-2:#0D262A;--sb-3:#091C1F;--sb-acc:#4FE3D6;--sb-on:rgba(79,227,214,.14);
-  --hero:linear-gradient(125deg,#0B2326 0%,#0F4F4C 55%,#13A59E 100%);
-  --sheet-1:#0B2326;--sheet-2:#125E5A;--app-tint:rgba(10,124,120,.07);--app-tint2:rgba(79,227,214,.07);
-  --c1:#0A7C78;--c2:#F59E0B;--c3:#1D63ED;
+  --brand:#0B7A73;--brand-600:#08605A;--brand-50:#E3F4F2;--brand-100:#C3E8E4;--ring:0 0 0 3px rgba(11,122,115,.20);--sel:#C3E8E4;
+  --pri-a:#0D8880;--pri-b:#096A64;--pri-ha:#0B7D76;--pri-hb:#075A55;--pri-sh:rgba(11,122,115,.30);
+  --sb-1:#0E3135;--sb-2:#0A272A;--sb-3:#071D20;--sb-acc:#5EEAD4;--sb-on:rgba(94,234,212,.14);--sb-txt:#C3DDDA;--sb-dim:#7FA5A1;
+  --hero:linear-gradient(120deg,#062124 0%,#0B4B47 48%,#10A196 100%);
+  --sheet-1:#062124;--sheet-2:#0D5E58;--app-tint:rgba(11,122,115,.07);--app-tint2:rgba(94,234,212,.07);
+  --c1:#0B7A73;--c2:#F59E0B;--c3:#1E5BE6;
 }
 .mz[data-theme="dark"][data-accent="teal"]{
   --brand:#4FD1C5;--brand-600:#7FE0D7;--brand-50:#0F2A2B;--brand-100:#163C3D;--ring:0 0 0 3px rgba(79,209,197,.28);--sel:#163C3D;
-  --sb-1:#0C2427;--sb-2:#081B1E;--sb-3:#051214;--app-tint:rgba(79,209,197,.07);--app-tint2:rgba(79,227,214,.03);
-  --c1:#4FD1C5;--c2:#FBBF24;--c3:#6EA6FF;
+  --sb-1:#0B2427;--sb-2:#071B1D;--sb-3:#041214;--app-tint:rgba(79,209,197,.07);--app-tint2:rgba(94,234,212,.03);
+  --c1:#4FD1C5;--c2:#FBBF24;--c3:#7AAEFF;
 }
 /* ---- Royal violet ---- */
 .mz[data-accent="royal"]{
-  --brand:#5145CD;--brand-600:#4136AE;--brand-50:#EFEDFF;--brand-100:#DDD8FF;--ring:0 0 0 3px rgba(81,69,205,.20);--sel:#DDD8FF;
-  --pri-a:#6E5FF5;--pri-b:#4B3FC4;--pri-ha:#5F51E6;--pri-hb:#4134B0;--pri-sh:rgba(81,69,205,.32);
-  --sb-1:#1E1848;--sb-2:#17113A;--sb-3:#0F0B29;--sb-acc:#B4A6FF;--sb-on:rgba(180,166,255,.16);
-  --hero:linear-gradient(125deg,#160F3A 0%,#33289A 55%,#6E5FF5 100%);
-  --sheet-1:#160F3A;--sheet-2:#3A2E9E;--app-tint:rgba(81,69,205,.07);--app-tint2:rgba(236,72,153,.04);
-  --c1:#5145CD;--c2:#EC4899;--c3:#14B8A6;
+  --brand:#5241D8;--brand-600:#4233B5;--brand-50:#EFECFF;--brand-100:#DCD6FF;--ring:0 0 0 3px rgba(82,65,216,.20);--sel:#DCD6FF;
+  --pri-a:#6A5AF2;--pri-b:#4A3BC8;--pri-ha:#5E4EE6;--pri-hb:#3F31B0;--pri-sh:rgba(82,65,216,.32);
+  --sb-1:#1C1645;--sb-2:#151037;--sb-3:#0E0A27;--sb-acc:#C4B5FD;--sb-on:rgba(196,181,253,.16);--sb-txt:#D2CCF0;--sb-dim:#9A92C4;
+  --hero:linear-gradient(120deg,#120C33 0%,#2E2390 50%,#6A5AF2 100%);
+  --sheet-1:#120C33;--sheet-2:#3A2EA8;--app-tint:rgba(82,65,216,.07);--app-tint2:rgba(236,72,153,.04);
+  --c1:#5241D8;--c2:#EC4899;--c3:#14B8A6;
 }
 .mz[data-theme="dark"][data-accent="royal"]{
-  --brand:#A99CFF;--brand-600:#C3B9FF;--brand-50:#1C1840;--brand-100:#282257;--ring:0 0 0 3px rgba(169,156,255,.28);--sel:#282257;
-  --sb-1:#161236;--sb-2:#100C29;--sb-3:#0A071C;--app-tint:rgba(169,156,255,.08);--app-tint2:rgba(236,72,153,.03);
-  --c1:#A99CFF;--c2:#F472B6;--c3:#2DD4BF;
+  --brand:#AFA3FF;--brand-600:#C8BFFF;--brand-50:#1E1A44;--brand-100:#2A245C;--ring:0 0 0 3px rgba(175,163,255,.28);--sel:#2A245C;
+  --sb-1:#151135;--sb-2:#0F0B28;--sb-3:#09071B;--app-tint:rgba(175,163,255,.08);--app-tint2:rgba(236,72,153,.03);
+  --c1:#AFA3FF;--c2:#F472B6;--c3:#2DD4BF;
 }
 /* ---- Graphite (chrome monochrome) ---- */
 .mz[data-accent="graphite"]{
@@ -100,6 +101,24 @@ const BRAND_CSS = `
   --sb-1:#15181C;--sb-2:#101215;--sb-3:#0C0E10;--app-tint:rgba(141,179,245,.07);--app-tint2:transparent;
   --c1:#8DB3F5;--c2:#6B737E;--c3:#C9CED4;
 }
+/* ---- Desert sand (espresso and copper) ---- */
+.mz[data-accent="desert"]{
+  --bg:#F6F3EF;--surface-2:#FAF8F5;--surface-3:#F1ECE6;--line:#E8E0D7;--line-2:#F0EBE5;
+  --brand:#A9531C;--brand-600:#8A4313;--brand-50:#FBF0E7;--brand-100:#F5DCC8;--ring:0 0 0 3px rgba(169,83,28,.20);--sel:#F5DCC8;
+  --pri-a:#B85E22;--pri-b:#93461A;--pri-ha:#AD571E;--pri-hb:#843E15;--pri-sh:rgba(169,83,28,.30);
+  --sb-1:#2A1D15;--sb-2:#22170F;--sb-3:#1A110B;--sb-acc:#F2C48D;--sb-on:rgba(242,196,141,.16);--sb-txt:#E3D3C3;--sb-dim:#A8927E;
+  --hero:linear-gradient(120deg,#1E140D 0%,#5A3418 50%,#C2672B 100%);
+  --sheet-1:#1E140D;--sheet-2:#6B3D1B;--app-tint:rgba(194,103,43,.07);--app-tint2:rgba(242,196,141,.10);
+  --c1:#A9531C;--c2:#0F766E;--c3:#B7791F;
+}
+.mz[data-theme="dark"][data-accent="desert"]{
+  --ink:#F2ECE6;--ink-2:#D4C8BD;--ink-3:#A5978A;--ink-4:#76695D;
+  --bg:#100D0B;--surface:#1A1512;--surface-2:#211B17;--surface-3:#2B231E;--line:rgba(255,236,220,.10);--line-2:rgba(255,236,220,.05);
+  --brand:#F0A86B;--brand-600:#F5C08F;--brand-50:#2C2018;--brand-100:#3B2A1E;--ring:0 0 0 3px rgba(240,168,107,.28);--sel:#3B2A1E;
+  --sb-1:#1C140F;--sb-2:#150F0B;--sb-3:#0F0A07;--app-tint:rgba(240,168,107,.06);--app-tint2:transparent;
+  --c1:#F0A86B;--c2:#2DD4BF;--c3:#FBBF24;
+}
+.mz[data-theme="dark"][data-accent="desert"] .topbar{background:rgba(26,21,18,.86)}
 .mz[data-theme="dark"] ::-webkit-scrollbar-thumb{background:var(--surface-3);background-clip:content-box}
 
 /* Primary action in the theme colour */
@@ -154,7 +173,7 @@ const BRAND_CSS = `
 .accent-pick{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--surface);text-align:left;transition:border-color .15s,box-shadow .15s}
 .accent-pick:hover{border-color:var(--ink-4)}
 .accent-pick.on{border-color:var(--brand);box-shadow:var(--ring)}
-.accent-pick .sw{display:flex;height:34px;border-radius:8px;overflow:hidden}
-.accent-pick .sw i{flex:1}.accent-pick .sw i:first-child{flex:2}
+.accent-pick .ap-sw{display:flex;height:38px;border-radius:9px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+.accent-pick .ap-sw i{flex:1}.accent-pick .ap-sw i:first-child{flex:2.2}
 .accent-pick b{font-size:13px}.accent-pick span{font-size:11.5px;color:var(--ink-3);line-height:1.35}
 `;

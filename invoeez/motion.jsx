@@ -27,14 +27,14 @@ function useDashMotion(rootRef, deps) {
     if (!root || reducedMotion() || typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }),
       { rootMargin: "0px 0px -6% 0px", threshold: 0.06 });
-    root.querySelectorAll(".dash-kpis > *, .dash-row > *, .dash-reveal").forEach((el) => {
+    root.querySelectorAll(".dash-kpis > *, .dash-row > *, .ds-fields > *, .dash-reveal").forEach((el) => {
       if (el.classList.contains("in")) return;
       el.classList.add("rv"); io.observe(el);
     });
     return () => io.disconnect();
   }, deps);
   return (e) => {
-    const c = e.target && e.target.closest && e.target.closest(".kpi-tile, .viz-card, .dash-row > .card");
+    const c = e.target && e.target.closest && e.target.closest(".kpi-tile, .ds-field, .viz-card, .dash-row > .card");
     if (!c) return;
     const r = c.getBoundingClientRect();
     c.style.setProperty("--mx", `${Math.round(e.clientX - r.left)}px`);

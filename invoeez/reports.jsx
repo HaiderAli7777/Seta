@@ -149,14 +149,16 @@ const SectionTitle = ({ children, right }) => <div className="rpt-section"><h3>{
 
 const REPORTS_CSS = `
 /* chart colour roles — validated categorical sets per theme (light and dark) */
-.mz{--s1:#1D63ED;--s2:#E8590C;--s3:#7C3AED;--k1:#2a78d6;--k2:#eb6834;--k3:#1baf7a;--k4:#eda100;--k5:#e87ba4;--k0:#B4BDCC;--sev-1:#E9A23B;--sev-2:#E8590C;--sev-3:#D63B4A}
+.mz{--s1:#1E5BE6;--s2:#E8590C;--s3:#7C3AED;--k1:#2a78d6;--k2:#eb6834;--k3:#1baf7a;--k4:#eda100;--k5:#e87ba4;--k0:#B4BDCC;--sev-1:#E9A23B;--sev-2:#E8590C;--sev-3:#D63B4A}
 .mz[data-accent="teal"]{--s1:#0A9396;--s2:#D9480F;--s3:#4F46E5}
 .mz[data-accent="royal"]{--s1:#5145CD;--s2:#E8590C;--s3:#0E8C7E}
 .mz[data-accent="graphite"]{--s1:#2F62C4;--s2:#D9480F;--s3:#0E8C7E}
+.mz[data-accent="desert"]{--s1:#B4561D;--s2:#0F766E;--s3:#6D28D9}
 .mz[data-theme="dark"]{--s1:#3987e5;--s2:#d95926;--s3:#9085e9;--k1:#3987e5;--k2:#d95926;--k3:#199e70;--k4:#c98500;--k5:#d55181;--k0:#4B5568;--sev-1:#C98500;--sev-2:#D95926;--sev-3:#E66767}
 .mz[data-theme="dark"][data-accent="teal"]{--s1:#14a38f;--s2:#d95926;--s3:#9085e9}
 .mz[data-theme="dark"][data-accent="royal"]{--s1:#9085e9;--s2:#d95926;--s3:#199e70}
 .mz[data-theme="dark"][data-accent="graphite"]{--s1:#3987e5;--s2:#d95926;--s3:#199e70}
+.mz[data-theme="dark"][data-accent="desert"]{--s1:#e8955a;--s2:#14a38f;--s3:#9085e9}
 
 /* report frame */
 .mz .rframe{overflow:hidden}

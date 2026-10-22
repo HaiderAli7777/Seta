@@ -47,7 +47,7 @@ const SCREENS = ['dash', 'accounts', 'acct_groups', 'customers', 'vendors', 'pro
 
   // ---------- 1. Sidebar, the default ----------
   let { ctx, p } = await open();
-  check(await p.locator('.sbar').count() === 1 && await p.locator('.dash-hero').count() === 1 && await p.locator('.ah-hero').count() === 0, 'Sidebar is the default and opens on the dashboard');
+  check(await p.locator('.sbar').count() === 1 && await p.locator('.ds-sheet').count() === 1 && await p.locator('.ah-hero').count() === 0, 'Sidebar is the default and opens on the dashboard');
   const heads = await p.locator('.sbar .sb-head').evaluateAll((els) => els.map((e) => e.getAttribute('data-title')));
   check(heads.join('|') === 'Dashboard|Master|Sale|Purchase|Banking|Accounting trans.|Stock management|Reports|VAT & e-invoicing|Utilities & tools', 'the classic menu (' + heads.join(', ') + ')');
   const sideKeys = await p.locator('.sbar [data-k]').evaluateAll((els) => els.map((e) => e.getAttribute('data-k')));
@@ -69,7 +69,7 @@ const SCREENS = ['dash', 'accounts', 'acct_groups', 'customers', 'vendors', 'pro
   check(await p.locator('.pop').count() === 1 && !/Navigation/.test(await p.locator('.pop').innerText()) && await p.locator('.pop .nav-seg').count() === 0, 'the user menu has no Navigation switch');
   await p.locator('.pop-item', { hasText: 'Settings' }).click(); await p.waitForTimeout(900);
   await p.locator('.nc-opt[data-mode="sidebar"]').click(); await p.waitForTimeout(1000);
-  check(await p.locator('.sbar').count() === 1 && await p.locator('.dash-hero').count() === 1, 'Settings › Navigation switches back to the sidebar, on the dashboard');
+  check(await p.locator('.sbar').count() === 1 && await p.locator('.ds-sheet').count() === 1, 'Settings › Navigation switches back to the sidebar, on the dashboard');
   // and to apps from Ctrl K
   await p.keyboard.press('Control+k'); await p.waitForTimeout(300); await p.keyboard.type('apps dashboard'); await p.waitForTimeout(300); await p.keyboard.press('Enter'); await p.waitForTimeout(1000);
   check(await p.locator('.ah-grid').count() === 1, 'Ctrl K › Switch to the apps dashboard');

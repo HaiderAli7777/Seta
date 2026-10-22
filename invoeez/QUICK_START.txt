@@ -16,6 +16,14 @@ FIND YOUR WAY (3.23)
 - Every app's menu reads the same way: Overview, its work and records,
   then Reporting, then Configuration.
 
+THE DASHBOARD (3.24)
+- It reads like an invoice: the period and net profit at the top, progress
+  through the period (click a quarter to look at it), the key figures, then
+  tabs — Performance, Money in & out, Products & customers, Activity and
+  Financial detail — and a profit & loss summary at the foot.
+- Settings > Appearance > Colour theme: Ocean blue, Lagoon teal, Royal
+  violet, Graphite or Desert sand.
+
 WHO CAN DO WHAT (3.23)
 - Users & access > People > New user: pick a role (Accountant, Salesperson,
   Sales manager, Purchaser, Procurement manager, Storekeeper, Viewer or

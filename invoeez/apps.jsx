@@ -504,6 +504,10 @@ const APPS_CSS = `
 /* ---- Home: the search box and every app, in one view ---- */
 .mz{--sky-1:#9DB8E8;--sky-2:#DCE7F8}
 .mz[data-theme="dark"]{--sky-1:#2C4677;--sky-2:#14213D}
+.mz[data-accent="teal"]{--sky-1:#94CFC9;--sky-2:#D8EEEC}.mz[data-accent="royal"]{--sky-1:#B3A9E8;--sky-2:#E3DFF8}
+.mz[data-accent="graphite"]{--sky-1:#B3BBC6;--sky-2:#E3E6EA}.mz[data-accent="desert"]{--sky-1:#E3C3A3;--sky-2:#F3E6D8}
+.mz[data-theme="dark"][data-accent="teal"]{--sky-1:#1F4A4A;--sky-2:#102526}.mz[data-theme="dark"][data-accent="royal"]{--sky-1:#3A3277;--sky-2:#171433}
+.mz[data-theme="dark"][data-accent="graphite"]{--sky-1:#3A4048;--sky-2:#1A1D21}.mz[data-theme="dark"][data-accent="desert"]{--sky-1:#5A3D28;--sky-2:#21170F}
 .mz[data-nav="apps"].on-home .page{overflow-x:hidden;background-color:#F2F5FC;
   background-image:radial-gradient(1000px 520px at 6% -10%,color-mix(in srgb,var(--brand) 14%,transparent),transparent 62%),radial-gradient(900px 520px at 100% 0%,rgba(255,196,160,.26),transparent 62%),
     linear-gradient(180deg,#EEF3FC 0%,#F4F2FD 55%,#FBF5EF 100%)}

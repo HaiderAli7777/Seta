@@ -74,8 +74,8 @@ const num = (t) => +String(t).replace(/\u2212/g, '-').replace(/[^0-9.-]/g, '');
 
   // ---------- 2. gliding highlights and documents ----------
   ({ ctx, p } = await open());
-  await p.locator('.dh-seg button').nth(0).click(); await p.waitForTimeout(90);
-  const g1 = await ghost(p, '.dh-seg'); await p.waitForTimeout(500); const g1e = await ghost(p, '.dh-seg');
+  await p.locator('.ds-seg button').nth(0).click(); await p.waitForTimeout(90);
+  const g1 = await ghost(p, '.ds-seg'); await p.waitForTimeout(500); const g1e = await ghost(p, '.ds-seg');
   check(g1.ghost && g1.hold === 1 && !g1e.ghost && g1e.hold === 0, 'the dashboard period highlight glides to the new choice and settles');
   await nav(p, 'quotes');
   await p.locator('.doc-list-tbl tbody tr.click').first().click(); await p.waitForTimeout(120);
@@ -172,8 +172,8 @@ const num = (t) => +String(t).replace(/\u2212/g, '-').replace(/[^0-9.-]/g, '');
   await p.mouse.move(38, 320); await p.waitForTimeout(400);
   check((await p.evaluate(() => document.querySelector('.main').getAnimations().length)) === 0, 'reduced motion: the page moves without gliding');
   await p.mouse.move(900, 400); await p.waitForTimeout(600);
-  await p.locator('.dh-seg button').nth(1).click(); await p.waitForTimeout(60);
-  check(!(await ghost(p, '.dh-seg')).ghost, 'reduced motion: highlights change without gliding');
+  await p.locator('.ds-seg button').nth(1).click(); await p.waitForTimeout(60);
+  check(!(await ghost(p, '.ds-seg')).ghost, 'reduced motion: highlights change without gliding');
   await ctx.close();
 
   console.log(JSON.stringify({ ok: ok.length, errors: errs }, null, 1));

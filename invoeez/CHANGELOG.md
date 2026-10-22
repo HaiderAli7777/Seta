@@ -1,3 +1,42 @@
+# 3.24.0 — The dashboard laid out like an invoice, and refreshed colour themes
+
+- **The dashboard now reads like an invoice or quotation**: one sheet, top to bottom, in the same order as a document.
+  - **Header** (in the theme's gradient):
+    - the period as the title ("2026 so far", "Q2 2026", "October 2026");
+    - a status pill (Books balanced, or Books need review);
+    - your greeting and today's date, drafts to post, items low on stock, and where sales are heading this year;
+    - on the right, where an invoice shows its total: **net profit**, its share of sales, the change on the previous period, and small columns showing net profit period by period (losses hang below the line).
+  - **Progress through the period**, like Draft → Posted → Paid. A year shows Q1–Q4, a quarter its three months and a month its weeks, each ticked when done; the part under way shows how far through it is. Click a part to look at it: a past quarter in full, or "this quarter" for the current one.
+  - **Actions beside the progress**: Month, Quarter, Year or 12 months, any dates, the branch, **More** (new vendor bill, receive a payment, count stock, all reports, print the dashboard) and **New invoice**. Only the actions a person may take are shown.
+  - **Key figures as labelled fields**, eight of them:
+    - Sales, Costs & expenses, Gross profit and Cash & bank, each with a trend line;
+    - To collect, To pay and Stock value, each with a meter (overdue, past due, stock healthy);
+    - VAT due or refundable this quarter, with its filing date.
+
+    Each shows the change on the previous period where there is one, and opens its report.
+  - **Tabs over the detail**, like Line items / Journal entry / Activity on a document, with counts and their own tools on the right:
+    - **Performance**: revenue and costs, business health, a **month-by-month table** like a document's lines (sales, costs, gross profit, net profit and margin, with a total), and sales by category. Group by day, week or month from the tab bar.
+    - **Money in & out**: money to collect or pay, coming up in the next 14 days, cash movement.
+    - **Products & customers**: fast-moving items, slow-moving items, top customers.
+    - **Activity**: the latest ten documents.
+    - **Financial detail**: the full older view, under the same header.
+
+    The tab you last used is remembered on the device.
+  - **Foot**: the plain-words summary on the left and, where an invoice has its totals, the period's **profit & loss**: sales, cost of sales, gross profit, operating expenses, then net profit, with a link to the full statement.
+  - **A bar at the foot of the screen**, as on documents: "Live from your books", the period, net profit and **Profit & loss**, always in view.
+  - The motion stays: figures count up, sections rise as you reach them, trend lines draw and the columns grow; all still for reduced motion and in print. Print leaves out the buttons and the bar.
+- **Refreshed colour themes, and a fifth**:
+  - **Ocean blue** is a deeper midnight navy with a crisper azure.
+  - **Teal** is now **Lagoon teal**.
+  - **Royal violet** has a richer indigo night.
+  - **Graphite** is unchanged.
+  - New: **Desert sand**, espresso and copper on warm sand neutrals, in light and dark.
+
+  Each theme has its own dashboard header, chart colours, Home sky and skyline. Every theme meets WCAG AA contrast for text, links and buttons.
+- Fixes:
+  - **Theme picker swatches**: in Settings › Appearance the swatches show each theme's three colours again; a shared class had shrunk them to a dot.
+  - **Financial detail cash**: its cash balance now counts every bank and cash account, the same as the dashboard's Cash & bank figure. Before, only the main bank account and petty cash were counted.
+
 # 3.23.0 — Access rights made simple, a Home for each job, cost centres and budgets
 
 - **One Create, in one place.** On Home, **Create new** sits at the end of the search bar and opens a menu grouped by Sales, Purchases, Money & stock and Accounting, showing only what you may create. The **New** button is gone from the top bar. Inside an app, the search button and **Create** sit together on the right.

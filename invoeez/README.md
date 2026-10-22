@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.23)
+# InvoEez — Invoice Made Easy (3.24)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -75,6 +75,19 @@ Company profile, theme, user selection and connection settings use their existin
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
 
+## The dashboard, laid out like an invoice (3.24)
+
+The dashboard is one sheet that reads in the same order as an invoice or quotation:
+- **Header**: the period, a "Books balanced" status, and net profit where an invoice shows its total.
+- **Progress through the period**: quarters, months or weeks, ticked when done, with the actions beside it (period, dates, branch, More, New invoice).
+- **Eight key figures** as labelled fields: sales, costs, gross profit, cash and bank, to collect, to pay, stock value, and VAT this quarter.
+- **Tabs**: Performance (with a month-by-month table like a document's lines), Money in & out, Products & customers, Activity, and Financial detail.
+- **Foot**: a plain-words summary beside a profit-and-loss totals panel, and a bar that stays at the foot of the screen with net profit.
+
+The layout lives in `dashdoc.jsx`; the panels themselves (movers, customers, health, categories) are unchanged.
+
+**Five colour themes** (Settings › Appearance): Ocean blue, Lagoon teal, Royal violet, Graphite and the new **Desert sand** (espresso and copper). Each sets the sidebar, buttons, charts, the dashboard header and Home's sky, in light and dark, with AA contrast.
+
 ## Access rights and a Home for each job (3.23)
 
 **Users & access** has three tabs: **People**, **Roles** and **Access rules**.
@@ -127,7 +140,7 @@ In the apps dashboard InvoEez opens on **Home**: search everything and open any 
 | Bank & cash | Receipts and payments, post-dated cheques, bank and cash · Configuration: payment methods | `invoeez-source.jsx`, `pdc.jsx` |
 | VAT & e-invoicing | VAT return (FTA 201), PINT AE e-invoices | `invoeez-source.jsx` |
 | Reports | All reports, P&L, balance sheet, ledgers, ageing, profit analysis, branch and group | `reports.jsx`, `compare.jsx`, `ifrs.jsx`, `pro.jsx` (PDF/Excel), `group.jsx` |
-| Dashboard | Live dashboard | `dashboard.jsx`, `dash.jsx`, `motion.jsx` |
+| Dashboard | Live dashboard, laid out like a document (header, progress, key figures, tabs, totals) | `dashboard.jsx`, `dashdoc.jsx`, `dash.jsx`, `motion.jsx`, `reports.jsx` |
 | Contacts, Companies, Settings | Customers and vendors; companies and branches; settings and backup | `group.jsx`, `sync.jsx`, `invoeez-source.jsx` |
 | Users & access | People, roles, access rules, who can do what | `access.jsx`, `users.jsx`, `invoeez-source.jsx` |
 | Home and app overviews | — | `apps.jsx` |
@@ -190,7 +203,7 @@ The overview opens with a themed banner (net profit counting up, margins, quick 
 
 ## Colour themes (3.6.1)
 
-Settings › Appearance › Colour theme: **Ocean blue** (default), **Teal**, **Royal violet** or **Graphite**. The choice is remembered in the browser (`mizan.accent`) and applies to the sidebar, buttons, charts, the dashboard cash card and the invoice letterhead and PDF, in light and dark mode.
+Settings › Appearance › Colour theme: **Ocean blue** (default), **Lagoon teal**, **Royal violet**, **Graphite** or **Desert sand** (3.24). The choice is remembered in the browser (`mizan.accent`) and applies to the sidebar, buttons, charts, the dashboard cash card and the invoice letterhead and PDF, in light and dark mode.
 
 ## Menu (3.6)
 
@@ -268,7 +281,8 @@ npm test
 | `clarity.jsx` | Plain-language summaries, payment status and the All reports page. |
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
 | `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
-| `dashboard.jsx` | New overview dashboard. |
+| `dashboard.jsx` | The dashboard: figures, tabs and panels (3.24: laid out as one document-style sheet). |
+| `dashdoc.jsx` | 3.24 dashboard layout like an invoice: header with period, status and net profit; progress through the period; key figures as fields; month-by-month lines; profit-and-loss totals; the bar at the foot. |
 | `access.jsx` | 3.23 access rights: areas and actions, the eight built-in roles and your own, access rules (apps and menus, actions, fields, records, buttons and tabs, read-only, no exports or search), effective rights per person, Roles and Access rules screens, Who can do what. |
 | `costing.jsx` | 3.23 cost centres (field, screen, profit by cost centre) and budgets (start from run rate or last year, monthly editor, budget vs actual). |
 | `apps.jsx` | 3.20–3.23 apps dashboard (3.23: Home and Your work for each job, Create new at the end of the search bar, the themed top bar and page banners): the app definitions and `APP_MENUS` (one pattern for every app), Home (search and every app in one view), the top bar (app switcher, tabs, Reporting/Configuration dropdowns, More, phone menu), app overviews (figures, Transactions/Master data cards, latest activity, Reporting/Configuration panels), and Settings › Navigation. |
@@ -299,7 +313,7 @@ npm test
 | `tests/browser-delivery.cjs` | 3.17 checks: % / AED line discounts (switching keeps the money off, limits, saved), branches on a customer and the default, Deliver to and place of supply, adding a branch from the quotation, print, delivery note on screen and as PDF, carried to the invoice, list and search, phone. |
 | `tests/browser-refine.cjs` | 3.16 checks: menu unfolds with one layout and a glide (and reverses smoothly), sections fold, phone drawer, gliding highlights, documents glide in, discount on the whole quotation (amount, %, limits, save, reload, print, convert, post), save bar position, dark, reduced motion. |
 | `tests/browser-offline-sync.cjs` | 3.15 checks with the real sync server (files and PostgreSQL): connect and upload, a second device downloads, offline work waiting, renumbering on reconnect, a field changed on two devices and Use mine, deletions, opening with no internet, wrong key, restore switches sync off. |
-| `tests/browser-dashboard-motion.cjs` | 3.14 checks: scroll reveal, count-up on arrival, donut, rings, banner, pointer light, other donuts intact, reduced motion, print, phone. |
+| `tests/browser-dashboard-motion.cjs` | 3.14 / 3.24 checks: scroll reveal, count-up on arrival, donut, rings, header (live dot, year pace, net profit columns), trend lines, pointer light, other donuts intact, reduced motion, print without controls, phone. |
 | `tests/browser-experience.cjs` | 3.13 checks: figure font, summary tiles, notification centre, keyboard shortcuts, Undo on deletes, payments table fit, phone. |
 | `tests/browser-signin-form.cjs` | 3.12 checks: sign-in showcase and animations, user tiles, PIN pad (keypad, wrong PIN, success), reduced motion, phone, dark; document editor as one form, unsaved changes, Ctrl+S, leave prompt. |
 | `tests/browser-approvals.cjs` | 3.11 checks: document header as one card, More menu, quotation status control, approvers, submit / reject / resubmit / approve, no self-approval, reminders, PO printout and PDF, convert to bill, phone layout. |
@@ -307,7 +321,7 @@ npm test
 | `tests/browser-statements.cjs` | 3.9 checks: folded sidebar, form layout, IFRS 18 statement, groups, multi-period comparison, drill-down. |
 | `tests/browser-users.cjs` | 3.8.2 checks: roles, PINs, sign out / sign in, switch user, two tabs in step. |
 | `tests/browser-compare.cjs` | 3.8.1 comparison checks: period rules, comparative tables add up, notes, custom dates, balance sheet, exports. |
-| `tests/browser-dashboard.cjs` | 3.8 dashboard checks: cards, rankings, count-up, motion, reduced motion, drill-downs. |
+| `tests/browser-dashboard.cjs` | 3.24 dashboard checks: one sheet like a document, period title and status, net profit matching the summary, progress steps (click a quarter), More, eight key figures, profit & loss totals, the bar at the foot, five tabs with counts and tools, month-by-month lines adding up, movers and customers ranked, tab remembered, count-up, drill-downs, reduced motion, dark, five colour themes, a viewer without New invoice. |
 | `templates/` | Excel import templates for products and for customers & vendors (also downloadable inside the app). |
 | `previews/` | Screenshots of the upgraded application. |
 
