@@ -138,7 +138,7 @@ function PdcScreen({ state, setState, books, toast, create, go }) {
             {all.length ? "Try another filter or search." : tab === "in" ? "Record a customer's cheque with Receive cheque. It settles their balance now and reaches the bank when it clears." : "Record a cheque you have given a vendor with Issue cheque."}</EmptyState></td></tr>}
         </tbody></table></div>
     </Card>
-    {ed && <PdcDialog state={state} setState={setState} toast={toast} init={ed} close={() => setEd(null)} onSaved={(c) => setTab(c.kind)} />}
+    {ed && <PdcDialog state={state} setState={setState} books={books} toast={toast} init={ed} close={() => setEd(null)} onSaved={(c) => setTab(c.kind)} />}
     {act && <PdcActionDialog state={state} setState={setState} toast={toast} c={act.c} type={act.type} close={() => setAct(null)} />}
     {view && <PdcDetail state={state} books={books} c={(state.pdcs || []).find((x) => x.id === view.id) || view} close={() => setView(null)} />}
   </div>;
@@ -146,13 +146,13 @@ function PdcScreen({ state, setState, books, toast, create, go }) {
 const docNo = (state, id) => (id && (state.docs.find((d) => d.id === id) || {}).number) || "";
 
 /* New or replacement cheque. Used by the PDC screen and from an invoice or bill. */
-function PdcDialog({ state, setState, toast, init, close, onSaved }) {
+function PdcDialog({ state, setState, books, toast, init, close, onSaved }) {
   const kind = init.kind || "in", side = kind === "in" ? "sale" : "purchase";
   const banks = ACCOUNTS.filter((a) => a.type === "bank");
   const [r, setR] = useState(() => ({ id: uid("pdc"), kind, partner: init.partner || "", doc: init.doc || "", chequeNo: "", bank: init.bank || "",
     account: init.account || (kind === "out" ? (banks.find((b) => b.code === A.BANK) || banks[0] || {}).code : ""), chequeDate: "", date: TODAY,
     amount: init.amount != null ? String(init.amount) : "", memo: "", replaces: init.replaces || "" }));
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState(""), [rp, setRp] = useState(null);
   const set = (k, v) => setR((x) => ({ ...x, [k]: v }));
   const openDocs = r.partner ? ((aging(state, kind === "in" ? "receivable" : "payable", TODAY).rows.find((x) => x.partner.id === r.partner) || { items: [] }).items) : [];
   const save = () => {
@@ -176,7 +176,8 @@ function PdcDialog({ state, setState, toast, init, close, onSaved }) {
     sub={kind === "in" ? "Settles the customer's balance now; the money reaches your bank when the cheque clears." : "Settles what you owe now; your bank pays when the cheque is presented."} close={close}>
     <div className="studio-form">
       <Field label={kind === "in" ? "Customer" : "Vendor"} span={2}><SmartPicker label={kind === "in" ? "Cheque customer" : "Cheque vendor"} items={partnerOptions(side)} value={r.partner}
-        placeholder={`Search ${kind === "in" ? "customers" : "vendors"}…`} onChange={(pid) => setR((x) => ({ ...x, partner: pid, doc: "" }))} /></Field>
+        placeholder={`Search ${kind === "in" ? "customers" : "vendors"}…`} onChange={(pid) => setR((x) => ({ ...x, partner: pid, doc: "" }))}
+        openKind={kind === "in" ? "customer" : "vendor"} onOpen={(id) => setRp(PMAP[id])} /></Field>
       <Field label={kind === "in" ? "Against invoice" : "Against bill"} span={2}>
         <Select value={r.doc} onChange={(e) => { const it = openDocs.find((d) => d.id === e.target.value); setR((x) => ({ ...x, doc: e.target.value, amount: it && !x.amount ? String(it.open) : x.amount })); }} disabled={!r.partner}>
           <option value="">Oldest open {kind === "in" ? "invoice" : "bill"} first</option>
@@ -197,6 +198,7 @@ function PdcDialog({ state, setState, toast, init, close, onSaved }) {
       : <>Posts <b>Dr {A.AP} Accounts payable</b> · <b>Cr {PDC_ACC.out} {ACC[PDC_ACC.out]?.name || "Post-dated cheques issued"}</b> on the issue date.</>}</span></div>
     {err && <div role="alert" className="form-error">{err}</div>}
     <footer className="modal-actions"><Btn onClick={close}>Cancel</Btn><Btn kind="pri" icon={Check} onClick={save}>Record cheque</Btn></footer>
+    {rp && <RecordPanel key={rp.id} kind={recKindOf(rp)} initial={rp} state={state} setState={setState} books={books} toast={toast} close={() => setRp(null)} />}
   </StudioModal>;
 }
 

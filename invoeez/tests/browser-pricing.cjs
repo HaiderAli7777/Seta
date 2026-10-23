@@ -42,7 +42,8 @@ await newInv();check(await row(0).locator('.q-price').inputValue()==='85','party
 await nav('customers');await p.locator('tr').filter({hasText:'Omega LLC'}).locator('button[title="Edit"]').click();await p.waitForTimeout(300);
 check(await p.locator('.party-specials .ps-tbl tbody tr').count()===1,'customer form lists special');
 await p.screenshot({path:require('path').join(require('os').tmpdir(),'invoeez-party-specials.png'),fullPage:false});
-// payment amount empty
+// payment amount empty (3.26: the customer is open in the record panel; close it first)
+await p.keyboard.press('Escape');await p.waitForTimeout(300);
 await nav('payments');await p.getByRole('button',{name:'Record receipt'}).click();await p.waitForTimeout(250);
 check(await p.getByLabel('Amount · AED').inputValue()==='','payment amount empty');
 console.log('OK',ok.length,ok);console.log('ERR',errs);await b.close();})();

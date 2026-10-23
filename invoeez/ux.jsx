@@ -103,7 +103,7 @@ const GO_KEYS = [["d", "dash", "Dashboard"], ["q", "quotes", "Quotations"], ["i"
   ["v", "vendors", "Vendors"], ["s", "products", "Products & services"], ["j", "journal", "Journal entries"], ["r", "reports", "All reports"], ["l", "r_pnl", "Profit or loss"], ["k", "companies", "Companies"], ["h", "home", "Home — all apps"]];
 const NEW_KEYS = [["i", "invoice", "Invoice"], ["q", "quote", "Quotation"], ["o", "purchase_order", "Purchase order"], ["b", "bill", "Vendor bill"], ["c", "credit_note", "Credit note"]];
 const isTyping = (el) => !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
-const modalOpen = () => !!document.querySelector(".studio-overlay, .scrim, .cmdk, .notif-pop, .newpop, .pop");
+const modalOpen = () => !!document.querySelector(".studio-overlay, .scrim, .cmdk, .notif-pop, .newpop, .pop, .rp-layer");
 
 /* Single keys and two-key chords (g then i). Returns the chord being typed, for the on-screen hint. */
 function useShortcuts({ enabled, allowed, canAdd, go, newDoc, openHelp, openSearch, toast }) {

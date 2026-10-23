@@ -1134,7 +1134,7 @@ const addDays = (iso, n) => {
   return d.toISOString().slice(0, 10);
 };
 const daysBetween = (a, b) => Math.round((/* @__PURE__ */ new Date(b + "T00:00:00Z") - /* @__PURE__ */ new Date(a + "T00:00:00Z")) / 864e5);
-const BUILD = "3.25.0";
+const BUILD = "3.26.0";
 const TODAY = (() => {
   const d = /* @__PURE__ */ new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -3742,6 +3742,29 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     pickBranch(b.id, b);
     toast(`${b.name} added to ${PMAP[d.partner].name}`);
   };
+  const openParty = (pid) => {
+    if (PMAP[pid]) setQuick({ kind: sale ? "customer" : "vendor", record: PMAP[pid] });
+  };
+  const openProduct = (line, pid) => {
+    if (PROD[pid]) setQuick({ kind: "product", line, record: PROD[pid] });
+  };
+  const recSaved = (q) => (rec, old) => {
+    if (q.isNew) {
+      if (q.kind === "product") pickProduct(q.line, rec.id);
+      else pickPartner(rec.id);
+      return null;
+    }
+    if (locked) return null;
+    const priceOf = (s) => (l) => pricingFor(state, PROD[rec.id], l.qty, s.date, s.pricelist, meta.side, s.partner, s.id);
+    const up = (s) => q.kind === "product" ? applyProductChange(s, old, rec, priceOf(s)) : s.partner === rec.id ? applyPartnerChange(s, old, rec, (x) => reprice(x), state.salespeople) : null;
+    const now = up(d);
+    if (!now) return null;
+    setD((s) => {
+      const u = up(s);
+      return u ? u.doc : s;
+    });
+    return `${rec.name} saved \xB7 this ${meta.short.toLowerCase()} now has ${now.said.join(", ")}`;
+  };
   const validate = (posting = false) => {
     if (!PMAP[d.partner]) return "Select a customer or vendor.";
     if (!d.date || !d.due) return "Set the document and due dates.";
@@ -3792,7 +3815,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     const last = mine.find((x) => !x.oneOff) || mine[0];
     const any = !last ? productHistory(state, p.id, meta.side, "", d.id, d.date)[0] : null;
     const who = PMAP[d.partner]?.name;
-    return /* @__PURE__ */ React.createElement("tr", { className: "lg-info", key: l.id + "-info" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", { colSpan: 20 }, /* @__PURE__ */ React.createElement("div", { className: "line-info" }, /* @__PURE__ */ React.createElement("span", { className: cx("li-chip", p.kind === "goods" && (st.qty <= 0 ? "bad" : st.qty <= (+p.reorder || 0) ? "warn" : "ok")) }, p.kind === "goods" ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("b", null, st.qty), " ", p.uom, " in stock") : "Service"), p.code && /* @__PURE__ */ React.createElement("span", { className: "li-chip code" }, p.code), /* @__PURE__ */ React.createElement("span", { className: "li-hist" }, /* @__PURE__ */ React.createElement(Clock, { size: 13 }), !d.partner ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Choose the ", sale ? "customer" : "vendor", " to see their price history.") : last ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Last ", sale ? "sold to" : "bought from", " ", /* @__PURE__ */ React.createElement("b", null, who), ": ", /* @__PURE__ */ React.createElement("b", { className: "li-price" }, "AED ", money(last.unitNet, false)), " / ", p.uom.toLowerCase(), " \xB7 ", dmy(last.date), " \xB7 qty ", last.qty, mine.length > 1 ? /* @__PURE__ */ React.createElement("span", { className: "li-more" }, " \xB7 ", mine.length, " ", sale ? "sales" : "purchases") : null) : /* @__PURE__ */ React.createElement(React.Fragment, null, "First time ", sale ? "selling this to" : "buying this from", " ", /* @__PURE__ */ React.createElement("b", null, who), any ? /* @__PURE__ */ React.createElement("span", { className: "li-more" }, " \xB7 last to anyone AED ", money(any.unitNet, false), " (", PMAP[any.partner]?.name, ", ", dmy(any.date), ")") : null)), last && R2(+l.price || 0) !== R2(last.unitNet) && /* @__PURE__ */ React.createElement("button", { className: "li-btn", onClick: () => setD((s) => ({ ...s, lines: s.lines.map((x) => x.id === l.id ? { ...x, price: last.price, disc: last.disc || "", manualPricing: true, basePrice: last.price, priceSource: sale ? "Earlier price to this customer" : "Earlier price from this vendor", priceChoice: void 0 } : x) })) }, "Use ", money(last.unitNet, false)), /* @__PURE__ */ React.createElement("button", { className: "li-btn", onClick: () => setHistoryLine(l) }, /* @__PURE__ */ React.createElement(Clock, { size: 12 }), "History"))));
+    return /* @__PURE__ */ React.createElement("tr", { className: "lg-info", key: l.id + "-info" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", { colSpan: 20 }, /* @__PURE__ */ React.createElement("div", { className: "line-info" }, /* @__PURE__ */ React.createElement("span", { className: cx("li-chip", p.kind === "goods" && (st.qty <= 0 ? "bad" : st.qty <= (+p.reorder || 0) ? "warn" : "ok")) }, p.kind === "goods" ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("b", null, st.qty), " ", p.uom, " in stock") : "Service"), p.code && /* @__PURE__ */ React.createElement("span", { className: "li-chip code" }, p.code), /* @__PURE__ */ React.createElement("span", { className: "li-hist" }, /* @__PURE__ */ React.createElement(Clock, { size: 13 }), !d.partner ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Choose the ", sale ? "customer" : "vendor", " to see their price history.") : last ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Last ", sale ? "sold to" : "bought from", " ", /* @__PURE__ */ React.createElement("b", null, who), ": ", /* @__PURE__ */ React.createElement("b", { className: "li-price" }, "AED ", money(last.unitNet, false)), " / ", p.uom.toLowerCase(), " \xB7 ", dmy(last.date), " \xB7 qty ", last.qty, mine.length > 1 ? /* @__PURE__ */ React.createElement("span", { className: "li-more" }, " \xB7 ", mine.length, " ", sale ? "sales" : "purchases") : null) : /* @__PURE__ */ React.createElement(React.Fragment, null, "First time ", sale ? "selling this to" : "buying this from", " ", /* @__PURE__ */ React.createElement("b", null, who), any ? /* @__PURE__ */ React.createElement("span", { className: "li-more" }, " \xB7 last to anyone AED ", money(any.unitNet, false), " (", PMAP[any.partner]?.name, ", ", dmy(any.date), ")") : null)), last && R2(+l.price || 0) !== R2(last.unitNet) && /* @__PURE__ */ React.createElement("button", { className: "li-btn", onClick: () => setD((s) => ({ ...s, lines: s.lines.map((x) => x.id === l.id ? { ...x, price: last.price, disc: last.disc || "", manualPricing: true, basePrice: last.price, priceSource: sale ? "Earlier price to this customer" : "Earlier price from this vendor", priceChoice: void 0 } : x) })) }, "Use ", money(last.unitNet, false)), /* @__PURE__ */ React.createElement("button", { className: "li-btn", onClick: () => setHistoryLine(l) }, /* @__PURE__ */ React.createElement(Clock, { size: 12 }), "History"), recCan("product", "view") && /* @__PURE__ */ React.createElement("button", { className: "li-btn li-open", onClick: () => openProduct(l.id, p.id) }, "Open product", /* @__PURE__ */ React.createElement(ArrowUpRight, { size: 12 })))));
   };
   const priceAskRow = (l, cols) => askPrice(l) && /* @__PURE__ */ React.createElement("tr", { className: "lg-ask", key: l.id + "-ask" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", { colSpan: cols }, /* @__PURE__ */ React.createElement("div", { className: "price-ask" }, /* @__PURE__ */ React.createElement(Star, { size: 13 }), /* @__PURE__ */ React.createElement("span", null, "Price changed to ", /* @__PURE__ */ React.createElement("b", null, "AED ", money(+l.price, false)), l.basePrice !== "" && l.basePrice != null ? /* @__PURE__ */ React.createElement(React.Fragment, null, " (was ", money(+l.basePrice, false), " \xB7 ", l.priceSource || "product price", ")") : null, " for ", /* @__PURE__ */ React.createElement("b", null, PMAP[d.partner]?.name), "."), /* @__PURE__ */ React.createElement("button", { className: "pa-once", onClick: () => keepOnce(l) }, "Don't store"), /* @__PURE__ */ React.createElement("button", { className: "pa-special", onClick: () => makeSpecial(l) }, /* @__PURE__ */ React.createElement(Star, { size: 12 }), "Party special"), /* @__PURE__ */ React.createElement("small", null, "Don't store: this ", meta.short.toLowerCase(), " only. Party special: ", sale ? "this customer" : "this vendor", " gets this price every time."))));
   const commit = (next) => setState((s) => {
@@ -3884,6 +3907,13 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     return it ? it.open : 0;
   }, [state, d, locked]);
   const settle = useMemo(() => locked ? settlementsOf(state, d) : null, [state, d, locked]);
+  const owed = useMemo(() => {
+    if (locked || !PMAP[d.partner]) return null;
+    const row = aging(state, sale ? "receivable" : "payable", TODAY).rows.find((r) => r.partner.id === d.partner);
+    const late = row ? row.items.filter((i) => i.due < TODAY && i.id !== d.id) : [];
+    if (!late.length) return null;
+    return { amt: R2(late.reduce((t, i) => t + i.open, 0)), n: late.length, days: Math.max(...late.map((i) => daysBetween(i.due, TODAY))) };
+  }, [state.docs, state.payments, state.pdcs, d.partner, locked]);
   const drillTo = go ? (k, id) => go(k, id) : null;
   const [payOpen, setPayOpen] = useState(false);
   const [pdcOpen2, setPdcOpen] = useState(false);
@@ -4112,7 +4142,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
         return /* @__PURE__ */ React.createElement(Pill, { tone: st.tone, dot: true }, st.label);
       })(),
       pills: sale && state.einv && state.einv[d.id] && /* @__PURE__ */ React.createElement(Pill, { tone: EINV_STATES[state.einv[d.id].status].tone, dot: true }, EINV_STATES[state.einv[d.id].status].label),
-      sub: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", null, sale ? /* @__PURE__ */ React.createElement(Users, { size: 13 }) : /* @__PURE__ */ React.createElement(Truck, { size: 13 }), PMAP[d.partner] ? /* @__PURE__ */ React.createElement("b", null, PMAP[d.partner].name) : /* @__PURE__ */ React.createElement(React.Fragment, null, "No ", sale ? "customer" : "vendor", " chosen yet")), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement(Layers, { size: 13 }), d.lines.length, " ", d.lines.length === 1 ? "line" : "lines"), isPO && d.requestedBy && /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement(ClipboardCheck, { size: 13 }), "Raised by ", /* @__PURE__ */ React.createElement("b", null, userName(users, d.requestedBy))), d.origin && /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement(ArrowLeftRight, { size: 13 }), "From ", origin ? /* @__PURE__ */ React.createElement("button", { className: "linkish", onClick: () => go(LIST_OF[origin.type], origin.id) }, d.origin.number) : d.origin.number)),
+      sub: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", null, sale ? /* @__PURE__ */ React.createElement(Users, { size: 13 }) : /* @__PURE__ */ React.createElement(Truck, { size: 13 }), PMAP[d.partner] ? recCan(sale ? "customer" : "vendor", "view") ? /* @__PURE__ */ React.createElement("button", { className: "du-party", title: `Open ${PMAP[d.partner].name}`, onClick: () => openParty(d.partner) }, PMAP[d.partner].name) : /* @__PURE__ */ React.createElement("b", null, PMAP[d.partner].name) : /* @__PURE__ */ React.createElement(React.Fragment, null, "No ", sale ? "customer" : "vendor", " chosen yet")), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement(Layers, { size: 13 }), d.lines.length, " ", d.lines.length === 1 ? "line" : "lines"), isPO && d.requestedBy && /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement(ClipboardCheck, { size: 13 }), "Raised by ", /* @__PURE__ */ React.createElement("b", null, userName(users, d.requestedBy))), d.origin && /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement(ArrowLeftRight, { size: 13 }), "From ", origin ? /* @__PURE__ */ React.createElement("button", { className: "linkish", onClick: () => go(LIST_OF[origin.type], origin.id) }, d.origin.number) : d.origin.number)),
       totalLabel: "Total \xB7 AED",
       total: money(am.total, false),
       totalSub: settle ? settle.open <= 4e-3 ? "Paid in full" : `Balance due ${money(settle.open, false)}` : am.vat ? `incl. VAT ${money(am.vat, false)}` : "No VAT",
@@ -4121,7 +4151,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
       actions: /* @__PURE__ */ React.createElement(React.Fragment, null, secondary, /* @__PURE__ */ React.createElement(MoreMenu, { items: more }), primary),
       note: isPO && /* @__PURE__ */ React.createElement(PoNote, { d, rights, users, go })
     },
-    /* @__PURE__ */ React.createElement("div", { className: cx("document-fields", sale && "sales-document-fields") }, /* @__PURE__ */ React.createElement(Field, { label: sale ? "Customer" : "Vendor", span: 2 }, /* @__PURE__ */ React.createElement(SmartPicker, { items: partnerOptions(meta.side), value: d.partner, disabled: locked, autoFocus: !!d.isNew && !d.partner, onChange: pickPartner, label: sale ? "Select customer" : "Select vendor", placeholder: "Search " + (sale ? "customers" : "vendors") + "\u2026", onCreate: !locked ? (name) => setQuick({ kind: sale ? "customer" : "vendor", record: { ...newPartner(sale ? "customer" : "vendor"), name } }) : void 0 })), /* @__PURE__ */ React.createElement(Field, { label: "Counterparty TRN" }, /* @__PURE__ */ React.createElement("div", { className: "readonly" }, PMAP[d.partner]?.trn || "Not registered")), sale && /* @__PURE__ */ React.createElement(Field, { label: "Salesperson" }, /* @__PURE__ */ React.createElement(CreatableSelect, { value: d.salesman, disabled: locked || ro("salesman"), onChange: (v) => set("salesman", v), options: (state.salespeople || []).filter((p) => p.active !== false || p.id === d.salesman).map((p) => ({ value: p.id, label: p.name + (p.active === false ? " (inactive)" : "") })), placeholder: "Unassigned", createLabel: "New salesperson", onCreate: addSalesperson(setState), ariaLabel: "Salesperson" })), /* @__PURE__ */ React.createElement(Field, { label: "Price list" }, /* @__PURE__ */ React.createElement(Select, { value: d.pricelist || "", disabled: locked || ro("pricelist"), onChange: (e) => changePricing({ pricelist: e.target.value }, true) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Product ", sale ? "sales prices" : "costs"), state.priceLists.filter((x) => x.side === meta.side).map((x) => /* @__PURE__ */ React.createElement("option", { key: x.id, value: x.id }, x.name, x.active ? "" : " (inactive)")))), /* @__PURE__ */ React.createElement(Field, { label: isPO ? "Order date" : isQuote ? "Quotation date" : sale ? "Invoice date" : "Bill date" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.date, disabled: locked, onChange: (e) => changePricing({ date: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: isQuote ? "Valid until" : isPO ? "Deliver by" : "Payment due" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.due, disabled: locked, onChange: (e) => set("due", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Place of supply" }, /* @__PURE__ */ React.createElement(Select, { value: d.emirate, disabled: locked, onChange: (e) => set("emirate", e.target.value) }, [...EMIRATES, "Export", "Import"].map((x) => /* @__PURE__ */ React.createElement("option", { key: x }, x)))), /* @__PURE__ */ React.createElement(Field, { span: sale ? 2 : 1, label: sale ? "Customer purchase order" : isPO ? "Vendor quotation ref." : "Supplier invoice number" }, /* @__PURE__ */ React.createElement(Input, { value: d.ref, disabled: locked, onChange: (e) => set("ref", e.target.value), placeholder: "Optional reference" })), sale && /* @__PURE__ */ React.createElement(Field, { span: 2, label: "Deliver to" }, /* @__PURE__ */ React.createElement(DeliverToField, { d, locked, pick: (id) => pickBranch(id), addBranch })), sale && /* @__PURE__ */ React.createElement("div", { className: "fld dl-fld", style: { gridColumn: branchOn() ? "span 2" : "span 3" } }, /* @__PURE__ */ React.createElement("span", { className: "lb", "aria-hidden": "true" }, "\xA0"), /* @__PURE__ */ React.createElement(DeliveryPreview, { d })), /* @__PURE__ */ React.createElement(BranchField, { value: branchOfRecord(state, d), disabled: locked, onChange: (v) => setD((p) => ({ ...p, branch: v, ...p.isNew ? { number: nextNumber(state.docs, p.type, v) } : {} })) }), /* @__PURE__ */ React.createElement(CostCentreField, { value: d.cc, disabled: locked, onChange: (v) => set("cc", v) }))
+    /* @__PURE__ */ React.createElement("div", { className: cx("document-fields", sale && "sales-document-fields") }, /* @__PURE__ */ React.createElement(Field, { label: sale ? "Customer" : "Vendor", span: 2 }, /* @__PURE__ */ React.createElement(SmartPicker, { items: partnerOptions(meta.side), value: d.partner, disabled: locked, autoFocus: !!d.isNew && !d.partner, onChange: pickPartner, label: sale ? "Select customer" : "Select vendor", placeholder: "Search " + (sale ? "customers" : "vendors") + "\u2026", onCreate: !locked && recCan(sale ? "customer" : "vendor", "create") ? (name) => setQuick({ kind: sale ? "customer" : "vendor", isNew: true, record: { ...newPartner(sale ? "customer" : "vendor"), name } }) : void 0, openKind: sale ? "customer" : "vendor", onOpen: openParty })), /* @__PURE__ */ React.createElement(Field, { label: "Counterparty TRN" }, /* @__PURE__ */ React.createElement("div", { className: "readonly party-trn" }, /* @__PURE__ */ React.createElement("span", null, PMAP[d.partner]?.trn || "Not registered"), PMAP[d.partner] && /* @__PURE__ */ React.createElement("em", { title: "Payment terms" }, +PMAP[d.partner].terms ? PMAP[d.partner].terms + " days" : "Cash"))), sale && /* @__PURE__ */ React.createElement(Field, { label: "Salesperson" }, /* @__PURE__ */ React.createElement(CreatableSelect, { value: d.salesman, disabled: locked || ro("salesman"), onChange: (v) => set("salesman", v), options: (state.salespeople || []).filter((p) => p.active !== false || p.id === d.salesman).map((p) => ({ value: p.id, label: p.name + (p.active === false ? " (inactive)" : "") })), placeholder: "Unassigned", createLabel: "New salesperson", onCreate: addSalesperson(setState), ariaLabel: "Salesperson" })), /* @__PURE__ */ React.createElement(Field, { label: "Price list" }, /* @__PURE__ */ React.createElement(Select, { value: d.pricelist || "", disabled: locked || ro("pricelist"), onChange: (e) => changePricing({ pricelist: e.target.value }, true) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Product ", sale ? "sales prices" : "costs"), state.priceLists.filter((x) => x.side === meta.side).map((x) => /* @__PURE__ */ React.createElement("option", { key: x.id, value: x.id }, x.name, x.active ? "" : " (inactive)")))), /* @__PURE__ */ React.createElement(Field, { label: isPO ? "Order date" : isQuote ? "Quotation date" : sale ? "Invoice date" : "Bill date" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.date, disabled: locked, onChange: (e) => changePricing({ date: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: isQuote ? "Valid until" : isPO ? "Deliver by" : "Payment due" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: d.due, disabled: locked, onChange: (e) => set("due", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Place of supply" }, /* @__PURE__ */ React.createElement(Select, { value: d.emirate, disabled: locked, onChange: (e) => set("emirate", e.target.value) }, [...EMIRATES, "Export", "Import"].map((x) => /* @__PURE__ */ React.createElement("option", { key: x }, x)))), /* @__PURE__ */ React.createElement(Field, { span: sale ? 2 : 1, label: sale ? "Customer purchase order" : isPO ? "Vendor quotation ref." : "Supplier invoice number" }, /* @__PURE__ */ React.createElement(Input, { value: d.ref, disabled: locked, onChange: (e) => set("ref", e.target.value), placeholder: "Optional reference" })), sale && /* @__PURE__ */ React.createElement(Field, { span: 2, label: "Deliver to" }, /* @__PURE__ */ React.createElement(DeliverToField, { d, locked, pick: (id) => pickBranch(id), addBranch })), sale && /* @__PURE__ */ React.createElement("div", { className: "fld dl-fld", style: { gridColumn: branchOn() ? "span 2" : "span 3" } }, /* @__PURE__ */ React.createElement("span", { className: "lb", "aria-hidden": "true" }, "\xA0"), /* @__PURE__ */ React.createElement(DeliveryPreview, { d })), /* @__PURE__ */ React.createElement(BranchField, { value: branchOfRecord(state, d), disabled: locked, onChange: (v) => setD((p) => ({ ...p, branch: v, ...p.isNew ? { number: nextNumber(state.docs, p.type, v) } : {} })) }), /* @__PURE__ */ React.createElement(CostCentreField, { value: d.cc, disabled: locked, onChange: (v) => set("cc", v) })),
+    owed && /* @__PURE__ */ React.createElement("div", { className: cx("party-alert", sale ? "warn" : "info"), role: "status" }, /* @__PURE__ */ React.createElement(AlertTriangle, { size: 16 }), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, PMAP[d.partner].name), " ", sale ? "has" : "is owed", " ", /* @__PURE__ */ React.createElement("b", null, "AED ", money(owed.amt, false)), " overdue on ", owed.n, " ", sale ? owed.n === 1 ? "invoice" : "invoices" : owed.n === 1 ? "bill" : "bills", owed.days > 0 ? /* @__PURE__ */ React.createElement(React.Fragment, null, ", the oldest ", owed.days, " ", owed.days === 1 ? "day" : "days", " late") : null, "."), recCan(sale ? "customer" : "vendor", "view") && /* @__PURE__ */ React.createElement("button", { className: "linkish", onClick: () => setQuick({ kind: sale ? "customer" : "vendor", record: PMAP[d.partner], tab: "activity" }) }, "See ", sale ? "their" : "the", " account", /* @__PURE__ */ React.createElement(ArrowUpRight, { size: 13 })))
   ), payOpen && /* @__PURE__ */ React.createElement(
     Card,
     {
@@ -4152,12 +4183,12 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
       }
     };
     const open = !locked && p && l.id === activeLine;
-    return /* @__PURE__ */ React.createElement(React.Fragment, { key: l.id }, /* @__PURE__ */ React.createElement("tr", { "data-line-id": l.id, className: cx(!p && "blank", askPrice(l) && "asking", open && "active"), onFocusCapture: () => setActiveLine(l.id) }, /* @__PURE__ */ React.createElement("td", { className: "lg-n" }, i + 1), /* @__PURE__ */ React.createElement("td", { className: "lg-p" }, /* @__PURE__ */ React.createElement(SmartPicker, { label: "Product on line " + (i + 1), items: productOptions(books), value: l.product, disabled: locked, placeholder: "Search product, code or barcode\u2026", onChange: (pid) => pickProduct(l.id, pid), onCreate: !locked ? (name) => setQuick({ kind: "product", line: l.id, record: { ...newProduct(), name } }) : void 0 })), /* @__PURE__ */ React.createElement("td", { className: "lg-d" }, /* @__PURE__ */ React.createElement("input", { className: "inp", value: l.desc, disabled: locked || !p, onChange: (e) => setLine(l.id, "desc", e.target.value), "aria-label": "Description on line " + (i + 1) })), /* @__PURE__ */ React.createElement("td", { className: "lg-q" }, /* @__PURE__ */ React.createElement("input", { className: "inp n q-qty", type: "number", min: "0", step: "any", placeholder: "0", value: l.qty, disabled: locked || !p, onKeyDown: enter, onChange: (e) => setLine(l.id, "qty", e.target.value), "aria-label": "Quantity on line " + (i + 1) })), /* @__PURE__ */ React.createElement("td", { className: "lg-u" }, p ? p.uom : ""), /* @__PURE__ */ React.createElement("td", { className: cx("lg-pr", l.priceSource === "Party special" && "special") }, l.priceSource === "Party special" && /* @__PURE__ */ React.createElement(Star, { size: 10, className: "lg-star", "aria-label": "Party special price" }), /* @__PURE__ */ React.createElement("input", { className: "inp n q-price", type: "number", min: "0", step: "0.01", value: l.price, placeholder: p ? "Price" : "", disabled: locked || !p || ro("price"), onKeyDown: enter, onChange: (e) => setLine(l.id, "price", e.target.value), "aria-label": "Unit price on line " + (i + 1), title: l.priceChoice === "once" ? "Changed for this document only (Don't store)" : l.manualPricing ? "Manual price" : l.priceSource || "Product price" })), /* @__PURE__ */ React.createElement("td", { className: "lg-di" }, /* @__PURE__ */ React.createElement(DiscCell, { l, n: i + 1, disabled: locked || !p || ro("discount"), onKeyDown: enter, onValue: (v) => setLine(l.id, "disc", v), onMode: (m) => setDiscMode(l.id, m) })), /* @__PURE__ */ React.createElement("td", { className: "lg-t" }, /* @__PURE__ */ React.createElement(Select, { compact: true, value: l.tax, disabled: locked || !p, onChange: (e) => setLine(l.id, "tax", e.target.value), "aria-label": "VAT on line " + (i + 1) }, taxes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.id, value: t.id }, t.short || t.name)))), showAccounts && /* @__PURE__ */ React.createElement("td", { className: "lg-a" }, p?.kind === "goods" && !sale ? /* @__PURE__ */ React.createElement("span", { className: "lg-ro" }, def) : /* @__PURE__ */ React.createElement(Select, { compact: true, value: l.account || def || "", disabled: locked || !p, onChange: (e) => setLine(l.id, "account", e.target.value), "aria-label": "Account on line " + (i + 1) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u2014"), accounts.map((a) => /* @__PURE__ */ React.createElement("option", { key: a.code, value: a.code }, a.code, " \xB7 ", a.name)))), showCost && !hideCost && /* @__PURE__ */ React.createElement("td", { className: "lg-c" }, p ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", null, money(cost, false)), sale && /* @__PURE__ */ React.createElement("small", { className: unitNetOf(l) - cost < 0 ? "neg" : "pos" }, money(unitNetOf(l) - cost, false))) : ""), /* @__PURE__ */ React.createElement("td", { className: "lg-am" }, /* @__PURE__ */ React.createElement("b", null, money(l.preDisc ?? l.amount, false)), l.docShare ? /* @__PURE__ */ React.createElement("small", { className: "lg-after", title: `After this line's share of the discount on the whole ${meta.short.toLowerCase()}: ${money(l.amount, false)}${l.taxAmt ? ` + VAT ${money(l.taxAmt, false)}` : ""}` }, "net ", money(l.amount, false)) : l.taxAmt ? /* @__PURE__ */ React.createElement("small", null, "VAT ", money(l.taxAmt, false)) : null), /* @__PURE__ */ React.createElement("td", { className: "lg-x" }, !locked && /* @__PURE__ */ React.createElement("button", { className: "icon-btn", title: "Remove line " + (i + 1), "aria-label": "Remove line " + (i + 1), onClick: () => setD((s) => ({ ...s, lines: s.lines.filter((x) => x.id !== l.id) })) }, /* @__PURE__ */ React.createElement(Trash2, { size: 14 })))), open && lineInfo(l, p, st), priceAskRow(l, 20));
+    return /* @__PURE__ */ React.createElement(React.Fragment, { key: l.id }, /* @__PURE__ */ React.createElement("tr", { "data-line-id": l.id, className: cx(!p && "blank", askPrice(l) && "asking", open && "active"), onFocusCapture: () => setActiveLine(l.id) }, /* @__PURE__ */ React.createElement("td", { className: "lg-n" }, i + 1), /* @__PURE__ */ React.createElement("td", { className: "lg-p" }, /* @__PURE__ */ React.createElement(SmartPicker, { label: "Product on line " + (i + 1), items: productOptions(books), value: l.product, disabled: locked, placeholder: "Search product, code or barcode\u2026", onChange: (pid) => pickProduct(l.id, pid), onCreate: !locked && recCan("product", "create") ? (name) => setQuick({ kind: "product", isNew: true, line: l.id, record: { ...newProduct(), name } }) : void 0, openKind: "product", onOpen: (pid) => openProduct(l.id, pid) })), /* @__PURE__ */ React.createElement("td", { className: "lg-d" }, /* @__PURE__ */ React.createElement("input", { className: "inp", value: l.desc, disabled: locked || !p, onChange: (e) => setLine(l.id, "desc", e.target.value), "aria-label": "Description on line " + (i + 1) })), /* @__PURE__ */ React.createElement("td", { className: "lg-q" }, /* @__PURE__ */ React.createElement("input", { className: "inp n q-qty", type: "number", min: "0", step: "any", placeholder: "0", value: l.qty, disabled: locked || !p, onKeyDown: enter, onChange: (e) => setLine(l.id, "qty", e.target.value), "aria-label": "Quantity on line " + (i + 1) })), /* @__PURE__ */ React.createElement("td", { className: "lg-u" }, p ? p.uom : ""), /* @__PURE__ */ React.createElement("td", { className: cx("lg-pr", l.priceSource === "Party special" && "special") }, l.priceSource === "Party special" && /* @__PURE__ */ React.createElement(Star, { size: 10, className: "lg-star", "aria-label": "Party special price" }), /* @__PURE__ */ React.createElement("input", { className: "inp n q-price", type: "number", min: "0", step: "0.01", value: l.price, placeholder: p ? "Price" : "", disabled: locked || !p || ro("price"), onKeyDown: enter, onChange: (e) => setLine(l.id, "price", e.target.value), "aria-label": "Unit price on line " + (i + 1), title: l.priceChoice === "once" ? "Changed for this document only (Don't store)" : l.manualPricing ? "Manual price" : l.priceSource || "Product price" })), /* @__PURE__ */ React.createElement("td", { className: "lg-di" }, /* @__PURE__ */ React.createElement(DiscCell, { l, n: i + 1, disabled: locked || !p || ro("discount"), onKeyDown: enter, onValue: (v) => setLine(l.id, "disc", v), onMode: (m) => setDiscMode(l.id, m) })), /* @__PURE__ */ React.createElement("td", { className: "lg-t" }, /* @__PURE__ */ React.createElement(Select, { compact: true, value: l.tax, disabled: locked || !p, onChange: (e) => setLine(l.id, "tax", e.target.value), "aria-label": "VAT on line " + (i + 1) }, taxes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.id, value: t.id }, t.short || t.name)))), showAccounts && /* @__PURE__ */ React.createElement("td", { className: "lg-a" }, p?.kind === "goods" && !sale ? /* @__PURE__ */ React.createElement("span", { className: "lg-ro" }, def) : /* @__PURE__ */ React.createElement(Select, { compact: true, value: l.account || def || "", disabled: locked || !p, onChange: (e) => setLine(l.id, "account", e.target.value), "aria-label": "Account on line " + (i + 1) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u2014"), accounts.map((a) => /* @__PURE__ */ React.createElement("option", { key: a.code, value: a.code }, a.code, " \xB7 ", a.name)))), showCost && !hideCost && /* @__PURE__ */ React.createElement("td", { className: "lg-c" }, p ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", null, money(cost, false)), sale && /* @__PURE__ */ React.createElement("small", { className: unitNetOf(l) - cost < 0 ? "neg" : "pos" }, money(unitNetOf(l) - cost, false))) : ""), /* @__PURE__ */ React.createElement("td", { className: "lg-am" }, /* @__PURE__ */ React.createElement("b", null, money(l.preDisc ?? l.amount, false)), l.docShare ? /* @__PURE__ */ React.createElement("small", { className: "lg-after", title: `After this line's share of the discount on the whole ${meta.short.toLowerCase()}: ${money(l.amount, false)}${l.taxAmt ? ` + VAT ${money(l.taxAmt, false)}` : ""}` }, "net ", money(l.amount, false)) : l.taxAmt ? /* @__PURE__ */ React.createElement("small", null, "VAT ", money(l.taxAmt, false)) : null), /* @__PURE__ */ React.createElement("td", { className: "lg-x" }, !locked && /* @__PURE__ */ React.createElement("button", { className: "icon-btn", title: "Remove line " + (i + 1), "aria-label": "Remove line " + (i + 1), onClick: () => setD((s) => ({ ...s, lines: s.lines.filter((x) => x.id !== l.id) })) }, /* @__PURE__ */ React.createElement(Trash2, { size: 14 })))), open && lineInfo(l, p, st), priceAskRow(l, 20));
   }), !locked && /* @__PURE__ */ React.createElement("tr", { className: "lg-add" }, /* @__PURE__ */ React.createElement("td", null), /* @__PURE__ */ React.createElement("td", { colSpan: 20 }, /* @__PURE__ */ React.createElement("button", { onClick: addLine }, /* @__PURE__ */ React.createElement(Plus, { size: 14 }), "Add a line"), /* @__PURE__ */ React.createElement("span", null, "Tip: press Enter in the last quantity or price to add another line.")))))), lineView !== "compact" && /* @__PURE__ */ React.createElement("div", { className: "document-lines" }, am.lines.map((l, i) => {
     const p = PROD[l.product], st = p && books.stock[p.id] || { qty: 0, value: 0 }, cost = p ? currentCost(p, books) : 0;
     const last = p ? productHistory(state, p.id, meta.side, d.partner, d.id, d.date)[0] : null;
     const def = sale ? l.accounts?.income || p?.income : p?.kind === "goods" ? l.accounts?.inventory || p?.inventory : l.accounts?.expense || p?.expense;
-    return /* @__PURE__ */ React.createElement("article", { key: l.id, className: cx("doc-line", !p && "blank", lineView === "compact" && "compact", expandedLines[l.id] && "expanded"), "data-line-id": l.id }, /* @__PURE__ */ React.createElement("div", { className: "line-product" }, /* @__PURE__ */ React.createElement("span", { className: "line-num" }, String(i + 1).padStart(2, "0")), /* @__PURE__ */ React.createElement("div", { className: "line-picker" }, /* @__PURE__ */ React.createElement(SmartPicker, { label: "Product on line " + (i + 1), items: productOptions(books), value: l.product, disabled: locked, placeholder: "Search product, ID or barcode\u2026", onChange: (pid) => pickProduct(l.id, pid), onCreate: !locked ? (name) => setQuick({ kind: "product", line: l.id, record: { ...newProduct(), name } }) : void 0 }), p && /* @__PURE__ */ React.createElement("small", { className: "product-meta" }, [p.brand, categoryOf(p)?.name, p.barcode && "Barcode " + p.barcode, p.packing].filter(Boolean).join(" \xB7 ") || p.id)), p && /* @__PURE__ */ React.createElement("div", { className: "line-stock" }, /* @__PURE__ */ React.createElement("span", null, "Available stock"), p.kind === "goods" ? /* @__PURE__ */ React.createElement("b", { className: st.qty <= 0 ? "neg" : "pos" }, st.qty, " ", /* @__PURE__ */ React.createElement("small", null, p.uom)) : /* @__PURE__ */ React.createElement("b", null, "Service")), !locked && /* @__PURE__ */ React.createElement("button", { className: "icon-btn", title: "Remove line " + (i + 1), "aria-label": "Remove line " + (i + 1), onClick: () => setD((s) => ({ ...s, lines: s.lines.filter((x) => x.id !== l.id) })) }, /* @__PURE__ */ React.createElement(Trash2, { size: 16 }))), /* @__PURE__ */ React.createElement("div", { className: "line-fields" }, /* @__PURE__ */ React.createElement(Field, { label: "Description" }, /* @__PURE__ */ React.createElement(Input, { value: l.desc, disabled: locked || !p, onChange: (e) => setLine(l.id, "desc", e.target.value) }))), /* @__PURE__ */ React.createElement("div", { className: "line-values" }, /* @__PURE__ */ React.createElement(Field, { label: "Quantity" + (p ? " \xB7 " + p.uom : "") }, /* @__PURE__ */ React.createElement(Input, { n: true, type: "number", min: "0", step: "0.01", value: l.qty, disabled: locked || !p, onChange: (e) => setLine(l.id, "qty", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Unit price \xB7 AED" }, /* @__PURE__ */ React.createElement(Input, { n: true, className: "q-price", type: "number", min: "0", step: "0.01", value: l.price, placeholder: p ? "Price" : "", disabled: locked || !p, onChange: (e) => setLine(l.id, "price", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Discount" }, /* @__PURE__ */ React.createElement(DiscCell, { l, n: i + 1, disabled: locked || !p, onValue: (v) => setLine(l.id, "disc", v), onMode: (m) => setDiscMode(l.id, m) })), /* @__PURE__ */ React.createElement(Field, { label: "VAT treatment" }, /* @__PURE__ */ React.createElement(Select, { value: l.tax, disabled: locked || !p, onChange: (e) => setLine(l.id, "tax", e.target.value) }, taxes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.id, value: t.id }, t.name)))), /* @__PURE__ */ React.createElement("div", { className: "line-amount" }, /* @__PURE__ */ React.createElement("small", null, "Amount excl. VAT"), /* @__PURE__ */ React.createElement("b", null, money(l.preDisc ?? l.amount, false)), /* @__PURE__ */ React.createElement("span", null, l.docShare ? `net ${money(l.amount, false)} \xB7 ` : "", "VAT ", money(l.taxAmt, false)))), askPrice(l) && /* @__PURE__ */ React.createElement("table", { className: "price-ask-card" }, /* @__PURE__ */ React.createElement("tbody", null, priceAskRow(l, 1))), p && /* @__PURE__ */ React.createElement("div", { className: "line-insights" }, /* @__PURE__ */ React.createElement("button", { className: "line-detail-toggle", "aria-expanded": !!expandedLines[l.id], onClick: () => setExpandedLines((x) => ({ ...x, [l.id]: !x[l.id] })) }, /* @__PURE__ */ React.createElement(ChevronDown, { size: 13 }), expandedLines[l.id] ? "Hide description" : "Description"), /* @__PURE__ */ React.createElement("span", { className: "price-source" }, l.manualPricing ? "Manual price" : l.priceSource || "Product price"), /* @__PURE__ */ React.createElement("span", null, last ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Last ", sale ? "sold" : "purchased", ": ", /* @__PURE__ */ React.createElement("b", null, "AED ", money(last.unitNet, false)), " / ", p.uom.toLowerCase(), " \xB7 ", dmy(last.date), " \xB7 Qty ", last.qty) : /* @__PURE__ */ React.createElement(React.Fragment, null, "No previous ", sale ? "sale to this customer" : "purchase from this vendor")), /* @__PURE__ */ React.createElement("button", { onClick: () => setHistoryLine(l) }, /* @__PURE__ */ React.createElement(Clock, { size: 13 }), "View history"), showCost && /* @__PURE__ */ React.createElement("div", { className: "runtime-cost" }, /* @__PURE__ */ React.createElement("span", null, "Cost price ", /* @__PURE__ */ React.createElement("b", null, money(p.cost, false))), /* @__PURE__ */ React.createElement("span", null, "Current unit cost (", (books.method || "avco").toUpperCase(), ") ", /* @__PURE__ */ React.createElement("b", null, money(cost, false))), sale && /* @__PURE__ */ React.createElement("span", null, "Est. margin / unit ", /* @__PURE__ */ React.createElement("b", { className: unitNetOf(l) - cost < 0 ? "neg" : "pos" }, money(unitNetOf(l) - cost, false))), /* @__PURE__ */ React.createElement("small", null, "Current costs \xB7 AED \xB7 before VAT")), showAccounts && /* @__PURE__ */ React.createElement("div", { className: "runtime-account" }, /* @__PURE__ */ React.createElement(Field, { label: "Account" }, p?.kind === "goods" && !sale ? /* @__PURE__ */ React.createElement("div", { className: "readonly" }, def, " \xB7 ", ACC[def]?.name) : /* @__PURE__ */ React.createElement(Select, { "aria-label": "Account on line " + (i + 1), value: l.account || def || "", disabled: locked || !p, onChange: (e) => setLine(l.id, "account", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Select product first"), accounts.map((a) => /* @__PURE__ */ React.createElement("option", { key: a.code, value: a.code }, a.code, " \xB7 ", a.name)))), /* @__PURE__ */ React.createElement("span", { className: "account-source" }, p.kind === "goods" && !sale ? "Inventory account from product category" : l.account ? "Line account override" : "Default from product category"), !locked && l.account && !(p.kind === "goods" && !sale) && /* @__PURE__ */ React.createElement("button", { onClick: () => setLine(l.id, "account", null) }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 13 }), "Use category default"))));
+    return /* @__PURE__ */ React.createElement("article", { key: l.id, className: cx("doc-line", !p && "blank", lineView === "compact" && "compact", expandedLines[l.id] && "expanded"), "data-line-id": l.id }, /* @__PURE__ */ React.createElement("div", { className: "line-product" }, /* @__PURE__ */ React.createElement("span", { className: "line-num" }, String(i + 1).padStart(2, "0")), /* @__PURE__ */ React.createElement("div", { className: "line-picker" }, /* @__PURE__ */ React.createElement(SmartPicker, { label: "Product on line " + (i + 1), items: productOptions(books), value: l.product, disabled: locked, placeholder: "Search product, ID or barcode\u2026", onChange: (pid) => pickProduct(l.id, pid), onCreate: !locked && recCan("product", "create") ? (name) => setQuick({ kind: "product", isNew: true, line: l.id, record: { ...newProduct(), name } }) : void 0, openKind: "product", onOpen: (pid) => openProduct(l.id, pid) }), p && /* @__PURE__ */ React.createElement("small", { className: "product-meta" }, [p.brand, categoryOf(p)?.name, p.barcode && "Barcode " + p.barcode, p.packing].filter(Boolean).join(" \xB7 ") || p.id)), p && /* @__PURE__ */ React.createElement("div", { className: "line-stock" }, /* @__PURE__ */ React.createElement("span", null, "Available stock"), p.kind === "goods" ? /* @__PURE__ */ React.createElement("b", { className: st.qty <= 0 ? "neg" : "pos" }, st.qty, " ", /* @__PURE__ */ React.createElement("small", null, p.uom)) : /* @__PURE__ */ React.createElement("b", null, "Service")), !locked && /* @__PURE__ */ React.createElement("button", { className: "icon-btn", title: "Remove line " + (i + 1), "aria-label": "Remove line " + (i + 1), onClick: () => setD((s) => ({ ...s, lines: s.lines.filter((x) => x.id !== l.id) })) }, /* @__PURE__ */ React.createElement(Trash2, { size: 16 }))), /* @__PURE__ */ React.createElement("div", { className: "line-fields" }, /* @__PURE__ */ React.createElement(Field, { label: "Description" }, /* @__PURE__ */ React.createElement(Input, { value: l.desc, disabled: locked || !p, onChange: (e) => setLine(l.id, "desc", e.target.value) }))), /* @__PURE__ */ React.createElement("div", { className: "line-values" }, /* @__PURE__ */ React.createElement(Field, { label: "Quantity" + (p ? " \xB7 " + p.uom : "") }, /* @__PURE__ */ React.createElement(Input, { n: true, type: "number", min: "0", step: "0.01", value: l.qty, disabled: locked || !p, onChange: (e) => setLine(l.id, "qty", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Unit price \xB7 AED" }, /* @__PURE__ */ React.createElement(Input, { n: true, className: "q-price", type: "number", min: "0", step: "0.01", value: l.price, placeholder: p ? "Price" : "", disabled: locked || !p, onChange: (e) => setLine(l.id, "price", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Discount" }, /* @__PURE__ */ React.createElement(DiscCell, { l, n: i + 1, disabled: locked || !p, onValue: (v) => setLine(l.id, "disc", v), onMode: (m) => setDiscMode(l.id, m) })), /* @__PURE__ */ React.createElement(Field, { label: "VAT treatment" }, /* @__PURE__ */ React.createElement(Select, { value: l.tax, disabled: locked || !p, onChange: (e) => setLine(l.id, "tax", e.target.value) }, taxes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.id, value: t.id }, t.name)))), /* @__PURE__ */ React.createElement("div", { className: "line-amount" }, /* @__PURE__ */ React.createElement("small", null, "Amount excl. VAT"), /* @__PURE__ */ React.createElement("b", null, money(l.preDisc ?? l.amount, false)), /* @__PURE__ */ React.createElement("span", null, l.docShare ? `net ${money(l.amount, false)} \xB7 ` : "", "VAT ", money(l.taxAmt, false)))), askPrice(l) && /* @__PURE__ */ React.createElement("table", { className: "price-ask-card" }, /* @__PURE__ */ React.createElement("tbody", null, priceAskRow(l, 1))), p && /* @__PURE__ */ React.createElement("div", { className: "line-insights" }, /* @__PURE__ */ React.createElement("button", { className: "line-detail-toggle", "aria-expanded": !!expandedLines[l.id], onClick: () => setExpandedLines((x) => ({ ...x, [l.id]: !x[l.id] })) }, /* @__PURE__ */ React.createElement(ChevronDown, { size: 13 }), expandedLines[l.id] ? "Hide description" : "Description"), /* @__PURE__ */ React.createElement("span", { className: "price-source" }, l.manualPricing ? "Manual price" : l.priceSource || "Product price"), /* @__PURE__ */ React.createElement("span", null, last ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Last ", sale ? "sold" : "purchased", ": ", /* @__PURE__ */ React.createElement("b", null, "AED ", money(last.unitNet, false)), " / ", p.uom.toLowerCase(), " \xB7 ", dmy(last.date), " \xB7 Qty ", last.qty) : /* @__PURE__ */ React.createElement(React.Fragment, null, "No previous ", sale ? "sale to this customer" : "purchase from this vendor")), /* @__PURE__ */ React.createElement("button", { onClick: () => setHistoryLine(l) }, /* @__PURE__ */ React.createElement(Clock, { size: 13 }), "View history"), showCost && /* @__PURE__ */ React.createElement("div", { className: "runtime-cost" }, /* @__PURE__ */ React.createElement("span", null, "Cost price ", /* @__PURE__ */ React.createElement("b", null, money(p.cost, false))), /* @__PURE__ */ React.createElement("span", null, "Current unit cost (", (books.method || "avco").toUpperCase(), ") ", /* @__PURE__ */ React.createElement("b", null, money(cost, false))), sale && /* @__PURE__ */ React.createElement("span", null, "Est. margin / unit ", /* @__PURE__ */ React.createElement("b", { className: unitNetOf(l) - cost < 0 ? "neg" : "pos" }, money(unitNetOf(l) - cost, false))), /* @__PURE__ */ React.createElement("small", null, "Current costs \xB7 AED \xB7 before VAT")), showAccounts && /* @__PURE__ */ React.createElement("div", { className: "runtime-account" }, /* @__PURE__ */ React.createElement(Field, { label: "Account" }, p?.kind === "goods" && !sale ? /* @__PURE__ */ React.createElement("div", { className: "readonly" }, def, " \xB7 ", ACC[def]?.name) : /* @__PURE__ */ React.createElement(Select, { "aria-label": "Account on line " + (i + 1), value: l.account || def || "", disabled: locked || !p, onChange: (e) => setLine(l.id, "account", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Select product first"), accounts.map((a) => /* @__PURE__ */ React.createElement("option", { key: a.code, value: a.code }, a.code, " \xB7 ", a.name)))), /* @__PURE__ */ React.createElement("span", { className: "account-source" }, p.kind === "goods" && !sale ? "Inventory account from product category" : l.account ? "Line account override" : "Default from product category"), !locked && l.account && !(p.kind === "goods" && !sale) && /* @__PURE__ */ React.createElement("button", { onClick: () => setLine(l.id, "account", null) }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 13 }), "Use category default"))));
   })), /* @__PURE__ */ React.createElement("div", { className: "df-foot" }, /* @__PURE__ */ React.createElement("div", { className: "document-bottom" }, /* @__PURE__ */ React.createElement(Field, { label: "Internal note" }, /* @__PURE__ */ React.createElement("textarea", { className: "inp", rows: 3, value: d.note, disabled: locked, placeholder: "Delivery terms, references or notes\u2026", onChange: (e) => set("note", e.target.value) })), /* @__PURE__ */ React.createElement(DocTotals, { d, am, locked: locked || ro("discount"), set, settle })))), tab === "journal" && /* @__PURE__ */ React.createElement("div", { className: "journal-tab" }, /* @__PURE__ */ React.createElement("div", { className: "info-strip" }, /* @__PURE__ */ React.createElement(BookOpen, { size: 20 }), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, locked ? "Posted journal entry" : "Journal preview"), /* @__PURE__ */ React.createElement("br", null), locked ? "The ledger entry for this document." : "This preview updates as you edit. Posting creates the ledger entry.")), /* @__PURE__ */ React.createElement(PostingPreview, { lines: preview, title: locked ? "Posted journal entry" : "Journal preview \xB7 AED" })), tab === "history" && /* @__PURE__ */ React.createElement(Card, { className: "df-tab", title: sale ? "Price history for this customer" : "Price history for this vendor", sub: `Every product on this document${d.partner ? " for " + (PMAP[d.partner]?.name || "") : ""} \u2014 or search any other product.` }, /* @__PURE__ */ React.createElement("div", { className: "history-pick" }, /* @__PURE__ */ React.createElement(SmartPicker, { items: productOptions(books), value: historyProduct, label: "History product", placeholder: "Search any product\u2026", onChange: setHistoryProduct }), historyProduct && /* @__PURE__ */ React.createElement(Btn, { size: "sm", onClick: () => setHistoryProduct("") }, "Products on this document")), historyProduct ? /* @__PURE__ */ React.createElement(HistoryTable, { key: historyProduct + d.partner, title: PROD[historyProduct]?.name, state, product: historyProduct, side: meta.side, partner: d.partner, exclude: d.id, date: d.date }) : [...new Set(d.lines.map((l) => l.product).filter((pid) => PROD[pid]))].length ? [...new Set(d.lines.map((l) => l.product).filter((pid) => PROD[pid]))].map((pid) => /* @__PURE__ */ React.createElement(HistoryTable, { key: pid + d.partner, title: PROD[pid].name, state, product: pid, side: meta.side, partner: d.partner, exclude: d.id, date: d.date })) : /* @__PURE__ */ React.createElement(EmptyState, { icon: Clock, title: "Add a product or choose one above" }, "Every product on this document shows its posted prices to this ", sale ? "customer" : "vendor", " here.")), tab === "status" && /* @__PURE__ */ React.createElement(Card, { className: "df-tab", title: isQuote ? "Quotation progress" : isPO ? "Approval and activity" : "Document activity" }, /* @__PURE__ */ React.createElement("div", { className: "tl" }, activity.map((t, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: cx("tl-row", t.done ? "done" : "pending", t.bad && "bad") }, /* @__PURE__ */ React.createElement("span", { className: "dot" }, /* @__PURE__ */ React.createElement("i", null)), /* @__PURE__ */ React.createElement("span", { className: "tt" }, /* @__PURE__ */ React.createElement("b", null, t.t), t.s && /* @__PURE__ */ React.createElement("span", null, t.s)))))), !locked && /* @__PURE__ */ React.createElement("div", { className: "document-dock" }, dirty ? /* @__PURE__ */ React.createElement("span", { className: "dk-dirty" }, /* @__PURE__ */ React.createElement("i", null), "Unsaved changes", /* @__PURE__ */ React.createElement("kbd", null, "Ctrl S")) : /* @__PURE__ */ React.createElement("span", { className: "dk-saved" }, d.lines.length, " ", d.lines.length === 1 ? "line" : "lines", d.lines.some((l) => !PROD[l.product]) ? " \xB7 finish the empty line" : d.isNew ? "" : " \xB7 all changes saved"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("small", null, "Total \xB7 AED"), /* @__PURE__ */ React.createElement("b", null, money(am.total, false))), /* @__PURE__ */ React.createElement(Btn, { onClick: save }, "Save ", isQuote ? "quotation" : "draft"))), tab === "items" && settle && /* @__PURE__ */ React.createElement(PaymentsPanel, { s: settle, d, onRecord: settle.open > 4e-3 ? () => {
     setPayAmt(settle.open);
     setPayOpen(true);
@@ -4168,10 +4199,24 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
   } }, "Discard changes"), /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Check, onClick: () => {
     setLeaveAsk(false);
     save();
-  } }, "Save and leave"))), rejecting && /* @__PURE__ */ React.createElement(RejectDialog, { d, close: () => setRejecting(false), reject: rejectPO }), pdcOpen2 && /* @__PURE__ */ React.createElement(PdcDialog, { state, setState, toast, init: { kind: sale ? "in" : "out", partner: d.partner, doc: d.id, amount: R2(outstanding) }, close: () => setPdcOpen(false) }), quick && /* @__PURE__ */ React.createElement(MasterModal, { kind: quick.kind, initial: quick.record, state, setState, books, toast, close: () => setQuick(null), onSaved: (rec) => {
-    if (quick.kind === "product") pickProduct(quick.line, rec.id);
-    else pickPartner(rec.id);
-  } }), historyLine && /* @__PURE__ */ React.createElement(StudioModal, { wide: true, title: PROD[historyLine.product]?.name || "Product history", sub: sale ? "Previous prices charged to your customer" : "Previous prices charged by your vendor", close: () => setHistoryLine(null) }, /* @__PURE__ */ React.createElement(HistoryTable, { state, product: historyLine.product, side: meta.side, partner: d.partner, exclude: d.id, date: d.date, apply: !locked ? (l) => {
+  } }, "Save and leave"))), rejecting && /* @__PURE__ */ React.createElement(RejectDialog, { d, close: () => setRejecting(false), reject: rejectPO }), pdcOpen2 && /* @__PURE__ */ React.createElement(PdcDialog, { state, setState, books, toast, init: { kind: sale ? "in" : "out", partner: d.partner, doc: d.id, amount: R2(outstanding) }, close: () => setPdcOpen(false) }), quick && /* @__PURE__ */ React.createElement(
+    RecordPanel,
+    {
+      key: quick.record.id,
+      kind: quick.kind,
+      initial: quick.record,
+      isNew: !!quick.isNew,
+      selecting: !!quick.isNew,
+      tab: quick.tab,
+      state,
+      setState,
+      books,
+      toast,
+      close: () => setQuick(null),
+      onSaved: recSaved(quick),
+      context: quick.isNew ? `Saved straight onto ${d.number}` : locked ? `${d.number} is ${isQuote ? d.state : isPO ? "past draft" : "posted"}, so it keeps its figures \u2014 changes apply from the next document` : quick.kind === "product" ? `Saving also updates its lines on ${d.number}: name, VAT and price \u2014 a price you typed stays` : `Saving also updates ${d.number}: terms, place of supply${sale ? ", salesperson" : ""} and price list`
+    }
+  ), historyLine && /* @__PURE__ */ React.createElement(StudioModal, { wide: true, title: PROD[historyLine.product]?.name || "Product history", sub: sale ? "Previous prices charged to your customer" : "Previous prices charged by your vendor", close: () => setHistoryLine(null) }, /* @__PURE__ */ React.createElement(HistoryTable, { state, product: historyLine.product, side: meta.side, partner: d.partner, exclude: d.id, date: d.date, apply: !locked ? (l) => {
     setD((s) => ({ ...s, lines: s.lines.map((x) => x.id === historyLine.id ? { ...x, price: l.price, disc: l.disc || 0, discMode: isAmtDisc(l) ? "amount" : void 0, manualPricing: true } : x) }));
     setHistoryLine(null);
     toast("Historical price and discount applied");
@@ -4608,11 +4653,11 @@ ${CO.email}`;
 function nextPay(list, kind, branch) {
   return seriesNext(list.filter((p) => p.kind === kind), kind === "in" ? "RCPT" : "PAYM", branch);
 }
-function PaymentsScreen({ state, setState, toast, create }) {
+function PaymentsScreen({ state, setState, books, toast, create }) {
   useCreate(create, () => {
     setNw(blank("in"));
   });
-  const [nw, setNw] = useState(null);
+  const [nw, setNw] = useState(null), [rp, setRp] = useState(null);
   const [q, setQ] = useState("");
   const [limit, setLimit] = useState(100);
   const blank = (kind) => {
@@ -4670,14 +4715,14 @@ function PaymentsScreen({ state, setState, toast, create }) {
     },
     /* @__PURE__ */ React.createElement(Btn, { icon: ArrowDownLeft, onClick: () => setNw(blank("in")) }, "Record receipt"),
     /* @__PURE__ */ React.createElement(Btn, { icon: ArrowUpRight, onClick: () => setNw(blank("out")) }, "Record payment")
-  ), /* @__PURE__ */ React.createElement("div", { className: "grid", style: { gridTemplateColumns: "repeat(auto-fit,minmax(232px,1fr))", marginBottom: 16 } }, /* @__PURE__ */ React.createElement(StatCard, { label: "Received from customers", icon: ArrowDownLeft, num: rec, deltaLabel: `${list.filter((p) => p.kind === "in").length} receipts` }), /* @__PURE__ */ React.createElement(StatCard, { label: "Paid to vendors", icon: ArrowUpRight, tone: "g", num: paid, deltaLabel: `${list.filter((p) => p.kind === "out").length} payments` }), /* @__PURE__ */ React.createElement(StatCard, { label: "Net cash movement", icon: Banknote, tone: "i", num: R2(rec - paid), deltaLabel: "year to date" })), nw && /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("div", { className: "grid", style: { gridTemplateColumns: "repeat(auto-fit,minmax(232px,1fr))", marginBottom: 16 } }, /* @__PURE__ */ React.createElement(StatCard, { label: "Received from customers", icon: ArrowDownLeft, num: rec, deltaLabel: `${list.filter((p) => p.kind === "in").length} receipts` }), /* @__PURE__ */ React.createElement(StatCard, { label: "Paid to vendors", icon: ArrowUpRight, tone: "g", num: paid, deltaLabel: `${list.filter((p) => p.kind === "out").length} payments` }), /* @__PURE__ */ React.createElement(StatCard, { label: "Net cash movement", icon: Banknote, tone: "i", num: R2(rec - paid), deltaLabel: "year to date" })), rp && /* @__PURE__ */ React.createElement(RecordPanel, { key: rp.id, kind: recKindOf(rp), initial: rp, state, setState, books, toast, close: () => setRp(null) }), nw && /* @__PURE__ */ React.createElement(
     Card,
     {
       title: nw.kind === "in" ? "New customer receipt" : "New vendor payment",
       right: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Btn, { onClick: () => setNw(null) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Check, onClick: add, disabled: !(+nw.amount > 0) || !PMAP[nw.partner] }, "Record")),
       style: { marginBottom: 16 }
     },
-    /* @__PURE__ */ React.createElement("div", { className: "grid", style: { gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14 } }, /* @__PURE__ */ React.createElement(Field, { label: "Number" }, /* @__PURE__ */ React.createElement(Input, { value: nw.number === nw.autoNo ? nextPay(state.payments, nw.kind, payBranch) : nw.number, onChange: (e) => setNw({ ...nw, number: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: nw.kind === "in" ? "Customer" : "Vendor" }, /* @__PURE__ */ React.createElement(Select, { value: nw.partner, onChange: (e) => setNw({ ...nw, partner: e.target.value, doc: "" }) }, /* @__PURE__ */ React.createElement("option", { value: "" }, nw.kind === "in" ? "Choose a customer\u2026" : "Choose a vendor\u2026"), PARTNERS.filter((p) => nw.kind === "in" ? p.role === "customer" : p.role === "vendor").map((p) => /* @__PURE__ */ React.createElement("option", { key: p.id, value: p.id }, p.name)))), (() => {
+    /* @__PURE__ */ React.createElement("div", { className: "grid", style: { gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14 } }, /* @__PURE__ */ React.createElement(Field, { label: "Number" }, /* @__PURE__ */ React.createElement(Input, { value: nw.number === nw.autoNo ? nextPay(state.payments, nw.kind, payBranch) : nw.number, onChange: (e) => setNw({ ...nw, number: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: nw.kind === "in" ? "Customer" : "Vendor" }, /* @__PURE__ */ React.createElement(Select, { value: nw.partner, onChange: (e) => setNw({ ...nw, partner: e.target.value, doc: "" }) }, /* @__PURE__ */ React.createElement("option", { value: "" }, nw.kind === "in" ? "Choose a customer\u2026" : "Choose a vendor\u2026"), PARTNERS.filter((p) => nw.kind === "in" ? p.role === "customer" : p.role === "vendor").map((p) => /* @__PURE__ */ React.createElement("option", { key: p.id, value: p.id }, p.name))), /* @__PURE__ */ React.createElement(RecordOpen, { kind: nw.kind === "in" ? "customer" : "vendor", id: nw.partner, onOpen: (id) => setRp(PMAP[id]) })), (() => {
       const open = nw.partner ? (aging(state, nw.kind === "in" ? "receivable" : "payable", "9999-12-31").rows.find((r) => r.partner.id === nw.partner) || { items: [] }).items : [];
       return /* @__PURE__ */ React.createElement(Field, { label: nw.kind === "in" ? "Against invoice" : "Against bill" }, /* @__PURE__ */ React.createElement(Select, { value: nw.doc || "", disabled: !open.length, onChange: (e) => {
         const it = open.find((x) => x.id === e.target.value);
@@ -4748,25 +4793,7 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed, creat
     terms: 30,
     custom: true
   });
-  const valid = ed && ed.name.trim().length > 1 && (!ed.trn || /^\d{15}$/.test(ed.trn.trim())) && branchesOf(ed).every((b) => branchOk(b) || !(b.address || b.address2 || b.contact || b.phone));
   const isNew = ed && !PARTNERS.some((p) => p.id === ed.id);
-  const save = () => {
-    const branches = branchesOf(ed).filter(branchOk).map((b) => ({ ...b, name: b.name.trim() }));
-    const rec = {
-      ...ed,
-      name: ed.name.trim(),
-      trn: ed.trn.trim(),
-      terms: +ed.terms || 0,
-      branches: branches.length ? branches : void 0,
-      defaultBranch: branches.some((b) => b.id === ed.defaultBranch) ? ed.defaultBranch : void 0
-    };
-    setState((x) => {
-      const list2 = x.partners || [];
-      return { ...x, partners: list2.some((p) => p.id === rec.id) ? list2.map((p) => p.id === rec.id ? rec : p) : [...list2, rec] };
-    });
-    toast(`${rec.name} saved`);
-    setEd(null);
-  };
   const remove = (p) => {
     if (state.docs.some((d) => d.partner === p.id) || state.payments.some((x) => x.partner === p.id)) {
       toast(`${p.name} has documents and cannot be deleted`, "warn");
@@ -4780,7 +4807,27 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed, creat
     const r = (p.role === "customer" ? ar : ap).rows.find((x) => x.partner.id === p.id);
     return r ? r.total : 0;
   };
-  const list = PARTNERS.filter((p) => role === "all" || p.role === role).filter((p) => hits(q, p.name, p.trn, p.contact, p.phone, p.emirate, p.address, p.address2));
+  const lateOf = useMemo(() => {
+    const o = {};
+    [ar, ap].forEach((g) => g.rows.forEach((r) => {
+      const v = R2(r.items.filter((x) => x.due < TODAY).reduce((t, x) => t + x.open, 0));
+      if (v > 4e-3) o[r.partner.id] = v;
+    }));
+    return o;
+  }, [ar, ap]);
+  const active = useMemo(() => new Set(state.docs.filter((d) => d.state === "posted" && (d.type === "invoice" || d.type === "bill") && d.date.slice(0, 4) === TODAY.slice(0, 4)).map((d) => d.partner)), [state.docs]);
+  const [sf, setSf] = useState("all");
+  const mine = PARTNERS.filter((p) => !fixed || p.role === fixed), vend = fixed === "vendor", few = (l) => `${l.length} ${vend ? "vendor" : "customer"}${l.length === 1 ? "" : "s"}`;
+  const withBal = mine.filter((p) => balOf(p) > 4e-3), late = mine.filter((p) => lateOf[p.id]), noTrn = mine.filter((p) => !p.trn), act = mine.filter((p) => active.has(p.id));
+  const tiles = [
+    ...accField("balance") === "hide" ? [] : [
+      { f: "open", label: vend ? "You owe" : "Owe you", money: R2(withBal.reduce((t, p) => t + balOf(p), 0)), sub: few(withBal) },
+      { f: "overdue", label: "Overdue", money: R2(late.reduce((t, p) => t + lateOf[p.id], 0)), sub: few(late), tone: late.length ? "bad" : "" }
+    ],
+    { f: "active", label: vend ? "Bought from this year" : "Sold to this year", count: act.length, sub: `of ${few(mine)}`, tone: "info" },
+    { f: "notrn", label: "Without a TRN", count: noTrn.length, sub: noTrn.length ? "Not VAT registered" : "All registered", tone: noTrn.length ? "warn" : "" }
+  ];
+  const list = PARTNERS.filter((p) => role === "all" || p.role === role).filter((p) => sf === "all" || (sf === "open" ? balOf(p) > 4e-3 : sf === "overdue" ? !!lateOf[p.id] : sf === "active" ? active.has(p.id) : !p.trn)).filter((p) => hits(q, p.name, p.trn, p.contact, p.phone, p.emirate, p.address, p.address2));
   return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(
     PageHead,
     {
@@ -4790,33 +4837,9 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed, creat
     },
     /* @__PURE__ */ React.createElement(Btn, { icon: FileSpreadsheet, className: "act-create act-import", onClick: () => setImp(true) }, "Import from Excel"),
     /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Plus, onClick: () => setEd(blank(fixed || "customer")) }, "New ", noun)
-  ), imp && /* @__PURE__ */ React.createElement(ImportDialog, { kind: "partners", state, setState, books, toast, close: () => setImp(false) }), ed && /* @__PURE__ */ React.createElement(
-    Card,
-    {
-      title: isNew ? "New customer or vendor" : `Edit ${ed.name || ed.role}`,
-      sub: "A 15-digit TRN makes the counterparty VAT registered; leave it blank for unregistered or export parties",
-      style: { marginBottom: 16 },
-      right: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Btn, { onClick: () => setEd(null) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Check, disabled: !valid, onClick: save }, isNew ? "Create" : "Save changes"))
-    },
-    /* @__PURE__ */ React.createElement("div", { className: "picks" }, [
-      ["customer", "Customer", Receipt, "You invoice them. Supplies are reported by emirate in Box 1 of the VAT return."],
-      ["vendor", "Vendor", ShoppingCart, "They bill you. Input VAT is recovered in Box 9, or self-accounted if imported."]
-    ].map(([k, label, I, note]) => /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        key: k,
-        className: cx("pick", ed.role === k && "on"),
-        onClick: () => setEd({ ...ed, role: k })
-      },
-      /* @__PURE__ */ React.createElement("span", { className: "pi" }, /* @__PURE__ */ React.createElement(I, { size: 17, strokeWidth: 1.8 })),
-      /* @__PURE__ */ React.createElement("span", { className: "pt" }, /* @__PURE__ */ React.createElement("b", null, label), /* @__PURE__ */ React.createElement("span", null, note)),
-      /* @__PURE__ */ React.createElement("span", { className: "chk" }, ed.role === k && /* @__PURE__ */ React.createElement(Check, { size: 11, strokeWidth: 3.2 }))
-    ))),
-    /* @__PURE__ */ React.createElement("div", { className: "setgrid" }, /* @__PURE__ */ React.createElement(Field, { label: "Registered name", span: 2 }, /* @__PURE__ */ React.createElement(Input, { value: ed.name, placeholder: "Al Manara Trading L.L.C.", onChange: (e) => setEd({ ...ed, name: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "TRN" }, /* @__PURE__ */ React.createElement(Input, { value: ed.trn, placeholder: "15 digits, or blank", onChange: (e) => setEd({ ...ed, trn: e.target.value }) }), ed.trn && !/^\d{15}$/.test(ed.trn.trim()) && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: "var(--neg)", marginTop: 5 } }, "A UAE TRN is exactly 15 digits")), /* @__PURE__ */ React.createElement(Field, { label: "Territory" }, /* @__PURE__ */ React.createElement(Select, { value: ed.emirate, onChange: (e) => setEd({ ...ed, emirate: e.target.value }) }, [...EMIRATES, "Export", "Import"].map((x) => /* @__PURE__ */ React.createElement("option", { key: x }, x)))), /* @__PURE__ */ React.createElement(Field, { label: "Payment terms (days)" }, /* @__PURE__ */ React.createElement(Input, { n: true, type: "number", value: ed.terms, onChange: (e) => setEd({ ...ed, terms: e.target.value }) })), ed.role === "customer" && /* @__PURE__ */ React.createElement(Field, { label: "Salesperson" }, /* @__PURE__ */ React.createElement(CreatableSelect, { value: ed.salesman, onChange: (v) => setEd((x) => ({ ...x, salesman: v })), options: salespersonOptions(state), placeholder: "Unassigned", createLabel: "New salesperson", onCreate: addSalesperson(setState), ariaLabel: "Salesperson" })), /* @__PURE__ */ React.createElement(Field, { label: "Default price list" }, /* @__PURE__ */ React.createElement(Select, { value: ed.pricelist || "", onChange: (e) => setEd({ ...ed, pricelist: e.target.value }) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Product prices"), (state.priceLists || []).filter((x) => x.side === (ed.role === "customer" ? "sale" : "purchase")).map((x) => /* @__PURE__ */ React.createElement("option", { key: x.id, value: x.id }, x.name)))), /* @__PURE__ */ React.createElement(Field, { label: "Address line 1" }, /* @__PURE__ */ React.createElement(Input, { value: ed.address, placeholder: "Office / building, street", onChange: (e) => setEd({ ...ed, address: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "Address line 2" }, /* @__PURE__ */ React.createElement(Input, { value: ed.address2 || "", placeholder: "Area, city, P.O. Box (optional)", onChange: (e) => setEd({ ...ed, address2: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "Email" }, /* @__PURE__ */ React.createElement(Input, { value: ed.contact, placeholder: "accounts@company.ae", onChange: (e) => setEd({ ...ed, contact: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "WhatsApp number" }, /* @__PURE__ */ React.createElement(Input, { value: ed.phone, placeholder: "+971 50 123 4567", onChange: (e) => setEd({ ...ed, phone: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "Name in Arabic (optional)" }, /* @__PURE__ */ React.createElement(Input, { dir: "rtl", lang: "ar", value: ed.nameAr || "", placeholder: "\u0627\u0644\u0627\u0633\u0645 \u0628\u0627\u0644\u0639\u0631\u0628\u064A\u0629", onChange: (e) => setEd({ ...ed, nameAr: e.target.value }) }))),
-    ed.role === "customer" && /* @__PURE__ */ React.createElement(BranchEditor, { ed, setEd }),
-    !isNew && /* @__PURE__ */ React.createElement(PartySpecials, { state, setState, books, partner: ed.id, role: ed.role, toast }),
-    /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, fontSize: 12.5, color: "var(--ink-3)" } }, ed.role === "customer" ? ed.emirate === "Export" ? "Exports are zero-rated \u2014 invoices will default to 0% VAT." : `Standard-rated supplies will be reported under ${ed.emirate} in Box 1 of the return.` : ed.emirate === "Import" ? "Imports self-account under the reverse charge \u2014 Box 3 and Box 10." : "Local purchases recover input VAT in Box 9.")
-  ), /* @__PURE__ */ React.createElement(Card, { pad: false }, /* @__PURE__ */ React.createElement("div", { className: "toolbar" }, !fixed && /* @__PURE__ */ React.createElement("div", { className: "seg" }, [["all", "All"], ["customer", "Customers"], ["vendor", "Vendors"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, className: cx(role === k && "on"), onClick: () => setRole(k) }, l))), /* @__PURE__ */ React.createElement(SearchBox, { value: q, onChange: setQ, placeholder: "Search name, TRN, email or phone", width: 280 }), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 12.5, color: "var(--ink-3)" } }, list.length, " of ", PARTNERS.filter((p) => !fixed || p.role === fixed).length)), /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Name"), !fixed && /* @__PURE__ */ React.createElement("th", null, "Role"), /* @__PURE__ */ React.createElement("th", null, "TRN"), /* @__PURE__ */ React.createElement("th", null, "Territory & address"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Terms"), /* @__PURE__ */ React.createElement("th", { className: "n bal-data" }, fixed === "vendor" ? "You owe" : fixed === "customer" ? "Owes you" : "Open balance"), /* @__PURE__ */ React.createElement("th", { style: { width: 150 } }))), /* @__PURE__ */ React.createElement("tbody", null, !list.length && /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 8 }, /* @__PURE__ */ React.createElement(EmptyState, { icon: Users, title: q ? "Nothing matches this search" : `No ${noun === "customer or vendor" ? "customers or vendors" : noun + "s"} yet` }, q ? "Clear the search to see everyone." : "Add them one by one, or import a list from Excel with TRN, payment terms and opening balances."), !q && /* @__PURE__ */ React.createElement("div", { className: "row-btns", style: { justifyContent: "center", paddingBottom: 18 } }, /* @__PURE__ */ React.createElement(Btn, { icon: FileSpreadsheet, className: "act-create act-import", onClick: () => setImp(true) }, "Import from Excel"), /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Plus, onClick: () => setEd(blank(fixed || "customer")) }, "New ", noun)))), list.map((p) => /* @__PURE__ */ React.createElement("tr", { key: p.id }, /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(Party, { name: p.name, meta: [p.contact || p.phone, (state.salespeople || []).find((x) => x.id === p.salesman)?.name].filter(Boolean).join(" \xB7 ") })), !fixed && /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(Pill, { tone: p.role === "customer" ? "ok" : "info" }, p.role)), /* @__PURE__ */ React.createElement("td", { className: "mono nowrap", style: { fontSize: 12.5 } }, p.trn || /* @__PURE__ */ React.createElement("span", { className: "muted" }, "Not registered")), /* @__PURE__ */ React.createElement("td", { className: "addr-cell" }, /* @__PURE__ */ React.createElement("b", null, p.emirate), p.designatedZone && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement(Pill, { tone: "gold" }, "Designated zone")), addrText(p) && /* @__PURE__ */ React.createElement("small", { title: addrText(p) }, addrText(p)), branchesOf(p).length > 0 && /* @__PURE__ */ React.createElement("span", { className: "br-count", title: branchesOf(p).map((b) => b.name).join(", ") }, /* @__PURE__ */ React.createElement(Truck, { size: 12 }), branchesOf(p).length, " delivery address", branchesOf(p).length === 1 ? "" : "es")), /* @__PURE__ */ React.createElement("td", { className: "n nowrap" }, p.terms ? `${p.terms} days` : "Cash"), /* @__PURE__ */ React.createElement("td", { className: "n bal-data", style: { fontWeight: 600 } }, money(balOf(p))), /* @__PURE__ */ React.createElement("td", { style: { whiteSpace: "nowrap" } }, /* @__PURE__ */ React.createElement(
+  ), imp && /* @__PURE__ */ React.createElement(ImportDialog, { kind: "partners", state, setState, books, toast, close: () => setImp(false) }), ed && /* @__PURE__ */ React.createElement(RecordPanel, { key: ed.id, kind: recKindOf(ed), initial: ed, isNew, state, setState, books, toast, close: () => setEd(null) }), fixed && /* @__PURE__ */ React.createElement(DocSummary, { tiles, f: sf, setF: setSf }), /* @__PURE__ */ React.createElement(Card, { pad: false }, /* @__PURE__ */ React.createElement("div", { className: "toolbar" }, !fixed && /* @__PURE__ */ React.createElement("div", { className: "seg" }, [["all", "All"], ["customer", "Customers"], ["vendor", "Vendors"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, className: cx(role === k && "on"), onClick: () => setRole(k) }, l))), /* @__PURE__ */ React.createElement(SearchBox, { value: q, onChange: setQ, placeholder: "Search name, TRN, email or phone", width: 280 }), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 12.5, color: "var(--ink-3)" } }, list.length, " of ", PARTNERS.filter((p) => !fixed || p.role === fixed).length)), /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Name"), !fixed && /* @__PURE__ */ React.createElement("th", null, "Role"), /* @__PURE__ */ React.createElement("th", null, "TRN"), /* @__PURE__ */ React.createElement("th", null, "Territory & address"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Terms"), /* @__PURE__ */ React.createElement("th", { className: "n bal-data" }, fixed === "vendor" ? "You owe" : fixed === "customer" ? "Owes you" : "Open balance"), /* @__PURE__ */ React.createElement("th", { style: { width: 150 } }))), /* @__PURE__ */ React.createElement("tbody", null, !list.length && /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: 8 }, /* @__PURE__ */ React.createElement(EmptyState, { icon: Users, title: q ? "Nothing matches this search" : `No ${noun === "customer or vendor" ? "customers or vendors" : noun + "s"} yet` }, q ? "Clear the search to see everyone." : "Add them one by one, or import a list from Excel with TRN, payment terms and opening balances."), !q && /* @__PURE__ */ React.createElement("div", { className: "row-btns", style: { justifyContent: "center", paddingBottom: 18 } }, /* @__PURE__ */ React.createElement(Btn, { icon: FileSpreadsheet, className: "act-create act-import", onClick: () => setImp(true) }, "Import from Excel"), /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Plus, onClick: () => setEd(blank(fixed || "customer")) }, "New ", noun)))), list.map((p) => /* @__PURE__ */ React.createElement("tr", { key: p.id, className: "rowlink", title: `Open ${p.name}`, onClick: (e) => {
+    if (!e.target.closest("button")) setEd({ ...p });
+  } }, /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(Party, { name: p.name, meta: [p.contact || p.phone, (state.salespeople || []).find((x) => x.id === p.salesman)?.name].filter(Boolean).join(" \xB7 ") })), !fixed && /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(Pill, { tone: p.role === "customer" ? "ok" : "info" }, p.role)), /* @__PURE__ */ React.createElement("td", { className: "mono nowrap", style: { fontSize: 12.5 } }, p.trn || /* @__PURE__ */ React.createElement("span", { className: "muted" }, "Not registered")), /* @__PURE__ */ React.createElement("td", { className: "addr-cell" }, /* @__PURE__ */ React.createElement("b", null, p.emirate), p.designatedZone && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement(Pill, { tone: "gold" }, "Designated zone")), addrText(p) && /* @__PURE__ */ React.createElement("small", { title: addrText(p) }, addrText(p)), branchesOf(p).length > 0 && /* @__PURE__ */ React.createElement("span", { className: "br-count", title: branchesOf(p).map((b) => b.name).join(", ") }, /* @__PURE__ */ React.createElement(Truck, { size: 12 }), branchesOf(p).length, " delivery address", branchesOf(p).length === 1 ? "" : "es")), /* @__PURE__ */ React.createElement("td", { className: "n nowrap" }, p.terms ? `${p.terms} days` : "Cash"), /* @__PURE__ */ React.createElement("td", { className: "n bal-data", style: { fontWeight: 600 } }, money(balOf(p)), lateOf[p.id] && /* @__PURE__ */ React.createElement("small", { className: "late-note" }, money(lateOf[p.id], false), " overdue")), /* @__PURE__ */ React.createElement("td", { style: { whiteSpace: "nowrap" } }, /* @__PURE__ */ React.createElement(
     "button",
     {
       className: "icon-btn",
@@ -5756,7 +5779,7 @@ function ExpensesScreen({ state, setState, books, toast, create }) {
   useCreate(create, () => {
     setEx(blank());
   });
-  const [ex, setEx] = useState(null);
+  const [ex, setEx] = useState(null), [rp, setRp] = useState(null);
   const cats = ACCOUNTS.filter((a) => a.type === "expense");
   const firstVendor = (PARTNERS.find((p) => p.role === "vendor") || {}).id || "";
   const blank = () => ({
@@ -5837,7 +5860,7 @@ function ExpensesScreen({ state, setState, books, toast, create }) {
       sub: "Fast entry for overheads. Each one is booked as a vendor bill, so it reaches the VAT return, the audit file and aged payable like any other purchase."
     },
     /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Plus, onClick: () => setEx(blank()) }, "Record expense")
-  ), ex && /* @__PURE__ */ React.createElement(
+  ), rp && /* @__PURE__ */ React.createElement(RecordPanel, { key: rp.id, kind: "vendor", initial: rp, state, setState, books, toast, close: () => setRp(null) }), ex && /* @__PURE__ */ React.createElement(
     Card,
     {
       title: "Record an expense",
@@ -5845,7 +5868,7 @@ function ExpensesScreen({ state, setState, books, toast, create }) {
       style: { marginBottom: 16 },
       right: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Btn, { onClick: () => setEx(null) }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Check, disabled: !ok, onClick: post }, "Post expense"))
     },
-    /* @__PURE__ */ React.createElement("div", { className: "setgrid" }, /* @__PURE__ */ React.createElement(Field, { label: "Category", span: 2 }, /* @__PURE__ */ React.createElement(Select, { value: ex.acc, onChange: (e) => setEx({ ...ex, acc: e.target.value }) }, cats.map((a) => /* @__PURE__ */ React.createElement("option", { key: a.code, value: a.code }, a.code, " ", a.name)))), /* @__PURE__ */ React.createElement(Field, { label: "Amount excluding VAT \xB7 AED" }, /* @__PURE__ */ React.createElement(Input, { n: true, type: "number", step: "0.01", value: ex.amount, onChange: (e) => setEx({ ...ex, amount: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "VAT treatment" }, /* @__PURE__ */ React.createElement(Select, { value: ex.vat, onChange: (e) => setEx({ ...ex, vat: e.target.value }) }, TAXES.filter((t) => t.scope !== "sale").map((t) => /* @__PURE__ */ React.createElement("option", { key: t.id, value: t.id }, t.name)))), /* @__PURE__ */ React.createElement(Field, { label: "Date" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: ex.date, onChange: (e) => setEx({ ...ex, date: e.target.value }) })), /* @__PURE__ */ React.createElement(BranchField, { value: ex.branch || homeBranch(state), onChange: (b) => setEx({ ...ex, branch: b }) }), /* @__PURE__ */ React.createElement(CostCentreField, { value: ex.cc, onChange: (v) => setEx({ ...ex, cc: v }) }), /* @__PURE__ */ React.createElement(Field, { label: "Supplier" }, /* @__PURE__ */ React.createElement(Select, { value: ex.vendor, onChange: (e) => setEx({ ...ex, vendor: e.target.value }) }, PARTNERS.filter((p) => p.role === "vendor").map((p) => /* @__PURE__ */ React.createElement("option", { key: p.id, value: p.id }, p.name)))), /* @__PURE__ */ React.createElement(Field, { label: "Settlement" }, /* @__PURE__ */ React.createElement(Select, { value: ex.paid ? "paid" : "owed", onChange: (e) => setEx({ ...ex, paid: e.target.value === "paid" }) }, /* @__PURE__ */ React.createElement("option", { value: "paid" }, "Paid now"), /* @__PURE__ */ React.createElement("option", { value: "owed" }, "On credit"))), ex.paid && /* @__PURE__ */ React.createElement(
+    /* @__PURE__ */ React.createElement("div", { className: "setgrid" }, /* @__PURE__ */ React.createElement(Field, { label: "Category", span: 2 }, /* @__PURE__ */ React.createElement(Select, { value: ex.acc, onChange: (e) => setEx({ ...ex, acc: e.target.value }) }, cats.map((a) => /* @__PURE__ */ React.createElement("option", { key: a.code, value: a.code }, a.code, " ", a.name)))), /* @__PURE__ */ React.createElement(Field, { label: "Amount excluding VAT \xB7 AED" }, /* @__PURE__ */ React.createElement(Input, { n: true, type: "number", step: "0.01", value: ex.amount, onChange: (e) => setEx({ ...ex, amount: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: "VAT treatment" }, /* @__PURE__ */ React.createElement(Select, { value: ex.vat, onChange: (e) => setEx({ ...ex, vat: e.target.value }) }, TAXES.filter((t) => t.scope !== "sale").map((t) => /* @__PURE__ */ React.createElement("option", { key: t.id, value: t.id }, t.name)))), /* @__PURE__ */ React.createElement(Field, { label: "Date" }, /* @__PURE__ */ React.createElement(Input, { type: "date", value: ex.date, onChange: (e) => setEx({ ...ex, date: e.target.value }) })), /* @__PURE__ */ React.createElement(BranchField, { value: ex.branch || homeBranch(state), onChange: (b) => setEx({ ...ex, branch: b }) }), /* @__PURE__ */ React.createElement(CostCentreField, { value: ex.cc, onChange: (v) => setEx({ ...ex, cc: v }) }), /* @__PURE__ */ React.createElement(Field, { label: "Supplier" }, /* @__PURE__ */ React.createElement(Select, { value: ex.vendor, onChange: (e) => setEx({ ...ex, vendor: e.target.value }) }, PARTNERS.filter((p) => p.role === "vendor").map((p) => /* @__PURE__ */ React.createElement("option", { key: p.id, value: p.id }, p.name))), /* @__PURE__ */ React.createElement(RecordOpen, { kind: "vendor", id: ex.vendor, onOpen: (id) => setRp(PMAP[id]) })), /* @__PURE__ */ React.createElement(Field, { label: "Settlement" }, /* @__PURE__ */ React.createElement(Select, { value: ex.paid ? "paid" : "owed", onChange: (e) => setEx({ ...ex, paid: e.target.value === "paid" }) }, /* @__PURE__ */ React.createElement("option", { value: "paid" }, "Paid now"), /* @__PURE__ */ React.createElement("option", { value: "owed" }, "On credit"))), ex.paid && /* @__PURE__ */ React.createElement(
       MethodPicker,
       {
         dir: "out",
@@ -7935,7 +7958,7 @@ function Invoeez() {
       case "assets":
         return /* @__PURE__ */ React.createElement(AssetsScreen, { create: cr("assets"), state, setState, books, toast });
       case "payments":
-        return /* @__PURE__ */ React.createElement(PaymentsScreen, { create: cr("payments"), state, setState, toast });
+        return /* @__PURE__ */ React.createElement(PaymentsScreen, { create: cr("payments"), state, setState, books, toast });
       case "partners":
       case "customers":
         return /* @__PURE__ */ React.createElement(PartnersScreen, { key: "customers", create: cr("customers"), fixed: "customer", state, setState, go, toast, books, param });
@@ -8087,7 +8110,7 @@ function Invoeez() {
         return null;
     }
   };
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS + REFINE_CSS + DELIVERY_CSS + GROUP_CSS + APPS_CSS + COSTING_CSS + ACCESS_CSS + DASHDOC_CSS + MODCOLOR_CSS;
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS + REFINE_CSS + DELIVERY_CSS + GROUP_CSS + APPS_CSS + COSTING_CSS + ACCESS_CSS + DASHDOC_CSS + MODCOLOR_CSS + RECORD_CSS;
   if (!meFound) return /* @__PURE__ */ React.createElement(ThemeCtx.Provider, { value: palette }, /* @__PURE__ */ React.createElement(CompanyCtx.Provider, { value: company }, /* @__PURE__ */ React.createElement("div", { className: "mz", "data-theme": theme, "data-accent": accent, "data-density": density }, /* @__PURE__ */ React.createElement("style", null, ALL_CSS), /* @__PURE__ */ React.createElement(Toasts, { items: toasts, dismiss: dismissToast }), /* @__PURE__ */ React.createElement(
     SignInScreen,
     {
@@ -8603,7 +8626,7 @@ function StudioModal({ title, sub, children, close, wide = false }) {
   }, []);
   return ReactDOM.createPortal(/* @__PURE__ */ React.createElement("div", { className: "studio-overlay" }, /* @__PURE__ */ React.createElement("section", { ref, role: "dialog", "aria-modal": "true", "aria-label": title, className: cx("studio-modal", wide && "wide") }, /* @__PURE__ */ React.createElement("header", null, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "micro" }, "INVOEEZ \xB7 INVOICE MADE EASY"), /* @__PURE__ */ React.createElement("h2", null, title), sub && /* @__PURE__ */ React.createElement("p", null, sub)), /* @__PURE__ */ React.createElement("button", { className: "icon-btn", title: "Close dialog", "aria-label": "Close dialog", onClick: close }, /* @__PURE__ */ React.createElement(X, { size: 19 }))), /* @__PURE__ */ React.createElement("div", { className: "studio-modal-body" }, children))), document.querySelector(".mz"));
 }
-function SmartPicker({ items, value, onChange, placeholder = "Search\u2026", onCreate, disabled = false, autoFocus = false, label = "Search records" }) {
+function SmartPicker({ items, value, onChange, placeholder = "Search\u2026", onCreate, disabled = false, autoFocus = false, label = "Search records", openKind, onOpen }) {
   const [open, setOpen] = useState(false), [q, setQ] = useState(""), [sel, setSel] = useState(0), [pos, setPos] = useState({});
   const root = React.useRef(), input = React.useRef(), pop = React.useRef(), rid = React.useId();
   const selected = items.find((x) => x.id === value);
@@ -8668,7 +8691,8 @@ function SmartPicker({ items, value, onChange, placeholder = "Search\u2026", onC
       setQ("");
     }
   };
-  return /* @__PURE__ */ React.createElement("div", { className: "smart-picker", ref: root }, /* @__PURE__ */ React.createElement(Search, { size: 15 }), /* @__PURE__ */ React.createElement("input", { ref: input, className: "inp", autoFocus, disabled, "aria-label": label, role: "combobox", "aria-expanded": open, "aria-controls": rid, "aria-autocomplete": "list", "aria-activedescendant": open && found[sel] ? rid + "-" + sel : void 0, placeholder, value: open ? q : selected?.label || "", onFocus: () => {
+  const opener = onOpen && selected && !open ? /* @__PURE__ */ React.createElement(RecordOpen, { kind: openKind, id: value, onOpen }) : null;
+  return /* @__PURE__ */ React.createElement("div", { className: cx("smart-picker", opener && "has-open"), ref: root }, /* @__PURE__ */ React.createElement(Search, { size: 15 }), /* @__PURE__ */ React.createElement("input", { ref: input, className: "inp", autoFocus, disabled, "aria-label": label, role: "combobox", "aria-expanded": open, "aria-controls": rid, "aria-autocomplete": "list", "aria-activedescendant": open && found[sel] ? rid + "-" + sel : void 0, placeholder, value: open ? q : selected?.label || "", onFocus: () => {
   }, onClick: () => {
     setOpen(true);
     setQ("");
@@ -8682,43 +8706,10 @@ function SmartPicker({ items, value, onChange, placeholder = "Search\u2026", onC
   }, onClick: () => pick(i) }, /* @__PURE__ */ React.createElement("span", { className: "picker-letter" }, i.label.slice(0, 2).toUpperCase()), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, i.label), /* @__PURE__ */ React.createElement("small", null, i.meta || i.id)), i.badge != null && /* @__PURE__ */ React.createElement("em", null, i.badge)))), !found.length && /* @__PURE__ */ React.createElement("div", { className: "picker-none" }, "No results for \u201C", q, "\u201D"), onCreate && /* @__PURE__ */ React.createElement("button", { className: "picker-create", onClick: () => {
     setOpen(false);
     onCreate(q);
-  } }, /* @__PURE__ */ React.createElement(Plus, { size: 16 }), " Create ", q ? `\u201C${q}\u201D` : "new record")), document.querySelector(".mz")));
+  } }, /* @__PURE__ */ React.createElement(Plus, { size: 16 }), " Create ", q ? `\u201C${q}\u201D` : "new record")), document.querySelector(".mz")), opener);
 }
 const productOptions = (books) => PRODUCTS.map((p) => ({ id: p.id, label: prodLabel(p), meta: [p.brand, categoryOf(p)?.name, p.barcode && "Barcode " + p.barcode, p.packing].filter(Boolean).join(" \xB7 ") || p.id, search: productText(p), exact: [p.code, p.barcode], badge: p.kind === "goods" ? `${books.stock[p.id]?.qty || 0} ${p.uom}` : "Service" }));
 const partnerOptions = (side) => PARTNERS.filter((p) => p.role === (side === "sale" ? "customer" : "vendor")).map((p) => ({ id: p.id, label: p.name, meta: [p.trn, p.phone, p.contact].filter(Boolean).join(" \xB7 "), search: [p.id, p.address, p.emirate].join(" "), exact: [p.trn, p.phone] }));
-function MasterModal({ kind, initial, state, setState, books, close, onSaved, toast }) {
-  const product = kind === "product";
-  const [r, setR] = useState(initial || (product ? newProduct() : newPartner(kind))), [error, setError] = useState("");
-  const f = (k, v) => setR((x) => ({ ...x, [k]: v }));
-  const c = CATEGORIES.find((x) => x.id === r.category);
-  const save = () => {
-    if (r.name.trim().length < 2) return setError("Enter a name with at least two characters.");
-    if (product) {
-      if (r.code.trim() && PRODUCTS.some((x) => x.id !== r.id && normSearch(x.code) === normSearch(r.code))) return setError("This product code is already in use.");
-      if (r.barcode?.trim() && PRODUCTS.some((x) => x.id !== r.id && x.barcode === r.barcode.trim())) return setError("This barcode already belongs to another product.");
-      if (!c) return setError("Choose a product category.");
-      if (![r.price, r.cost, r.reorder].every((x) => Number.isFinite(+x) && +x >= 0)) return setError("Prices, cost and reorder level must be zero or greater.");
-      const old = PROD[r.id], stock = books.stock[r.id];
-      if (old && stock && (Math.abs(stock.qty) > 1e-3 || Math.abs(stock.value) > 1e-3) && (old.inventory !== c.inventory || old.kind !== r.kind)) return setError("Clear this product\u2019s stock before changing its inventory account or product type.");
-    } else {
-      if (r.trn && !/^\d{15}$/.test(r.trn.trim())) return setError("A UAE TRN must have exactly 15 digits, or be blank.");
-      if (!Number.isFinite(+r.terms) || +r.terms < 0) return setError("Payment terms must be zero or greater.");
-    }
-    const rec = product ? { ...r, code: r.code.trim() || (autoCodes(state) ? nextProductCode(state) : ""), name: r.name.trim(), barcode: (r.barcode || "").trim(), price: +r.price, cost: +r.cost, reorder: +r.reorder, ...accountSnapshot(c) } : { ...r, name: r.name.trim(), trn: r.trn.trim(), terms: +r.terms };
-    if (product) {
-      PROD[rec.id] = enrichProduct(rec);
-      if (!PRODUCTS.some((p) => p.id === rec.id)) PRODUCTS.push(PROD[rec.id]);
-    } else {
-      PMAP[rec.id] = rec;
-      if (!PARTNERS.some((p) => p.id === rec.id)) PARTNERS.push(rec);
-    }
-    saveMaster(setState, product ? "products" : "partners", rec);
-    toast(`${rec.name} saved`);
-    onSaved?.(rec);
-    close();
-  };
-  return /* @__PURE__ */ React.createElement(StudioModal, { wide: true, title: (product ? !!PROD[r.id] : !!PMAP[r.id]) ? `Edit ${product ? "product" : r.role}` : `New ${product ? "product" : r.role}`, sub: product ? "A complete product record, ready for your next transaction." : "Create and select without leaving your document.", close }, /* @__PURE__ */ React.createElement("div", { className: "studio-form" }, /* @__PURE__ */ React.createElement(Field, { label: product ? "Product name" : "Customer / vendor name", span: 2 }, /* @__PURE__ */ React.createElement(Input, { value: r.name, onChange: (e) => f("name", e.target.value), placeholder: "Enter name" })), /* @__PURE__ */ React.createElement(Field, { label: "Name in Arabic (optional)", span: 2 }, /* @__PURE__ */ React.createElement(Input, { dir: "rtl", lang: "ar", value: r.nameAr || "", onChange: (e) => f("nameAr", e.target.value), placeholder: product ? "\u0627\u0633\u0645 \u0627\u0644\u0645\u0646\u062A\u062C \u0628\u0627\u0644\u0639\u0631\u0628\u064A\u0629" : "\u0627\u0644\u0627\u0633\u0645 \u0628\u0627\u0644\u0639\u0631\u0628\u064A\u0629" })), product ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Field, { label: autoCodes(state) ? "Product code / SKU \xB7 automatic" : "Product code / SKU \xB7 optional" }, /* @__PURE__ */ React.createElement(Input, { value: r.code, onChange: (e) => f("code", e.target.value), placeholder: autoCodes(state) ? PROD[r.id] ? "Leave empty for " + nextProductCode(state) : "Leave empty for " + nextProductCode(state) : "Optional" })), /* @__PURE__ */ React.createElement(Field, { label: "Barcode" }, /* @__PURE__ */ React.createElement(Input, { value: r.barcode || "", onChange: (e) => f("barcode", e.target.value), placeholder: "Scan or enter barcode" })), /* @__PURE__ */ React.createElement(Field, { label: "Brand" }, /* @__PURE__ */ React.createElement(CreatableSelect, { value: r.brand, onChange: (v) => f("brand", v), options: brandOptions(state), placeholder: "No brand", createLabel: "New brand", onCreate: addBrand(setState), ariaLabel: "Brand" })), /* @__PURE__ */ React.createElement(Field, { label: "Category" }, /* @__PURE__ */ React.createElement(CreatableSelect, { value: r.category, onChange: (v) => f("category", v), options: CATEGORIES.filter((c2) => c2.id !== "cat_opening").map((c2) => ({ value: c2.id, label: c2.name })), createLabel: "New category", hint: `It starts with the accounts of \u201C${(CATEGORIES.find((c2) => c2.id === (r.kind === "goods" ? "cat_goods" : "cat_services")) || {}).name || "the default category"}\u201D. You can change them later under Product categories.`, onCreate: addCategory(setState, r.kind), ariaLabel: "Category" })), /* @__PURE__ */ React.createElement(Field, { label: "Packing" }, /* @__PURE__ */ React.createElement(Input, { value: r.packing || "", onChange: (e) => f("packing", e.target.value), placeholder: "e.g. Box of 12 \xB7 500 ml" })), /* @__PURE__ */ React.createElement(Field, { label: "Unit of measure" }, /* @__PURE__ */ React.createElement(Input, { value: r.uom, onChange: (e) => f("uom", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Item type" }, /* @__PURE__ */ React.createElement(Select, { value: r.kind, onChange: (e) => setR((x) => ({ ...x, kind: e.target.value, category: e.target.value === "goods" ? "cat_goods" : "cat_services" })) }, /* @__PURE__ */ React.createElement("option", { value: "goods" }, "Storable goods"), /* @__PURE__ */ React.createElement("option", { value: "service" }, "Service / expense"))), /* @__PURE__ */ React.createElement(Field, { label: "Default VAT" }, /* @__PURE__ */ React.createElement(Select, { value: r.tax, onChange: (e) => f("tax", e.target.value) }, TAXES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.id, value: t.id }, t.name)))), /* @__PURE__ */ React.createElement(Field, { label: "Sales price \xB7 AED" }, /* @__PURE__ */ React.createElement(Input, { type: "number", min: "0", step: "0.01", value: r.price === 0 || r.price === "0" ? "" : r.price, placeholder: "Leave empty to price on each invoice", onChange: (e) => f("price", e.target.value) })), accField("cost") !== "hide" && /* @__PURE__ */ React.createElement(Field, { label: "Cost price \xB7 AED" }, /* @__PURE__ */ React.createElement(Input, { type: "number", min: "0", step: "0.01", value: r.cost === 0 || r.cost === "0" ? "" : r.cost, placeholder: "Filled by the first purchase", onChange: (e) => f("cost", e.target.value) })), r.kind === "goods" && accField("cost") !== "hide" && /* @__PURE__ */ React.createElement(Field, { label: "Current unit cost \xB7 " + (COSTING[books.method] || COSTING.avco).label }, /* @__PURE__ */ React.createElement("div", { className: "readonly mono" }, PROD[r.id] ? "AED " + money(currentCost(PROD[r.id], books), false) : "Set by the first purchase", r.lastPurchase ? /* @__PURE__ */ React.createElement("small", { className: "subtext" }, "Last purchase AED ", money(r.lastPurchase, false)) : null)), /* @__PURE__ */ React.createElement(Field, { label: "Low stock threshold" }, /* @__PURE__ */ React.createElement(Input, { type: "number", min: "0", value: r.reorder ?? 5, onChange: (e) => f("reorder", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Internal product ID" }, /* @__PURE__ */ React.createElement("div", { className: "readonly mono wrap-id" }, r.id)), /* @__PURE__ */ React.createElement("div", { className: "info-strip span2" }, /* @__PURE__ */ React.createElement(BookOpen, { size: 18 }), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, "Accounts inherited from ", c?.name), /* @__PURE__ */ React.createElement("br", null), "Revenue ", c?.income, " \xB7 Cost / expense ", c?.expense, " \xB7 Inventory ", c?.inventory, /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("small", null, "Manage these centrally in Product categories. Packing is descriptive; quantities use the unit of measure.")))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Field, { label: "TRN" }, /* @__PURE__ */ React.createElement(Input, { value: r.trn, onChange: (e) => f("trn", e.target.value), placeholder: "15 digits or leave blank" })), /* @__PURE__ */ React.createElement(Field, { label: "Payment terms \xB7 days" }, /* @__PURE__ */ React.createElement(Input, { type: "number", min: "0", value: r.terms, onChange: (e) => f("terms", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Email" }, /* @__PURE__ */ React.createElement(Input, { type: "email", value: r.contact, onChange: (e) => f("contact", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Phone / WhatsApp" }, /* @__PURE__ */ React.createElement(Input, { value: r.phone, onChange: (e) => f("phone", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Territory" }, /* @__PURE__ */ React.createElement(Select, { value: r.emirate, onChange: (e) => f("emirate", e.target.value) }, [...EMIRATES, "Export", "Import"].map((x) => /* @__PURE__ */ React.createElement("option", { key: x }, x)))), r.role === "customer" && /* @__PURE__ */ React.createElement(Field, { label: "Salesperson" }, /* @__PURE__ */ React.createElement(CreatableSelect, { value: r.salesman, onChange: (v) => f("salesman", v), options: salespersonOptions(state), placeholder: "Unassigned", createLabel: "New salesperson", onCreate: addSalesperson(setState), ariaLabel: "Salesperson" })), /* @__PURE__ */ React.createElement(Field, { label: "Address line 1" }, /* @__PURE__ */ React.createElement(Input, { value: r.address, placeholder: "Office / building, street", onChange: (e) => f("address", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Address line 2" }, /* @__PURE__ */ React.createElement(Input, { value: r.address2 || "", placeholder: "Area, city, P.O. Box (optional)", onChange: (e) => f("address2", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Default price list" }, /* @__PURE__ */ React.createElement(Select, { value: r.pricelist || "", onChange: (e) => f("pricelist", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Product prices"), state.priceLists.filter((x) => x.side === (r.role === "customer" ? "sale" : "purchase")).map((x) => /* @__PURE__ */ React.createElement("option", { key: x.id, value: x.id }, x.name)))))), error && /* @__PURE__ */ React.createElement("div", { role: "alert", className: "form-error" }, error), /* @__PURE__ */ React.createElement("footer", { className: "modal-actions" }, /* @__PURE__ */ React.createElement(Btn, { onClick: close }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Check, onClick: save }, "Save", onSaved ? " & select" : "")));
-}
 function HistoryTable({ state, product, side, partner = "", exclude = "", date, apply, title }) {
   const [all, setAll] = useState(!partner);
   const rows = productHistory(state, product, side, all ? "" : partner, exclude, date);
@@ -8730,7 +8721,7 @@ function ProductsScreen({ books, state, setState, toast, param, create }) {
   useCreate(create, () => {
     setEd(newProduct());
   });
-  const [q, setQ] = useState(""), [kind, setKind] = useState("all"), [category, setCategory] = useState(""), [ed, setEd] = useState(null), [detail, setDetail] = useState(null), [ht, setHt] = useState("sale"), [imp, setImp] = useState(false);
+  const [q, setQ] = useState(""), [kind, setKind] = useState("all"), [category, setCategory] = useState(""), [ed, setEd] = useState(null), [detail, setDetail] = useState(null), [imp, setImp] = useState(false);
   const [catalogView, setCatalogView] = useState(() => {
     try {
       return localStorage.getItem("mizan.catalogView") || "cards";
@@ -8776,10 +8767,7 @@ function ProductsScreen({ books, state, setState, toast, param, create }) {
   } }, "Clear filters") : /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: FileSpreadsheet, onClick: () => setImp(true) }, "Import from Excel"))) : /* @__PURE__ */ React.createElement(Card, { pad: false }, /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl product-table" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Product"), /* @__PURE__ */ React.createElement("th", null, "Brand / packing"), /* @__PURE__ */ React.createElement("th", null, "Category / accounts"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Sale price"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "On hand"), /* @__PURE__ */ React.createElement("th", { className: "n cost-data" }, "Avg cost"), /* @__PURE__ */ React.createElement("th", { className: "n cost-data" }, "Stock value"), /* @__PURE__ */ React.createElement("th", null))), /* @__PURE__ */ React.createElement("tbody", null, rows.map((p) => {
     const st = books.stock[p.id] || { qty: 0, value: 0 };
     return /* @__PURE__ */ React.createElement("tr", { key: p.id }, /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("button", { className: "product-link", onClick: () => setDetail(p) }, /* @__PURE__ */ React.createElement("span", { className: "product-icon" }, /* @__PURE__ */ React.createElement(Package, { size: 19 })), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, p.name), /* @__PURE__ */ React.createElement("small", null, p.code, p.barcode ? " \xB7 " + p.barcode : "")))), /* @__PURE__ */ React.createElement("td", null, p.brand || "\u2014", /* @__PURE__ */ React.createElement("small", { className: "subtext" }, p.packing || p.uom)), /* @__PURE__ */ React.createElement("td", null, categoryOf(p)?.name, /* @__PURE__ */ React.createElement("small", { className: "subtext" }, "Revenue ", p.income, " \xB7 Expense ", p.expense, /* @__PURE__ */ React.createElement("br", null), TAX[p.tax]?.name)), /* @__PURE__ */ React.createElement("td", { className: "n" }, money(p.price, false)), /* @__PURE__ */ React.createElement("td", { className: "n" }, p.kind === "goods" ? /* @__PURE__ */ React.createElement(Pill, { tone: st.qty <= p.reorder ? "gold" : "ok" }, st.qty, " ", p.uom) : "Service"), /* @__PURE__ */ React.createElement("td", { className: "n cost-data" }, p.kind === "goods" ? money(st.qty > 0 ? st.value / st.qty : p.cost, false) : "\u2014"), /* @__PURE__ */ React.createElement("td", { className: "n cost-data" }, p.kind === "goods" ? money(st.value, false) : "\u2014"), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("div", { className: "acts" }, /* @__PURE__ */ React.createElement("button", { className: "icon-btn act-edit", title: "Edit " + p.code, onClick: () => setEd(p) }, /* @__PURE__ */ React.createElement(Pencil, { size: 15 })), !isSeedProduct(p.id) && /* @__PURE__ */ React.createElement("button", { className: "icon-btn act-delete", title: "Delete " + p.code, onClick: () => remove(p) }, /* @__PURE__ */ React.createElement(Trash2, { size: 15 })))));
-  }), !rows.length && /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: "8" }, /* @__PURE__ */ React.createElement(EmptyState, { title: "No matching products" }, "Try another code, barcode or brand."))))))), imp && /* @__PURE__ */ React.createElement(ImportDialog, { kind: "products", state, setState, books, toast, close: () => setImp(false) }), ed && /* @__PURE__ */ React.createElement(MasterModal, { kind: "product", initial: ed, state, setState, books, toast, close: () => setEd(null) }), detail && /* @__PURE__ */ React.createElement(StudioModal, { wide: true, title: detail.name, sub: detail.code + " \xB7 " + detail.id, close: () => setDetail(null) }, /* @__PURE__ */ React.createElement("div", { className: "detail-tags" }, /* @__PURE__ */ React.createElement(Pill, null, detail.brand || "No brand"), /* @__PURE__ */ React.createElement(Pill, null, categoryOf(detail)?.name), /* @__PURE__ */ React.createElement(Pill, null, detail.packing || detail.uom), /* @__PURE__ */ React.createElement(Pill, null, "Barcode: ", detail.barcode || "Not set"), detail.kind === "goods" && accField("cost") !== "hide" && /* @__PURE__ */ React.createElement(Pill, { tone: "info" }, "Unit cost AED ", money(currentCost(detail, books), false), " \xB7 ", (books.method || "avco").toUpperCase()), detail.lastPurchase && accField("cost") !== "hide" ? /* @__PURE__ */ React.createElement(Pill, null, "Last purchase AED ", money(detail.lastPurchase, false)) : null), /* @__PURE__ */ React.createElement("div", { className: "doc-tabs" }, /* @__PURE__ */ React.createElement("button", { className: ht === "sale" ? "on" : "", onClick: () => setHt("sale") }, "Sales history"), /* @__PURE__ */ React.createElement("button", { className: ht === "purchase" ? "on" : "", onClick: () => setHt("purchase") }, "Purchase history")), /* @__PURE__ */ React.createElement(HistoryTable, { state, product: detail.id, side: ht }), /* @__PURE__ */ React.createElement("footer", { className: "modal-actions" }, /* @__PURE__ */ React.createElement(Btn, { onClick: () => {
-    setEd(detail);
-    setDetail(null);
-  } }, "Edit product"), /* @__PURE__ */ React.createElement(Btn, { kind: "pri", onClick: () => setDetail(null) }, "Done"))));
+  }), !rows.length && /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: "8" }, /* @__PURE__ */ React.createElement(EmptyState, { title: "No matching products" }, "Try another code, barcode or brand."))))))), imp && /* @__PURE__ */ React.createElement(ImportDialog, { kind: "products", state, setState, books, toast, close: () => setImp(false) }), ed && /* @__PURE__ */ React.createElement(RecordPanel, { key: ed.id, kind: "product", initial: ed, isNew: !PROD[ed.id], state, setState, books, toast, close: () => setEd(null) }), detail && /* @__PURE__ */ React.createElement(RecordPanel, { key: detail.id, kind: "product", initial: detail, tab: "history", state, setState, books, toast, close: () => setDetail(null) }));
 }
 function CategoriesScreen({ state, setState, books, toast, create }) {
   useCreate(create, () => {
@@ -11157,10 +11145,10 @@ function PdcScreen({ state, setState, books, toast, create, go }) {
   } }, /* @__PURE__ */ React.createElement(I, { size: 15 }), l, /* @__PURE__ */ React.createElement("span", { className: "ct" }, (state.pdcs || []).filter((c) => c.kind === k && pdcOpen(c)).length)))), /* @__PURE__ */ React.createElement("div", { className: "pdc-kpis" }, /* @__PURE__ */ React.createElement("div", { className: "pdc-kpi" }, /* @__PURE__ */ React.createElement("span", null, tab === "in" ? "Cheques in hand" : "Issued, not yet cleared"), /* @__PURE__ */ React.createElement("b", { className: "num" }, money(sum(open), false)), /* @__PURE__ */ React.createElement("small", null, open.length, " cheque", open.length === 1 ? "" : "s")), /* @__PURE__ */ React.createElement("div", { className: "pdc-kpi" }, /* @__PURE__ */ React.createElement("span", null, "Maturing in 7 days"), /* @__PURE__ */ React.createElement("b", { className: "num" }, money(sum(due7), false)), /* @__PURE__ */ React.createElement("small", null, due7.length, " cheque", due7.length === 1 ? "" : "s")), /* @__PURE__ */ React.createElement("div", { className: cx("pdc-kpi", late.length && "warn") }, /* @__PURE__ */ React.createElement("span", null, tab === "in" ? "Past date \u2014 deposit now" : "Past date \u2014 not yet presented"), /* @__PURE__ */ React.createElement("b", { className: "num" }, money(sum(late), false)), /* @__PURE__ */ React.createElement("small", null, late.length, " cheque", late.length === 1 ? "" : "s")), /* @__PURE__ */ React.createElement("div", { className: cx("pdc-kpi", bounced.length && "bad") }, /* @__PURE__ */ React.createElement("span", null, "Bounced this year"), /* @__PURE__ */ React.createElement("b", { className: "num" }, money(sum(bounced), false)), /* @__PURE__ */ React.createElement("small", null, bounced.length, " cheque", bounced.length === 1 ? "" : "s"))), open.length > 0 && /* @__PURE__ */ React.createElement(Card, { title: "Maturity calendar", sub: "Open cheques by cheque date \xB7 AED", className: "pdc-cal-card" }, /* @__PURE__ */ React.createElement("div", { className: "pdc-cal" }, weeks.map((w) => /* @__PURE__ */ React.createElement("div", { key: w.l, className: cx("wk", w.l === "Past date" && w.items.length && "late"), title: `${w.items.length} cheque(s) \xB7 AED ${money(w.amt, false)}` }, /* @__PURE__ */ React.createElement("div", { className: "bar" }, /* @__PURE__ */ React.createElement("i", { style: { height: Math.max(w.amt ? 6 : 0, w.amt / peak * 100) + "%" } })), /* @__PURE__ */ React.createElement("b", { className: "num" }, w.amt ? money(w.amt, false) : "\u2014"), /* @__PURE__ */ React.createElement("span", null, w.l), /* @__PURE__ */ React.createElement("small", null, w.items.length || ""))))), /* @__PURE__ */ React.createElement(Card, { pad: false }, /* @__PURE__ */ React.createElement("div", { className: "doc-filterbar" }, /* @__PURE__ */ React.createElement(SearchBox, { value: q, onChange: setQ, width: 300, placeholder: "Search cheque no., bank, party or amount" }), /* @__PURE__ */ React.createElement("div", { className: "seg" }, [["open", "Open"], ["all", "All"], ["cleared", "Cleared"], ["bounced", "Bounced"], ["cancelled", st.cancelled[0]]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, className: cx(f === k && "on"), onClick: () => setF(k) }, l))), /* @__PURE__ */ React.createElement("span", { className: "pdc-count" }, list.length, " of ", all.length)), /* @__PURE__ */ React.createElement("div", { className: "tbl-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "tbl pdc-tbl" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Cheque"), /* @__PURE__ */ React.createElement("th", null, tab === "in" ? "Customer" : "Vendor"), /* @__PURE__ */ React.createElement("th", null, "Against"), /* @__PURE__ */ React.createElement("th", null, tab === "in" ? "Received" : "Issued"), /* @__PURE__ */ React.createElement("th", null, "Cheque date"), /* @__PURE__ */ React.createElement("th", { className: "n" }, "Amount"), /* @__PURE__ */ React.createElement("th", null, "Status"), /* @__PURE__ */ React.createElement("th", null))), /* @__PURE__ */ React.createElement("tbody", null, list.map((c) => {
     const s = pdcStatus(c), e = pdcEnd(c), isOpen = pdcOpen(c);
     return /* @__PURE__ */ React.createElement("tr", { key: c.id, className: "click", onClick: () => setView(c) }, /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("b", { className: "mono" }, c.chequeNo), /* @__PURE__ */ React.createElement("small", { className: "subtext" }, c.bank || ACC[c.account]?.name || "\u2014", " \xB7 ", c.number)), /* @__PURE__ */ React.createElement("td", null, PMAP[c.partner]?.name || "\u2014"), /* @__PURE__ */ React.createElement("td", { className: "mono" }, docNo(state, c.doc) || /* @__PURE__ */ React.createElement("span", { className: "muted" }, "Oldest open")), /* @__PURE__ */ React.createElement("td", null, dmy(c.date)), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement("b", null, dmy(c.chequeDate)), /* @__PURE__ */ React.createElement("small", { className: cx("subtext", isOpen && c.chequeDate < TODAY && "neg") }, isOpen ? rel(c.chequeDate) : e ? `${st[s][0]} ${dmy(e.date)}` : "")), /* @__PURE__ */ React.createElement("td", { className: "n num" }, /* @__PURE__ */ React.createElement("b", null, money(+c.amount, false))), /* @__PURE__ */ React.createElement("td", null, /* @__PURE__ */ React.createElement(Pill, { tone: st[s][1], dot: true }, st[s][0])), /* @__PURE__ */ React.createElement("td", { className: "n", onClick: (ev) => ev.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "pdc-acts" }, tab === "in" && s === "hand" && /* @__PURE__ */ React.createElement(Btn, { size: "sm", onClick: () => setAct({ c, type: "deposited" }) }, "Deposit"), isOpen && /* @__PURE__ */ React.createElement(Btn, { size: "sm", kind: s === "deposited" || tab === "out" ? "pri" : void 0, onClick: () => setAct({ c, type: "cleared" }) }, "Clear"), isOpen && /* @__PURE__ */ React.createElement(Btn, { size: "sm", onClick: () => setAct({ c, type: "bounced" }) }, "Bounce"), s === "hand" && /* @__PURE__ */ React.createElement(Btn, { size: "sm", onClick: () => setAct({ c, type: "cancelled" }) }, tab === "in" ? "Return" : "Cancel"), s === "bounced" && !c.replacedBy && /* @__PURE__ */ React.createElement(Btn, { size: "sm", icon: RotateCcw, onClick: () => setEd({ kind: c.kind, partner: c.partner, doc: c.doc, amount: c.amount, bank: c.bank, account: c.account, replaces: c.id }) }, "Replace"), s === "hand" && !(c.events || []).length && /* @__PURE__ */ React.createElement("button", { className: "icon-btn", title: "Delete " + c.number, "aria-label": "Delete " + c.number, onClick: () => remove(c) }, /* @__PURE__ */ React.createElement(Trash2, { size: 14 })))));
-  }), !list.length && /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: "8" }, /* @__PURE__ */ React.createElement(EmptyState, { icon: CalendarClock, title: all.length ? "No cheques match" : tab === "in" ? "No post-dated cheques received yet" : "No post-dated cheques issued yet" }, all.length ? "Try another filter or search." : tab === "in" ? "Record a customer's cheque with Receive cheque. It settles their balance now and reaches the bank when it clears." : "Record a cheque you have given a vendor with Issue cheque."))))))), ed && /* @__PURE__ */ React.createElement(PdcDialog, { state, setState, toast, init: ed, close: () => setEd(null), onSaved: (c) => setTab(c.kind) }), act && /* @__PURE__ */ React.createElement(PdcActionDialog, { state, setState, toast, c: act.c, type: act.type, close: () => setAct(null) }), view && /* @__PURE__ */ React.createElement(PdcDetail, { state, books, c: (state.pdcs || []).find((x) => x.id === view.id) || view, close: () => setView(null) }));
+  }), !list.length && /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { colSpan: "8" }, /* @__PURE__ */ React.createElement(EmptyState, { icon: CalendarClock, title: all.length ? "No cheques match" : tab === "in" ? "No post-dated cheques received yet" : "No post-dated cheques issued yet" }, all.length ? "Try another filter or search." : tab === "in" ? "Record a customer's cheque with Receive cheque. It settles their balance now and reaches the bank when it clears." : "Record a cheque you have given a vendor with Issue cheque."))))))), ed && /* @__PURE__ */ React.createElement(PdcDialog, { state, setState, books, toast, init: ed, close: () => setEd(null), onSaved: (c) => setTab(c.kind) }), act && /* @__PURE__ */ React.createElement(PdcActionDialog, { state, setState, toast, c: act.c, type: act.type, close: () => setAct(null) }), view && /* @__PURE__ */ React.createElement(PdcDetail, { state, books, c: (state.pdcs || []).find((x) => x.id === view.id) || view, close: () => setView(null) }));
 }
 const docNo = (state, id) => id && (state.docs.find((d) => d.id === id) || {}).number || "";
-function PdcDialog({ state, setState, toast, init, close, onSaved }) {
+function PdcDialog({ state, setState, books, toast, init, close, onSaved }) {
   const kind = init.kind || "in", side = kind === "in" ? "sale" : "purchase";
   const banks = ACCOUNTS.filter((a) => a.type === "bank");
   const [r, setR] = useState(() => ({
@@ -11177,7 +11165,7 @@ function PdcDialog({ state, setState, toast, init, close, onSaved }) {
     memo: "",
     replaces: init.replaces || ""
   }));
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState(""), [rp, setRp] = useState(null);
   const set = (k, v) => setR((x) => ({ ...x, [k]: v }));
   const openDocs = r.partner ? (aging(state, kind === "in" ? "receivable" : "payable", TODAY).rows.find((x) => x.partner.id === r.partner) || { items: [] }).items : [];
   const save = () => {
@@ -11220,7 +11208,9 @@ function PdcDialog({ state, setState, toast, init, close, onSaved }) {
         items: partnerOptions(side),
         value: r.partner,
         placeholder: `Search ${kind === "in" ? "customers" : "vendors"}\u2026`,
-        onChange: (pid) => setR((x) => ({ ...x, partner: pid, doc: "" }))
+        onChange: (pid) => setR((x) => ({ ...x, partner: pid, doc: "" })),
+        openKind: kind === "in" ? "customer" : "vendor",
+        onOpen: (id) => setRp(PMAP[id])
       }
     )), /* @__PURE__ */ React.createElement(Field, { label: kind === "in" ? "Against invoice" : "Against bill", span: 2 }, /* @__PURE__ */ React.createElement(Select, { value: r.doc, onChange: (e) => {
       const it = openDocs.find((d) => d.id === e.target.value);
@@ -11231,7 +11221,8 @@ function PdcDialog({ state, setState, toast, init, close, onSaved }) {
     })(), /* @__PURE__ */ React.createElement(Field, { label: "Amount \xB7 AED" }, /* @__PURE__ */ React.createElement(Input, { n: true, type: "number", min: "0", step: "0.01", placeholder: "Enter amount", value: r.amount, onChange: (e) => set("amount", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Memo" }, /* @__PURE__ */ React.createElement(Input, { value: r.memo, onChange: (e) => set("memo", e.target.value), placeholder: "Optional note" }))),
     /* @__PURE__ */ React.createElement("div", { className: "pdc-ledger-note" }, /* @__PURE__ */ React.createElement(BookOpen, { size: 15 }), /* @__PURE__ */ React.createElement("span", null, kind === "in" ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Posts ", /* @__PURE__ */ React.createElement("b", null, "Dr ", PDC_ACC.in, " ", ACC[PDC_ACC.in]?.name || "Post-dated cheques received"), " \xB7 ", /* @__PURE__ */ React.createElement("b", null, "Cr ", A.AR, " Accounts receivable"), " on the received date.") : /* @__PURE__ */ React.createElement(React.Fragment, null, "Posts ", /* @__PURE__ */ React.createElement("b", null, "Dr ", A.AP, " Accounts payable"), " \xB7 ", /* @__PURE__ */ React.createElement("b", null, "Cr ", PDC_ACC.out, " ", ACC[PDC_ACC.out]?.name || "Post-dated cheques issued"), " on the issue date."))),
     err && /* @__PURE__ */ React.createElement("div", { role: "alert", className: "form-error" }, err),
-    /* @__PURE__ */ React.createElement("footer", { className: "modal-actions" }, /* @__PURE__ */ React.createElement(Btn, { onClick: close }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Check, onClick: save }, "Record cheque"))
+    /* @__PURE__ */ React.createElement("footer", { className: "modal-actions" }, /* @__PURE__ */ React.createElement(Btn, { onClick: close }, "Cancel"), /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Check, onClick: save }, "Record cheque")),
+    rp && /* @__PURE__ */ React.createElement(RecordPanel, { key: rp.id, kind: recKindOf(rp), initial: rp, state, setState, books, toast, close: () => setRp(null) })
   );
 }
 function PdcActionDialog({ state, setState, toast, c, type, close }) {
@@ -14062,7 +14053,7 @@ const GO_KEYS = [
 ];
 const NEW_KEYS = [["i", "invoice", "Invoice"], ["q", "quote", "Quotation"], ["o", "purchase_order", "Purchase order"], ["b", "bill", "Vendor bill"], ["c", "credit_note", "Credit note"]];
 const isTyping = (el) => !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
-const modalOpen = () => !!document.querySelector(".studio-overlay, .scrim, .cmdk, .notif-pop, .newpop, .pop");
+const modalOpen = () => !!document.querySelector(".studio-overlay, .scrim, .cmdk, .notif-pop, .newpop, .pop, .rp-layer");
 function useShortcuts({ enabled, allowed, canAdd, go, newDoc, openHelp, openSearch, toast }) {
   const [chord, setChord] = useState(null);
   const ref = React.useRef(null);
@@ -18822,6 +18813,447 @@ const MODCOLOR_CSS = "@media screen{\n" + Object.entries(MODULE_COLORS).map(([k,
 .mz .mod-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--md,var(--brand));flex:0 0 8px}
 .mod-row .st{min-width:0}.mod-dots{display:flex!important;gap:5px;margin-top:8px}.mod-dots .mod-dot{width:12px;height:12px;flex-basis:12px;box-shadow:0 0 0 2px var(--surface),0 0 0 3px var(--line)}
 .mz .mod-sw{display:inline-flex;align-items:center;flex:0 0 auto;padding:4px;border-radius:12px}
+`;
+const REC_KINDS = {
+  customer: { mod: "sales", area: "customers", noun: "customer", Icon: Users },
+  vendor: { mod: "purchase", area: "vendors", noun: "vendor", Icon: Truck },
+  product: { mod: "inventory", area: "products", noun: "product", Icon: Package }
+};
+const recCan = (kind, act) => accOk(REC_KINDS[kind].area, act);
+const recKindOf = (p) => p && p.role === "vendor" ? "vendor" : "customer";
+const DOC_STATE_L = {
+  draft: "Draft",
+  posted: "Posted",
+  sent: "Sent",
+  accepted: "Accepted",
+  invoiced: "Invoiced",
+  submitted: "Awaiting approval",
+  approved: "Approved",
+  rejected: "Rejected",
+  billed: "Billed",
+  lost: "Lost",
+  expired: "Expired"
+};
+const cap1 = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+function partnerFigures(state, p) {
+  const sale = p.role !== "vendor", y = TODAY.slice(0, 4);
+  const charge = sale ? "invoice" : "bill", credit = sale ? "credit_note" : "debit_note";
+  const row = aging(state, sale ? "receivable" : "payable", TODAY).rows.find((r) => r.partner.id === p.id);
+  const docs = state.docs.filter((d) => d.partner === p.id), pays = state.payments.filter((x) => x.partner === p.id);
+  const posted = docs.filter((d) => d.state === "posted");
+  const year = R2(posted.filter((d) => d.date.slice(0, 4) === y && (d.type === charge || d.type === credit)).reduce((s, d) => s + (d.type === charge ? 1 : -1) * amounts(d).net, 0));
+  const last = posted.filter((d) => d.type === charge).sort((a, b) => b.date.localeCompare(a.date) || b.number.localeCompare(a.number))[0];
+  return {
+    balance: row ? row.total : 0,
+    overdue: row ? R2(row.items.filter((i) => i.due < TODAY).reduce((s, i) => s + i.open, 0)) : 0,
+    open: row ? row.items.length : 0,
+    year,
+    last,
+    docs,
+    pays
+  };
+}
+function productFigures(state, books, p) {
+  const y = TODAY.slice(0, 4), sales = productHistory(state, p.id, "sale"), year = sales.filter((l) => l.date.slice(0, 4) === y);
+  return {
+    st: books.stock[p.id] || { qty: 0, value: 0 },
+    cost: currentCost(p, books),
+    lastSale: sales[0],
+    lastBuy: productHistory(state, p.id, "purchase")[0],
+    soldQty: R2(year.reduce((s, l) => s + (+l.qty || 0), 0)),
+    soldAmt: R2(year.reduce((s, l) => s + l.amount, 0)),
+    uses: state.docs.filter((d) => d.lines.some((l) => l.product === p.id)).length
+  };
+}
+function partnerError(r) {
+  if (r.name.trim().length < 2) return "Enter a name with at least two characters.";
+  if (r.trn && !/^\d{15}$/.test(r.trn.trim())) return "A UAE TRN is exactly 15 digits \u2014 or leave it blank.";
+  if (r.terms === "" || !Number.isFinite(+r.terms) || +r.terms < 0) return "Payment terms are a number of days, zero or more.";
+  if (branchesOf(r).some((b) => !branchOk(b) && (b.address || b.address2 || b.contact || b.phone))) return "Give every delivery address a name, or remove it.";
+  return "";
+}
+function partnerRecord(r) {
+  const branches = branchesOf(r).filter(branchOk).map((b) => ({ ...b, name: b.name.trim() }));
+  return {
+    ...r,
+    name: r.name.trim(),
+    trn: (r.trn || "").trim(),
+    terms: +r.terms || 0,
+    branches: branches.length ? branches : void 0,
+    defaultBranch: branches.some((b) => b.id === r.defaultBranch) ? r.defaultBranch : void 0
+  };
+}
+function productError(r, books) {
+  const c = CATEGORIES.find((x) => x.id === r.category);
+  if (r.name.trim().length < 2) return "Enter a name with at least two characters.";
+  if (r.code.trim() && PRODUCTS.some((x) => x.id !== r.id && normSearch(x.code) === normSearch(r.code))) return "This product code is already in use.";
+  if ((r.barcode || "").trim() && PRODUCTS.some((x) => x.id !== r.id && x.barcode === r.barcode.trim())) return "This barcode already belongs to another product.";
+  if (!c) return "Choose a product category.";
+  if (![r.price, r.cost, r.reorder].every((x) => Number.isFinite(+x) && +x >= 0)) return "Prices, cost and the low stock threshold must be zero or more.";
+  const old = PROD[r.id], st = books.stock[r.id];
+  if (old && st && (Math.abs(st.qty) > 1e-3 || Math.abs(st.value) > 1e-3) && (old.inventory !== c.inventory || old.kind !== r.kind))
+    return "Clear this product's stock before changing its inventory account or product type.";
+  return "";
+}
+function productRecord(r, state) {
+  const c = CATEGORIES.find((x) => x.id === r.category);
+  return {
+    ...r,
+    code: r.code.trim() || (autoCodes(state) ? nextProductCode(state) : ""),
+    name: r.name.trim(),
+    barcode: (r.barcode || "").trim(),
+    price: +r.price || 0,
+    cost: +r.cost || 0,
+    reorder: +r.reorder || 0,
+    ...accountSnapshot(c)
+  };
+}
+function publishRecord(product, rec) {
+  if (product) {
+    const en = enrichProduct(rec), i = PRODUCTS.findIndex((p) => p.id === rec.id);
+    PROD[rec.id] = en;
+    if (i >= 0) PRODUCTS[i] = en;
+    else PRODUCTS.push(en);
+  } else {
+    const i = PARTNERS.findIndex((p) => p.id === rec.id);
+    PMAP[rec.id] = rec;
+    if (i >= 0) PARTNERS[i] = rec;
+    else PARTNERS.push(rec);
+  }
+}
+function applyPartnerChange(d, old, rec, reprice, salespeople) {
+  const patch = {}, said = [], isQ = d.type === "quote", isPO = d.type === "purchase_order", sale = DOCMETA[d.type].side === "sale";
+  if ((+old.terms || 0) !== (+rec.terms || 0)) {
+    patch.due = addDays(d.date, rec.terms || 0);
+    said.push(`${isQ ? "valid until" : isPO ? "deliver by" : "payment due"} ${dmy(patch.due)}`);
+  }
+  if (old.emirate !== rec.emirate && d.emirate === old.emirate && !d.deliverTo) {
+    patch.emirate = rec.emirate;
+    said.push(`place of supply ${rec.emirate}`);
+  }
+  if (sale && (old.salesman || "") !== (rec.salesman || "") && (d.salesman || "") === (old.salesman || "")) {
+    patch.salesman = rec.salesman || "";
+    const who = (salespeople || []).find((x) => x.id === rec.salesman);
+    said.push(rec.salesman ? `salesperson ${who ? who.name : "changed"}` : "no salesperson");
+  }
+  if ((old.pricelist || "") !== (rec.pricelist || "") && (d.pricelist || "") === (old.pricelist || "")) {
+    patch.pricelist = rec.pricelist || "";
+    said.push("its price list");
+  }
+  if (d.deliverTo && d.delivery) {
+    const b = branchesOf(rec).find((x) => x.id === d.deliverTo);
+    if (b) {
+      const snap = snapBranch(b);
+      if (JSON.stringify(snap) !== JSON.stringify(d.delivery)) {
+        patch.delivery = snap;
+        said.push("the delivery address");
+      }
+    }
+  }
+  if (!said.length) return null;
+  const next = { ...d, ...patch };
+  return { doc: "pricelist" in patch ? reprice(next) : next, said };
+}
+function applyProductChange(d, old, rec, priceOf) {
+  const sale = DOCMETA[d.type].side === "sale", tx = (t) => sale && t === "rc5" ? "s5" : t;
+  let n = 0;
+  const what = /* @__PURE__ */ new Set();
+  const lines = d.lines.map((l) => {
+    if (l.product !== rec.id) return l;
+    let x = l;
+    if (l.desc === old.name && rec.name !== old.name) {
+      x = { ...x, desc: rec.name };
+      what.add("name");
+    }
+    if (old.tax !== rec.tax && l.tax === tx(old.tax)) {
+      x = { ...x, tax: tx(rec.tax) };
+      what.add("VAT");
+    }
+    if (!l.manualPricing) {
+      const pr = priceOf(x);
+      if (R2(+pr.price || 0) !== R2(+l.price || 0)) what.add("price");
+      x = { ...x, ...pr };
+    }
+    if (x !== l) n++;
+    return x;
+  });
+  const w = [...what];
+  return w.length ? { doc: { ...d, lines }, said: [`the new ${w.length > 1 ? w.slice(0, -1).join(", ") + " and " + w[w.length - 1] : w[0]} on ${n} ${n === 1 ? "line" : "lines"}`] } : null;
+}
+function RecordOpen({ kind, id, onOpen, className }) {
+  const rec = kind === "product" ? PROD[id] : PMAP[id];
+  if (!rec || !onOpen || !recCan(kind, "view")) return null;
+  const t = `Open ${rec.name}`;
+  return /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      className: cx("rec-open", className),
+      title: t,
+      "aria-label": t,
+      onMouseDown: (e) => e.preventDefault(),
+      onClick: (e) => {
+        e.stopPropagation();
+        onOpen(id);
+      }
+    },
+    /* @__PURE__ */ React.createElement(ArrowUpRight, { size: 14, strokeWidth: 2.2 })
+  );
+}
+const RpSec = ({ icon: I, title, hint, children, id }) => /* @__PURE__ */ React.createElement("section", { className: "rp-sec", id }, /* @__PURE__ */ React.createElement("h3", null, /* @__PURE__ */ React.createElement("span", { className: "rp-si" }, /* @__PURE__ */ React.createElement(I, { size: 14 })), /* @__PURE__ */ React.createElement("span", null, title, hint && /* @__PURE__ */ React.createElement("small", null, hint))), children);
+function RecordPanel({ kind, initial, isNew, state, setState, books, toast, close, onSaved, tab: startTab, selecting, context }) {
+  const product = kind === "product", K = REC_KINDS[kind], mc = MODULE_COLORS[K.mod];
+  const [r, setR] = useState(() => ({ ...initial || (product ? newProduct() : newPartner(kind)) }));
+  const base = React.useRef(JSON.stringify(r)), ref = React.useRef(null), keys = React.useRef({});
+  const [tab, setTab] = useState(startTab || "details"), [err, setErr] = useState(""), [ask, setAsk] = useState(false), [side, setSide] = useState("sale");
+  const can = recCan(kind, isNew ? "create" : "edit"), dirty = JSON.stringify(r) !== base.current;
+  const f = (k, v) => {
+    setErr("");
+    setAsk(false);
+    setR((x) => ({ ...x, [k]: v }));
+  };
+  const fig = useMemo(() => isNew ? null : product ? productFigures(state, books, PROD[r.id] || r) : partnerFigures(state, PMAP[r.id] || r), [state, books]);
+  const hideCost = accField("cost") === "hide", roPrice = accField("price") === "readonly";
+  const tryClose = () => dirty && can ? setAsk(true) : close();
+  const save = () => {
+    if (!can) return;
+    const e = product ? productError(r, books) : partnerError(r);
+    if (e) {
+      setErr(e);
+      setAsk(false);
+      return;
+    }
+    const old = isNew ? null : product ? PROD[r.id] : PMAP[r.id];
+    const rec = product ? productRecord(r, state) : partnerRecord(r);
+    publishRecord(product, rec);
+    saveMaster(setState, product ? "products" : "partners", rec);
+    close();
+    const said = onSaved ? onSaved(rec, old) : null;
+    toast(said || `${rec.name} saved`);
+  };
+  keys.current = { tryClose, save, ask };
+  React.useEffect(() => {
+    const el = ref.current, prev = document.activeElement;
+    requestAnimationFrame(() => (isNew ? el.querySelector(".rp-body input:not(:disabled)") : el)?.focus({ preventScroll: true }));
+    const key = (e) => {
+      if (e.defaultPrevented || e.target !== document.body && !el.contains(e.target)) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        keys.current.ask ? setAsk(false) : keys.current.tryClose();
+      } else if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        e.stopPropagation();
+        keys.current.save();
+      } else if (e.key === "Tab") {
+        const all = [...el.querySelectorAll("button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex='0']")].filter((x) => x.offsetParent !== null);
+        const first = all[0], last = all[all.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last && last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first && first.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("keydown", key);
+      prev && prev.focus && prev.focus({ preventScroll: true });
+    };
+  }, []);
+  const name = r.name.trim() || (isNew ? `New ${K.noun}` : cap1(K.noun));
+  const cat = product ? CATEGORIES.find((c) => c.id === r.category) : null;
+  const sub = product ? [r.code || (isNew ? autoCodes(state) ? "Code " + nextProductCode(state) : "No code yet" : "No code"), cat && cat.name, r.uom].filter(Boolean) : [r.trn ? "TRN " + r.trn : "Not VAT registered", r.emirate, +r.terms ? `${+r.terms} days` : "Cash"];
+  const sp = !product && r.salesman && (state.salespeople || []).find((x) => x.id === r.salesman);
+  const low = product && fig && r.kind === "goods" && fig.st.qty <= (+r.reorder || 0);
+  const tags = product ? [[r.kind === "goods" ? "Storable goods" : "Service", "info"], r.brand && [r.brand], r.barcode && ["Barcode " + r.barcode], low && [fig.st.qty <= 0 ? "Out of stock" : "Low stock", fig.st.qty <= 0 ? "neg" : "warn"]] : [
+    [r.trn ? "VAT registered" : "Not VAT registered", r.trn ? "ok" : ""],
+    r.emirate === "Export" && ["Export \xB7 zero-rated", "info"],
+    r.emirate === "Import" && ["Import \xB7 reverse charge", "info"],
+    r.designatedZone && ["Designated zone", "gold"],
+    sp && ["Salesperson " + sp.name],
+    branchesOf(r).length > 0 && [`${branchesOf(r).length} delivery address${branchesOf(r).length === 1 ? "" : "es"}`]
+  ];
+  const kpis = !fig ? [] : product ? [
+    { l: "On hand", v: r.kind === "goods" ? /* @__PURE__ */ React.createElement(React.Fragment, null, fig.st.qty, " ", /* @__PURE__ */ React.createElement("small", null, r.uom)) : "Service", tone: r.kind === "goods" && (fig.st.qty <= 0 ? "neg" : low ? "warn" : "") },
+    { l: "Sales price", v: +r.price ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("small", null, "AED"), " ", money(+r.price, false)) : "Priced per sale" },
+    hideCost ? { l: "Last sold", v: fig.lastSale ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("small", null, "AED"), " ", money(fig.lastSale.unitNet, false)) : "Not yet", s: fig.lastSale && dmy(fig.lastSale.date) } : { l: "Unit cost", v: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("small", null, "AED"), " ", money(fig.cost, false)), s: r.kind === "goods" ? (COSTING[books.method] || COSTING.avco).label : "Service", cls: "cost-data" },
+    { l: "Sold this year", v: /* @__PURE__ */ React.createElement(React.Fragment, null, fig.soldQty, " ", /* @__PURE__ */ React.createElement("small", null, r.uom)), s: fig.soldAmt ? `AED ${money(fig.soldAmt, false)}` : "No sales yet" }
+  ] : [
+    { l: r.role === "vendor" ? "You owe" : "Owes you", v: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("small", null, "AED"), " ", money(fig.balance, false)), s: fig.open ? `${fig.open} open ${r.role === "vendor" ? "bill" : "invoice"}${fig.open === 1 ? "" : "s"}` : "All settled", cls: "bal-data" },
+    { l: "Overdue", v: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("small", null, "AED"), " ", money(fig.overdue, false)), tone: fig.overdue > 4e-3 ? "neg" : "", s: fig.overdue > 4e-3 ? "Past its due date" : "Nothing overdue", cls: "bal-data" },
+    { l: r.role === "vendor" ? "Purchases this year" : "Sales this year", v: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("small", null, "AED"), " ", money(fig.year, false)), s: "Excluding VAT" },
+    { l: r.role === "vendor" ? "Last bill" : "Last invoice", v: fig.last ? fig.last.number : "None yet", s: fig.last && dmy(fig.last.date), cls: "txt" }
+  ];
+  const tabs = [["details", "Details", Pencil], ...isNew ? [] : product ? [["history", "Price history", History]] : [["activity", "Activity", Clock]]];
+  const acts = !fig || product ? [] : [
+    ...fig.docs.map((d) => ({
+      id: d.id,
+      date: d.date,
+      no: d.number,
+      t: DOCMETA[d.type].short,
+      st: DOC_STATE_L[d.state] || cap1(d.state || ""),
+      amt: amounts(d).total,
+      tone: d.state === "posted" ? "ok" : d.state === "rejected" ? "neg" : "",
+      kind: d.type
+    })),
+    ...fig.pays.map((x) => ({ id: x.id, date: x.date, no: x.number, t: x.kind === "in" ? "Receipt" : "Payment", st: "Recorded", amt: x.amount, tone: "info", kind: "pay" }))
+  ].sort((a, b) => b.date.localeCompare(a.date) || String(b.no).localeCompare(String(a.no)));
+  const saveLabel = isNew ? selecting ? "Save & select" : product ? "Save product" : "Create" : "Save changes";
+  const fld = (label, k, p = {}) => /* @__PURE__ */ React.createElement(Field, { label, span: p.span }, /* @__PURE__ */ React.createElement(Input, { value: r[k] ?? "", onChange: (e) => f(k, e.target.value), ...p.inp }));
+  return ReactDOM.createPortal(/* @__PURE__ */ React.createElement("div", { className: "rp-layer" }, /* @__PURE__ */ React.createElement("div", { className: "rp-scrim", onMouseDown: tryClose }), /* @__PURE__ */ React.createElement(
+    "aside",
+    {
+      ref,
+      tabIndex: -1,
+      className: cx("rp", product && "is-prod", dirty && "dirty"),
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": `${cap1(K.noun)}: ${name}`,
+      "data-kind": kind,
+      style: { "--rc": mc.m, "--rc-l": mc.l, "--rc-hi": mc.hi, "--rc-deep": mc.deep }
+    },
+    /* @__PURE__ */ React.createElement("header", { className: "rp-head" }, /* @__PURE__ */ React.createElement("div", { className: "rp-bar" }, /* @__PURE__ */ React.createElement("span", { className: "rp-kind" }, /* @__PURE__ */ React.createElement(K.Icon, { size: 13 }), isNew ? `New ${K.noun}` : cap1(K.noun)), !can && /* @__PURE__ */ React.createElement("span", { className: "rp-ro" }, /* @__PURE__ */ React.createElement(Lock, { size: 11 }), "View only"), !isNew && fig && /* @__PURE__ */ React.createElement("span", { className: "rp-uses" }, product ? `On ${fig.uses} document${fig.uses === 1 ? "" : "s"}` : `${fig.docs.length} document${fig.docs.length === 1 ? "" : "s"} \xB7 ${fig.pays.length} payment${fig.pays.length === 1 ? "" : "s"}`), /* @__PURE__ */ React.createElement("button", { className: "rp-x", onClick: tryClose, "aria-label": "Close", title: "Close (Esc)" }, /* @__PURE__ */ React.createElement(X, { size: 18 }))), /* @__PURE__ */ React.createElement("div", { className: "rp-id" }, /* @__PURE__ */ React.createElement("span", { className: "rp-av", "aria-hidden": "true" }, product ? r.kind === "goods" ? /* @__PURE__ */ React.createElement(Package, { size: 24, strokeWidth: 1.7 }) : /* @__PURE__ */ React.createElement(Layers, { size: 24, strokeWidth: 1.7 }) : initials(r.name) || /* @__PURE__ */ React.createElement(K.Icon, { size: 24, strokeWidth: 1.7 })), /* @__PURE__ */ React.createElement("div", { className: "rp-nm" }, /* @__PURE__ */ React.createElement("h2", null, name), /* @__PURE__ */ React.createElement("p", null, sub.join(" \xB7 ")))), /* @__PURE__ */ React.createElement("div", { className: "rp-tags" }, tags.filter(Boolean).map(([t, tone]) => /* @__PURE__ */ React.createElement("span", { key: t, className: cx("rp-tag", tone) }, t)))),
+    kpis.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "rp-kpis" }, kpis.map((k) => /* @__PURE__ */ React.createElement("div", { key: k.l, className: cx("rp-kpi", k.tone, k.cls) }, /* @__PURE__ */ React.createElement("small", null, k.l), /* @__PURE__ */ React.createElement("b", null, k.v), k.s && /* @__PURE__ */ React.createElement("span", null, k.s)))),
+    tabs.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "rp-tabs", role: "tablist", "aria-label": `${cap1(K.noun)} views` }, tabs.map(([k, l, I]) => /* @__PURE__ */ React.createElement("button", { key: k, role: "tab", "aria-selected": tab === k, className: tab === k ? "on" : "", onClick: () => setTab(k) }, /* @__PURE__ */ React.createElement(I, { size: 14 }), l, k === "activity" && /* @__PURE__ */ React.createElement("em", null, acts.length)))),
+    /* @__PURE__ */ React.createElement("div", { className: "rp-body" }, context && /* @__PURE__ */ React.createElement("div", { className: "rp-ctx" }, /* @__PURE__ */ React.createElement(Link2, { size: 14 }), /* @__PURE__ */ React.createElement("span", null, context)), tab === "details" && /* @__PURE__ */ React.createElement("fieldset", { className: "rp-fs", disabled: !can }, product ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(RpSec, { icon: Package, title: "Product", hint: "How it is named and found on documents" }, /* @__PURE__ */ React.createElement("div", { className: "rp-grid" }, fld("Product name", "name", { span: 2, inp: { placeholder: 'e.g. Apple MacBook Air 13" M3' } }), fld("Name in Arabic (optional)", "nameAr", { span: 2, inp: { dir: "rtl", lang: "ar", placeholder: "\u0627\u0633\u0645 \u0627\u0644\u0645\u0646\u062A\u062C \u0628\u0627\u0644\u0639\u0631\u0628\u064A\u0629" } }), fld(autoCodes(state) ? "Product code / SKU \xB7 automatic" : "Product code / SKU \xB7 optional", "code", { inp: { placeholder: autoCodes(state) ? "Leave empty for " + nextProductCode(state) : "Optional" } }), fld("Barcode", "barcode", { inp: { placeholder: "Scan or type the barcode" } }), /* @__PURE__ */ React.createElement(Field, { label: "Brand" }, /* @__PURE__ */ React.createElement(CreatableSelect, { value: r.brand, onChange: (v) => f("brand", v), options: brandOptions(state), placeholder: "No brand", createLabel: "New brand", onCreate: addBrand(setState), ariaLabel: "Brand", disabled: !can })), /* @__PURE__ */ React.createElement(Field, { label: "Category" }, /* @__PURE__ */ React.createElement(
+      CreatableSelect,
+      {
+        value: r.category,
+        onChange: (v) => f("category", v),
+        options: CATEGORIES.filter((c) => c.id !== "cat_opening").map((c) => ({ value: c.id, label: c.name })),
+        createLabel: "New category",
+        hint: `It starts with the accounts of "${(CATEGORIES.find((c) => c.id === (r.kind === "goods" ? "cat_goods" : "cat_services")) || {}).name || "the default category"}". You can change them later under Product categories.`,
+        onCreate: addCategory(setState, r.kind),
+        ariaLabel: "Category",
+        disabled: !can
+      }
+    )), /* @__PURE__ */ React.createElement(Field, { label: "Item type" }, /* @__PURE__ */ React.createElement(Select, { value: r.kind, onChange: (e) => {
+      const v = e.target.value;
+      setErr("");
+      setR((x) => ({ ...x, kind: v, category: v === "goods" ? "cat_goods" : "cat_services" }));
+    } }, /* @__PURE__ */ React.createElement("option", { value: "goods" }, "Storable goods"), /* @__PURE__ */ React.createElement("option", { value: "service" }, "Service / expense"))), /* @__PURE__ */ React.createElement(Field, { label: "Default VAT" }, /* @__PURE__ */ React.createElement(Select, { value: r.tax, onChange: (e) => f("tax", e.target.value) }, TAXES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.id, value: t.id }, t.name)))))), /* @__PURE__ */ React.createElement(RpSec, { icon: Boxes, title: "Units & stock", hint: "Quantities on documents use the unit" }, /* @__PURE__ */ React.createElement("div", { className: "rp-grid" }, fld("Unit of measure", "uom", { inp: { placeholder: "Units, Boxes, Hours\u2026" } }), fld("Packing", "packing", { inp: { placeholder: "e.g. Box of 12 \xB7 500 ml" } }), /* @__PURE__ */ React.createElement(Field, { label: "Low stock threshold" }, /* @__PURE__ */ React.createElement(Input, { n: true, type: "number", min: "0", value: r.reorder ?? 5, onChange: (e) => f("reorder", e.target.value) })), fig && r.kind === "goods" && /* @__PURE__ */ React.createElement(Field, { label: "On hand now" }, /* @__PURE__ */ React.createElement("div", { className: cx("readonly", low && "warn") }, fig.st.qty, " ", r.uom, !hideCost && /* @__PURE__ */ React.createElement("small", { className: "subtext cost-data" }, "Stock value AED ", money(fig.st.value, false)))))), /* @__PURE__ */ React.createElement(RpSec, { icon: Tag, title: "Prices & VAT", hint: "Documents start from these; price lists and special prices can change them" }, /* @__PURE__ */ React.createElement("div", { className: "rp-grid" }, /* @__PURE__ */ React.createElement(Field, { label: "Sales price \xB7 AED" }, /* @__PURE__ */ React.createElement(Input, { n: true, type: "number", min: "0", step: "0.01", disabled: roPrice, value: +r.price === 0 ? "" : r.price, placeholder: "Empty: price it on each invoice", onChange: (e) => f("price", e.target.value) })), !hideCost && /* @__PURE__ */ React.createElement(Field, { label: "Cost price \xB7 AED" }, /* @__PURE__ */ React.createElement(Input, { n: true, type: "number", min: "0", step: "0.01", value: +r.cost === 0 ? "" : r.cost, placeholder: "Set by the first purchase", onChange: (e) => f("cost", e.target.value) })), !hideCost && r.kind === "goods" && /* @__PURE__ */ React.createElement(Field, { label: "Current unit cost \xB7 " + (COSTING[books.method] || COSTING.avco).label, span: 2 }, /* @__PURE__ */ React.createElement("div", { className: "readonly mono" }, PROD[r.id] ? "AED " + money(currentCost(PROD[r.id], books), false) : "Set by the first purchase", r.lastPurchase ? /* @__PURE__ */ React.createElement("small", { className: "subtext" }, "Last purchase AED ", money(r.lastPurchase, false)) : null))), cat && /* @__PURE__ */ React.createElement("div", { className: "rp-note" }, /* @__PURE__ */ React.createElement(BookOpen, { size: 15 }), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("b", null, "Accounts from ", cat.name), ": revenue ", cat.income, " \xB7 cost or expense ", cat.expense, " \xB7 inventory ", cat.inventory, ". Change them for the whole category under Product categories."))), /* @__PURE__ */ React.createElement("p", { className: "rp-id-line" }, "Internal ID ", /* @__PURE__ */ React.createElement("code", null, r.id))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(RpSec, { icon: Building2, title: "Business", hint: "As it appears on invoices and in the VAT return" }, /* @__PURE__ */ React.createElement("div", { className: "rp-grid" }, fld("Registered name", "name", { span: 2, inp: { placeholder: kind === "vendor" ? "Gulf Supplies L.L.C." : "Al Manara Trading L.L.C." } }), fld("Name in Arabic (optional)", "nameAr", { span: 2, inp: { dir: "rtl", lang: "ar", placeholder: "\u0627\u0644\u0627\u0633\u0645 \u0628\u0627\u0644\u0639\u0631\u0628\u064A\u0629" } }), /* @__PURE__ */ React.createElement(Field, { label: "TRN" }, /* @__PURE__ */ React.createElement(Input, { value: r.trn || "", inputMode: "numeric", placeholder: "15 digits, or blank", onChange: (e) => f("trn", e.target.value), "aria-invalid": !!r.trn && !/^\d{15}$/.test(r.trn.trim()) }), r.trn && !/^\d{15}$/.test(r.trn.trim()) && /* @__PURE__ */ React.createElement("span", { className: "rp-fe" }, "A UAE TRN is exactly 15 digits")), /* @__PURE__ */ React.createElement(Field, { label: "Territory" }, /* @__PURE__ */ React.createElement(Select, { value: r.emirate, onChange: (e) => f("emirate", e.target.value) }, [...EMIRATES, "Export", "Import"].map((x) => /* @__PURE__ */ React.createElement("option", { key: x }, x))))), /* @__PURE__ */ React.createElement("div", { className: "rp-note" }, /* @__PURE__ */ React.createElement(Info, { size: 15 }), /* @__PURE__ */ React.createElement("span", null, kind === "customer" ? r.emirate === "Export" ? "Exports are zero-rated \u2014 invoices default to 0% VAT." : `Standard-rated sales are reported under ${r.emirate} in Box 1 of the VAT return.` : r.emirate === "Import" ? "Imports self-account under the reverse charge \u2014 Box 3 and Box 10." : "Local purchases recover input VAT in Box 9."))), /* @__PURE__ */ React.createElement(RpSec, { icon: Mail, title: "Contact & address", hint: "Printed on documents; WhatsApp and email send to these" }, /* @__PURE__ */ React.createElement("div", { className: "rp-grid" }, fld("Email", "contact", { inp: { type: "email", placeholder: "accounts@company.ae" } }), fld("WhatsApp number", "phone", { inp: { placeholder: "+971 50 123 4567" } }), fld("Address line 1", "address", { inp: { placeholder: "Office / building, street" } }), fld("Address line 2", "address2", { inp: { placeholder: "Area, city, P.O. Box (optional)" } }))), /* @__PURE__ */ React.createElement(RpSec, { icon: Wallet, title: "Terms & pricing", hint: "New documents take these; changing them here updates open drafts" }, /* @__PURE__ */ React.createElement("div", { className: "rp-grid" }, /* @__PURE__ */ React.createElement(Field, { label: "Payment terms (days)" }, /* @__PURE__ */ React.createElement(Input, { n: true, type: "number", min: "0", value: r.terms, onChange: (e) => f("terms", e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: "Default price list" }, /* @__PURE__ */ React.createElement(Select, { value: r.pricelist || "", onChange: (e) => f("pricelist", e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Product prices"), (state.priceLists || []).filter((x) => x.side === (kind === "customer" ? "sale" : "purchase")).map((x) => /* @__PURE__ */ React.createElement("option", { key: x.id, value: x.id }, x.name)))), kind === "customer" && /* @__PURE__ */ React.createElement(Field, { label: "Salesperson", span: 2 }, /* @__PURE__ */ React.createElement(CreatableSelect, { value: r.salesman, onChange: (v) => f("salesman", v), options: salespersonOptions(state), placeholder: "Unassigned", createLabel: "New salesperson", onCreate: addSalesperson(setState), ariaLabel: "Salesperson", disabled: !can })))), kind === "customer" && /* @__PURE__ */ React.createElement(RpSec, { icon: Truck, title: "Delivery addresses", hint: "Branches or sites this customer receives goods at" }, /* @__PURE__ */ React.createElement(BranchEditor, { ed: r, setEd: (fn) => {
+      setErr("");
+      setR(fn);
+    } })), !isNew && /* @__PURE__ */ React.createElement(RpSec, { icon: Star, title: "Special prices", hint: `Prices agreed with this ${K.noun}; they apply on every new document` }, /* @__PURE__ */ React.createElement(PartySpecials, { state, setState, books, partner: r.id, role: r.role, toast })))), tab === "activity" && /* @__PURE__ */ React.createElement("div", { className: "rp-act" }, !acts.length ? /* @__PURE__ */ React.createElement(EmptyState, { icon: FileText, title: "Nothing yet" }, `Quotations, invoices and payments with this ${K.noun} will be listed here.`) : acts.slice(0, 40).map((a, i) => /* @__PURE__ */ React.createElement("div", { key: a.id, className: "rp-ar", style: { "--i": i } }, /* @__PURE__ */ React.createElement("span", { className: cx("rp-ai", a.kind) }, a.kind === "pay" ? /* @__PURE__ */ React.createElement(Banknote, { size: 14 }) : /* @__PURE__ */ React.createElement(FileText, { size: 14 })), /* @__PURE__ */ React.createElement("span", { className: "rp-at" }, /* @__PURE__ */ React.createElement("b", null, a.no), /* @__PURE__ */ React.createElement("small", null, a.t, " \xB7 ", dmy(a.date))), /* @__PURE__ */ React.createElement("span", { className: "rp-aa" }, /* @__PURE__ */ React.createElement("b", null, money(a.amt, false)), /* @__PURE__ */ React.createElement(Pill, { tone: a.tone }, a.st)))), acts.length > 40 && /* @__PURE__ */ React.createElement("p", { className: "rp-more" }, "The latest 40 of ", acts.length, ". The full list is in the statement of account.")), tab === "history" && /* @__PURE__ */ React.createElement("div", { className: "rp-hist" }, /* @__PURE__ */ React.createElement("div", { className: "seg rp-side" }, [["sale", "Sales"], ["purchase", "Purchases"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, className: side === k ? "on" : "", onClick: () => setSide(k) }, l))), /* @__PURE__ */ React.createElement(HistoryTable, { key: side, state, product: r.id, side }))),
+    /* @__PURE__ */ React.createElement("footer", { className: cx("rp-foot", ask && "asking") }, ask ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "rp-msg warn" }, /* @__PURE__ */ React.createElement(AlertTriangle, { size: 15 }), "Discard your changes to ", name, "?"), /* @__PURE__ */ React.createElement(Btn, { onClick: () => setAsk(false) }, "Keep editing"), /* @__PURE__ */ React.createElement(Btn, { kind: "danger", onClick: close }, "Discard")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: cx("rp-msg", err && "err"), role: err ? "alert" : void 0 }, err ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(CircleAlert, { size: 15 }), err) : !can ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lock, { size: 13 }), `Changing ${K.noun}s needs edit rights`) : dirty ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("i", { className: "rp-dot" }), "Unsaved changes ", /* @__PURE__ */ React.createElement("kbd", null, "Ctrl S")) : isNew ? selecting ? "Saved and put on your document in one step" : `A new ${K.noun}, ready for your next document` : "No changes yet"), /* @__PURE__ */ React.createElement(Btn, { onClick: tryClose }, can ? "Cancel" : "Close"), can && /* @__PURE__ */ React.createElement(Btn, { kind: "pri", icon: Check, onClick: save, disabled: !isNew && !dirty }, saveLabel)))
+  )), document.querySelector(".mz"));
+}
+const RECORD_CSS = `
+/* the panel: slides in from the right over a dimmed page, in the colour of its kind's module */
+.rp-layer{position:fixed;inset:0;z-index:1250}
+.rp-layer~.studio-overlay{z-index:1300}
+.rp-scrim{position:absolute;inset:0;background:color-mix(in srgb,#0B1020 42%,transparent);backdrop-filter:blur(2px);animation:fade .22s ease-out}
+.rp{position:absolute;top:0;right:0;bottom:0;width:min(640px,100vw);display:flex;flex-direction:column;background:var(--bg);border-left:1px solid var(--line);
+  box-shadow:-30px 0 80px rgba(8,12,30,.28);outline:none;animation:rpIn .42s cubic-bezier(.22,1,.36,1) both;color:var(--ink)}
+@keyframes rpIn{from{transform:translateX(56px);opacity:0}to{transform:none;opacity:1}}
+.mz[data-module] .rp{--brand:var(--rc);--brand-600:color-mix(in srgb,var(--rc) 82%,#000);--brand-50:color-mix(in srgb,var(--rc) 8%,#fff);--brand-100:color-mix(in srgb,var(--rc) 18%,#fff);
+  --ring:0 0 0 3px color-mix(in srgb,var(--rc) 22%,transparent);--pri-a:color-mix(in srgb,var(--rc) 86%,#fff);--pri-b:var(--rc);--pri-ha:color-mix(in srgb,var(--rc) 93%,#fff);
+  --pri-hb:color-mix(in srgb,var(--rc) 86%,#000);--pri-sh:color-mix(in srgb,var(--rc) 32%,transparent);--pri-txt:#fff}
+.mz[data-module][data-theme="dark"] .rp{--brand:var(--rc-l);--brand-50:color-mix(in srgb,var(--rc-l) 13%,var(--surface));--brand-100:color-mix(in srgb,var(--rc-l) 22%,var(--surface));--ring:0 0 0 3px color-mix(in srgb,var(--rc-l) 30%,transparent)}
+.rp-head{position:relative;padding:14px 22px 16px;color:#fff;background:var(--hero);overflow:hidden;flex:0 0 auto}
+.mz[data-module] .rp-head{background:linear-gradient(120deg,var(--rc-deep) 0%,color-mix(in srgb,var(--rc) 55%,var(--rc-deep)) 52%,var(--rc) 100%)}
+.rp-head::after{content:"";position:absolute;right:-60px;top:-80px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 65%);pointer-events:none}
+.rp-bar{display:flex;align-items:center;gap:8px;min-height:30px}
+.rp-kind{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.82)}
+.rp-ro,.rp-uses{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.13);color:rgba(255,255,255,.9)}
+.rp-uses{background:none;padding:0 4px;color:rgba(255,255,255,.7)}
+.rp-x{margin-left:auto;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);position:relative;z-index:1}
+.rp-x:hover{background:rgba(255,255,255,.2)}.rp-x:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.rp-id{display:flex;align-items:center;gap:14px;margin-top:10px;position:relative;z-index:1}
+.rp-av{width:54px;height:54px;flex:0 0 54px;border-radius:16px;display:grid;place-items:center;font-size:19px;font-weight:700;letter-spacing:.02em;color:#fff;
+  background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.24);box-shadow:inset 0 1px 0 rgba(255,255,255,.2)}
+.rp-nm{min-width:0}.rp-nm h2{margin:0;font-size:21px;line-height:1.25;letter-spacing:-.02em;font-weight:700;color:#fff;overflow-wrap:anywhere}
+.rp-nm p{margin:3px 0 0;font-size:12.5px;color:rgba(255,255,255,.78);font-variant-numeric:tabular-nums}
+.rp-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;position:relative;z-index:1}
+.rp-tag{font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.18)}
+.rp-tag.ok::before,.rp-tag.warn::before,.rp-tag.neg::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:1px;background:#4ADE80}
+.rp-tag.warn::before{background:#FBBF24}.rp-tag.neg::before{background:#F87171}
+.rp-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border-bottom:1px solid var(--line);flex:0 0 auto}
+.rp-kpi{background:var(--surface);padding:11px 14px 12px;min-width:0}
+.rp-kpi small{display:block;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
+.rp-kpi b{display:block;margin-top:4px;font-size:16px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rp-kpi b small{display:inline;font-size:10.5px;letter-spacing:0;text-transform:none;font-weight:600}
+.rp-kpi.txt b{font-size:14px}.rp-kpi>span{display:block;margin-top:2px;font-size:11.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rp-kpi.neg b{color:var(--neg)}.rp-kpi.warn b{color:var(--warn)}
+.rp-tabs{display:flex;gap:4px;padding:0 18px;background:var(--surface);border-bottom:1px solid var(--line);flex:0 0 auto}
+.rp-tabs button{display:inline-flex;align-items:center;gap:7px;padding:11px 10px 10px;font-size:13px;font-weight:600;color:var(--ink-3);border-bottom:2px solid transparent;margin-bottom:-1px}
+.rp-tabs button:hover{color:var(--ink)}.rp-tabs button.on{color:var(--brand);border-bottom-color:var(--brand)}
+.rp-tabs em{font-style:normal;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--surface-2);color:var(--ink-2)}
+.rp-body{flex:1 1 auto;overflow:auto;padding:18px 22px 26px;overscroll-behavior:contain}
+.rp-fs{border:0;margin:0;padding:0;min-width:0;display:grid;gap:14px}
+.rp-sec{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px 16px}
+.rp-sec>h3{display:flex;align-items:flex-start;gap:10px;margin:0 0 12px;font-size:14px;font-weight:700;letter-spacing:-.01em}
+.rp-sec>h3 small{display:block;margin-top:2px;font-size:12px;font-weight:500;color:var(--ink-3);letter-spacing:0}
+.rp-si{width:26px;height:26px;flex:0 0 26px;border-radius:8px;display:grid;place-items:center;color:var(--brand);background:var(--brand-50)}
+.rp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 14px}
+.rp-grid .fld{min-width:0}
+.rp-fe{display:block;font-size:11.5px;color:var(--neg);margin-top:5px}
+.rp-note{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--surface-2);font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.rp-note svg{flex:0 0 auto;margin-top:2px;color:var(--brand)}
+.rp-sec .br-editor{margin-top:0;border:0;padding:0;background:none}
+.rp-sec .party-specials{margin-top:0}
+.rp-fs:disabled .rp-sec{background:color-mix(in srgb,var(--surface) 70%,var(--bg))}
+.rp-fs:disabled .inp{background:var(--surface-2);color:var(--ink-2);border-color:var(--line-2,var(--line));cursor:default;box-shadow:none}
+.rp-id-line{margin:0;font-size:11.5px;color:var(--ink-3)}.rp-id-line code{font-family:var(--mono);font-size:11px}
+.readonly.warn{color:var(--warn)}
+.rp-act{display:grid;gap:6px}
+.rp-ar{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:var(--surface);border:1px solid var(--line);animation:rpRow .4s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(min(var(--i),12) * 18ms)}
+@keyframes rpRow{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.rp-ai{width:30px;height:30px;flex:0 0 30px;border-radius:9px;display:grid;place-items:center;color:var(--brand);background:var(--brand-50)}
+.rp-ai.pay{color:var(--pos);background:var(--pos-50)}
+.rp-at{min-width:0;flex:1}.rp-at b{display:block;font-size:13px;font-family:var(--mono);font-weight:600}.rp-at small{font-size:12px;color:var(--ink-3)}
+.rp-aa{display:flex;flex-direction:column;align-items:flex-end;gap:4px}.rp-aa b{font-size:13.5px;font-variant-numeric:tabular-nums}
+.rp-more{font-size:12px;color:var(--ink-3);text-align:center;margin:8px 0 0}
+.rp-hist{display:grid;gap:12px}.rp-side{justify-self:start}
+.rp-hist .history-block{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
+.rp-foot{display:flex;align-items:center;gap:8px;padding:12px 22px;background:var(--surface);border-top:1px solid var(--line);flex:0 0 auto}
+.rp-foot.asking{background:color-mix(in srgb,var(--warn) 9%,var(--surface))}
+.rp-msg{margin-right:auto;display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-3);min-width:0}
+.rp-msg.err{color:var(--neg);font-weight:600}.rp-msg.warn{color:var(--ink);font-weight:600}.rp-msg.warn svg{color:var(--warn)}
+.rp-msg kbd{font-family:var(--mono);font-size:10.5px;padding:1px 6px;border-radius:5px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2)}
+.rp-dot{width:7px;height:7px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 22%,transparent)}
+@media(max-width:700px){.rp{width:100vw;border-left:0}.rp-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.rp-grid{grid-template-columns:1fr}.rp-grid .fld{grid-column:auto!important}
+  .rp-head{padding:12px 16px 14px}.rp-body{padding:14px 14px 22px}.rp-foot{padding:10px 14px;flex-wrap:wrap}.rp-msg{flex:1 0 100%}.rp-foot .btn{flex:1}.rp-tabs{padding:0 10px}}
+@media(prefers-reduced-motion:reduce){.rp,.rp-scrim,.rp-ar{animation:none}}
+@media print{.rp-layer{display:none}}
+
+.rp-ctx{display:flex;align-items:center;gap:9px;margin:-4px 0 14px;padding:9px 12px;border-radius:10px;font-size:12.5px;color:var(--ink-2);
+  background:color-mix(in srgb,var(--brand) 7%,var(--surface));border:1px dashed color-mix(in srgb,var(--brand) 35%,transparent)}
+.rp-ctx svg{flex:0 0 auto;color:var(--brand)}
+
+/* the document: terms beside the TRN, and a line when the party is overdue */
+.readonly.party-trn{display:flex;align-items:center;gap:8px}.party-trn span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.party-trn em{margin-left:auto;flex:0 0 auto;font-style:normal;font-family:var(--sans);font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--ink-2)}
+.party-alert{display:flex;align-items:center;gap:10px;margin:12px 0 2px;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.45;
+  background:color-mix(in srgb,var(--warn) 9%,var(--surface));border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);animation:rpRow .45s cubic-bezier(.22,1,.36,1) both}
+.party-alert>svg{flex:0 0 auto;color:var(--warn)}.party-alert>span{flex:1;min-width:0}
+.party-alert.info{background:color-mix(in srgb,var(--brand) 6%,var(--surface));border-color:color-mix(in srgb,var(--brand) 22%,transparent)}.party-alert.info>svg{color:var(--brand)}
+.party-alert .linkish{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-weight:600}
+@media print{.party-alert{display:none}}
+
+/* the arrow that opens a record, inside its field */
+.smart-picker.has-open>.inp{padding-right:38px!important}
+.mz .rec-open{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:var(--brand);background:var(--brand-50);border:1px solid color-mix(in srgb,var(--brand) 22%,transparent);
+  transition:background .15s,color .15s,transform .2s cubic-bezier(.22,1,.36,1),opacity .15s}
+.mz .rec-open:hover{background:var(--brand);color:var(--pri-txt,#fff);transform:translate(1px,-1px)}
+.mz .rec-open:focus-visible{outline:none;box-shadow:var(--ring)}
+.smart-picker>.rec-open{position:absolute;right:6px;top:50%;margin-top:-13px}
+.fld:has(>.rec-open){position:relative;align-self:start}
+.fld>.rec-open{position:absolute;right:34px;bottom:6px;z-index:1}
+.fld:has(>.rec-open)>.inp.sel{padding-right:68px}
+/* on a line, the arrow shows when the line is in use; always on touch screens */
+.line-grid .smart-picker>.rec-open{opacity:0;width:24px;height:24px;margin-top:-12px;right:4px}
+.line-grid tr:hover .smart-picker>.rec-open,.line-grid tr.active .smart-picker>.rec-open,.line-grid .smart-picker>.rec-open:focus-visible{opacity:1}
+@media(hover:none){.line-grid .smart-picker>.rec-open{opacity:1}}
+/* a customer or vendor row opens the record; what is overdue shows under the balance */
+.mz .late-note{display:block;margin-top:2px;font-size:11px;font-weight:600;color:var(--neg)}
+.mz tr.rowlink{cursor:pointer}.mz tr.rowlink:hover td{background:color-mix(in srgb,var(--brand) 4%,var(--surface))}
+/* the party named in a document's heading opens its record too */
+.du-party{font:inherit;font-weight:700;color:inherit;text-decoration:underline;text-decoration-color:color-mix(in srgb,currentColor 35%,transparent);text-underline-offset:3px}
+.du-party:hover{color:var(--brand);text-decoration-color:currentColor}
 `;
 
 window.__Invoeez=Invoeez;</script>

@@ -1,3 +1,40 @@
+# 3.26.0 — Open a customer, vendor or product from any document, and a cleaner record form
+
+- **Open the record behind a document, change it, and carry on**:
+  - **Where**: quotations, invoices, credit notes, purchase orders, vendor bills, debit notes, receipts and payments, expenses and post-dated cheques. (InvoEez has no separate sales order; a quotation does that job.)
+  - **How to open it**:
+    - the small arrow inside the **Customer** or **Vendor** field;
+    - the customer or vendor named under the document number;
+    - the arrow on a product line (it shows when you point at the line), or **Open product** under the line you are on.
+  - **What opens**: a panel slides in from the right with the document still visible behind it. You can open the record from a posted document too.
+  - **Saving brings the open draft up to date**:
+    - **Payment terms**: the due date moves (or "valid until" on a quotation, "deliver by" on a purchase order).
+    - **Territory**: the place of supply follows, unless a delivery address set it.
+    - **Salesperson and default price list**: follow too, unless you had already changed them on the draft. With a new price list, the lines are repriced.
+    - **Product name, price and VAT**: reach the draft's lines. A price you typed yourself stays.
+
+    A message says exactly what changed, for example "this invoice now has payment due 20 Nov 2026". A posted document keeps its figures; the panel says so.
+  - **Create in one step**: a new customer, vendor or product created from a picker opens in the same panel, and **Save & select** puts it on the document.
+  - **Keys**: **Ctrl S** in the panel saves the record, not the document behind it. **Esc** closes the panel, asking first if there are unsaved changes.
+- **One record form everywhere, redesigned**:
+  - **Same panel on every screen**: Customers, Vendors and the product library use it for new and existing records. Click a customer or vendor row to open it; a product card opens on its price history.
+  - **Header**: the name, TRN or code, territory and terms, and tags (VAT registered, export or import, designated zone, salesperson, delivery addresses; goods or service, brand, barcode, low stock). It is in the colour of the module: Sales blue for customers, Purchase violet for vendors, Inventory orange for products.
+  - **Four figures at a glance**:
+    - **Customers and vendors**: what they owe you or you owe them, overdue, sales or purchases this year, and the last invoice or bill.
+    - **Products**: on hand, sales price, unit cost (or the last price sold, for someone who may not see costs) and sold this year.
+  - **Details in clear sections**:
+    - **Customers and vendors**: business, contact and address, terms and pricing, delivery addresses, special prices.
+    - **Products**: product, units and stock, prices and VAT, with the accounts its category uses.
+  - **Activity tab** (customers and vendors): the latest documents and payments with that customer or vendor.
+  - **Price history tab** (products): sales and purchases.
+  - **Access rights apply**: people who may only look see the record **view only**, with no Save button. Cost prices stay hidden from anyone who may not see them.
+- **The document form, improved**:
+  - **Terms beside the TRN**: the payment terms show next to the counterparty TRN.
+  - **Overdue warning**: a draft for a customer with overdue invoices shows how much, on how many invoices and how late, with **See their account**. Purchase documents show the same for vendors.
+- **Customers and Vendors screens**:
+  - **Four tiles that filter the list**: owe you (or you owe), overdue, sold to (or bought from) this year, and without a TRN.
+  - **Overdue on each row**: each row shows what is overdue under its balance.
+
 # 3.25.0 — Each module in its own colour, companies and branches in one switcher, several branches at once
 
 - **Each module now uses the colour of its icon**:

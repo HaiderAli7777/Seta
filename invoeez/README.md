@@ -1,4 +1,4 @@
-# InvoEez — Invoice Made Easy (3.25)
+# InvoEez — Invoice Made Easy (3.26)
 
 Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
 
@@ -74,6 +74,24 @@ Company profile, theme, user selection and connection settings use their existin
 | Scrap | Record damaged quantities with a reason. Scrap reduces stock at carrying cost and charges the category adjustment account. Quantities cannot exceed on-hand stock. |
 | Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
 | Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
+
+## Open a customer, vendor or product from any document (3.26)
+
+- **Open and change, without leaving the document**: on a quotation, invoice, credit note, purchase order, bill, debit note, receipt, payment, expense or post-dated cheque, open the customer, vendor or product with:
+  - the arrow inside the **Customer** or **Vendor** field;
+  - the name under the document number;
+  - the arrow on a product line, or **Open product** under the line you are on.
+
+  A panel slides in from the right with the record's figures, details and activity.
+- **The draft follows**: saving brings the open draft up to date, and a message says what changed. Payment terms move the due date, the territory moves the place of supply, and the salesperson and price list follow. A product's new name, price and VAT reach its lines; a price typed on a line stays. Posted documents keep their figures.
+- **One form everywhere**: Customers, Vendors and the product library use the same panel, for new records and existing ones.
+  - **Customers and vendors**: business, contact, terms and pricing, delivery addresses and special prices, plus an Activity tab.
+  - **Products**: product, units and stock, prices and VAT, plus a Price history tab.
+  - **Access**: people without edit rights see it view only, and costs stay hidden from those who may not see them.
+- **Document form**: payment terms beside the TRN, and a warning on drafts for customers with overdue invoices.
+- **Customers and Vendors screens**: tiles that filter the list (balance, overdue, traded this year, without a TRN), and the overdue amount on each row.
+
+The panel lives in `records.jsx`.
 
 ## Module colours, companies and branches (3.25)
 
@@ -289,9 +307,10 @@ npm test
 | `brand.jsx` | Brand colour layer for light and dark mode. |
 | `clarity.jsx` | Plain-language summaries, payment status and the All reports page. |
 | `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
-| `enhancements-ui.jsx` | Search pickers, creation dialogs, products, categories, pricing, sales team, counts and scrap. |
+| `enhancements-ui.jsx` | Search pickers (3.26: with the arrow that opens the chosen record), products, categories, pricing, sales team, counts and scrap. New and changed customers, vendors and products use the record panel in `records.jsx`. |
 | `dashboard.jsx` | The dashboard: figures, tabs and panels (3.24: laid out as one document-style sheet). |
 | `dashdoc.jsx` | 3.24 dashboard layout like an invoice: header with period, status and net profit; progress through the period; key figures as fields; month-by-month lines; profit-and-loss totals; the bar at the foot. 3.25: branch chips, the Branches tab, key figures and tabs in their modules' colours. |
+| `records.jsx` | 3.26 the record panel for customers, vendors and products: figures at a glance, details in sections, activity and price history, checks and saving, bringing an open draft up to date, the arrow that opens a record from a field. |
 | `modules.jsx` | 3.25 module colours: each app's colour (light, dark, deep and bright), which module a screen belongs to, and the styles that give a module's screens its colour (screen only, so print keeps the company's colours). |
 | `access.jsx` | 3.23 access rights: areas and actions, the eight built-in roles and your own, access rules (apps and menus, actions, fields, records, buttons and tabs, read-only, no exports or search), effective rights per person, Roles and Access rules screens, Who can do what. |
 | `costing.jsx` | 3.23 cost centres (field, screen, profit by cost centre) and budgets (start from run rate or last year, monthly editor, budget vs actual). |
@@ -319,6 +338,7 @@ npm test
 | `tests/browser-access.cjs` | 3.23 checks: a user for each job with a live preview, Who can do what, roles (adjust, new role), access rules from a template and from scratch, switching rules off and on; then signing in as each person: Home and apps for the job, own documents only, search limited to what they may open, no costs, the discount limit, no delete or reset, hidden apps, read-only prices, a purchaser who can't post, a viewer without exports, administrators unrestricted, and the sidebar following the same rights. |
 | `tests/browser-costing.cjs` | 3.23 checks: cost centres (quick start and form, unique codes), tagging an invoice, an expense and a journal line, profit by cost centre adding up to the company, a used cost centre that can't be deleted, budgets from the run rate (spreading a year evenly, Budget vs actual with figures and Excel), a budget for one cost centre, and every new screen in the classic menu. |
 | `tests/browser-apps.cjs` | 3.20–3.21 checks: Sidebar mode (classic menu, no Home), switching from Settings, the user menu and Ctrl K, the apps dashboard (app bars, dropdowns, More, context, every screen reachable), plus Home, card counts, filters, search, Create new, Jump back in, every app overview, the menu grouped by app with every screen still in it, All apps and g h, apps limited by role, dark mode, phone. |
+| `tests/browser-records.cjs` | 3.26 checks: arrows on the customer field and product lines and the name in the heading open the record; four figures, sections and activity; Esc asks before discarding; Ctrl S saves the record, not the invoice; new terms move the due date, a new territory the place of supply; a new product price and name reach the line while a typed price stays; a posted invoice keeps its figures; create and select a customer; the overdue warning; Customers tiles and rows; product library, receipts, expenses and cheques; a salesperson's view-only products without costs; phone and dark mode. |
 | `tests/browser-companies.cjs` | 3.25 checks: module colours (each app, dark, Home and dashboard on the theme, print, switched off), the companies & branches switcher (tree, picking a branch, all branches), dashboard branch chips (one, two, back to all; figures from the branches), the Branches tab adding up to the company, the branch tick list on reports, lists following the choice, opening another company on its branch. |
 | `tests/browser-branches.cjs` | 3.18–3.19 checks: guided branch set-up, branch details on print, numbering per branch, working branch, a user limited to one branch, Companies screen (edit, colour, back up another company), company colours; setting up branches (head office, next branch, rules), home branch, Branch field on invoice, payment and journal (a payment follows its invoice), printed branch address, Branch performance adds up to the P&L, branch filter on P&L, trial balance, balance sheet, dashboard and lists, VAT return company-wide, adding a company and switching back, Group report, phone. |
 | `tests/browser-delivery.cjs` | 3.17 checks: % / AED line discounts (switching keeps the money off, limits, saved), branches on a customer and the default, Deliver to and place of supply, adding a branch from the quotation, print, delivery note on screen and as PDF, carried to the invoice, list and search, phone. |

@@ -70,7 +70,7 @@ const num = (t) => +String(t).replace(/−/g, '-').replace(/[^0-9.-]/g, '');
   await addBr('Dibba depot', 'Industrial Area 3', 'Fujairah', '');
   await p.locator('.br-card').nth(0).locator('.br-def input').check();
   await shot(p, 'delivery-02-customer', '.br-editor');
-  await p.locator('.card .btn.pri', { hasText: 'Save changes' }).click(); await p.waitForTimeout(500);
+  await p.locator('.rp .btn.pri', { hasText: 'Save changes' }).click(); /* 3.26: the customer opens in the record panel */ await p.waitForTimeout(500);
   let cu = (await books(p)).partners.find((x) => x.name.startsWith('Fujairah Port'));
   check(cu.branches.length === 2 && cu.defaultBranch === cu.branches[0].id && cu.branches[0].emirate === 'Sharjah', 'two delivery addresses saved, the first one is the default');
   check(/2 delivery addresses/.test(await p.locator('tr', { hasText: 'Fujairah Port Services' }).first().innerText()), 'the customer list shows them');

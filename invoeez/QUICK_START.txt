@@ -24,6 +24,15 @@ THE DASHBOARD (3.24)
 - Settings > Appearance > Colour theme: Ocean blue, Lagoon teal, Royal
   violet, Graphite or Desert sand.
 
+OPEN A CUSTOMER, VENDOR OR PRODUCT FROM A DOCUMENT (3.26)
+- On any quotation, invoice, purchase order, bill, receipt or expense, click
+  the small arrow in the Customer or Vendor field (or their name under the
+  document number) to open their record beside the document.
+- On a product line, click the arrow on the line or "Open product" under it.
+- Change what you need and Save changes (or Ctrl S): the draft follows -
+  new terms move the due date, a new price reaches the lines (a price you
+  typed stays). Esc closes; it asks first if you have unsaved changes.
+
 COLOURS, COMPANIES AND BRANCHES (3.25)
 - Each module uses the colour of its icon: Sales blue, Purchase violet,
   Inventory orange, Accounting green, and so on. Home and the dashboard keep

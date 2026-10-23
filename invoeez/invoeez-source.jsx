@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.25.0";
+const BUILD = "3.26.0";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -2657,6 +2657,18 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     setD(s=>({...s,deliverTo:b?b.id:undefined,delivery:b,emirate:b&&EMIRATES.includes(b.emirate)?b.emirate:!b&&p?p.emirate:s.emirate}));
     if(b&&b.emirate&&b.emirate!==d.emirate&&EMIRATES.includes(b.emirate))toast(`Place of supply set to ${b.emirate}, where the goods are delivered`);};
   const addBranch=(b)=>{setState(s=>({...s,partners:(s.partners||[]).map(x=>x.id===d.partner?{...x,branches:[...branchesOf(x),b]}:x)}));pickBranch(b.id,b);toast(`${b.name} added to ${PMAP[d.partner].name}`);};
+  /* 3.26: open the customer, vendor or product behind a field; saving brings this draft up to date. */
+  const openParty=pid=>{if(PMAP[pid])setQuick({kind:sale?'customer':'vendor',record:PMAP[pid]});};
+  const openProduct=(line,pid)=>{if(PROD[pid])setQuick({kind:'product',line,record:PROD[pid]});};
+  const recSaved=q=>(rec,old)=>{
+    if(q.isNew){if(q.kind==='product')pickProduct(q.line,rec.id);else pickPartner(rec.id);return null;}
+    if(locked)return null;
+    const priceOf=s=>l=>pricingFor(state,PROD[rec.id],l.qty,s.date,s.pricelist,meta.side,s.partner,s.id);
+    const up=s=>q.kind==='product'?applyProductChange(s,old,rec,priceOf(s)):s.partner===rec.id?applyPartnerChange(s,old,rec,x=>reprice(x),state.salespeople):null;
+    const now=up(d);if(!now)return null;
+    setD(s=>{const u=up(s);return u?u.doc:s;});
+    return `${rec.name} saved · this ${meta.short.toLowerCase()} now has ${now.said.join(', ')}`;
+  };
   const validate=(posting=false)=>{
     if(!PMAP[d.partner])return 'Select a customer or vendor.';
     if(!d.date||!d.due)return 'Set the document and due dates.';
@@ -2699,6 +2711,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
         :<>First time {sale?'selling this to':'buying this from'} <b>{who}</b>{any?<span className="li-more"> · last to anyone AED {money(any.unitNet,false)} ({PMAP[any.partner]?.name}, {dmy(any.date)})</span>:null}</>}</span>
       {last&&R2(+l.price||0)!==R2(last.unitNet)&&<button className="li-btn" onClick={()=>setD(s=>({...s,lines:s.lines.map(x=>x.id===l.id?{...x,price:last.price,disc:last.disc||'',manualPricing:true,basePrice:last.price,priceSource:sale?'Earlier price to this customer':'Earlier price from this vendor',priceChoice:undefined}:x)}))}>Use {money(last.unitNet,false)}</button>}
       <button className="li-btn" onClick={()=>setHistoryLine(l)}><Clock size={12}/>History</button>
+      {recCan('product','view')&&<button className="li-btn li-open" onClick={()=>openProduct(l.id,p.id)}>Open product<ArrowUpRight size={12}/></button>}
     </div></td></tr>;
   };
   const priceAskRow=(l,cols)=>askPrice(l)&&<tr className="lg-ask" key={l.id+'-ask'}><td/><td colSpan={cols}><div className="price-ask"><Star size={13}/>
@@ -2755,6 +2768,14 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
     return it ? it.open : 0;
   }, [state, d, locked]);
   const settle = useMemo(() => (locked ? settlementsOf(state, d) : null), [state, d, locked]);
+  /* 3.26: a draft for someone with overdue invoices says so, before more is sold to them. */
+  const owed = useMemo(() => {
+    if (locked || !PMAP[d.partner]) return null;
+    const row = aging(state, sale ? "receivable" : "payable", TODAY).rows.find((r) => r.partner.id === d.partner);
+    const late = row ? row.items.filter((i) => i.due < TODAY && i.id !== d.id) : [];
+    if (!late.length) return null;
+    return { amt: R2(late.reduce((t, i) => t + i.open, 0)), n: late.length, days: Math.max(...late.map((i) => daysBetween(i.due, TODAY))) };
+  }, [state.docs, state.payments, state.pdcs, d.partner, locked]);
   const drillTo = go ? (k, id) => go(k, id) : null;
   const [payOpen, setPayOpen] = useState(false);
   const [pdcOpen, setPdcOpen] = useState(false);
@@ -2922,7 +2943,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
           pills={sale && state.einv && state.einv[d.id] &&
             <Pill tone={EINV_STATES[state.einv[d.id].status].tone} dot>{EINV_STATES[state.einv[d.id].status].label}</Pill>}
           sub={<>
-            <span>{sale ? <Users size={13} /> : <Truck size={13} />}{PMAP[d.partner] ? <b>{PMAP[d.partner].name}</b> : <>No {sale ? "customer" : "vendor"} chosen yet</>}</span>
+            <span>{sale ? <Users size={13} /> : <Truck size={13} />}{PMAP[d.partner] ? (recCan(sale ? "customer" : "vendor", "view") ? <button className="du-party" title={`Open ${PMAP[d.partner].name}`} onClick={() => openParty(d.partner)}>{PMAP[d.partner].name}</button> : <b>{PMAP[d.partner].name}</b>) : <>No {sale ? "customer" : "vendor"} chosen yet</>}</span>
             <span><Layers size={13} />{d.lines.length} {d.lines.length === 1 ? "line" : "lines"}</span>
             {isPO && d.requestedBy && <span><ClipboardCheck size={13} />Raised by <b>{userName(users, d.requestedBy)}</b></span>}
             {d.origin && <span><ArrowLeftRight size={13} />From {origin ? <button className="linkish" onClick={() => go(LIST_OF[origin.type], origin.id)}>{d.origin.number}</button> : d.origin.number}</span>}
@@ -2934,8 +2955,8 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
           actions={<>{secondary}<MoreMenu items={more} />{primary}</>}
           note={isPO && <PoNote d={d} rights={rights} users={users} go={go} />}>
           <div className={cx("document-fields",sale&&"sales-document-fields")}>
-            <Field label={sale?'Customer':'Vendor'} span={2}><SmartPicker items={partnerOptions(meta.side)} value={d.partner} disabled={locked} autoFocus={!!d.isNew&&!d.partner} onChange={pickPartner} label={sale?'Select customer':'Select vendor'} placeholder={'Search '+(sale?'customers':'vendors')+'…'} onCreate={!locked?name=>setQuick({kind:sale?'customer':'vendor',record:{...newPartner(sale?'customer':'vendor'),name}}):undefined}/></Field>
-            <Field label="Counterparty TRN"><div className="readonly">{PMAP[d.partner]?.trn||'Not registered'}</div></Field>
+            <Field label={sale?'Customer':'Vendor'} span={2}><SmartPicker items={partnerOptions(meta.side)} value={d.partner} disabled={locked} autoFocus={!!d.isNew&&!d.partner} onChange={pickPartner} label={sale?'Select customer':'Select vendor'} placeholder={'Search '+(sale?'customers':'vendors')+'…'} onCreate={!locked&&recCan(sale?'customer':'vendor','create')?name=>setQuick({kind:sale?'customer':'vendor',isNew:true,record:{...newPartner(sale?'customer':'vendor'),name}}):undefined} openKind={sale?'customer':'vendor'} onOpen={openParty}/></Field>
+            <Field label="Counterparty TRN"><div className="readonly party-trn"><span>{PMAP[d.partner]?.trn||'Not registered'}</span>{PMAP[d.partner]&&<em title="Payment terms">{+PMAP[d.partner].terms?PMAP[d.partner].terms+' days':'Cash'}</em>}</div></Field>
             {sale&&<Field label="Salesperson"><CreatableSelect value={d.salesman} disabled={locked||ro('salesman')} onChange={v=>set('salesman',v)} options={(state.salespeople||[]).filter(p=>p.active!==false||p.id===d.salesman).map(p=>({value:p.id,label:p.name+(p.active===false?' (inactive)':'')}))} placeholder="Unassigned" createLabel="New salesperson" onCreate={addSalesperson(setState)} ariaLabel="Salesperson"/></Field>}
             <Field label="Price list"><Select value={d.pricelist||''} disabled={locked||ro('pricelist')} onChange={e=>changePricing({pricelist:e.target.value},true)}><option value="">Product {sale?'sales prices':'costs'}</option>{state.priceLists.filter(x=>x.side===meta.side).map(x=><option key={x.id} value={x.id}>{x.name}{x.active?'':' (inactive)'}</option>)}</Select></Field>
             <Field label={isPO?'Order date':isQuote?'Quotation date':sale?'Invoice date':'Bill date'}><Input type="date" value={d.date} disabled={locked} onChange={e=>changePricing({date:e.target.value})}/></Field>
@@ -2947,6 +2968,9 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
             <BranchField value={branchOfRecord(state,d)} disabled={locked} onChange={v=>setD(p=>({...p,branch:v,...(p.isNew?{number:nextNumber(state.docs,p.type,v)}:{})}))}/>
             <CostCentreField value={d.cc} disabled={locked} onChange={v=>set('cc',v)}/>
           </div>
+          {owed&&<div className={cx('party-alert',sale?'warn':'info')} role="status"><AlertTriangle size={16}/>
+            <span><b>{PMAP[d.partner].name}</b> {sale?'has':'is owed'} <b>AED {money(owed.amt,false)}</b> overdue on {owed.n} {sale?(owed.n===1?'invoice':'invoices'):(owed.n===1?'bill':'bills')}{owed.days>0?<>, the oldest {owed.days} {owed.days===1?'day':'days'} late</>:null}.</span>
+            {recCan(sale?'customer':'vendor','view')&&<button className="linkish" onClick={()=>setQuick({kind:sale?'customer':'vendor',record:PMAP[d.partner],tab:'activity'})}>See {sale?'their':'the'} account<ArrowUpRight size={13}/></button>}</div>}
         </DocUnit>
 
         {payOpen && (
@@ -2977,7 +3001,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
               const open=!locked&&p&&l.id===activeLine;
               return <React.Fragment key={l.id}><tr data-line-id={l.id} className={cx(!p&&'blank',askPrice(l)&&'asking',open&&'active')} onFocusCapture={()=>setActiveLine(l.id)}>
                 <td className="lg-n">{i+1}</td>
-                <td className="lg-p"><SmartPicker label={'Product on line '+(i+1)} items={productOptions(books)} value={l.product} disabled={locked} placeholder="Search product, code or barcode…" onChange={pid=>pickProduct(l.id,pid)} onCreate={!locked?name=>setQuick({kind:'product',line:l.id,record:{...newProduct(),name}}):undefined}/>
+                <td className="lg-p"><SmartPicker label={'Product on line '+(i+1)} items={productOptions(books)} value={l.product} disabled={locked} placeholder="Search product, code or barcode…" onChange={pid=>pickProduct(l.id,pid)} onCreate={!locked&&recCan('product','create')?name=>setQuick({kind:'product',isNew:true,line:l.id,record:{...newProduct(),name}}):undefined} openKind="product" onOpen={pid=>openProduct(l.id,pid)}/>
 </td>
                 <td className="lg-d"><input className="inp" value={l.desc} disabled={locked||!p} onChange={e=>setLine(l.id,'desc',e.target.value)} aria-label={'Description on line '+(i+1)}/></td>
                 <td className="lg-q"><input className="inp n q-qty" type="number" min="0" step="any" placeholder="0" value={l.qty} disabled={locked||!p} onKeyDown={enter} onChange={e=>setLine(l.id,'qty',e.target.value)} aria-label={'Quantity on line '+(i+1)}/></td>
@@ -2996,7 +3020,7 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
             const last=p?productHistory(state,p.id,meta.side,d.partner,d.id,d.date)[0]:null;
             const def=sale?(l.accounts?.income||p?.income):(p?.kind==='goods'?(l.accounts?.inventory||p?.inventory):(l.accounts?.expense||p?.expense));
             return <article key={l.id} className={cx('doc-line',!p&&'blank',lineView==='compact'&&'compact',expandedLines[l.id]&&'expanded')} data-line-id={l.id}>
-              <div className="line-product"><span className="line-num">{String(i+1).padStart(2,'0')}</span><div className="line-picker"><SmartPicker label={'Product on line '+(i+1)} items={productOptions(books)} value={l.product} disabled={locked} placeholder="Search product, ID or barcode…" onChange={pid=>pickProduct(l.id,pid)} onCreate={!locked?name=>setQuick({kind:'product',line:l.id,record:{...newProduct(),name}}):undefined}/>{p&&<small className="product-meta">{[p.brand,categoryOf(p)?.name,p.barcode&&'Barcode '+p.barcode,p.packing].filter(Boolean).join(' · ')||p.id}</small>}</div>
+              <div className="line-product"><span className="line-num">{String(i+1).padStart(2,'0')}</span><div className="line-picker"><SmartPicker label={'Product on line '+(i+1)} items={productOptions(books)} value={l.product} disabled={locked} placeholder="Search product, ID or barcode…" onChange={pid=>pickProduct(l.id,pid)} onCreate={!locked&&recCan('product','create')?name=>setQuick({kind:'product',isNew:true,line:l.id,record:{...newProduct(),name}}):undefined} openKind="product" onOpen={pid=>openProduct(l.id,pid)}/>{p&&<small className="product-meta">{[p.brand,categoryOf(p)?.name,p.barcode&&'Barcode '+p.barcode,p.packing].filter(Boolean).join(' · ')||p.id}</small>}</div>
               {p&&<div className="line-stock"><span>Available stock</span>{p.kind==='goods'?<b className={st.qty<=0?'neg':'pos'}>{st.qty} <small>{p.uom}</small></b>:<b>Service</b>}</div>}
               {!locked&&<button className="icon-btn" title={'Remove line '+(i+1)} aria-label={'Remove line '+(i+1)} onClick={()=>setD(s=>({...s,lines:s.lines.filter(x=>x.id!==l.id)}))}><Trash2 size={16}/></button>}
               </div>
@@ -3028,8 +3052,9 @@ function DocEditor({ doc: initial, state, setState, books, close, toast, fta, go
         <div className="du-dlg-acts"><Btn onClick={()=>setLeaveAsk(false)}>Keep editing</Btn><Btn kind="danger" onClick={()=>{setLeaveAsk(false);close();}}>Discard changes</Btn><Btn kind="pri" icon={Check} onClick={()=>{setLeaveAsk(false);save();}}>Save and leave</Btn></div>
       </StudioModal>}
       {rejecting&&<RejectDialog d={d} close={()=>setRejecting(false)} reject={rejectPO}/>}
-      {pdcOpen&&<PdcDialog state={state} setState={setState} toast={toast} init={{kind:sale?'in':'out',partner:d.partner,doc:d.id,amount:R2(outstanding)}} close={()=>setPdcOpen(false)}/>}
-      {quick&&<MasterModal kind={quick.kind} initial={quick.record} state={state} setState={setState} books={books} toast={toast} close={()=>setQuick(null)} onSaved={rec=>{if(quick.kind==='product')pickProduct(quick.line,rec.id);else pickPartner(rec.id);}}/>}
+      {pdcOpen&&<PdcDialog state={state} setState={setState} books={books} toast={toast} init={{kind:sale?'in':'out',partner:d.partner,doc:d.id,amount:R2(outstanding)}} close={()=>setPdcOpen(false)}/>}
+      {quick&&<RecordPanel key={quick.record.id} kind={quick.kind} initial={quick.record} isNew={!!quick.isNew} selecting={!!quick.isNew} tab={quick.tab} state={state} setState={setState} books={books} toast={toast} close={()=>setQuick(null)} onSaved={recSaved(quick)}
+        context={quick.isNew?`Saved straight onto ${d.number}`:locked?`${d.number} is ${isQuote?d.state:isPO?'past draft':'posted'}, so it keeps its figures — changes apply from the next document`:quick.kind==='product'?`Saving also updates its lines on ${d.number}: name, VAT and price — a price you typed stays`:`Saving also updates ${d.number}: terms, place of supply${sale?', salesperson':''} and price list`}/>}
       {historyLine&&<StudioModal wide title={PROD[historyLine.product]?.name||'Product history'} sub={sale?'Previous prices charged to your customer':'Previous prices charged by your vendor'} close={()=>setHistoryLine(null)}><HistoryTable state={state} product={historyLine.product} side={meta.side} partner={d.partner} exclude={d.id} date={d.date} apply={!locked?l=>{setD(s=>({...s,lines:s.lines.map(x=>x.id===historyLine.id?{...x,price:l.price,disc:l.disc||0,discMode:isAmtDisc(l)?'amount':undefined,manualPricing:true}:x)}));setHistoryLine(null);toast('Historical price and discount applied');}:undefined}/></StudioModal>}
     </div>
   );
@@ -3499,9 +3524,9 @@ function nextPay(list, kind, branch) {
   return seriesNext(list.filter((p) => p.kind === kind), kind === "in" ? "RCPT" : "PAYM", branch);
 }
 
-function PaymentsScreen({ state, setState, toast, create }) {
+function PaymentsScreen({ state, setState, books, toast, create }) {
   useCreate(create, () => { setNw(blank("in")); });
-  const [nw, setNw] = useState(null);
+  const [nw, setNw] = useState(null), [rp, setRp] = useState(null);
   const [q, setQ] = useState("");
   const [limit, setLimit] = useState(100);
   const blank = (kind) => {
@@ -3542,6 +3567,7 @@ function PaymentsScreen({ state, setState, toast, create }) {
         <StatCard label="Net cash movement" icon={Banknote} tone="i" num={R2(rec - paid)} deltaLabel="year to date" />
       </div>
 
+      {rp && <RecordPanel key={rp.id} kind={recKindOf(rp)} initial={rp} state={state} setState={setState} books={books} toast={toast} close={() => setRp(null)} />}
       {nw && (
         <Card title={nw.kind === "in" ? "New customer receipt" : "New vendor payment"}
           right={<><Btn onClick={() => setNw(null)}>Cancel</Btn>
@@ -3553,7 +3579,7 @@ function PaymentsScreen({ state, setState, toast, create }) {
               <Select value={nw.partner} onChange={(e) => setNw({ ...nw, partner: e.target.value, doc: "" })}>
                 <option value="">{nw.kind === "in" ? "Choose a customer…" : "Choose a vendor…"}</option>
                 {PARTNERS.filter((p) => (nw.kind === "in" ? p.role === "customer" : p.role === "vendor")).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </Select></Field>
+              </Select><RecordOpen kind={nw.kind === "in" ? "customer" : "vendor"} id={nw.partner} onOpen={(id) => setRp(PMAP[id])} /></Field>
             {(() => { const open = nw.partner ? ((aging(state, nw.kind === "in" ? "receivable" : "payable", "9999-12-31").rows.find((r) => r.partner.id === nw.partner) || { items: [] }).items) : [];
               return <Field label={nw.kind === "in" ? "Against invoice" : "Against bill"}>
                 <Select value={nw.doc || ""} disabled={!open.length} onChange={(e) => { const it = open.find((x) => x.id === e.target.value);
@@ -3620,18 +3646,7 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed, creat
   const custom = state.partners || [];
   const blank = (r) => ({ id: uid("p"), name: "", role: r, trn: "", emirate: "Dubai", address: "", address2: "",
     contact: "", phone: "", terms: 30, custom: true });
-  const valid = ed && ed.name.trim().length > 1 && (!ed.trn || /^\d{15}$/.test(ed.trn.trim()))
-    && branchesOf(ed).every((b) => branchOk(b) || !(b.address || b.address2 || b.contact || b.phone));
   const isNew = ed && !PARTNERS.some((p) => p.id === ed.id);
-  const save = () => {
-    const branches = branchesOf(ed).filter(branchOk).map((b) => ({ ...b, name: b.name.trim() }));
-    const rec = { ...ed, name: ed.name.trim(), trn: ed.trn.trim(), terms: +ed.terms || 0, branches: branches.length ? branches : undefined,
-      defaultBranch: branches.some((b) => b.id === ed.defaultBranch) ? ed.defaultBranch : undefined };
-    setState((x) => { const list = x.partners || [];
-      return { ...x, partners: list.some((p) => p.id === rec.id)
-        ? list.map((p) => (p.id === rec.id ? rec : p)) : [...list, rec] }; });
-    toast(`${rec.name} saved`); setEd(null);
-  };
   const remove = (p) => {
     if (state.docs.some((d) => d.partner === p.id) || state.payments.some((x) => x.partner === p.id)) {
       toast(`${p.name} has documents and cannot be deleted`, "warn"); return; }
@@ -3640,7 +3655,21 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed, creat
   const ar = useMemo(() => aging(state, "receivable", TODAY), [state]);
   const ap = useMemo(() => aging(state, "payable", TODAY), [state]);
   const balOf = (p) => { const r = (p.role === "customer" ? ar : ap).rows.find((x) => x.partner.id === p.id); return r ? r.total : 0; };
+  /* 3.26: what is overdue per party, who traded this year, and the tiles that filter by them */
+  const lateOf = useMemo(() => { const o = {}; [ar, ap].forEach((g) => g.rows.forEach((r) => { const v = R2(r.items.filter((x) => x.due < TODAY).reduce((t, x) => t + x.open, 0)); if (v > 0.004) o[r.partner.id] = v; })); return o; }, [ar, ap]);
+  const active = useMemo(() => new Set(state.docs.filter((d) => d.state === "posted" && (d.type === "invoice" || d.type === "bill") && d.date.slice(0, 4) === TODAY.slice(0, 4)).map((d) => d.partner)), [state.docs]);
+  const [sf, setSf] = useState("all");
+  const mine = PARTNERS.filter((p) => !fixed || p.role === fixed), vend = fixed === "vendor", few = (l) => `${l.length} ${vend ? "vendor" : "customer"}${l.length === 1 ? "" : "s"}`;
+  const withBal = mine.filter((p) => balOf(p) > 0.004), late = mine.filter((p) => lateOf[p.id]), noTrn = mine.filter((p) => !p.trn), act = mine.filter((p) => active.has(p.id));
+  const tiles = [
+    ...(accField("balance") === "hide" ? [] : [
+      { f: "open", label: vend ? "You owe" : "Owe you", money: R2(withBal.reduce((t, p) => t + balOf(p), 0)), sub: few(withBal) },
+      { f: "overdue", label: "Overdue", money: R2(late.reduce((t, p) => t + lateOf[p.id], 0)), sub: few(late), tone: late.length ? "bad" : "" }]),
+    { f: "active", label: vend ? "Bought from this year" : "Sold to this year", count: act.length, sub: `of ${few(mine)}`, tone: "info" },
+    { f: "notrn", label: "Without a TRN", count: noTrn.length, sub: noTrn.length ? "Not VAT registered" : "All registered", tone: noTrn.length ? "warn" : "" },
+  ];
   const list = PARTNERS.filter((p) => role === "all" || p.role === role)
+    .filter((p) => sf === "all" || (sf === "open" ? balOf(p) > 0.004 : sf === "overdue" ? !!lateOf[p.id] : sf === "active" ? active.has(p.id) : !p.trn))
     .filter((p) => hits(q, p.name, p.trn, p.contact, p.phone, p.emirate, p.address, p.address2));
   return (
     <div>
@@ -3652,58 +3681,8 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed, creat
       </PageHead>
       {imp && <ImportDialog kind="partners" state={state} setState={setState} books={books} toast={toast} close={() => setImp(false)} />}
 
-      {ed && (
-        <Card title={isNew ? "New customer or vendor" : `Edit ${ed.name || ed.role}`}
-          sub="A 15-digit TRN makes the counterparty VAT registered; leave it blank for unregistered or export parties"
-          style={{ marginBottom: 16 }}
-          right={<><Btn onClick={() => setEd(null)}>Cancel</Btn>
-            <Btn kind="pri" icon={Check} disabled={!valid} onClick={save}>{isNew ? "Create" : "Save changes"}</Btn></>}>
-          <div className="picks">
-            {[["customer", "Customer", Receipt, "You invoice them. Supplies are reported by emirate in Box 1 of the VAT return."],
-              ["vendor", "Vendor", ShoppingCart, "They bill you. Input VAT is recovered in Box 9, or self-accounted if imported."]]
-              .map(([k, label, I, note]) => (
-              <button key={k} className={cx("pick", ed.role === k && "on")}
-                onClick={() => setEd({ ...ed, role: k })}>
-                <span className="pi"><I size={17} strokeWidth={1.8} /></span>
-                <span className="pt"><b>{label}</b><span>{note}</span></span>
-                <span className="chk">{ed.role === k && <Check size={11} strokeWidth={3.2} />}</span>
-              </button>))}
-          </div>
-          <div className="setgrid">
-            <Field label="Registered name" span={2}>
-              <Input value={ed.name} placeholder="Al Manara Trading L.L.C." onChange={(e) => setEd({ ...ed, name: e.target.value })} /></Field>
-            <Field label="TRN">
-              <Input value={ed.trn} placeholder="15 digits, or blank" onChange={(e) => setEd({ ...ed, trn: e.target.value })} />
-              {ed.trn && !/^\d{15}$/.test(ed.trn.trim()) &&
-                <div style={{ fontSize: 11.5, color: "var(--neg)", marginTop: 5 }}>A UAE TRN is exactly 15 digits</div>}</Field>
-            <Field label="Territory">
-              <Select value={ed.emirate} onChange={(e) => setEd({ ...ed, emirate: e.target.value })}>
-                {[...EMIRATES, "Export", "Import"].map((x) => <option key={x}>{x}</option>)}</Select></Field>
-            <Field label="Payment terms (days)">
-              <Input n type="number" value={ed.terms} onChange={(e) => setEd({ ...ed, terms: e.target.value })} /></Field>
-            {ed.role === "customer" && <Field label="Salesperson"><CreatableSelect value={ed.salesman} onChange={(v) => setEd((x) => ({ ...x, salesman: v }))} options={salespersonOptions(state)} placeholder="Unassigned" createLabel="New salesperson" onCreate={addSalesperson(setState)} ariaLabel="Salesperson" /></Field>}
-            <Field label="Default price list"><Select value={ed.pricelist||""} onChange={e=>setEd({...ed,pricelist:e.target.value})}><option value="">Product prices</option>{(state.priceLists||[]).filter(x=>x.side===(ed.role==="customer"?"sale":"purchase")).map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</Select></Field>
-            <Field label="Address line 1">
-              <Input value={ed.address} placeholder="Office / building, street" onChange={(e) => setEd({ ...ed, address: e.target.value })} /></Field>
-            <Field label="Address line 2">
-              <Input value={ed.address2 || ""} placeholder="Area, city, P.O. Box (optional)" onChange={(e) => setEd({ ...ed, address2: e.target.value })} /></Field>
-            <Field label="Email">
-              <Input value={ed.contact} placeholder="accounts@company.ae" onChange={(e) => setEd({ ...ed, contact: e.target.value })} /></Field>
-            <Field label="WhatsApp number">
-              <Input value={ed.phone} placeholder="+971 50 123 4567" onChange={(e) => setEd({ ...ed, phone: e.target.value })} /></Field>
-            <Field label="Name in Arabic (optional)">
-              <Input dir="rtl" lang="ar" value={ed.nameAr || ""} placeholder="الاسم بالعربية" onChange={(e) => setEd({ ...ed, nameAr: e.target.value })} /></Field>
-          </div>
-          {ed.role === "customer" && <BranchEditor ed={ed} setEd={setEd} />}
-          {!isNew && <PartySpecials state={state} setState={setState} books={books} partner={ed.id} role={ed.role} toast={toast} />}
-          <div style={{ marginTop: 14, fontSize: 12.5, color: "var(--ink-3)" }}>
-            {ed.role === "customer"
-              ? ed.emirate === "Export" ? "Exports are zero-rated — invoices will default to 0% VAT."
-                : `Standard-rated supplies will be reported under ${ed.emirate} in Box 1 of the return.`
-              : ed.emirate === "Import" ? "Imports self-account under the reverse charge — Box 3 and Box 10."
-                : "Local purchases recover input VAT in Box 9."}
-          </div>
-        </Card>)}
+      {ed && <RecordPanel key={ed.id} kind={recKindOf(ed)} initial={ed} isNew={isNew} state={state} setState={setState} books={books} toast={toast} close={() => setEd(null)} />}
+      {fixed && <DocSummary tiles={tiles} f={sf} setF={setSf} />}
       <Card pad={false}>
         <div className="toolbar">
           {!fixed && <div className="seg">{[["all", "All"], ["customer", "Customers"], ["vendor", "Vendors"]].map(([k, l]) => (
@@ -3722,7 +3701,7 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed, creat
               <Btn icon={FileSpreadsheet} className="act-create act-import" onClick={() => setImp(true)}>Import from Excel</Btn>
               <Btn kind="pri" icon={Plus} onClick={() => setEd(blank(fixed || "customer"))}>New {noun}</Btn></div>}</td></tr>}
             {list.map((p) => (
-            <tr key={p.id}>
+            <tr key={p.id} className="rowlink" title={`Open ${p.name}`} onClick={(e) => { if (!e.target.closest("button")) setEd({ ...p }); }}>
               <td><Party name={p.name} meta={[p.contact || p.phone,(state.salespeople||[]).find(x=>x.id===p.salesman)?.name].filter(Boolean).join(" · ")} /></td>
               {!fixed && <td><Pill tone={p.role === "customer" ? "ok" : "info"}>{p.role}</Pill></td>}
               <td className="mono nowrap" style={{ fontSize: 12.5 }}>{p.trn || <span className="muted">Not registered</span>}</td>
@@ -3730,7 +3709,7 @@ function PartnersScreen({ state, setState, go, toast, books, param, fixed, creat
                 {addrText(p) && <small title={addrText(p)}>{addrText(p)}</small>}
                 {branchesOf(p).length > 0 && <span className="br-count" title={branchesOf(p).map((b) => b.name).join(", ")}><Truck size={12} />{branchesOf(p).length} delivery address{branchesOf(p).length === 1 ? "" : "es"}</span>}</td>
               <td className="n nowrap">{p.terms ? `${p.terms} days` : "Cash"}</td>
-              <td className="n bal-data" style={{ fontWeight: 600 }}>{money(balOf(p))}</td>
+              <td className="n bal-data" style={{ fontWeight: 600 }}>{money(balOf(p))}{lateOf[p.id] && <small className="late-note">{money(lateOf[p.id], false)} overdue</small>}</td>
               <td style={{ whiteSpace: "nowrap" }}>
                 <button className="icon-btn" style={{ width: 28, height: 28, display: "inline-grid", verticalAlign: "-8px" }}
                   title="Statement of account" onClick={() => go("r_stmt", p.id)}><Send size={13} /></button>
@@ -4804,7 +4783,7 @@ function BankingScreen({ state, setState, books, toast, go, create }) {
 
 function ExpensesScreen({ state, setState, books, toast, create }) {
   useCreate(create, () => { setEx(blank()); });
-  const [ex, setEx] = useState(null);
+  const [ex, setEx] = useState(null), [rp, setRp] = useState(null);
   const cats = ACCOUNTS.filter((a) => a.type === "expense");
   const firstVendor = (PARTNERS.find((p) => p.role === "vendor") || {}).id || "";
   const blank = () => ({ acc: "6900", amount: "", vat: "s5", date: TODAY, memo: "",
@@ -4846,6 +4825,7 @@ function ExpensesScreen({ state, setState, books, toast, create }) {
         <Btn kind="pri" icon={Plus} onClick={() => setEx(blank())}>Record expense</Btn>
       </PageHead>
 
+      {rp && <RecordPanel key={rp.id} kind="vendor" initial={rp} state={state} setState={setState} books={books} toast={toast} close={() => setRp(null)} />}
       {ex && (
         <Card title="Record an expense" sub="VAT is separated automatically and lands in Box 9 of the return"
           style={{ marginBottom: 16 }}
@@ -4865,7 +4845,8 @@ function ExpensesScreen({ state, setState, books, toast, create }) {
             <CostCentreField value={ex.cc} onChange={(v) => setEx({ ...ex, cc: v })} />
             <Field label="Supplier">
               <Select value={ex.vendor} onChange={(e) => setEx({ ...ex, vendor: e.target.value })}>
-                {PARTNERS.filter((p) => p.role === "vendor").map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
+                {PARTNERS.filter((p) => p.role === "vendor").map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select>
+              <RecordOpen kind="vendor" id={ex.vendor} onOpen={(id) => setRp(PMAP[id])} /></Field>
             <Field label="Settlement">
               <Select value={ex.paid ? "paid" : "owed"} onChange={(e) => setEx({ ...ex, paid: e.target.value === "paid" })}>
                 <option value="paid">Paid now</option><option value="owed">On credit</option></Select></Field>
@@ -6852,7 +6833,7 @@ function Invoeez() {
       case "banking": return <BankingScreen create={cr("banking")} state={state} setState={setState} books={books} toast={toast} go={go} />;
       case "expenses": return <ExpensesScreen create={cr("expenses")} state={state} setState={setState} books={books} toast={toast} />;
       case "assets": return <AssetsScreen create={cr("assets")} state={state} setState={setState} books={books} toast={toast} />;
-      case "payments": return <PaymentsScreen create={cr("payments")} state={state} setState={setState} toast={toast} />;
+      case "payments": return <PaymentsScreen create={cr("payments")} state={state} setState={setState} books={books} toast={toast} />;
       case "partners": case "customers": return <PartnersScreen key="customers" create={cr("customers")} fixed="customer" state={state} setState={setState} go={go} toast={toast} books={books} param={param} />;
       case "vendors": return <PartnersScreen key="vendors" create={cr("vendors")} fixed="vendor" state={state} setState={setState} go={go} toast={toast} books={books} param={param} />;
       case "reports": return <ReportsHub state={state} books={books} go={go} allowed={allowed} />;
@@ -6898,7 +6879,7 @@ function Invoeez() {
     }
   };
 
-  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS + REFINE_CSS + DELIVERY_CSS + GROUP_CSS + APPS_CSS + COSTING_CSS + ACCESS_CSS + DASHDOC_CSS + MODCOLOR_CSS;
+  const ALL_CSS = CSS + DESIGN_CSS + ONBOARD_CSS + BRAND_CSS + CLARITY_CSS + SIDEBAR_CSS + SELECT_CSS + FEATURES_CSS + PDC_CSS + REPORTS_CSS + DASH_CSS + COMPARE_CSS + USERS_CSS + IFRS_CSS + PRO_CSS + APPROVAL_CSS + UX_CSS + MOTION_CSS + SYNC_CSS + REFINE_CSS + DELIVERY_CSS + GROUP_CSS + APPS_CSS + COSTING_CSS + ACCESS_CSS + DASHDOC_CSS + MODCOLOR_CSS + RECORD_CSS;
   /* Nobody signed in in this tab: show the sign-in screen. */
   if (!meFound) return (
     <ThemeCtx.Provider value={palette}>
