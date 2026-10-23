@@ -1134,7 +1134,7 @@ const addDays = (iso, n) => {
   return d.toISOString().slice(0, 10);
 };
 const daysBetween = (a, b) => Math.round((/* @__PURE__ */ new Date(b + "T00:00:00Z") - /* @__PURE__ */ new Date(a + "T00:00:00Z")) / 864e5);
-const BUILD = "3.26.0";
+const BUILD = "3.26.1";
 const TODAY = (() => {
   const d = /* @__PURE__ */ new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -7702,7 +7702,7 @@ function Invoeez() {
       setBannerHidden(false);
       toast("Sample company loaded", "warn");
       offCloud();
-      go("dash");
+      go(landing);
     }
   };
   const startCompany = () => setStarting(true);
@@ -8120,7 +8120,7 @@ function Invoeez() {
       toggleTheme: () => setTheme(theme === "dark" ? "light" : "dark"),
       onSignIn: (id) => {
         setMe(id);
-        setView("dash");
+        setView(landing);
         const u = users.find((x) => x.id === id);
         toast(`Welcome, ${u ? u.name.split(" ")[0] : ""}`);
       }

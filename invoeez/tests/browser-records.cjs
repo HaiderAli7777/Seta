@@ -44,6 +44,9 @@ const errs = [], ok = []; const check = (c, m) => (c ? ok : errs).push(m);
   const pick = async (label, text) => { await p.locator(`.rp button.inp.sel[aria-label="${label}"]`).click(); await p.waitForTimeout(250); await p.locator('[role=option]', { hasText: text }).first().click(); await p.waitForTimeout(250); };
   const dates = () => p.locator('.document-fields input[type=date]');
 
+  // ---------- 0. 3.26.1: signing in opens Home, the main screen with every app, not the Dashboard app ----------
+  check(await p.locator('.ah-grid').count() === 1 && await p.locator('.ds-head').count() === 0, 'signing in opens Home with every app, not the Dashboard app');
+
   // ---------- 1. a draft invoice opens its customer ----------
   await app('sales'); await tab('invoices'); await doc('INV/2026/0287');
   const arrow = p.locator('.document-fields .smart-picker .rec-open');
@@ -176,7 +179,7 @@ const errs = [], ok = []; const check = (c, m) => (c ? ok : errs).push(m);
 
   // ---------- 9. dark mode and a phone ----------
   ({ ctx, p } = await open({ theme: 'dark', vp: { width: 390, height: 844 } }));
-  await p.mouse.click(200, 400); await p.keyboard.press('g'); await p.keyboard.press('i'); await p.waitForTimeout(1100);
+  await p.keyboard.press('g'); await p.keyboard.press('i'); await p.waitForTimeout(1100);
   await p.locator('.doc-list-tbl tbody tr, .doc-card', { hasText: 'INV/2026/0287' }).first().click(); await p.waitForTimeout(1200);
   await p.locator('.document-fields .smart-picker .rec-open').click(); await p.waitForTimeout(700);
   const box = await panel().boundingBox();

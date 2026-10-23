@@ -23,7 +23,7 @@ const dmy = (iso) => {
 };
 const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T00:00:00Z") - new Date(a + "T00:00:00Z")) / 86400000);
-const BUILD = "3.26.0";
+const BUILD = "3.26.1";
 const TODAY = (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
 const _D = (s) => new Date(s + "T00:00:00Z");
 const _iso = (d) => d.toISOString().slice(0, 10);
@@ -6529,6 +6529,7 @@ function Invoeez() {
   const [navMode, setNavModeState] = useState(() => (readStr(NAVMODE_KEY) === "apps" ? "apps" : "sidebar"));
   const appsNav = navMode === "apps";
   NAV_FLAT = appsNav ? NAV_FLAT_APPS : NAV_FLAT_CLASSIC;
+  /* 3.26.1: the start screen. In the apps dashboard that is Home (every app at a glance), never the Dashboard app; in sidebar mode, the dashboard. */
   const landing = appsNav ? "home" : "dash";
   const [view, setView] = useState(() => (readStr(NAVMODE_KEY) === "apps" ? "home" : "dash"));
   const [param, setParam] = useState(null);
@@ -6700,7 +6701,7 @@ function Invoeez() {
   };
   const reset = () => {
     if (window.confirm("Load the sample company? It replaces your current books — download a backup first if you need them."))
-      { setState(migrateBooks(DEMO())); setCompany(COMPANY); setMe("u1"); setBannerHidden(false); toast("Sample company loaded", "warn"); offCloud(); go("dash"); }
+      { setState(migrateBooks(DEMO())); setCompany(COMPANY); setMe("u1"); setBannerHidden(false); toast("Sample company loaded", "warn"); offCloud(); go(landing); }
   };
   const startCompany = () => setStarting(true);
   /* Replacing the books must never be uploaded over the company's cloud copy, so sync switches off. */
@@ -6888,7 +6889,7 @@ function Invoeez() {
       <style>{ALL_CSS}</style>
       <Toasts items={toasts} dismiss={dismissToast} />
       <SignInScreen users={users} company={company} theme={theme} toggleTheme={() => setTheme(theme === "dark" ? "light" : "dark")}
-        onSignIn={(id) => { setMe(id); setView("dash"); const u = users.find((x) => x.id === id); toast(`Welcome, ${u ? u.name.split(" ")[0] : ""}`); }} />
+        onSignIn={(id) => { setMe(id); setView(landing); const u = users.find((x) => x.id === id); toast(`Welcome, ${u ? u.name.split(" ")[0] : ""}`); }} />
     </div>
     </CompanyCtx.Provider>
     </ThemeCtx.Provider>);

@@ -1,3 +1,7 @@
+# 3.26.1 — Signing in opens Home
+
+- **Home is the start screen**: in the apps dashboard, signing in, or loading the sample company, now opens **Home**: the search bar and every app at a glance. Before, it opened the Dashboard app, which is still one click away on Home. Sidebar mode has no Home, so it still opens on the dashboard.
+
 # 3.26.0 — Open a customer, vendor or product from any document, and a cleaner record form
 
 - **Open the record behind a document, change it, and carry on**:
