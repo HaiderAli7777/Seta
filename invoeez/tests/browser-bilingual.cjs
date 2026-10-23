@@ -1,0 +1,25 @@
+/* 3.6 dual-language invoice: English + Arabic sheet and PDF (set LANG2=en for English only). Run: node tests/browser-bilingual.cjs */
+const { chromium } = require('/opt/node-tools/node_modules/playwright');const path=require('path'),fs=require('fs');
+(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium'});const ctx=await b.newContext({viewport:{width:1440,height:1000},acceptDownloads:true});const p=await ctx.newPage();
+const errs=[];p.on('pageerror',e=>errs.push('PAGE '+e.message));p.on('dialog',d=>d.accept());
+const co={name:'Al Noor Trading L.L.C.',nameAr:'شركة النور للتجارة ذ.م.م',trn:'100123456700003',address:'Office 402, Al Barsha 1',address2:'Sheikh Zayed Road',city:'Dubai, United Arab Emirates',phone:'+971 4 123 4567',email:'accounts@alnoor.ae',licence:'DED 123456',emirate:'Dubai',currency:'AED',invoiceLang:process.env.LANG2||'en_ar',addressAr:'مكتب 402، البرشاء 1، دبي'};
+await p.addInitScript((co)=>{try{if(!sessionStorage.getItem('x')){localStorage.clear();localStorage.setItem('mizan.sidebar','pinned');localStorage.setItem('mizan.navgroups','{}');localStorage.setItem('mizan.company',JSON.stringify(co));sessionStorage.setItem('x','1');}}catch(e){}},co);
+await p.goto('file://'+path.resolve(__dirname,'../invoeez.html'));await p.waitForTimeout(1200);
+const nav=async k=>{await p.locator(`.sbar [data-k="${k}"]`).first().click();await p.waitForTimeout(350);};
+await nav('products');await p.getByRole('button',{name:'New product'}).first().click();await p.waitForTimeout(250);
+await p.getByLabel('Product name').fill('Laptop Stand Aluminium');await p.getByLabel('Name in Arabic (optional)').fill('حامل حاسوب محمول من الألمنيوم');await p.getByLabel('Sales price · AED').fill('145');
+await p.getByRole('button',{name:/^Save/}).click();await p.waitForTimeout(300);
+await nav('customers');await p.getByRole('button',{name:/New customer/}).first().click();await p.waitForTimeout(250);
+await p.getByLabel('Registered name').fill('Gulf Star Electronics');await p.getByLabel('Name in Arabic (optional)').fill('نجمة الخليج للإلكترونيات');
+await p.getByLabel('Address line 1').fill('Shop 12, Deira City Centre');await p.getByRole('button',{name:/^Create$/}).click();await p.waitForTimeout(300);
+await nav('invoices');await p.getByRole('button',{name:'New invoice'}).first().click();await p.waitForTimeout(450);
+await p.keyboard.type('Gulf');await p.locator('.picker-pop [role=option]').first().waitFor();await p.keyboard.press('Enter');await p.waitForTimeout(250);
+const row=i=>p.locator('.line-grid tbody tr[data-line-id]').nth(i);
+await row(0).locator('input[role=combobox]').click();await p.keyboard.type('Laptop');await p.locator('.picker-pop [role=option]').first().waitFor();await p.keyboard.press('Enter');await p.waitForTimeout(250);
+await p.keyboard.type('3');await p.getByRole('button',{name:'Post to ledger'}).click();await p.waitForTimeout(500);
+await p.getByRole('button',{name:/Print/}).first().click();await p.waitForTimeout(600);
+const tag=process.env.LANG2==='en'?'en':'bi';
+await p.locator('.sheet').screenshot({path:require('path').join(require('os').tmpdir(),`invoeez-sheet-${tag}.png`)});
+const [dl]=await Promise.all([p.waitForEvent('download'),p.getByRole('button',{name:'Download PDF'}).click()]);
+await dl.saveAs(require('path').join(require('os').tmpdir(),`invoeez-invoice-${tag}.pdf`));console.log('pdf saved');
+console.log('errors',errs);await b.close();})();

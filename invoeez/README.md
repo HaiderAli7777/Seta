@@ -1,0 +1,369 @@
+# InvoEez — Invoice Made Easy (3.26.1)
+
+Version 3.3 is the customer-ready build: it opens as a clean company with a full chart of accounts and product categories, and guides the customer through entering their own data, including Excel import and opening balances.
+
+## Open the application
+
+Extract the ZIP and open **invoeez.html** in Chrome or Edge. It contains the application, fonts, icons and the PDF/Excel helpers. Running the application does not require npm, a build step, or an internet connection. External sending/provider integrations retain their original connection requirements.
+
+## What a new customer sees
+
+The file opens as a **clean company** ("My Company") with everything set up but no transactions:
+
+- **Chart of accounts:** 65 accounts — banks and cash, receivables, PDCs, deposits, inventory, VAT input/output, fixed assets and depreciation, payables, accruals, salaries, corporate tax, gratuity, loan, capital, retained earnings, 3900 Opening Balance Equity, four revenue lines, cost of sales and 30 expense accounts.
+- **Product categories:** 27, each with revenue, cost, inventory and adjustment accounts.
+- **Expense items** (rent, utilities, telecom, freight, insurance, …) and payment methods.
+
+Then the **Setup guide** (Utilities & tools › Setup guide) walks through company details, products, customers, vendors, opening balances, the first invoice and a backup, with Excel/CSV import and an opening-balances screen. Books left in the browser by the old built-in demo or an earlier sample build are replaced by a clean company automatically; real company books are kept.
+
+## Upgrade existing data
+
+Books saved by 3.2 open unchanged in 3.3. Customers, vendors and products that earlier versions kept in code are copied into the books on first load (schema 5), so they keep their names and history and can now be edited or deleted like any other record.
+
+1. Open your old application and download a books backup from Settings or the user menu.
+2. Keep that backup and your original HTML file until you have checked the upgrade.
+3. Replace the hosted HTML at the same website address, or open the new local HTML.
+4. Existing books saved in the same browser storage are migrated automatically. If the new file opens the demo company, restore the backup through Settings. The included `mizan.html` compatibility entry can replace a previous file at its existing path, while displaying the Invoeez branding.
+5. Check a familiar invoice, the trial balance, and the stock report before continuing normal entry.
+
+The existing `mizan.books.v2` storage key is retained. The additive schema migration adds categories, salespeople, price lists and stock operations. It captures the accounts on existing posted document lines before enabling category inheritance. Legacy custom product account combinations are preserved through corresponding categories. Version 3.1 removes Discount Master and its customer/document assignments. Existing document line discounts and totals are retained unchanged; old master definitions are kept only in an inactive backup archive field.
+
+Company profile, theme, user selection and connection settings use their existing browser keys. The original books backup format does not transfer these separate preferences. Re-enter the company profile and integration settings if moving to another browser or origin.
+
+## What changed in 3.3
+
+| Area | New behavior |
+| --- | --- |
+| Sample company | A generated year of realistic trading (see above) replaces the small fixed demo. **Load sample company** brings it back at any time. |
+| Start my company | Clears the sample in two steps, keeps the setup, sets the company profile and makes you the administrator. |
+| Setup guide | A new Workspace page with nine steps, live progress, import tools and templates. The dashboard shows the next step. |
+| Excel / CSV import | Products & services and customers & vendors, with templates, flexible column names, comma/semicolon CSV, row-by-row checks, update-or-skip for existing records, new categories, opening stock and opening balances. |
+| Opening balances | Bank and cash, receivables, payables and stock on a start date, against 3900 Opening Balance Equity. |
+| Master data in the books | Every customer, vendor and product can be edited and, when unused, deleted. Unused accounts can be deleted unless a category, payment method or asset uses them; renaming an account now works. |
+| Safer documents | A new invoice, bill or quotation starts with no customer/vendor selected and the search focused, plus one blank line, so nothing is posted to the wrong party by default. |
+| Document lists | **Unpaid** and **Overdue** filters on invoices and bills, compact rows with an overdue badge, and the first 100 rows shown with **Show more**. |
+| Readability | Slightly larger table, form and navigation text; category cards show account names, not just codes; dashboard comparisons are hidden when the earlier period predates the books. |
+| Empty company | Payments, expenses, customers and products work and explain the next step when nothing has been entered yet. |
+
+## Features from 3.0 – 3.2
+
+| Area | Behavior |
+| --- | --- |
+| Dashboard | Emerald and mint visual design, cash balance, revenue/cost/profit/inventory cards, interactive trends and period shortcuts, Collect/Pay priorities, draft and stock actions, recent transactions, customer and product rankings, and cash movement excluding internal bank transfers. The original detailed financial dashboard remains under **Financial detail**. |
+| Navigation | Searchable, collapsible sections for Master data, Sales, Purchases, Stock management, Accounting & banking, Financial reports, Compliance, and Settings & tools. |
+| Customer/vendor creation | Search on the invoice or bill and choose **Create**. Complete the form and use **Save & select** without leaving the transaction. |
+| Product creation | Create a product from the product search on any invoice or bill line. The new record is selected immediately. |
+| Line layouts | **Compact** puts product, stock and essential pricing inputs in an efficient workspace. **Description** expands the description field for a line; **Detailed** shows descriptions on every line. Accounts stay hidden until **Show accounts** is selected. The selected layout is remembered. |
+| New lines | Every added line starts with no product. Description, price, VAT and default accounts fill after selection. Incomplete lines cannot be posted. |
+| Search | Case-insensitive, multi-word search across product names, codes/SKUs, internal IDs, barcodes, brands, categories and packing. Exact identifiers rank first in product pickers. Keyboard arrows and Enter select results. |
+| Global search | Use Ctrl+K or Cmd+K to find products, documents, partners, accounts and screens. Product identifiers also find documents containing the product. |
+| Stock on documents | Goods lines always display current on-hand quantity and unit of measure on both invoices and bills; no toggle is required. Services are identified separately. |
+| Account visibility | **Show accounts** reveals the existing account controls on every product line; **Hide accounts** collapses them. Editable draft invoice and service-bill accounts can be changed or reset to their category default. Goods-bill inventory accounts continue to come from the product category. This is independent of cost visibility and line layout. |
+| Cost visibility | **Show cost** reveals standard cost, current stock cost and estimated sales margin on the current document. |
+| Journal layout | A separate **Journal entry** tab shows the draft preview or posted entry; it no longer competes with the invoice lines for horizontal space. |
+| Line navigation | **Add line** inserts a blank line, scrolls it into view and focuses its product search. A bottom action bar keeps Add line, totals and Save draft accessible. |
+| Page navigation | Opening another section, a document or the document list starts at the top. |
+| Product history | View the last posted sale to the selected customer or purchase from the selected vendor. Open history for date, document, quantity, price, discount and net price; switch between the selected partner and all partners. **Use price** copies the historical price and discount into an editable line. |
+| Product catalog | Switch between product cards and the operational table. Search or scan identifiers; filter by category, goods/services and low stock. Open a product for its sales/purchase history. |
+| Product form | Optional product code/SKU (automatic P-00001 numbering or manual, chosen in Settings → Products & stock), unique barcode, internal ID, brand and category drop-downs with "＋ New…" inline creation, packing, unit, price, cost (set by the first purchase if left empty), current unit cost under the chosen costing method, last purchase price, tax and low-stock threshold. Product details include sales and purchase history. |
+| Document lines | Compact one-row-per-item grid (Odoo-style) with an optional detailed card view. Quantity starts empty and is focused after a product is picked; Enter adds the next line. |
+| Addresses | Address line 1 and Address line 2 for customers, vendors and the company, carried to imports, printouts, statements, PDFs and PINT AE. |
+| Category accounts | Configure revenue, cost/expense, inventory and adjustment/scrap accounts on each category. Products inherit them for new postings. Posted document account mappings remain unchanged. |
+| Salesperson | Manage the sales team and assign a salesperson to a customer. New customer selections copy the assignment to the invoice, where it can be changed. |
+| Physical counts | Enter actual counted quantities, a date and reason. Posting creates an auditable stock adjustment and its balanced journal. Zero is a valid physical count; blank means not counted. |
+| Scrap | Record damaged quantities with a reason. Scrap reduces stock at carrying cost and charges the category adjustment account. Quantities cannot exceed on-hand stock. |
+| Price lists | Sales and purchase lists with product/category/all-item scope, minimum quantity tiers, fixed prices or percentage reductions, active status, and validity dates. A live **Test your price** panel checks the effective rate for a product, date and quantity before saving. |
+| Layout | Responsive desktop, tablet and mobile views, light/dark themes, improved form labels, keyboard-accessible search, and reduced-motion support. |
+
+## Open a customer, vendor or product from any document (3.26)
+
+- **Open and change, without leaving the document**: on a quotation, invoice, credit note, purchase order, bill, debit note, receipt, payment, expense or post-dated cheque, open the customer, vendor or product with:
+  - the arrow inside the **Customer** or **Vendor** field;
+  - the name under the document number;
+  - the arrow on a product line, or **Open product** under the line you are on.
+
+  A panel slides in from the right with the record's figures, details and activity.
+- **The draft follows**: saving brings the open draft up to date, and a message says what changed. Payment terms move the due date, the territory moves the place of supply, and the salesperson and price list follow. A product's new name, price and VAT reach its lines; a price typed on a line stays. Posted documents keep their figures.
+- **One form everywhere**: Customers, Vendors and the product library use the same panel, for new records and existing ones.
+  - **Customers and vendors**: business, contact, terms and pricing, delivery addresses and special prices, plus an Activity tab.
+  - **Products**: product, units and stock, prices and VAT, plus a Price history tab.
+  - **Access**: people without edit rights see it view only, and costs stay hidden from those who may not see them.
+- **Document form**: payment terms beside the TRN, and a warning on drafts for customers with overdue invoices.
+- **Customers and Vendors screens**: tiles that filter the list (balance, overdue, traded this year, without a TRN), and the overdue amount on each row.
+
+The panel lives in `records.jsx`.
+
+## Module colours, companies and branches (3.25)
+
+- **Module colours**: each module uses the colour of its icon for its buttons, links, tabs and selected rows: Sales blue, Purchase violet, Inventory orange, Accounting green, Bank & cash cyan, VAT rose, Reports indigo, Contacts pink, Companies amber, Users & access teal and Settings slate. In the apps dashboard the top bar and page banners take it too. Home, the dashboard and printouts keep the company's colour theme. Settings › Appearance › **Module colours** turns it off.
+- **Companies & branches switcher**: the company button lists every company with its branches under it. Click **All branches** or a branch of the open company, or a branch of another company to open that company on it.
+- **Several branches at once**: the Branch picker is a tick list (All, any branches, or **Only** one). The choice is shared by the dashboard, reports and document lists, is remembered per company for the browser tab, and is named in report headers and exports.
+- **Dashboard**: branch chips with each branch's sales and share, a **Branches** tab putting the branches side by side, and key figures and tabs in their modules' colours. VAT, stock and cash stay company-wide when only some branches are shown, and say so.
+
+The colours live in `modules.jsx`; the switcher and picker in `group.jsx`; the chips and Branches tab in `dashdoc.jsx`.
+
+## The dashboard, laid out like an invoice (3.24)
+
+The dashboard is one sheet that reads in the same order as an invoice or quotation:
+- **Header**: the period, a "Books balanced" status, and net profit where an invoice shows its total.
+- **Progress through the period**: quarters, months or weeks, ticked when done, with the actions beside it (period, dates, branch, More, New invoice).
+- **Eight key figures** as labelled fields: sales, costs, gross profit, cash and bank, to collect, to pay, stock value, and VAT this quarter.
+- **Tabs**: Performance (with a month-by-month table like a document's lines), Money in & out, Products & customers, Activity, and Financial detail.
+- **Foot**: a plain-words summary beside a profit-and-loss totals panel, and a bar that stays at the foot of the screen with net profit.
+
+The layout lives in `dashdoc.jsx`; the panels themselves (movers, customers, health, categories) are unchanged.
+
+**Five colour themes** (Settings › Appearance): Ocean blue, Lagoon teal, Royal violet, Graphite and the new **Desert sand** (espresso and copper). Each sets the sidebar, buttons, charts, the dashboard header and Home's sky, in light and dark, with AA contrast.
+
+## Access rights and a Home for each job (3.23)
+
+**Users & access** has three tabs: **People**, **Roles** and **Access rules**.
+
+- **Roles** come ready for each job: Administrator, Accountant, Salesperson, Sales manager, Purchaser, Procurement manager, Storekeeper and Viewer.
+  - For each area of the business, choose None, View, Create & edit or Full, then fine-tune single actions: view, create, edit, delete, post, export, send.
+  - Options: own documents only, no cost prices, read-only, a discount limit, and what Home shows first.
+  - Built-in roles can be adjusted (and reset to standard), copied, or joined by your own roles.
+- **Access rules** work like Odoo's *Simplify Access Management*. A rule applies to chosen people or roles and only takes rights away; administrators are never restricted. It can:
+  - hide apps or screens;
+  - block actions per area;
+  - hide cost prices or balances;
+  - make price, discount, salesperson or price list read-only on documents;
+  - limit records to own documents, the home branch or the last N days;
+  - hide buttons such as Reset to draft or Print, and document tabs such as the journal entry or activity trail;
+  - make a person read-only, or switch off exports and search.
+
+  Six ready-made rules cover the common cases, and the side panel always says what a rule does and who it affects.
+- **Who can do what** shows each person's access to every app, with **View as** to check it through their eyes.
+- **Rights are enforced everywhere**: menus, Home, search, lists, buttons, document fields, discounts and reports, in both Sidebar and Apps modes.
+
+**Home is shaped by the job.** Apps for the person's role come first (Sales for a salesperson, Purchase for procurement, Accounting for an accountant), and **Your work** shows the three or four figures they act on, each opening where to act. **Create new** sits at the end of the search bar. The top bar uses the theme's colours.
+
+## Cost centres and budgets (3.23)
+
+- **Cost centres** (Accounting › Configuration): departments, projects, branches of activity or vehicles.
+  - Once one exists, invoices, bills, credit and debit notes, and expenses get a **Cost centre** field, and journal entries get one on each line.
+  - **Profit by cost centre** splits the P&L into columns that add up to the company total.
+- **Budgets** (Accounting › Budgets): by account and month, for the company or one cost centre.
+  - Start from this year's run rate, last year's actuals or blank, plus a growth %.
+  - **Budget vs actual** compares any period, pro-rating part months.
+
+## Navigation: Sidebar or Apps dashboard (3.21–3.23)
+
+**Settings › Navigation** switches the whole interface between two modes (also in Ctrl K):
+
+- **Sidebar** (default): the classic menu on the left with every screen; opens on the dashboard; no Home launcher or app overviews.
+- **Apps dashboard**: no sidebar. Home is the search box (with **Create new** at its end) and every app, all in one view. A top bar in the theme's colours shows the apps button, the app you are in (click its name to switch app) and that app's menu: tabs, then **Reporting** and **Configuration** dropdowns, **More** on narrow screens, and a menu sheet on phones. Every app follows the same pattern and each screen has one home app. The menus are defined in `APP_MENUS` in `apps.jsx`.
+
+## Apps (3.20)
+
+In the apps dashboard InvoEez opens on **Home**: search everything and open any of the twelve **apps**: Sales, Purchase, Inventory, Accounting, Bank & cash, VAT & e-invoicing, Reports, Dashboard, Contacts, Companies, Users & access and Settings. Each app has an **overview**: key figures, create buttons, Transactions and Master data cards, its latest activity, and Reporting / Configuration panels. The sidebar menu is grouped the same way, with each app in its own colour.
+
+| App | Screens | Main source files |
+|---|---|---|
+| Sales | Quotations, invoices, credit notes, customers · Configuration: price lists, sales team | `invoeez-source.jsx` (documents, print, WhatsApp/email), `refine.jsx` (discounts), `delivery.jsx`, `enhancements-ui.jsx` (price lists, sales team), `features.jsx` (party special prices), `enhancements-data.jsx` (pricing and history) |
+| Purchase | Purchase orders, vendor bills, debit notes, expenses, vendors | `invoeez-source.jsx`, `approval.jsx` (PO approval) |
+| Inventory | Products, stock counts, scrap · Reporting: valuation · Configuration: categories | `enhancements-ui.jsx` (products, counts, scrap), `invoeez-source.jsx` (costing, valuation) |
+| Accounting | Journals, chart of accounts, fixed assets, budgets · Reporting: budget vs actual, profit by cost centre · Configuration: cost centres, account groups, opening balances | `invoeez-source.jsx`, `ifrs.jsx`, `onboarding.jsx`, `costing.jsx` |
+| Bank & cash | Receipts and payments, post-dated cheques, bank and cash · Configuration: payment methods | `invoeez-source.jsx`, `pdc.jsx` |
+| VAT & e-invoicing | VAT return (FTA 201), PINT AE e-invoices | `invoeez-source.jsx` |
+| Reports | All reports, P&L, balance sheet, ledgers, ageing, profit analysis, branch and group | `reports.jsx`, `compare.jsx`, `ifrs.jsx`, `pro.jsx` (PDF/Excel), `group.jsx` |
+| Dashboard | Live dashboard, laid out like a document (header, progress, key figures, tabs, totals), branch chips and the Branches tab | `dashboard.jsx`, `dashdoc.jsx`, `dash.jsx`, `motion.jsx`, `reports.jsx` |
+| Contacts, Companies, Settings | Customers and vendors; companies and branches; settings and backup | `group.jsx`, `sync.jsx`, `invoeez-source.jsx` |
+| Users & access | People, roles, access rules, who can do what | `access.jsx`, `users.jsx`, `invoeez-source.jsx` |
+| Home and app overviews | — | `apps.jsx` |
+
+## Company and branch set-up (3.19)
+
+**Set up branches** is a three-step guide: head office, every other branch on one screen (codes suggested), then each user's home branch, who sees only their branch, and numbering. Branches can **number their own documents** (INV/DRA/2026/0001) while the default branch keeps the company series. Branches carry an Arabic name, telephone, email, licence and manager, all printed on their invoices. Users can **switch their working branch** from the company switcher, and a user limited to one branch sees only its documents and reports. **Utilities & tools › Companies** shows every company's figures and set-up, and lets you edit, colour, back up or open any of them. Each company has its **own colour theme**, so it is always clear whose books are open.
+
+## Several companies, branches and group reporting (3.18)
+
+Click the company name at the top of the menu to switch company or **Add a company**: name, TRN and address, then choose what to copy (chart of accounts always; users, products, customers and price lists if you want). Each company has its own books, users, VAT return, backup and cloud link; **Settings › Companies** manages them. **Utilities & tools › Branches** turns the company into Head office and adds branches (name, code, address, emirate). Every transaction then carries a branch, starting with the user's home branch, and a payment follows the invoice it settles. Every financial report and the dashboard has a **Branch** filter, each branch's books balance on their own, and the VAT return stays one return for the company. **Branch performance** puts the branches side by side with an "All branches" column equal to the P&L; the **Group report** adds the companies up.
+
+## Line discounts in % or AED, delivery addresses (3.17)
+
+Each line's discount has a **% | AED** switch; AED takes that amount off the whole line, and switching keeps the same money off. Customers can have several **delivery addresses** (branches), one of them the default. Quotations, invoices and credit notes choose where the goods go under **Deliver to**, and the place of supply follows the branch's emirate. A copy of the address stays on the document. It is printed, sent in the e-invoice, shown in the invoice list, and an invoice or quotation can be printed as a **delivery note** with quantities and signature boxes but no prices.
+
+## Smoother movement and discount on the whole quotation (3.16)
+
+The folded menu unfolds beside the page with a single layout and a GPU glide, so it no longer stutters, and its sections fold smoothly. Switches and tab bars slide their highlight to the new choice, documents glide in, and dialogs rise in. Quotations (and every other document) take a **discount on the whole document**, as a fixed amount or a percentage, before VAT. It is shared across the lines so VAT, ledger and stock cost stay exact, then carried to the invoice, printed as Subtotal → Discount → Taxable amount, and sent in the e-invoice as line allowances.
+
+## Offline and cloud sync (3.15)
+
+InvoEez saves every change on the device first, so it works with no internet. Opened from a web address, it also keeps an offline copy of itself and can be installed as an app. **Settings › Cloud sync** connects a device to the company's books on an InvoEez sync server (`server/`, PostgreSQL or files): changes upload as soon as there is a connection and colleagues' changes come in. Records are merged one by one against the last synced copy; master data merges field by field; a document changed on two devices keeps the cloud version and lists yours under "Changed on two devices at once" (**Use mine**); an invoice numbered offline whose number a colleague used takes the next free number. The top bar shows Synced, Offline · N waiting, Syncing… or a problem. Setting up the server: `server/README.md`.
+
+## Dashboard motion (3.14) and the cloud
+
+Dashboard sections animate as you scroll to them; sales by category is a self-drawing donut, business health shows ring gauges, and the banner has drifting lights and a year-to-date sales pace. **CLOUD.md** explains how to put InvoEez online now (any static host) and the plan for a shared PostgreSQL database with real sign-in, server-side permissions, backups and an audit trail.
+
+## Notifications, Undo, shortcuts and list summaries (3.13)
+
+The bell opens a "Needs attention" panel (approvals, overdue invoices and bills, drafts, cheques maturing, stock, backups) that links straight to each filtered list. Deletes offer Undo for seven seconds. Press **?** for keyboard shortcuts — **g** + letter to go somewhere, **n** + letter to create. Invoice, bill, quotation and purchase-order lists open with summary tiles that filter the list. Amounts use tabular numerals in the interface font.
+
+## Sign-in page and one-form documents (3.12)
+
+The sign-in page has an animated brand side and a sign-in side with user tiles and a PIN pad (keypad, dots, a shake on a wrong PIN, a check on the right one). It follows light and dark mode, works on phones and respects "reduce motion". Every document is one form — header, tabs, lines, totals and save bar together — with an "Unsaved changes" indicator, Ctrl+S to save in place, and a prompt before leaving with unsaved changes.
+
+## Document header and purchase-order approval (3.11)
+
+Every document opens with one card: type, number, status, party, total, a progress line, the actions and the fields together; rarely used actions are under **More**. Purchase orders (Purchase › Purchase orders) need one approval: tick **Can approve purchase orders** on the users who approve (Users & access). Any one approver can approve or reject (with a reason); the person who raised an order cannot approve it while another approver exists. Approved orders can be printed, marked as sent and converted to a bill. With no approvers set, orders are confirmed directly.
+
+## Payments on documents and report downloads (3.10)
+
+A posted invoice or bill lists every receipt, post-dated cheque and credit note applied to it and shows the balance still receivable or payable; the printed copy and PDF add "Less: received to date" and "Balance due". Settlements recorded against a document apply to it first, the rest oldest-first — the same rule as the aged receivable and payable. Report PDFs and Excel files keep the statement's structure (sections, groups, subtotals, totals, indentation) with professional formatting.
+
+## Statements, account groups and drill-down (3.9)
+
+**Account groups** (Master › Accounts master › Account groups) define the structure of the balance sheet and the statement of profit or loss: groups can contain accounts and other groups (Assets › Current assets › Cash and cash equivalents › Petty cash). Each account belongs to one group at a time; accounts outside a group appear directly under their section. The profit or loss tab sets each account's **IFRS 18 category** (Operating, Investing, Financing, Income taxes). The statement of profit or loss shows operating profit, profit before financing and income taxes, and profit for the period, followed by notes (EBITDA reconciliation and expenses by nature). Click any account or amount in a statement or the trial balance to see its transactions, then a transaction to open the invoice, bill or journal entry; the breadcrumb leads back. Compare › Number of periods adds up to 12 earlier periods as columns.
+
+## Users, sign-in and testing several users (3.8.2)
+
+Add people in **Users & access** with a role (see Access rights above) and, optionally, a 4–6 digit PIN. With more than one user the app opens on a sign-in screen; **Sign out** and **Switch user** are in the account menu and at the foot of the sidebar. Each browser tab keeps its own user and the tabs stay in step, so two roles can be tested side by side in two tabs of the same browser. Different browsers, Chrome profiles, Incognito windows and other computers each keep their own separate books — sharing one set of books between computers needs the server database. The PIN keeps colleagues in their own role on a shared computer; it is not protection against someone who can read the browser's stored data.
+
+## Comparing periods (3.8.1)
+
+Open Profit & loss, Balance sheet or Profit by product / customer and use **Compare** next to the date range: *Previous period* (previous month, quarter or year to date for those ranges, otherwise the same number of days just before), *Same period last year*, *Custom period* or *Don't compare*. The balance sheet compares as-at dates (last year-end, previous month-end, same date last year or any date). Tables add Comparison, Change and Change % columns, which also appear in PDF and Excel exports. If the comparison period is before your first transaction, the report explains this and suggests periods that can be compared.
+
+## Dashboard (3.8)
+
+The overview opens with a themed banner (net profit counting up, margins, quick actions, cash & bank with its trend), five KPI tiles, then Revenue & costs with Business health, and a row of **Fast-moving items · Slow-moving items · Top customers**. Movement uses the selected period: units sold ÷ days in the period gives a daily rate, and stock on hand ÷ that rate gives days of stock. Under 30 days is fast, over 90 days is slow, and stock with no sales in the period is "not moving". Animations play once and are switched off when the operating system asks for reduced motion.
+
+## Colour themes (3.6.1)
+
+Settings › Appearance › Colour theme: **Ocean blue** (default), **Lagoon teal**, **Royal violet**, **Graphite** or **Desert sand** (3.24). The choice is remembered in the browser (`mizan.accent`) and applies to the sidebar, buttons, charts, the dashboard cash card and the invoice letterhead and PDF, in light and dark mode.
+
+## Menu (3.6)
+
+The graphite sidebar follows the familiar accounting-package layout: **Dashboard · Master** (Accounts master: chart of accounts, customers, vendors · Inventory master: products, categories · Rate master: price lists · Other master: sales team, payment methods · Opening balances) **· Sale · Purchase · Banking** (receipts & payments, post-dated cheques, bank & cash) **· Accounting trans. · Stock management · Reports · VAT & e-invoicing · Utilities & tools**. Items with a **+** open their "new" form directly. Type in the search box (or press **/**) to filter the menu. Collapse the sidebar to a rail; hovering a section shows its items.
+
+## Post-dated cheques (3.6)
+
+| Step | Ledger |
+| --- | --- |
+| Cheque received (Receive cheque, or *Post-dated cheque* on an invoice) | Dr 1210 Post-dated Cheques Received · Cr 1200 Accounts Receivable — the customer's balance is settled now |
+| Deposited | Register only (date and bank) |
+| Cleared | Dr bank · Cr 1210 |
+| Bounced | Dr 1200 · Cr 1210 — the invoice is open again; optional bank charges Dr 6450 · Cr bank |
+| Returned to customer | Dr 1200 · Cr 1210 |
+| Cheque issued to a vendor | Dr 2100 Accounts Payable · Cr 2110 Post-dated Cheques Issued; cleared Dr 2110 · Cr bank; bounced/cancelled Dr 2110 · Cr 2100 |
+
+A cheque can't be deposited or cleared before its cheque date. The screen shows cheques in hand, those maturing in 7 days, those past their date, bounced cheques this year and an eight-week maturity calendar; the register exports to Excel, and a bounced cheque can be replaced by a new one linked to it. The dashboard reminds you of cheques to deposit or that will be presented this week.
+
+## Pricing behavior
+
+- **Unit price order (3.6):** a party special price for this customer or vendor, then an active price-list rule, then the last price this party paid or charged, then the product's sales price (or last purchase price / cost for purchases). If none exists the price stays **empty** — never a silent 0 — and posting asks for it.
+- **Changing an offered price** shows a one-line choice: **Don't store** (this document only; it is skipped the next time the last price is looked up) or **Party special** (this customer or vendor gets the price every time). Party specials are listed, added and removed on the customer or vendor form.
+- Price lists use the document date and each line's quantity.
+- A product-specific rule takes precedence over a category rule; a category rule takes precedence over an all-products rule.
+- Within the same scope, the highest eligible minimum quantity wins.
+- A percentage price-list rule reduces the product's sales price, or its default cost for purchases.
+- Manual line discounts remain available; there is no Discount Master.
+- Selecting a different partner or price list refreshes line pricing. **Reapply pricing** explicitly refreshes all lines.
+- A manually entered unit price is retained when the quantity changes. **Reapply pricing** resets the manual unit-price override.
+- Manual line discounts remain unchanged when quantity, partner, date or price list changes, or when pricing is reapplied. Quantity tiers continue to work when only the discount was edited.
+- Selecting another product resets its line discount to zero. Applying a historical price copies both its price and discount.
+- Existing posted documents are not repriced by changes to master data.
+- Historical unit prices exclude VAT. Stock-cost and margin figures are current estimates, not a reconstruction of historical profitability.
+
+## Inventory and accounting behavior
+
+The original invoice/bill-driven perpetual inventory model is retained. There is one stock pool per product, with no new warehouse reservations or picking workflow. “Available stock” refers to current on-hand quantity; packing is descriptive and does not multiply quantities.
+
+Stock counts and scrap join the chronological ledger replay and appear in stock movements, valuation, journals and financial reports. AVCO, FIFO and standard costing options are retained.
+
+A count records expected quantity, counted quantity and the posted difference. A positive difference increases inventory against the category adjustment account. A negative difference or scrap reduces inventory and charges that account.
+
+To preserve count history, an adjustment cannot predate the latest movement of a selected product. A backdated document cannot be posted before a later stock adjustment affecting the same product, and a posted document cannot be reset to draft if a subsequent stock adjustment depends on it. Use a current correcting document or a return in that case.
+
+The inventory account and product type cannot be changed while affected products hold quantity or inventory value. Revenue and expense account updates apply to new postings. Explicit invoice/service account overrides remain available.
+
+## Features retained
+
+Quotations and conversion, invoices and bills, credit/debit notes, duplication, reset-to-draft where permitted, receipts and payments, banking, payment methods, expenses, assets, manual journals, chart of accounts, partner records, company settings, user-role screens, costing methods, backup/restore, print/PDF and existing Excel/report exports remain in the application.
+
+Reports retained: profit and loss, balance sheet, trial balance, general ledger, partner ledger, customer statements, aged receivables/payables, payment-method analysis, product/customer profitability, inventory valuation and VAT return. The original FTA/e-invoicing screens and provider configuration remain available.
+
+## Hosting and source
+
+See **CLOUD.md** for hosting options and the cloud database plan. For a static host, upload **dist/index.html** as the website entry point, or rename a copy of **invoeez.html** to **index.html**. No separate asset directory is required.
+
+For source changes:
+
+```bash
+npm ci
+npm run build
+npm test
+```
+
+`npm run build` generates `invoeez.html`, `dist/index.html` and a compatible `mizan.html` entry for existing installations. `dist/` also gets `sw.js` (the offline app shell), `manifest.webmanifest` and the app icons, for hosting.
+
+| File | Purpose |
+| --- | --- |
+| `invoeez-source.jsx` | Original accounting/reporting application with integration changes. |
+| `enhancements-data.jsx` | Migration, account snapshots, search, pricing and history helpers. |
+| `company-template.jsx` | Chart of accounts, category and expense-item templates for a new company. |
+| `tests/sample-fixture.jsx` | A generated year of trading used only by the tests. |
+| `brand-assets.jsx` | The InvoEez logo (mark and full logo) as embedded images, cut from `brand/logo-source.jpg`. |
+| `brand.jsx` | Brand colour layer for light and dark mode. |
+| `clarity.jsx` | Plain-language summaries, payment status and the All reports page. |
+| `onboarding.jsx` | Sample banner, Start my company, Setup guide, Excel/CSV import and opening balances. |
+| `enhancements-ui.jsx` | Search pickers (3.26: with the arrow that opens the chosen record), products, categories, pricing, sales team, counts and scrap. New and changed customers, vendors and products use the record panel in `records.jsx`. |
+| `dashboard.jsx` | The dashboard: figures, tabs and panels (3.24: laid out as one document-style sheet). |
+| `dashdoc.jsx` | 3.24 dashboard layout like an invoice: header with period, status and net profit; progress through the period; key figures as fields; month-by-month lines; profit-and-loss totals; the bar at the foot. 3.25: branch chips, the Branches tab, key figures and tabs in their modules' colours. |
+| `records.jsx` | 3.26 the record panel for customers, vendors and products: figures at a glance, details in sections, activity and price history, checks and saving, bringing an open draft up to date, the arrow that opens a record from a field. |
+| `modules.jsx` | 3.25 module colours: each app's colour (light, dark, deep and bright), which module a screen belongs to, and the styles that give a module's screens its colour (screen only, so print keeps the company's colours). |
+| `access.jsx` | 3.23 access rights: areas and actions, the eight built-in roles and your own, access rules (apps and menus, actions, fields, records, buttons and tabs, read-only, no exports or search), effective rights per person, Roles and Access rules screens, Who can do what. |
+| `costing.jsx` | 3.23 cost centres (field, screen, profit by cost centre) and budgets (start from run rate or last year, monthly editor, budget vs actual). |
+| `apps.jsx` | 3.20–3.23 apps dashboard (3.23: Home and Your work for each job, Create new at the end of the search bar, the themed top bar and page banners): the app definitions and `APP_MENUS` (one pattern for every app), Home (search and every app in one view), the top bar (app switcher, tabs, Reporting/Configuration dropdowns, More, phone menu), app overviews (figures, Transactions/Master data cards, latest activity, Reporting/Configuration panels), and Settings › Navigation. |
+| `group.jsx` | 3.18–3.19 several companies (registry, switcher, add a company, Companies screen, colour per company, edit or back up any company; 3.25: the companies & branches switcher, several branches at once, the branch tick list, opening another company on a branch) and branches (guided set-up, Branches screen, numbering per branch, working branch, users limited to a branch, Branch field and picker, branch ledgers), Branch performance and Group report. |
+| `delivery.jsx` | 3.17 delivery addresses: branches on customers, Deliver to on documents, add a branch from a document, address preview, print styles for Deliver to and the delivery note. |
+| `refine.jsx` | 3.16 gliding highlights for switches and tabs, rolling total, totals panel with the discount on the whole document, motion and editor refinements. |
+| `sync.jsx` | 3.15 offline-first cloud sync: record-by-record three-way merge, renumbering, sync engine, top-bar status chip, Settings › Cloud sync, installable app. |
+| `server/` | 3.15 InvoEez sync server (Node.js; PostgreSQL or files): versioned books per company, access keys, also serves the app. See `server/README.md`. |
+| `icons/` | App icons for the installable app (192, 512 and maskable 512 px). |
+| `motion.jsx` | 3.14 dashboard motion: scroll-triggered entrances, pointer light, self-drawing donut, ring gauges, banner lights. |
+| `ux.jsx` | 3.13 notification centre, Undo toasts, keyboard shortcuts and help sheet, summary tiles on document lists, figure typography. |
+| `approval.jsx` | 3.11–3.12 one-form document editor styles, one-piece document header (progress, actions, More menu), purchase-order approval rules, dashboard approval inbox, reject dialog and approver switch. |
+| `pro.jsx` | 3.10 document settlements and payments panel, statement heading, professional PDF and Excel report exports. |
+| `ifrs.jsx` | 3.9 IFRS 18 statements, account groups, statement table with folding groups, drill-down entry view, Account groups screen. |
+| `users.jsx` | 3.12 animated sign-in page and PIN pad; 3.8.2 sign-in screen, sign out, switch user, PINs and the signed-in user per tab. |
+| `compare.jsx` | 3.8.1 report comparison: Compare control, period rules, comparative P&L / balance sheet tables and change charts. |
+| `dash.jsx` | 3.8 animated dashboard: banner, count-up figures, fast/slow-moving items, top customers and motion styles. |
+| `reports.jsx` | 3.7 report design system: KPI tiles, column/line charts, bars, meters and report visuals. |
+| `design.jsx` | New responsive visual system. |
+| `runtime-prefix.js` | Original inline icon and export helpers. |
+| `shell.html` | Original standalone shell and bundled libraries/fonts. |
+| `build.mjs` | Reproducible JSX compilation and standalone packaging. |
+| `tests/engine.cjs` | Executable accounting, pricing, migration and inventory regression checks. |
+| `tests/browser-access.cjs` | 3.23 checks: a user for each job with a live preview, Who can do what, roles (adjust, new role), access rules from a template and from scratch, switching rules off and on; then signing in as each person: Home and apps for the job, own documents only, search limited to what they may open, no costs, the discount limit, no delete or reset, hidden apps, read-only prices, a purchaser who can't post, a viewer without exports, administrators unrestricted, and the sidebar following the same rights. |
+| `tests/browser-costing.cjs` | 3.23 checks: cost centres (quick start and form, unique codes), tagging an invoice, an expense and a journal line, profit by cost centre adding up to the company, a used cost centre that can't be deleted, budgets from the run rate (spreading a year evenly, Budget vs actual with figures and Excel), a budget for one cost centre, and every new screen in the classic menu. |
+| `tests/browser-apps.cjs` | 3.20–3.21 checks: Sidebar mode (classic menu, no Home), switching from Settings, the user menu and Ctrl K, the apps dashboard (app bars, dropdowns, More, context, every screen reachable), plus Home, card counts, filters, search, Create new, Jump back in, every app overview, the menu grouped by app with every screen still in it, All apps and g h, apps limited by role, dark mode, phone. |
+| `tests/browser-records.cjs` | 3.26 checks: arrows on the customer field and product lines and the name in the heading open the record; four figures, sections and activity; Esc asks before discarding; Ctrl S saves the record, not the invoice; new terms move the due date, a new territory the place of supply; a new product price and name reach the line while a typed price stays; a posted invoice keeps its figures; create and select a customer; the overdue warning; Customers tiles and rows; product library, receipts, expenses and cheques; a salesperson's view-only products without costs; phone and dark mode. |
+| `tests/browser-companies.cjs` | 3.25 checks: module colours (each app, dark, Home and dashboard on the theme, print, switched off), the companies & branches switcher (tree, picking a branch, all branches), dashboard branch chips (one, two, back to all; figures from the branches), the Branches tab adding up to the company, the branch tick list on reports, lists following the choice, opening another company on its branch. |
+| `tests/browser-branches.cjs` | 3.18–3.19 checks: guided branch set-up, branch details on print, numbering per branch, working branch, a user limited to one branch, Companies screen (edit, colour, back up another company), company colours; setting up branches (head office, next branch, rules), home branch, Branch field on invoice, payment and journal (a payment follows its invoice), printed branch address, Branch performance adds up to the P&L, branch filter on P&L, trial balance, balance sheet, dashboard and lists, VAT return company-wide, adding a company and switching back, Group report, phone. |
+| `tests/browser-delivery.cjs` | 3.17 checks: % / AED line discounts (switching keeps the money off, limits, saved), branches on a customer and the default, Deliver to and place of supply, adding a branch from the quotation, print, delivery note on screen and as PDF, carried to the invoice, list and search, phone. |
+| `tests/browser-refine.cjs` | 3.16 checks: menu unfolds with one layout and a glide (and reverses smoothly), sections fold, phone drawer, gliding highlights, documents glide in, discount on the whole quotation (amount, %, limits, save, reload, print, convert, post), save bar position, dark, reduced motion. |
+| `tests/browser-offline-sync.cjs` | 3.15 checks with the real sync server (files and PostgreSQL): connect and upload, a second device downloads, offline work waiting, renumbering on reconnect, a field changed on two devices and Use mine, deletions, opening with no internet, wrong key, restore switches sync off. |
+| `tests/browser-dashboard-motion.cjs` | 3.14 / 3.24 checks: scroll reveal, count-up on arrival, donut, rings, header (live dot, year pace, net profit columns), trend lines, pointer light, other donuts intact, reduced motion, print without controls, phone. |
+| `tests/browser-experience.cjs` | 3.13 checks: figure font, summary tiles, notification centre, keyboard shortcuts, Undo on deletes, payments table fit, phone. |
+| `tests/browser-signin-form.cjs` | 3.12 checks: sign-in showcase and animations, user tiles, PIN pad (keypad, wrong PIN, success), reduced motion, phone, dark; document editor as one form, unsaved changes, Ctrl+S, leave prompt. |
+| `tests/browser-approvals.cjs` | 3.11 checks: document header as one card, More menu, quotation status control, approvers, submit / reject / resubmit / approve, no self-approval, reminders, PO printout and PDF, convert to bill, phone layout. |
+| `tests/browser-payments-exports.cjs` | 3.10 checks: payments and balance on invoices and bills, print/PDF balance due, sidebar beside the page, report exports. |
+| `tests/browser-statements.cjs` | 3.9 checks: folded sidebar, form layout, IFRS 18 statement, groups, multi-period comparison, drill-down. |
+| `tests/browser-users.cjs` | 3.8.2 checks: roles, PINs, sign out / sign in, switch user, two tabs in step. |
+| `tests/browser-compare.cjs` | 3.8.1 comparison checks: period rules, comparative tables add up, notes, custom dates, balance sheet, exports. |
+| `tests/browser-dashboard.cjs` | 3.24 dashboard checks: one sheet like a document, period title and status, net profit matching the summary, progress steps (click a quarter), More, eight key figures, profit & loss totals, the bar at the foot, five tabs with counts and tools, month-by-month lines adding up, movers and customers ranked, tab remembered, count-up, drill-downs, reduced motion, dark, five colour themes, a viewer without New invoice. |
+| `templates/` | Excel import templates for products and for customers & vendors (also downloadable inside the app). |
+| `previews/` | Screenshots of the upgraded application. |
+
+## Dual-language invoices (3.6)
+
+Settings › Invoice language: **English only** (default) or **English + Arabic**. Bilingual mode prints Arabic labels under the English ones on the tax invoice and its PDF, plus the company's Arabic name and address (Settings › Company profile), the customer's Arabic name and each product's Arabic name where entered. Arabic in PDFs is drawn by the browser, so it shapes correctly with the fonts on Windows, macOS, Android and iOS. Invoices, PDFs and statements use the graphite and silver colours of the logo.
+
+## Verification and scope
+
+`npm test` checks the sample company for three different "today" dates (balanced books, no negative stock, no dangling references, no future-dated records, unique numbers), the 3.2 → 3.3 master-data migration, the start-fresh template, plus the earlier checks: balanced journals, historical accounts, category inheritance, pricing tiers and dates, manual discounts, retired-rule migration, cash-flow transfer exclusion, counts and scrap, all three costing methods, history, validation and search, plus automatic product codes and first-purchase / last-purchase pricing.
+
+Browser checks for 3.3 covered every screen in the sample and in a brand-new company, Start my company, the setup guide, importing a compressed Excel workbook and a semicolon CSV (including invalid and duplicate rows), round-tripping the app's own templates, opening balances, a first invoice with imported stock, Unpaid/Overdue filters and paging, invoice print and PDF download, account rename, reloading the sample, an in-place upgrade from the original 3.2 file, and light, dark and mobile layouts. The 3.2 checks listed in `tests/browser-checks.json` remain part of the record.
+
+Books stay on the device first. The optional sync server (3.15) shares one set of books per company between devices and keeps every version; access is by a company access key over HTTPS. Users, roles, access rules, PINs and approvals are still enforced by the app, not by the server, so they are not a server security boundary. External e-invoicing/provider submission and message delivery were not exercised against a live service.

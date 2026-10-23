@@ -1,0 +1,114 @@
+INVOEEZ — ENTERPRISE EDITION 3.3 — QUICK START
+
+TRY IT
+1. Extract this ZIP and open invoeez.html in Chrome or Edge.
+2. You are in the SAMPLE COMPANY (Zenith General Trading): a full year of
+   invoices, bills, payments, stock and reports. Try anything — it is not real.
+
+FIND YOUR WAY (3.23)
+- Settings > Navigation: choose Sidebar (a menu on the left, the default)
+  or Apps dashboard (no sidebar: Home shows the search box and every app,
+  and each app has its own menu across the top).
+- In the apps dashboard, Create new is at the end of the search bar on Home;
+  inside an app, Create sits next to the search button at the top right.
+- The dotted button at the top left (or g then h) brings you back Home;
+  click the app's name to jump to another app.
+- Every app's menu reads the same way: Overview, its work and records,
+  then Reporting, then Configuration.
+
+THE DASHBOARD (3.24)
+- It reads like an invoice: the period and net profit at the top, progress
+  through the period (click a quarter to look at it), the key figures, then
+  tabs — Performance, Money in & out, Products & customers, Activity and
+  Financial detail — and a profit & loss summary at the foot.
+- Settings > Appearance > Colour theme: Ocean blue, Lagoon teal, Royal
+  violet, Graphite or Desert sand.
+
+OPEN A CUSTOMER, VENDOR OR PRODUCT FROM A DOCUMENT (3.26)
+- On any quotation, invoice, purchase order, bill, receipt or expense, click
+  the small arrow in the Customer or Vendor field (or their name under the
+  document number) to open their record beside the document.
+- On a product line, click the arrow on the line or "Open product" under it.
+- Change what you need and Save changes (or Ctrl S): the draft follows -
+  new terms move the due date, a new price reaches the lines (a price you
+  typed stays). Esc closes; it asks first if you have unsaved changes.
+
+COLOURS, COMPANIES AND BRANCHES (3.25)
+- Each module uses the colour of its icon: Sales blue, Purchase violet,
+  Inventory orange, Accounting green, and so on. Home and the dashboard keep
+  your colour theme. Settings > Appearance > Module colours turns it off.
+- Click the company button at the top: every company is listed with its
+  branches under it. Pick All branches or one branch, or click a branch of
+  another company to open that company on that branch.
+- Several branches at once: on the dashboard, click branch chips to add or
+  remove them; on reports, tick branches in the Branch list (Only picks just
+  one). The dashboard, reports and lists all follow the same choice.
+- Dashboard > Branches tab: the branches side by side, with Show only.
+
+WHO CAN DO WHAT (3.23)
+- Users & access > People > New user: pick a role (Accountant, Salesperson,
+  Sales manager, Purchaser, Procurement manager, Storekeeper, Viewer or
+  Administrator). The form shows exactly what that person will be able to do.
+- Users & access > Roles: adjust a role (areas: None / View / Create & edit /
+  Full; own documents only; hide costs; discount limit) or add your own.
+- Users & access > Access rules: start from a ready-made rule (hide costs from
+  sales, read-only auditor, no deleting, own documents only, no exports,
+  fixed prices) and pick the people or roles. Rules only take rights away;
+  administrators are never restricted.
+- "Who can do what" and View as show it through each person's eyes. Each
+  person's Home puts the apps for their job first, with their work for today.
+
+COST CENTRES AND BUDGETS (3.23)
+- Accounting > Configuration > Cost centres: one click adds Head office,
+  Sales & marketing, Operations, Warehouse and Projects. Documents, expenses
+  and journal lines then carry a Cost centre.
+- Accounting > Budgets > Create a budget: start from this year's run rate or
+  last year, adjust any month, then see Budget vs actual (Accounting >
+  Reporting, or Reports).
+
+START YOUR OWN COMPANY
+3. Click "Start my company" (banner at the top, or Settings, or the user menu).
+4. Enter your company name, TRN and your name. Choose what to keep:
+   the chart of accounts, product categories and expense items are always kept.
+5. Follow Workspace > Setup guide:
+   - Company details and logo (Settings)
+   - Review the chart of accounts and product categories
+   - Import products and customers/vendors from Excel — templates are in the
+     templates folder and inside the app. Opening stock and opening balances
+     can be columns in those sheets.
+   - Enter opening balances (bank, customers, vendors, stock)
+   - Create your first invoice
+   - Download a backup
+
+KEEP YOUR DATA SAFE
+- Everything is stored in this browser on this computer. Use Settings >
+  Back up regularly and keep the file somewhere safe.
+- Always open the same file at the same address/folder in the same browser.
+
+WORK OFFLINE, SHARE THROUGH THE CLOUD (3.15)
+- InvoEez saves every change on this device first, so it keeps working with
+  no internet.
+- To share one set of books between people and devices, run the InvoEez sync
+  server (server/README.md). Then on each device open its address, go to
+  Settings > Cloud sync, paste the access key and click Connect.
+- Changes upload as soon as there is a connection. The top bar shows Synced,
+  Offline · N waiting, or Syncing.
+
+SEVERAL COMPANIES AND BRANCHES (3.18, 3.19)
+- Click the company name at the top of the menu > Add a company. Each
+  company has its own books, users, TRN, VAT return, backup and colour.
+  Utilities & tools > Companies shows them all.
+- Utilities & tools > Branches > Set up branches: three steps — head office,
+  your other branches, then who works where and how documents are numbered
+  (one series, or a series per branch such as INV/DRA/2026/0001).
+- Working somewhere else today? Click the company name and pick the branch;
+  it is marked Working here and new records go to it.
+- Every report has a Branch filter. Reports > Branch performance compares the
+  branches; Reports > Group report adds the companies together.
+
+UPGRADING FROM 3.2
+- Open the new file at the same address/folder in the same browser: your books
+  load automatically with every customer, vendor and product kept.
+- If they do not appear, use Settings > Restore with your backup file.
+
+See README.md for the full guide, hosting and build instructions.
